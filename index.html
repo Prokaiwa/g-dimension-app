@@ -787,6 +787,9 @@ body{
 }
 
 </style>
+<!-- ═══ VERCEL ANALYTICS ═══ -->
+<script defer src="/_vercel/insights/script.js"></script>
+
 </head>
 <body>
 
@@ -1112,5 +1115,84 @@ function showMsg(el, text, type) {
 })();
 </script>
 
+<script>
+/* ══════════════════════════════════════════════════════
+   ENGAGEMENT & SCROLL DEPTH TRACKING
+   Fires custom events to Vercel Analytics so you can see:
+   - How far people scroll (25%, 50%, 75%, 100%)
+   - Which sections they reach (story, features, cta)
+   - Form interactions (focus, success)
+══════════════════════════════════════════════════════ */
+(function(){
+  // Safe event fire — works whether Vercel Analytics
+  // has loaded or not
+  function track(name, props) {
+    if (window.va) {
+      window.va('event', { name: name, ...(props || {}) });
+    }
+  }
+
+  // ── Scroll depth milestones ──
+  var scrollMarks = { 25: false, 50: false, 75: false, 100: false };
+  window.addEventListener('scroll', function(){
+    var scrolled = window.scrollY;
+    var total    = document.body.scrollHeight - window.innerHeight;
+    if (total <= 0) return;
+    var pct = Math.round((scrolled / total) * 100);
+    [25, 50, 75, 100].forEach(function(mark){
+      if (!scrollMarks[mark] && pct >= mark) {
+        scrollMarks[mark] = true;
+        track('Scroll Depth', { percent: mark });
+      }
+    });
+  }, { passive: true });
+
+  // ── Section visibility ──
+  var sections = {
+    'story':    document.querySelector('.story'),
+    'features': document.querySelector('.features'),
+    'cta':      document.querySelector('.cta'),
+  };
+  var sectionSeen = {};
+
+  var sectionObs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var name = e.target.dataset.trackSection;
+      if (e.isIntersecting && !sectionSeen[name]) {
+        sectionSeen[name] = true;
+        track('Section Viewed', { section: name });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  Object.keys(sections).forEach(function(key){
+    var el = sections[key];
+    if (el) {
+      el.dataset.trackSection = key;
+      sectionObs.observe(el);
+    }
+  });
+
+  // ── Form focus (intent signal) ──
+  document.querySelectorAll('.email-input').forEach(function(input){
+    var fired = false;
+    input.addEventListener('focus', function(){
+      if (!fired) {
+        fired = true;
+        track('Form Focus');
+      }
+    });
+  });
+
+  // ── Form success already fires in submitForm() ──
+  // We hook into it by wrapping the success display
+  var origShow = window.showMsg;
+  window.showMsg = function(el, text, type) {
+    if (type === 'success') track('Waitlist Signup');
+    if (origShow) origShow(el, text, type);
+  };
+
+})();
+</script>
 </body>
 </html>
