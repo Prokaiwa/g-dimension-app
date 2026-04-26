@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* Base app shell — Part 3 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: #050507;
+  color: #f5f5f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabular nums for all number displays — Part 4 */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
