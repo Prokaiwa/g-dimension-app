@@ -1,8 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/", "destination": "/marketing.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "^/$", "dest": "/marketing.html" },
+    { "handle": "filesystem" },
+    { "src": "^/(.*)", "dest": "/index.html" }
   ]
 }
