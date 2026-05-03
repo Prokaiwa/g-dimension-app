@@ -21,14 +21,16 @@ import GaragePdfPage from './pages/GaragePdfPage'
 
 // Tuning
 import TuningPage from './pages/TuningPage'
-import TuningCategoryPage from './pages/TuningCategoryPage'
-import TuningCategoryNewPage from './pages/TuningCategoryNewPage'
+import TuningBuildSheetPage from './pages/TuningBuildSheetPage'
+import TuningBlueprintPage from './pages/TuningBlueprintPage'
+import TuningPartsPage from './pages/TuningPartsPage'
+import TuningAddPage from './pages/TuningAddPage'
 import TuningModDetailPage from './pages/TuningModDetailPage'
 import TuningModEditPage from './pages/TuningModEditPage'
 
 // Maintenance
 import MaintenancePage from './pages/MaintenancePage'
-import MaintenanceServiceDetailPage from './pages/MaintenanceServiceDetailPage'
+import MaintenanceSessionDetailPage from './pages/MaintenanceSessionDetailPage'
 import MaintenanceDetailPage from './pages/MaintenanceDetailPage'
 import MaintenanceDetailNewPage from './pages/MaintenanceDetailNewPage'
 
@@ -67,18 +69,20 @@ export default function App() {
       <Route path="/garage/pdf" element={<GaragePdfPage />} />
 
       <Route path="/tuning" element={<TuningPage />} />
-      <Route path="/tuning/:category" element={<TuningCategoryPage />} />
-      <Route path="/tuning/:category/new" element={<TuningCategoryNewPage />} />
+      <Route path="/tuning/build-sheet" element={<TuningBuildSheetPage />} />
+      <Route path="/tuning/blueprint" element={<TuningBlueprintPage />} />
+      <Route path="/tuning/parts-bin" element={<TuningPartsPage />} />
+      <Route path="/tuning/add" element={<TuningAddPage />} />
       <Route path="/tuning/mods/:modId" element={<TuningModDetailPage />} />
       <Route path="/tuning/mods/:modId/edit" element={<TuningModEditPage />} />
 
       <Route path="/maintenance" element={<MaintenancePage />} />
-      <Route path="/maintenance/:serviceId" element={<MaintenanceServiceDetailPage />} />
+      <Route path="/maintenance/:sessionId" element={<MaintenanceSessionDetailPage />} />
       <Route path="/maintenance/detail" element={<MaintenanceDetailPage />} />
       <Route path="/maintenance/detail/new" element={<MaintenanceDetailNewPage />} />
 
       <Route path="/timeline" element={<TimelinePage />} />
-      <Route path="/entries/:entryId" element={<EntryDetailPage />} />
+      <Route path="/timeline/entry/:entryId" element={<EntryDetailPage />} />
 
       <Route path="/photos" element={<PhotosPage />} />
 

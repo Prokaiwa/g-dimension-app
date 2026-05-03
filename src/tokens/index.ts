@@ -180,3 +180,24 @@ export const MAP_NODE_TUNING      = { left: 295, top: 405 };
 export const MAP_NODE_TIMELINE    = { left: 95,  top: 405 };
 export const MAP_NODE_MAINTENANCE = { left: 270, top: 625 };
 export const MAP_NODE_PHOTOS      = { left: 120, top: 625 };
+
+// Timeline card border-radius — the ONE exception to RADIUS_NONE rule (Part 8)
+export const RADIUS_TIMELINE_CARD = 4;
+
+// ------------------------------------------------------------
+// PART 3 ADDENDUM — TIMELINE COLOR TOKENS
+// ------------------------------------------------------------
+// Timeline is the only light destination — warm parchment palette.
+
+export const COLOR_TIMELINE_BG       = '#f5f2ee'; // warm off-white page background
+export const COLOR_TIMELINE_CARD     = '#faf8f5'; // cards lift slightly off the bg
+export const COLOR_TIMELINE_TEXT     = '#1a1814'; // near-black warm — primary text
+export const COLOR_TIMELINE_MUTED    = '#8a8278'; // secondary text, dates
+export const COLOR_TIMELINE_YEAR     = '#c8b89a'; // warm sand — year marker text
+export const COLOR_TIMELINE_RULE     = '#e0d8ce'; // year divider lines
+export const COLOR_TIMELINE_CHEVRON  = '#c8a050'; // amber-gold — back navigation
+
+// Timeline card accent stripes (3px left border by entry type)
+export const COLOR_TIMELINE_MOD      = '#c8c4bc'; // warm stone grey — modification entries
+export const COLOR_TIMELINE_SERVICE  = '#d4b86a'; // soft warm gold — maintenance/service entries
+export const COLOR_TIMELINE_DETAIL   = '#8ab0c8'; // muted cool blue — detailing entries
