@@ -1,20 +1,4 @@
-// TODO: Implement ConcretePanelInput — Part 9 (Component Patterns)
-//
-// panel-input:
-//   background: GRADIENT_PANEL (180deg #e6e6e8 → #d8d8da 45% → #c4c4c6)
-//   color: COLOR_PANEL_TEXT (#2a2a2c)
-//   font: FONT_UI, weight 700, 14px
-//   padding: 12px 14px, height 44px
-//   border: none; border-bottom: 1px solid COLOR_PANEL_LINE (#6a6a6c)
-//   border-radius: RADIUS_NONE (0) — non-negotiable per Part 8
-//   transition: border-color TRANSITION_STANDARD (200ms ease-out)
-//   :focus → border-bottom-color: COLOR_ACCENT (#c8661a), outline: none
-//
-// panel-input-label:
-//   font: FONT_UI, weight 700, 10px, uppercase, letter-spacing 0.1em
-//   color: COLOR_TEXT_SECONDARY (#8a8a8c)
-//   margin-bottom: 4px (SPACE_XS)
-
+import { useState } from 'react'
 import {
   GRADIENT_PANEL,
   COLOR_PANEL_TEXT,
@@ -34,17 +18,8 @@ export interface ConcretePanelInputProps {
   placeholder?: string
   type?: 'text' | 'number' | 'email' | 'password' | 'tel'
   disabled?: boolean
+  autoComplete?: string
 }
-
-void GRADIENT_PANEL
-void COLOR_PANEL_TEXT
-void COLOR_PANEL_LINE
-void COLOR_ACCENT
-void COLOR_TEXT_SECONDARY
-void FONT_UI
-void SPACE_XS
-void RADIUS_NONE
-void TRANSITION_STANDARD
 
 export default function ConcretePanelInput({
   label,
@@ -53,11 +28,23 @@ export default function ConcretePanelInput({
   placeholder,
   type = 'text',
   disabled = false,
+  autoComplete,
 }: ConcretePanelInputProps) {
+  const [focused, setFocused] = useState(false)
+
   return (
-    <div>
-      {/* TODO: Full ConcretePanelInput with label + concrete gradient — Part 9 */}
-      <label style={{ fontFamily: FONT_UI, color: COLOR_TEXT_SECONDARY, fontSize: 10, marginBottom: SPACE_XS }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <label
+        style={{
+          fontFamily: FONT_UI,
+          fontWeight: 700,
+          fontSize: 10,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: COLOR_TEXT_SECONDARY,
+          marginBottom: SPACE_XS,
+        }}
+      >
         {label}
       </label>
       <input
@@ -66,7 +53,26 @@ export default function ConcretePanelInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        style={{ background: GRADIENT_PANEL, color: COLOR_PANEL_TEXT, borderRadius: RADIUS_NONE }}
+        autoComplete={autoComplete}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          background: GRADIENT_PANEL,
+          color: COLOR_PANEL_TEXT,
+          fontFamily: FONT_UI,
+          fontWeight: 700,
+          fontSize: 14,
+          padding: '12px 14px',
+          height: 44,
+          border: 'none',
+          borderBottom: `1px solid ${focused ? COLOR_ACCENT : COLOR_PANEL_LINE}`,
+          borderRadius: RADIUS_NONE,
+          outline: 'none',
+          transition: `border-color ${TRANSITION_STANDARD}`,
+          boxSizing: 'border-box',
+          width: '100%',
+          opacity: disabled ? 0.5 : 1,
+        }}
       />
     </div>
   )
