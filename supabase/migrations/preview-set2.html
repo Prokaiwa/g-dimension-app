@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G-Dimension Email Templates — Set 2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0c;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #f5f5f5;
+    min-height: 100vh;
+  }
+  .page-header {
+    background: #111111;
+    border-bottom: 1px solid #2a2a2c;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .page-logo {
+    background: #780E12;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+  }
+  .page-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a8a8c;
+  }
+  .tab-bar {
+    display: flex;
+    padding: 24px 32px 0;
+    border-bottom: 1px solid #2a2a2c;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #8a8a8c;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: #f5f5f5; }
+  .tab.active { color: #f5f5f5; border-bottom-color: #780E12; }
+  .preview-area {
+    padding: 40px 32px;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+  .email-preview-wrap { flex: 1; max-width: 600px; }
+  .preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+  }
+  .email-outer {
+    background: #e8e8e8;
+    padding: 32px 20px;
+    border-radius: 2px;
+  }
+  .code-panel { width: 380px; flex-shrink: 0; }
+  .code-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .copy-btn {
+    background: #780E12;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #8e1016; }
+  .copy-btn.copied { background: #2a5c2a; }
+  .code-box {
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: #a8c4a8;
+    height: 520px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .code-box::-webkit-scrollbar { width: 4px; }
+  .code-box::-webkit-scrollbar-track { background: #1a1a1c; }
+  .code-box::-webkit-scrollbar-thumb { background: #3a3a3c; }
+  .template-hidden { display: none; }
+  .instructions {
+    margin: 0 32px 40px;
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #c8661a;
+    padding: 16px 20px;
+  }
+  .instructions h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #c8661a;
+    margin-bottom: 10px;
+  }
+  .instructions ol { padding-left: 18px; }
+  .instructions li {
+    font-size: 12px;
+    color: #8a8a8c;
+    line-height: 1.8;
+  }
+  .instructions li strong { color: #f5f5f5; }
+  .instructions code {
+    background: #1a1a1c;
+    color: #c8a050;
+    padding: 1px 5px;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+  .var-note {
+    margin: 0 32px 32px;
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #3a5c7a;
+    padding: 16px 20px;
+  }
+  .var-note h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6ab0c8;
+    margin-bottom: 10px;
+  }
+  .var-note p {
+    font-size: 12px;
+    color: #8a8a8c;
+    line-height: 1.8;
+  }
+  .var-note code {
+    background: #1a1a1c;
+    color: #c8a050;
+    padding: 1px 5px;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-logo">G-Dimension</div>
+  <div class="page-title">Email Templates — Set 2 · Invite · Magic Link · Reauthentication</div>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('invite', event)">Invite User</div>
+  <div class="tab" onclick="switchTab('magic', event)">Magic Link</div>
+  <div class="tab" onclick="switchTab('reauth', event)">Reauthentication</div>
+</div>
+
+<div class="preview-area">
+
+  <!-- EMAIL PREVIEW -->
+  <div class="email-preview-wrap">
+    <div class="preview-label">Preview</div>
+    <div class="email-outer">
+
+      <!-- ─── INVITE USER ─── -->
+      <div id="preview-invite">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">You've been invited</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Someone invited you<br>to G-Dimension.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">G-Dimension is where automotive enthusiasts document their builds — modifications, maintenance, the full story. Accept your invitation to get started.</p>
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#780E12;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Accept Invitation</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This invitation expires in 24 hours. If you weren't expecting this, you can safely ignore it.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ─── MAGIC LINK ─── -->
+      <div id="preview-magic" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Your sign-in link</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">One tap and<br>you're in.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">Here's your magic link for G-Dimension. No password needed — just click below to sign in directly.</p>
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#780E12;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Sign In to G-Dimension</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 1 hour and can only be used once. If you didn't request this, you can ignore this email — your account remains secure.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+              <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ─── REAUTHENTICATION ─── -->
+      <div id="preview-reauth" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security verification</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Confirm it's<br>really you.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">You're attempting a sensitive action on your G-Dimension account. Enter this one-time code to confirm your identity.</p>
+
+              <!-- OTP CODE BOX -->
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:#111111;padding:20px 40px;border-left:3px solid #780E12;">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#8a8a8c;margin-bottom:10px;">Your verification code</div>
+                    <div style="font-size:36px;font-weight:900;letter-spacing:0.3em;color:#ffffff;font-variant-numeric:tabular-nums;">{{ .Token }}</div>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:11px;color:#a09890;margin:0;line-height:1.7;">This code expires in 10 minutes. Do not share it with anyone. G-Dimension will never ask for this code by phone or chat.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">If you didn't request this, someone may be attempting to access your account. Contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#780E12;">hi@gdimension.app</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div><!-- /email-outer -->
+  </div><!-- /email-preview-wrap -->
+
+  <!-- CODE PANEL -->
+  <div class="code-panel">
+    <div class="code-label">
+      <span>Paste into Supabase</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyCode()">Copy HTML</button>
+    </div>
+    <div class="code-box" id="code-display"></div>
+  </div>
+</div>
+
+<!-- TEMPLATE VARIABLE NOTES -->
+<div class="var-note">
+  <h3>Template Variables — What each uses</h3>
+  <p>
+    <strong style="color:#f5f5f5;">Invite User</strong> — uses <code>{{ .ConfirmationURL }}</code> — the link that creates the account and signs the user in.<br>
+    <strong style="color:#f5f5f5;">Magic Link</strong> — uses <code>{{ .ConfirmationURL }}</code> — a one-time sign-in link, no password required.<br>
+    <strong style="color:#f5f5f5;">Reauthentication</strong> — uses <code>{{ .Token }}</code> — a numeric OTP code the user types into the app. No link button needed.
+  </p>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="instructions">
+  <h3>How to apply in Supabase</h3>
+  <ol>
+    <li>Go to <strong>Dashboard → Authentication → Email Templates</strong></li>
+    <li>Select the template type matching the tab above</li>
+    <li>Paste the HTML into the <strong>Message body</strong> field</li>
+    <li>Set the <strong>Subject line</strong> — shown as a comment at the top of the code panel</li>
+    <li><strong>From name:</strong> <code>G-Dimension</code> &nbsp;·&nbsp; <strong>From address:</strong> <code>hi@gdimension.app</code></li>
+    <li>Save and send a test to verify rendering</li>
+  </ol>
+</div>
+
+<script>
+const templates = {
+  invite: {
+    subject: "You're invited to G-Dimension",
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>You're invited to G-Dimension</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">You've been invited</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Someone invited you<br>to G-Dimension.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">G-Dimension is where automotive enthusiasts document their builds — modifications, maintenance, the full story. Accept your invitation to get started.</p>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#780E12;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Accept Invitation</a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This invitation expires in 24 hours. If you weren't expecting this, you can safely ignore it.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- LINK FALLBACK -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  magic: {
+    subject: 'Your G-Dimension sign-in link',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your G-Dimension sign-in link</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Your sign-in link</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">One tap and<br>you're in.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">Here's your magic link for G-Dimension. No password needed — just click below to sign in directly.</p>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#780E12;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Sign In to G-Dimension</a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 1 hour and can only be used once. If you didn't request this, you can ignore this email — your account remains secure.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- LINK FALLBACK -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  reauth: {
+    subject: 'Your G-Dimension verification code',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your G-Dimension verification code</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security verification</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Confirm it's<br>really you.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">You're attempting a sensitive action on your G-Dimension account. Enter this one-time code to confirm your identity.</p>
+
+      <!-- OTP CODE BOX -->
+      <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:24px;">
+        <tr>
+          <td style="background:#111111;padding:20px 40px;border-left:3px solid #780E12;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#8a8a8c;margin-bottom:10px;">Your verification code</div>
+            <div style="font-size:36px;font-weight:900;letter-spacing:0.3em;color:#ffffff;font-variant-numeric:tabular-nums;">{{ .Token }}</div>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:11px;color:#a09890;margin:0;line-height:1.7;">This code expires in 10 minutes. Do not share it with anyone. G-Dimension will never ask for this code by phone or chat.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- SECURITY NOTE -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">If you didn't request this, someone may be attempting to access your account. Contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#780E12;">hi@gdimension.app</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  }
+};
+
+let currentTab = 'invite';
+
+function switchTab(tab, e) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('[id^="preview-"]').forEach(el => el.classList.add('template-hidden'));
+  document.getElementById('preview-' + tab).classList.remove('template-hidden');
+  updateCode();
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copy HTML';
+  btn.classList.remove('copied');
+}
+
+function updateCode() {
+  const t = templates[currentTab];
+  document.getElementById('code-display').textContent = `<!-- Subject: ${t.subject} -->\n\n${t.html}`;
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(templates[currentTab].html).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy HTML';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+updateCode();
+</script>
+</body>
+</html>

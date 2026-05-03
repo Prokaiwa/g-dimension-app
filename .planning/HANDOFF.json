@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-03T04:41:57Z",
+  "phase": "scaffold-to-auth",
+  "phase_name": "G-Dimension PWA — Steps 1–5 of Build Order",
+  "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
+  "plan": 0,
+  "task": 5,
+  "total_tasks": 24,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Project init — Vite + React 18 + Router v6 + Tailwind", "status": "done", "commit": "fdbc691"},
+    {"id": 2, "name": "Design tokens — src/tokens/index.ts (Parts 3–8 v2.1)", "status": "done", "commit": "fdbc691"},
+    {"id": 3, "name": "Base component stubs — Header, ConcretePanelInput, DestinationNode, SkeuomorphicIconWrapper", "status": "done", "commit": "fdbc691"},
+    {"id": 4, "name": "Supabase setup — migrations 001–023 run externally by user", "status": "done", "commit": "external"},
+    {"id": 5, "name": "Landing page auth gate built and deployed", "status": "done", "commit": "095d242"},
+    {"id": 6, "name": "Vercel routing fixed — marketing page at /, React app at all other routes", "status": "done", "commit": "ed72fee"},
+    {"id": 7, "name": "Architecture upgraded to v3.0 — read and reviewed", "status": "done", "commit": "pending"},
+    {"id": 8, "name": "GitHub MCP added to Claude Code config", "status": "done", "commit": "n/a"}
+  ],
+  "remaining_tasks": [
+    {"id": 9, "name": "Fix App.tsx Tuning routes per v3 — /tuning/build-sheet, /tuning/blueprint, /tuning/parts-bin, /tuning/add", "status": "not_started"},
+    {"id": 10, "name": "Fix App.tsx route /entries/:entryId → /timeline/entry/:entryId", "status": "not_started"},
+    {"id": 11, "name": "Fix App.tsx route /maintenance/:serviceId → /maintenance/:sessionId", "status": "not_started"},
+    {"id": 12, "name": "Add Timeline color tokens to src/tokens/index.ts (v3 Part 3)", "status": "not_started"},
+    {"id": 13, "name": "Add RADIUS_TIMELINE_CARD = 4 to tokens (v3 Part 8 exception)", "status": "not_started"},
+    {"id": 14, "name": "Create src/utils/unitConversion.ts — mi/km, hp/ps/kw, lbft/nm", "status": "not_started"},
+    {"id": 15, "name": "Create src/assets/icons/tuning-dashboard/ folder", "status": "not_started"},
+    {"id": 16, "name": "PostgreSQL MCP setup — needs Supabase DB connection string from user", "status": "blocked_human"},
+    {"id": 17, "name": "GitHub MCP authentication — needs GitHub PAT from user", "status": "blocked_human"},
+    {"id": 18, "name": "Build Order Step 5 — Login and Signup screens (wired to Supabase)", "status": "not_started"},
+    {"id": 19, "name": "Build Order Step 6 — Home map screen", "status": "not_started"},
+    {"id": 20, "name": "Commit MASTER_ARCHITECTURE.md rename + supabase/ folder", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "supabase/ folder not committed to git yet", "type": "technical", "workaround": "git add supabase/ && commit"},
+    {"description": "MASTER_ARCHITECTURE.md renamed locally but not committed", "type": "technical", "workaround": "git add -A && commit"}
+  ],
+  "human_actions_pending": [
+    {"action": "Provide Supabase DB connection string", "context": "Needed to configure PostgreSQL MCP for schema inspection. Find in Supabase Dashboard → Project Settings → Database → Connection string (URI format)", "blocking": false},
+    {"action": "Provide GitHub Personal Access Token", "context": "Needed to authenticate GitHub MCP. Create at github.com/settings/tokens with 'repo' scope", "blocking": false},
+    {"action": "Verify Supabase migrations ran successfully", "context": "User ran migrations externally — run the pre-release checklist queries from MASTER_ARCHITECTURE.md Part 30 to confirm", "blocking": false},
+    {"action": "Run import_nhtsa.js to populate vehicle database", "context": "Run: node scripts/import_nhtsa.js from project root. Requires SUPABASE_URL and SUPABASE_SERVICE_KEY env vars", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Marketing page served at / via Vercel routes config, React app at all other paths", "rationale": "Marketing page stays live during PWA development; vercel.json routes take priority over Vite framework preset"},
+    {"decision": "marketing/ folder deleted, public/marketing.html is the single source", "rationale": "Eliminated duplication"},
+    {"decision": "Architecture file renamed from MASTER_ARCHITECTURE_V3.md to MASTER_ARCHITECTURE.md", "rationale": "Consistent path for future sessions"},
+    {"decision": "GitHub MCP added (HTTP transport), PostgreSQL MCP deferred", "rationale": "GitHub MCP needed no credentials at install time; PostgreSQL MCP needs Supabase connection string from user"}
+  ],
+  "uncommitted_files": [
+    "MASTER_ARCHITECTURE.md (renamed from MASTER_ARCHITECTURE_V3.md)",
+    "supabase/ (entire directory — migrations, edge functions, scripts, docs)"
+  ],
+  "next_action": "Commit outstanding files (MASTER_ARCHITECTURE.md rename + supabase/ folder), then fix App.tsx routes and tokens to match v3.0",
+  "context_notes": "Architecture upgraded from v2.1 to v3.0 this session. Major schema changes: sessions+jobs model replaces modifications table, vehicle_variants and vehicle_search_aliases added, Timeline has full design spec. Tuning routes completely restructured. Unit conversion system designed. Several tokens missing from current tokens/index.ts (timeline palette). App.tsx routes are stale against v3."
+}

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G-Dimension Email Templates</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0c;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #f5f5f5;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .page-header {
+    background: #111111;
+    border-bottom: 1px solid #2a2a2c;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .page-logo {
+    background: #780E12;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+  }
+  .page-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a8a8c;
+  }
+
+  /* ── TABS ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    padding: 24px 32px 0;
+    border-bottom: 1px solid #2a2a2c;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #8a8a8c;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: #f5f5f5; }
+  .tab.active {
+    color: #f5f5f5;
+    border-bottom-color: #780E12;
+  }
+
+  /* ── PREVIEW AREA ── */
+  .preview-area {
+    padding: 40px 32px;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  /* ── EMAIL PREVIEW ── */
+  .email-preview-wrap {
+    flex: 1;
+    max-width: 600px;
+  }
+  .preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+  }
+  .email-outer {
+    background: #e8e8e8;
+    padding: 32px 20px;
+    border-radius: 2px;
+  }
+
+  /* ── CODE PANEL ── */
+  .code-panel {
+    width: 380px;
+    flex-shrink: 0;
+  }
+  .code-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .copy-btn {
+    background: #780E12;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #8e1016; }
+  .copy-btn.copied { background: #2a5c2a; }
+
+  .code-box {
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: #a8c4a8;
+    height: 520px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .code-box::-webkit-scrollbar { width: 4px; }
+  .code-box::-webkit-scrollbar-track { background: #1a1a1c; }
+  .code-box::-webkit-scrollbar-thumb { background: #3a3a3c; }
+
+  .template-hidden { display: none; }
+
+  /* ── SUPABASE INSTRUCTIONS ── */
+  .instructions {
+    margin: 0 32px 40px;
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #c8661a;
+    padding: 16px 20px;
+  }
+  .instructions h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #c8661a;
+    margin-bottom: 10px;
+  }
+  .instructions ol {
+    padding-left: 18px;
+  }
+  .instructions li {
+    font-size: 12px;
+    color: #8a8a8c;
+    line-height: 1.8;
+  }
+  .instructions li strong { color: #f5f5f5; }
+  .instructions code {
+    background: #1a1a1c;
+    color: #c8a050;
+    padding: 1px 5px;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-logo">G-Dimension</div>
+  <div class="page-title">Email Templates — Supabase Auth</div>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('confirm')">Confirm Signup</div>
+  <div class="tab" onclick="switchTab('reset')">Reset Password</div>
+  <div class="tab" onclick="switchTab('change')">Change Email</div>
+</div>
+
+<div class="preview-area">
+  <!-- EMAIL PREVIEW -->
+  <div class="email-preview-wrap">
+    <div class="preview-label">Preview</div>
+    <div class="email-outer">
+
+      <!-- CONFIRM SIGNUP -->
+      <div id="preview-confirm">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+          <!-- HEADER -->
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <!-- AMBER ACCENT LINE -->
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Confirm your account</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Welcome to<br>G-Dimension.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">You're one step away from logging your first build. Confirm your email address and let's get started.</p>
+
+              <!-- CTA BUTTON -->
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#780E12;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Confirm Email Address</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
+            </td>
+          </tr>
+
+          <!-- DIVIDER -->
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+
+          <!-- LINK FALLBACK -->
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;">Button not working? Copy and paste this link:<br>
+              <span style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+                    <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+                  </td>
+                  <td align="right">
+                    <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </div>
+
+      <!-- RESET PASSWORD -->
+      <div id="preview-reset" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Password reset</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Reset your<br>password.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">We received a request to reset the password for your G-Dimension account. Click below to choose a new one.</p>
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#780E12;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Reset Password</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 1 hour. If you didn't request a password reset, your account is safe — you can ignore this email.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;">Button not working? Copy and paste this link:<br>
+              <span style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- CHANGE EMAIL -->
+      <div id="preview-change" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding:28px 32px 24px;">
+                    <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                    <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                  </td>
+                </tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Email change</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Confirm your<br>new email.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">You requested an email change for your G-Dimension account. Click below to confirm your new address and complete the update.</p>
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#780E12;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Confirm New Email</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 24 hours. If you didn't request this change, please contact us at hi@gdimension.app immediately.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#faf8f5;padding:20px 32px 32px;">
+              <p style="font-size:10px;color:#b0a898;line-height:1.8;">Button not working? Copy and paste this link:<br>
+              <span style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div><!-- /email-outer -->
+  </div><!-- /email-preview-wrap -->
+
+  <!-- CODE PANEL -->
+  <div class="code-panel">
+    <div class="code-label">
+      <span>Paste into Supabase</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyCode()">Copy HTML</button>
+    </div>
+    <div class="code-box" id="code-display"></div>
+  </div>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="instructions">
+  <h3>How to apply in Supabase</h3>
+  <ol>
+    <li>Go to <strong>Dashboard → Authentication → Email Templates</strong></li>
+    <li>Select the template type matching the tab above</li>
+    <li>Paste the HTML into the <strong>Message body</strong> field (HTML mode)</li>
+    <li>Set <strong>Subject line</strong> — suggestions below each template</li>
+    <li>Set <strong>From name:</strong> <code>G-Dimension</code> and <strong>From address:</strong> <code>hi@gdimension.app</code></li>
+    <li>Save and send a test email to verify rendering</li>
+  </ol>
+</div>
+
+<script>
+const templates = {
+  confirm: {
+    subject: 'Confirm your G-Dimension account',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirm your G-Dimension account</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Confirm your account</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Welcome to<br>G-Dimension.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">You're one step away from logging your first build. Confirm your email address and let's get started.</p>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#780E12;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Confirm Email Address</a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- LINK FALLBACK -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  reset: {
+    subject: 'Reset your G-Dimension password',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reset your G-Dimension password</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Password reset</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Reset your<br>password.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">We received a request to reset the password for your G-Dimension account. Click below to choose a new one.</p>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#780E12;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Reset Password</a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 1 hour. If you didn't request a password reset, your account is safe — you can ignore this email.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- LINK FALLBACK -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  change: {
+    subject: 'Confirm your new G-Dimension email address',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Confirm your new email address</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Email change</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Confirm your<br>new email.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 32px;">You requested an email change for your G-Dimension account. Click below to confirm your new address and complete the update.</p>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#780E12;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 32px;font-size:12px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#ffffff;text-decoration:none;">Confirm New Email</a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;margin:24px 0 0;line-height:1.7;">This link expires in 24 hours. If you didn't request this change, please contact us at hi@gdimension.app immediately.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- LINK FALLBACK -->
+  <tr>
+    <td style="background:#faf8f5;padding:20px 32px 32px;">
+      <p style="font-size:10px;color:#b0a898;line-height:1.8;margin:0;">Button not working? Copy and paste this link into your browser:<br>
+      <a href="{{ .ConfirmationURL }}" style="color:#780E12;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  }
+};
+
+let currentTab = 'confirm';
+
+function switchTab(tab) {
+  currentTab = tab;
+  // Update tab styles
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  // Show/hide previews
+  document.querySelectorAll('[id^="preview-"]').forEach(el => el.classList.add('template-hidden'));
+  document.getElementById('preview-' + tab).classList.remove('template-hidden');
+  // Update code
+  updateCode();
+  // Reset copy button
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copy HTML';
+  btn.classList.remove('copied');
+}
+
+function updateCode() {
+  const t = templates[currentTab];
+  const display = `<!-- Subject: ${t.subject} -->\n\n${t.html}`;
+  document.getElementById('code-display').textContent = display;
+}
+
+function copyCode() {
+  const t = templates[currentTab];
+  navigator.clipboard.writeText(t.html).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy HTML';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// Init
+updateCode();
+</script>
+</body>
+</html>

@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G-Dimension Email Templates — Set 3</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0c;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #f5f5f5;
+    min-height: 100vh;
+  }
+  .page-header {
+    background: #111111;
+    border-bottom: 1px solid #2a2a2c;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .page-logo {
+    background: #780E12;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+  }
+  .page-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a8a8c;
+  }
+  .tab-bar {
+    display: flex;
+    padding: 24px 32px 0;
+    border-bottom: 1px solid #2a2a2c;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: #8a8a8c;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .tab:hover { color: #f5f5f5; }
+  .tab.active { color: #f5f5f5; border-bottom-color: #780E12; }
+  .preview-area {
+    padding: 40px 32px;
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+  }
+  .email-preview-wrap { flex: 1; max-width: 600px; }
+  .preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+  }
+  .email-outer {
+    background: #e8e8e8;
+    padding: 32px 20px;
+    border-radius: 2px;
+  }
+  .code-panel { width: 380px; flex-shrink: 0; }
+  .code-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #3f3f46;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .copy-btn {
+    background: #780E12;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .copy-btn:hover { background: #8e1016; }
+  .copy-btn.copied { background: #2a5c2a; }
+  .code-box {
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: #a8c4a8;
+    height: 520px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .code-box::-webkit-scrollbar { width: 4px; }
+  .code-box::-webkit-scrollbar-track { background: #1a1a1c; }
+  .code-box::-webkit-scrollbar-thumb { background: #3a3a3c; }
+  .template-hidden { display: none; }
+  .instructions {
+    margin: 0 32px 32px;
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #c8661a;
+    padding: 16px 20px;
+  }
+  .instructions h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #c8661a;
+    margin-bottom: 10px;
+  }
+  .instructions ol { padding-left: 18px; }
+  .instructions li { font-size: 12px; color: #8a8a8c; line-height: 1.8; }
+  .instructions li strong { color: #f5f5f5; }
+  .instructions code {
+    background: #1a1a1c;
+    color: #c8a050;
+    padding: 1px 5px;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+  .smtp-note {
+    margin: 0 32px 32px;
+    background: #111111;
+    border: 1px solid #2a2a2c;
+    border-left: 3px solid #4a6a8a;
+    padding: 16px 20px;
+  }
+  .smtp-note h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6ab0c8;
+    margin-bottom: 10px;
+  }
+  .smtp-note p { font-size: 12px; color: #8a8a8c; line-height: 1.8; }
+  .smtp-note strong { color: #f5f5f5; }
+  .smtp-note code {
+    background: #1a1a1c;
+    color: #c8a050;
+    padding: 1px 5px;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="page-logo">G-Dimension</div>
+  <div class="page-title">Email Templates — Set 3 · Security Notifications</div>
+</div>
+
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('pwchanged', event)">Password Changed</div>
+  <div class="tab" onclick="switchTab('emailchanged', event)">Email Changed</div>
+  <div class="tab" onclick="switchTab('linked', event)">Identity Linked</div>
+  <div class="tab" onclick="switchTab('unlinked', event)">Identity Unlinked</div>
+</div>
+
+<div class="preview-area">
+
+  <div class="email-preview-wrap">
+    <div class="preview-label">Preview</div>
+    <div class="email-outer">
+
+      <!-- ─── PASSWORD CHANGED ─── -->
+      <div id="preview-pwchanged">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:28px 32px 24px;">
+                  <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                  <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                </td></tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security alert</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Your password<br>was changed.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">The password for your G-Dimension account was successfully updated. If you made this change, no further action is needed.</p>
+              <!-- ALERT BOX -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+                    <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> make this change, your account may be compromised. Contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">G-Dimension will never ask for your password by email, phone, or chat.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ─── EMAIL CHANGED ─── -->
+      <div id="preview-emailchanged" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:28px 32px 24px;">
+                  <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                  <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                </td></tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security alert</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Your email address<br>was changed.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">The email address on your G-Dimension account has been updated. Future sign-in emails will be sent to your new address.</p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+                    <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> make this change, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">This notification was sent to your previous email address as a security measure.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ─── IDENTITY LINKED ─── -->
+      <div id="preview-linked" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:28px 32px 24px;">
+                  <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                  <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                </td></tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Account update</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">A new sign-in method<br>was linked.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">A new sign-in method has been linked to your G-Dimension account. You can now use it to sign in alongside your existing method.</p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+                    <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> link a new sign-in method, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">You can manage your linked sign-in methods anytime in your account settings.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- ─── IDENTITY UNLINKED ─── -->
+      <div id="preview-unlinked" class="template-hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;margin:0 auto;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+          <tr>
+            <td style="background:#780E12;padding:0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="padding:28px 32px 24px;">
+                  <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+                  <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+                </td></tr>
+                <tr><td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#faf8f5;padding:40px 32px 32px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Account update</p>
+              <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">A sign-in method<br>was removed.</p>
+              <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">A sign-in method has been unlinked from your G-Dimension account. You will no longer be able to use it to sign in.</p>
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+                    <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> remove this sign-in method, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">You can manage your linked sign-in methods anytime in your account settings.</p>
+            </td>
+          </tr>
+          <tr><td style="background:#faf8f5;padding:0 32px;"><div style="height:1px;background:#e0d8ce;"></div></td></tr>
+          <tr>
+            <td style="background:#111111;padding:20px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td><span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span><span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span></td>
+                  <td align="right"><a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CODE PANEL -->
+  <div class="code-panel">
+    <div class="code-label">
+      <span>Paste into Supabase</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyCode()">Copy HTML</button>
+    </div>
+    <div class="code-box" id="code-display"></div>
+  </div>
+</div>
+
+<!-- SMTP NOTE -->
+<div class="smtp-note">
+  <h3>Sending from hi@gdimension.app</h3>
+  <p>
+    To use your own from address, go to <strong>Dashboard → Project Settings → Authentication → SMTP Settings</strong> and connect a custom SMTP provider.<br>
+    Recommended: <strong>Resend</strong> (resend.com) — free up to 3,000 emails/month, 5-minute setup, works perfectly with Supabase.<br>
+    Once connected, set <strong>Sender name:</strong> <code>G-Dimension</code> and <strong>Sender email:</strong> <code>hi@gdimension.app</code>
+  </p>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div class="instructions">
+  <h3>Which templates to skip</h3>
+  <ol>
+    <li><strong>Phone number changed</strong> — G-Dimension has no phone authentication. Leave at default.</li>
+    <li><strong>MFA method added / removed</strong> — No MFA configured yet. Leave at default until MFA is added post-launch.</li>
+  </ol>
+</div>
+
+<script>
+const templates = {
+  pwchanged: {
+    subject: 'Your G-Dimension password was changed',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your G-Dimension password was changed</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security alert</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Your password<br>was changed.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">The password for your G-Dimension account was successfully updated. If you made this change, no further action is needed.</p>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+            <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> make this change, your account may be compromised. Contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">G-Dimension will never ask for your password by email, phone, or chat.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  emailchanged: {
+    subject: 'Your G-Dimension email address was changed',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your G-Dimension email address was changed</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Security alert</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">Your email address<br>was changed.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">The email address on your G-Dimension account has been updated. Future sign-in emails will be sent to your new address.</p>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+            <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> make this change, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">This notification was sent to your previous email address as a security measure.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  linked: {
+    subject: 'A new sign-in method was linked to your G-Dimension account',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A new sign-in method was linked to your account</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Account update</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">A new sign-in method<br>was linked.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">A new sign-in method has been linked to your G-Dimension account. You can now use it to sign in alongside your existing method.</p>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+            <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> link a new sign-in method, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">You can manage your linked sign-in methods anytime in your account settings.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  },
+
+  unlinked: {
+    subject: 'A sign-in method was removed from your G-Dimension account',
+    html: `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A sign-in method was removed from your account</title>
+</head>
+<body style="margin:0;padding:0;background:#e8e8e8;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e8e8;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <!-- HEADER -->
+  <tr>
+    <td style="background:#780E12;padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 24px;">
+            <div style="font-size:22px;font-weight:900;letter-spacing:0.06em;color:#ffffff;text-transform:uppercase;">G-Dimension</div>
+            <div style="font-size:10px;font-weight:500;letter-spacing:0.2em;color:rgba(255,255,255,0.5);text-transform:uppercase;margin-top:4px;">Your build. Documented.</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="height:2px;background:linear-gradient(90deg,#c8661a 0%,#4a0a0c 100%);"></td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- BODY -->
+  <tr>
+    <td style="background:#faf8f5;padding:40px 32px 32px;">
+      <p style="font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#c8661a;margin:0 0 16px;">Account update</p>
+      <p style="font-size:22px;font-weight:800;color:#1a1814;margin:0 0 20px;line-height:1.25;letter-spacing:-0.01em;">A sign-in method<br>was removed.</p>
+      <p style="font-size:14px;color:#5a5650;line-height:1.7;margin:0 0 24px;">A sign-in method has been unlinked from your G-Dimension account. You will no longer be able to use it to sign in.</p>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;">
+        <tr>
+          <td style="background:#111111;padding:16px 20px;border-left:3px solid #780E12;">
+            <p style="font-size:12px;color:#f5f5f5;line-height:1.7;margin:0;">If you did <strong>not</strong> remove this sign-in method, contact us immediately at <a href="mailto:hi@gdimension.app" style="color:#c8661a;text-decoration:none;">hi@gdimension.app</a></p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#a09890;line-height:1.7;margin:0;">You can manage your linked sign-in methods anytime in your account settings.</p>
+    </td>
+  </tr>
+
+  <!-- DIVIDER -->
+  <tr>
+    <td style="background:#faf8f5;padding:0 32px;">
+      <div style="height:1px;background:#e0d8ce;"></div>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#111111;padding:20px 32px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td>
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.1em;color:#ffffff;text-transform:uppercase;">G-Dimension</span>
+            <span style="font-size:10px;color:#3f3f46;margin-left:10px;">gdimension.app</span>
+          </td>
+          <td align="right">
+            <a href="mailto:hi@gdimension.app" style="font-size:10px;color:#3f3f46;text-decoration:none;">hi@gdimension.app</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`
+  }
+};
+
+let currentTab = 'pwchanged';
+
+function switchTab(tab, e) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('[id^="preview-"]').forEach(el => el.classList.add('template-hidden'));
+  document.getElementById('preview-' + tab).classList.remove('template-hidden');
+  updateCode();
+  const btn = document.getElementById('copy-btn');
+  btn.textContent = 'Copy HTML';
+  btn.classList.remove('copied');
+}
+
+function updateCode() {
+  const t = templates[currentTab];
+  document.getElementById('code-display').textContent = `<!-- Subject: ${t.subject} -->\n\n${t.html}`;
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(templates[currentTab].html).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy HTML';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+updateCode();
+</script>
+</body>
+</html>
