@@ -1,51 +1,61 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-03T05:30:00Z",
-  "phase": "scaffold-to-auth",
-  "phase_name": "G-Dimension PWA — Steps 1–5 of Build Order",
+  "timestamp": "2026-05-04T04:13:34.427Z",
+  "phase": "build-order",
+  "phase_name": "G-Dimension PWA — UI Build",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 15,
+  "task": 19,
   "total_tasks": 24,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Project init — Vite + React 18 + Router v6 + Tailwind", "status": "done", "commit": "fdbc691"},
-    {"id": 2, "name": "Design tokens — src/tokens/index.ts (Parts 3–8 v2.1)", "status": "done", "commit": "fdbc691"},
-    {"id": 3, "name": "Base component stubs — Header, ConcretePanelInput, DestinationNode, SkeuomorphicIconWrapper", "status": "done", "commit": "fdbc691"},
-    {"id": 4, "name": "Supabase setup — migrations 001–023 run externally by user", "status": "done", "commit": "external"},
-    {"id": 5, "name": "Landing page auth gate built and deployed", "status": "done", "commit": "095d242"},
-    {"id": 6, "name": "Vercel routing fixed — marketing page at /, React app at all other routes", "status": "done", "commit": "ed72fee"},
-    {"id": 7, "name": "Architecture upgraded to v3.0 — read and reviewed", "status": "done", "commit": "91e2721"},
-    {"id": 8, "name": "GitHub MCP added to Claude Code config", "status": "done", "commit": "n/a"},
-    {"id": 20, "name": "Commit MASTER_ARCHITECTURE.md rename + supabase/ folder", "status": "done", "commit": "91e2721"},
-    {"id": 9, "name": "Fix App.tsx Tuning routes per v3 — /tuning/build-sheet, /tuning/blueprint, /tuning/parts-bin, /tuning/add", "status": "done", "commit": "bf70c80"},
-    {"id": 10, "name": "Fix App.tsx route /entries/:entryId → /timeline/entry/:entryId", "status": "done", "commit": "bf70c80"},
-    {"id": 11, "name": "Fix App.tsx route /maintenance/:serviceId → /maintenance/:sessionId", "status": "done", "commit": "bf70c80"},
-    {"id": 12, "name": "Add Timeline color tokens to src/tokens/index.ts (v3 Part 3)", "status": "done", "commit": "bf70c80"},
-    {"id": 13, "name": "Add RADIUS_TIMELINE_CARD = 4 to tokens (v3 Part 8 exception)", "status": "done", "commit": "bf70c80"},
-    {"id": 14, "name": "Create src/utils/unitConversion.ts — mi/km, hp/ps/kw, lbft/nm", "status": "done", "commit": "bf70c80"},
-    {"id": 15, "name": "Create src/assets/icons/tuning-dashboard/ folder", "status": "done", "commit": "bf70c80"}
+    {"id": 1,  "name": "Project init — Vite + React 18 + Router v6 + Tailwind", "status": "done", "commit": "fdbc691"},
+    {"id": 2,  "name": "Design tokens — src/tokens/index.ts", "status": "done", "commit": "fdbc691"},
+    {"id": 3,  "name": "Base component stubs", "status": "done", "commit": "fdbc691"},
+    {"id": 4,  "name": "Supabase migrations 001–023 run externally", "status": "done", "commit": "external"},
+    {"id": 5,  "name": "Landing page auth gate", "status": "done", "commit": "095d242"},
+    {"id": 6,  "name": "Vercel routing fixed", "status": "done", "commit": "ed72fee"},
+    {"id": 7,  "name": "Architecture upgraded to v3.0", "status": "done", "commit": "91e2721"},
+    {"id": 8,  "name": "GitHub MCP added", "status": "done", "commit": "n/a"},
+    {"id": 9,  "name": "Fix App.tsx routes to v3", "status": "done", "commit": "bf70c80"},
+    {"id": 10, "name": "Add Timeline + Map tokens to tokens/index.ts", "status": "done", "commit": "bf70c80"},
+    {"id": 11, "name": "Create unitConversion.ts", "status": "done", "commit": "bf70c80"},
+    {"id": 12, "name": "Build Order Step 5 — Login + Signup screens", "status": "done", "commit": "da04663"},
+    {"id": 13, "name": "Build Order Step 6 — Home map screen (HomePage.tsx)", "status": "done", "commit": "uncommitted"},
+    {"id": 14, "name": "Build Order Step 7 — Garage screen (GaragePage.tsx)", "status": "done", "commit": "uncommitted"}
   ],
   "remaining_tasks": [
-    {"id": 16, "name": "PostgreSQL MCP setup — needs Supabase DB connection string from user", "status": "blocked_human"},
-    {"id": 17, "name": "GitHub MCP authentication — needs GitHub PAT from user", "status": "blocked_human"},
-    {"id": 18, "name": "Build Order Step 5 — Login and Signup screens (wired to Supabase)", "status": "not_started"},
-    {"id": 19, "name": "Build Order Step 6 — Home map screen", "status": "not_started"}
+    {"id": 15, "name": "Add a Car flow — /garage/cars/new multi-step form (Step 1: Year/Make/Model/Trim/Nickname/Mileage, Step 2: Story optional, Step 3: Photo)", "status": "not_started"},
+    {"id": 16, "name": "My Cars carousel — /garage/cars swipeable 3/4 car showcase", "status": "not_started"},
+    {"id": 17, "name": "Snapshot screen — /garage/snapshot read-only car spec sheet", "status": "not_started"},
+    {"id": 18, "name": "Tuning screen — /tuning category browsing", "status": "not_started"},
+    {"id": 19, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
+    {"id": 20, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"},
+    {"id": 21, "name": "Username claim flow — post-signup @handle setup with availability check", "status": "not_started"},
+    {"id": 22, "name": "Onboarding coachmarks — first-run tutorial (Build Order Step 11)", "status": "not_started"},
+    {"id": 23, "name": "PostgreSQL MCP setup — needs Supabase DB connection string from user", "status": "blocked_human"},
+    {"id": 24, "name": "GitHub MCP authentication — needs GitHub PAT from user", "status": "blocked_human"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Provide Supabase DB connection string", "context": "Needed to configure PostgreSQL MCP for schema inspection. Find in Supabase Dashboard → Project Settings → Database → Connection string (URI format)", "blocking": false},
-    {"action": "Provide GitHub Personal Access Token", "context": "Needed to authenticate GitHub MCP. Create at github.com/settings/tokens with 'repo' scope", "blocking": false},
-    {"action": "Verify Supabase migrations ran successfully", "context": "User ran migrations externally — run the pre-release checklist queries from MASTER_ARCHITECTURE.md Part 30 to confirm", "blocking": false},
-    {"action": "Run import_nhtsa.js to populate vehicle database", "context": "Run: node scripts/import_nhtsa.js from project root. Requires SUPABASE_URL and SUPABASE_SERVICE_KEY env vars", "blocking": false}
+    {"action": "Provide Supabase DB connection string", "context": "Needed for PostgreSQL MCP. Find in Supabase Dashboard → Project Settings → Database → Connection string (URI format)", "blocking": false},
+    {"action": "Provide GitHub Personal Access Token", "context": "Needed to authenticate GitHub MCP. Create at github.com/settings/tokens with 'repo' scope", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Marketing page served at / via Vercel routes config, React app at all other paths", "rationale": "Marketing page stays live during PWA development; vercel.json routes take priority over Vite framework preset"},
-    {"decision": "marketing/ folder deleted, public/marketing.html is the single source", "rationale": "Eliminated duplication"},
-    {"decision": "Architecture file renamed from MASTER_ARCHITECTURE_V3.md to MASTER_ARCHITECTURE.md", "rationale": "Consistent path for future sessions"},
-    {"decision": "GitHub MCP added (HTTP transport), PostgreSQL MCP deferred", "rationale": "GitHub MCP needed no credentials at install time; PostgreSQL MCP needs Supabase connection string from user"}
+    {"decision": "Home map icon nodes positioned as percentages of 390×800 canvas so they scale to any screen", "rationale": "Fixed pixel positions broke layout on real phones"},
+    {"decision": "World entry animation uses worldIn keyframe (not destIn) — destIn has translate(-50%,-50%) which shifted the whole map", "rationale": "Bug discovered on device testing"},
+    {"decision": "Ground shadow is a flex flow sibling between icon and label, not position:absolute inside wrapper", "rationale": "Absolute shadow bled over label text"},
+    {"decision": "Garage hero image is full-bleed background behind entire screen with gradient overlay", "rationale": "User wanted image to fill whole page, not just top section"},
+    {"decision": "Garage grid icons use real PNG files from src/assets/icons/garage/, no concrete tile background", "rationale": "User added real icons; removed GRADIENT_PANEL square behind them"},
+    {"decision": "Username claim + onboarding coachmarks deferred until all 5 destinations have screens", "rationale": "Tutorial should point at real screens, not stubs"},
+    {"decision": "Dead-end road spur removed from Home map", "rationale": "User found it confusing; future Track feature can add it back"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Build Order Step 5 — Login and Signup screens wired to Supabase auth. See MASTER_ARCHITECTURE.md Part 11 for screen specs and Part 13 for auth flow.",
-  "context_notes": "All v3 scaffold work is now committed and clean. App.tsx routes match v3 exactly. Tokens include Timeline palette + RADIUS_TIMELINE_CARD. unitConversion.ts handles all unit display conversions (mi/km, hp/ps/kw, lbft/nm). The tuning-dashboard icons folder is ready for PNG assets. Next up: Login + Signup screens (Build Order Step 5), which require Supabase auth to be wired up. Supabase schema (migrations 001-026) was run externally — verify with Part 30 checklist before starting auth screens."
+  "uncommitted_files": [
+    "index.html",
+    "src/pages/HomePage.tsx",
+    "src/pages/GaragePage.tsx",
+    "src/assets/icons/garage/ (new folder with 6 PNGs)"
+  ],
+  "next_action": "Build the Add a Car flow — /garage/cars/new. Multi-step: Step 1 (Year/Make/Model/Trim/Nickname/Mileage required), Step 2 (Story optional with SKIP), Step 3 photo deferred. Uses ConcretePanelInput, FONT_TITLE italic for step headings, COLOR_ACCENT CTA buttons. On save, writes to Supabase 'cars' table.",
+  "context_notes": "Supabase project ref: uxqoernfrtgclpneirvc. Auth is fully working (user tested signup+confirm+login). Google OAuth configured. Dev server running at port 5174 with --host for phone testing. App lives at ~/Desktop/g-dimension. The MASTER_ARCHITECTURE.md was deleted from .planning/ but its content is in the session transcript at .claude/projects/-Users-davidscantee/37a34cf2-6710-4ef9-9e83-5cd3148165e6.jsonl line 9."
 }
