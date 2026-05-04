@@ -19,19 +19,12 @@ import {
   COLOR_BURGUNDY_L,
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
-  COLOR_TEXT_SECONDARY,
-  GRADIENT_PANEL,
   FONT_UI,
   FONT_TITLE,
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
-  ICON_WRAPPER_GRID,
-  ICON_WRAPPER_GRID_H,
-  CAST_SHADOW_ROTATE_ODD,
-  CAST_SHADOW_ROTATE_EVEN,
   CAST_SHADOW_OPACITY,
-  CAST_SHADOW_BLUR,
   SPACE_LG,
   SPACE_MD,
   SPACE_SM,
@@ -109,8 +102,8 @@ export default function GaragePage() {
           50%       { opacity: 0.6;  }
         }
         @keyframes addPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(200,102,26,0.0); }
-          50%       { box-shadow: 0 0 0 8px rgba(200,102,26,0.15); }
+          0%, 100% { box-shadow: 0 0 8px rgba(200,102,26,0.35), 0 0 0 0 rgba(200,102,26,0.0); }
+          50%       { box-shadow: 0 0 24px rgba(200,102,26,0.85), 0 0 0 14px rgba(200,102,26,0.14); }
         }
       `}</style>
 
@@ -191,13 +184,13 @@ export default function GaragePage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: `${SPACE_SM}px ${SPACE_LG}px ${SPACE_LG}px`,
+        padding: `${SPACE_SM}px ${SPACE_SM}px 37px`,
       }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gridTemplateRows: 'repeat(2, auto)',
-          gap: `${SPACE_LG}px ${SPACE_MD}px`,
+          gap: `${SPACE_LG}px ${SPACE_XS}px`,
           width: '100%',
         }}>
           {GRID_TILES.map((tile, i) => (
@@ -212,34 +205,34 @@ export default function GaragePage() {
               }}
             >
               {/* Icon tile + cast shadow */}
-              <div style={{ position: 'relative', width: ICON_WRAPPER_GRID, height: ICON_WRAPPER_GRID + 20 }}>
-                {/* Cast shadow */}
+              <div style={{ position: 'relative', width: 126, height: 126 }}>
+                {/* Shadow entirely behind icon — shows through PNG transparency as a halo */}
                 <div style={{
                   position: 'absolute',
-                  top: ICON_WRAPPER_GRID,
-                  left: ICON_WRAPPER_GRID / 2,
-                  width: ICON_WRAPPER_GRID,
-                  height: ICON_WRAPPER_GRID_H,
-                  transform: CAST_SHADOW_ROTATE_ODD,
+                  top: 90,
+                  left: 63,
+                  width: 66,
+                  height: 60,
+                  transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
                   background: 'rgba(0,0,0,1)',
                   opacity: CAST_SHADOW_OPACITY,
-                  filter: `blur(${CAST_SHADOW_BLUR})`,
+                  filter: 'blur(5px)',
                 }} />
-                {/* Icon — no background tile */}
+                {/* Icon — renders on top of shadow */}
                 <img src={tile.src} alt={tile.label}
                   style={{
                     position: 'absolute', top: 0, left: 0,
-                    width: ICON_WRAPPER_GRID, height: ICON_WRAPPER_GRID,
+                    width: 126, height: 126,
                     objectFit: 'contain',
                   }}
                   draggable={false} />
               </div>
-              {/* Label */}
+              {/* Label — zIndex above any shadow bleed */}
               <span style={{
-                fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                color: COLOR_TEXT_SECONDARY,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                marginTop: SPACE_XS,
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                color: 'rgba(245,245,245,0.8)',
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                marginTop: -20, position: 'relative', zIndex: 1,
               }}>
                 {tile.label}
               </span>
@@ -258,21 +251,21 @@ export default function GaragePage() {
           paddingBottom: SPACE_LG, zIndex: 4,
         }}>
           <button
-            onClick={() => navigate('/garage/cars/new')}
+            onClick={() => navigate('/garage/cars')}
             style={{
               width: 48, height: 48, borderRadius: '50%',
-              background: 'rgba(200,102,26,0.12)',
-              border: '1.5px solid rgba(200,102,26,0.45)',
+              background: 'rgba(200,102,26,0.22)',
+              border: '1.5px solid rgba(200,102,26,0.75)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', marginBottom: SPACE_SM,
               animation: 'addPulse 3s ease-in-out infinite',
             }}
           >
-            <span style={{ color: COLOR_ACCENT, fontSize: 26, fontWeight: 300, lineHeight: 1, marginTop: -1 }}>+</span>
+            <span style={{ color: COLOR_ACCENT, fontSize: 26, fontWeight: 300, lineHeight: 1, marginTop: -1, textShadow: '0 0 10px rgba(200,102,26,0.9)' }}>+</span>
           </button>
           <p style={{
             fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
-            fontSize: 12.5, color: 'rgba(245,232,210,0.6)',
+            fontSize: 13.5, color: 'rgba(245,245,245,0.65)',
             textAlign: 'center', margin: 0, maxWidth: 210, lineHeight: 1.55,
           }}>
             When you're ready, tap here to place your car in the garage.
