@@ -198,11 +198,14 @@ async function importAllModels() {
   console.log('\n📍 Step 2: Fetching models for each make...')
   console.log('  This will take 15-20 minutes. Progress logged every 50 makes.\n')
 
-  // Get all makes from our database (includes both NHTSA and manual entries)
+  // Only fetch priority makes — avoids Supabase's 1000-row default limit swallowing
+  // all 12k NHTSA entries (trailer companies, farm equipment, etc.) before reaching
+  // Toyota, Nissan, Honda which live alphabetically near the end.
   const { data: makes, error } = await supabase
     .from('vehicle_makes')
     .select('id, make_name, source')
-    .eq('source', 'nhtsa')
+    .gt('priority', 0)
+    .order('priority', { ascending: false })
     .order('make_name')
 
   if (error) throw new Error(`Failed to fetch makes: ${error.message}`)
@@ -249,7 +252,8 @@ const JDM_MAKES = [
   // Major manufacturers already in NHTSA but need Japan region tag
   // (handled by UPDATE in the full import)
 
-  // JDM-specific makes not in NHTSA
+  // JDM-specific and discontinued makes not in NHTSA
+  { make_name: 'Datsun',   country: 'JP', regions: ['US', 'JP'], source: 'jdm_manual' },  // Nissan's export brand (1958–1986)
   { make_name: 'Autozam',  country: 'JP', regions: ['JP'], source: 'jdm_manual' },
   { make_name: 'Tommykaira', country: 'JP', regions: ['JP'], source: 'jdm_manual' },
   { make_name: 'Mine\'s',  country: 'JP', regions: ['JP'], source: 'jdm_manual' },
@@ -287,6 +291,7 @@ const JDM_MODELS = [
   { make_name: 'Toyota', model_name: 'Altezza',       year_start: 1998, year_end: 2005, is_jdm_only: true,  body_style: 'sedan' },
   { make_name: 'Toyota', model_name: 'Verossa',       year_start: 2001, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },
   { make_name: 'Toyota', model_name: 'Brevis',        year_start: 2001, year_end: 2007, is_jdm_only: true,  body_style: 'sedan' },
+  { make_name: 'Toyota', model_name: 'Estima',        year_start: 1990, year_end: 2019, is_jdm_only: true,  body_style: 'minivan' },
 
   // Honda JDM
   { make_name: 'Honda', model_name: 'Civic Type R EK9', year_start: 1997, year_end: 2000, is_jdm_only: true, body_style: 'hatchback' },
@@ -324,11 +329,18 @@ const JDM_MODELS = [
 async function importJDMData() {
   console.log('\n📍 Step 3: Seeding JDM supplemental data...')
 
-  // Insert JDM-only makes
+  // Upsert JDM-only makes (conflict on make_name — safe to re-run)
   if (JDM_MAKES.length > 0) {
     console.log(`  Inserting ${JDM_MAKES.length} JDM-specific makes...`)
-    const result = await batchInsert('vehicle_makes', JDM_MAKES, 'ignore')
-    console.log(`  ✓ ${result.count} JDM makes inserted`)
+    if (!DRY_RUN) {
+      const { error } = await supabase
+        .from('vehicle_makes')
+        .upsert(JDM_MAKES.map(m => ({ ...m, is_active: true })), { onConflict: 'make_name' })
+      if (error) console.error('  JDM makes upsert error:', error.message)
+      else console.log(`  ✓ ${JDM_MAKES.length} JDM makes upserted`)
+    } else {
+      console.log(`  [DRY RUN] Would upsert ${JDM_MAKES.length} rows into vehicle_makes`)
+    }
   }
 
   // Update known Japanese makes in NHTSA data to include JP region
@@ -355,18 +367,26 @@ async function importJDMData() {
   // Insert JDM-only models
   console.log(`  Inserting ${JDM_MODELS.length} JDM model records...`)
 
-  // Resolve make_id for each JDM model
+  // Resolve make_id — fetch only the specific makes JDM models reference
+  const neededMakeNames = [...new Set(JDM_MODELS.map(m => m.make_name))]
+  const orFilter = neededMakeNames.map(n => `make_name.ilike.${n}`).join(',')
   const { data: makesData } = await supabase
     .from('vehicle_makes')
     .select('id, make_name')
+    .or(orFilter)
 
   const makeMap = {}
-  makesData?.forEach(m => { makeMap[m.make_name] = m.id })
+  makesData?.forEach(m => { makeMap[m.make_name.toLowerCase()] = m.id })
 
+  const missingMakes = new Set()
   const modelsWithIds = JDM_MODELS
-    .filter(m => makeMap[m.make_name])
+    .filter(m => {
+      const found = makeMap[m.make_name.toLowerCase()]
+      if (!found) missingMakes.add(m.make_name)
+      return found
+    })
     .map(m => ({
-      make_id:     makeMap[m.make_name],
+      make_id:     makeMap[m.make_name.toLowerCase()],
       model_name:  m.model_name,
       year_start:  m.year_start,
       year_end:    m.year_end,
@@ -377,7 +397,8 @@ async function importJDMData() {
 
   const skipped = JDM_MODELS.length - modelsWithIds.length
   if (skipped > 0) {
-    console.warn(`  Warning: ${skipped} JDM models skipped (make not found in DB)`)
+    console.warn(`  Warning: ${skipped} JDM models skipped — makes not in DB: ${[...missingMakes].join(', ')}`)
+    console.warn(`  Run the full NHTSA import first (without --jdm-only) to populate vehicle_makes.`)
   }
 
   const result = await batchInsert('vehicle_models', modelsWithIds, 'ignore')

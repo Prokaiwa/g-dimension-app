@@ -1,12 +1,12 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-04T13:02:07.416Z",
+  "timestamp": "2026-05-06T02:04:23.631Z",
   "phase": "build-order",
   "phase_name": "G-Dimension PWA — UI Build",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 20,
-  "total_tasks": 24,
+  "task": 23,
+  "total_tasks": 25,
   "status": "paused",
   "completed_tasks": [
     {"id": 1,  "name": "Project init — Vite + React 18 + Router v6 + Tailwind", "status": "done", "commit": "fdbc691"},
@@ -22,46 +22,93 @@
     {"id": 11, "name": "Create unitConversion.ts", "status": "done", "commit": "bf70c80"},
     {"id": 12, "name": "Build Order Step 5 — Login + Signup screens", "status": "done", "commit": "da04663"},
     {"id": 13, "name": "Build Order Step 6 — Home map screen (HomePage.tsx)", "status": "done", "commit": "uncommitted"},
-    {"id": 14, "name": "Build Order Step 7 — Garage screen (GaragePage.tsx) — icons, shadow, layout all dialled in", "status": "done", "commit": "uncommitted"},
-    {"id": 15, "name": "Add a Car flow — embedded in GarageCarsPage as slide-up overlay (not separate route)", "status": "done", "commit": "uncommitted"},
-    {"id": 16, "name": "My Cars carousel — /garage/cars swipeable shell built, but UX issues remain (see remaining_tasks)", "status": "in_progress", "progress": "Carousel shell, scroll-snap slides, add-car overlay, swipe hints, slide dots all built. UX/layout issues discovered."}
+    {"id": 14, "name": "Build Order Step 7 — Garage screen (GaragePage.tsx)", "status": "done", "commit": "uncommitted"},
+    {"id": 15, "name": "Add a Car flow — embedded overlay in GarageCarsPage", "status": "done", "commit": "uncommitted"},
+    {"id": 16, "name": "GarageCarsPage — year wheel, make/model pickers, mileage", "status": "done", "commit": "uncommitted"},
+    {"id": 17, "name": "Make picker → drum wheel with search + Other (same as Year)", "status": "done", "commit": "uncommitted"},
+    {"id": 18, "name": "Model picker → drum wheel with Other", "status": "done", "commit": "uncommitted"},
+    {"id": 19, "name": "Mileage mi/km toggle — converts km→miles on save", "status": "done", "commit": "uncommitted"},
+    {"id": 20, "name": "Datsun added to JDM makes + import script", "status": "done", "commit": "uncommitted"},
+    {"id": 21, "name": "NHTSA import script fixed — priority filter bypasses 1000-row Supabase limit", "status": "done", "commit": "uncommitted"},
+    {"id": 22, "name": "DB cleanup — junk makes/models deleted, 2839 USDM models imported", "status": "done", "commit": "uncommitted"},
+    {"id": 23, "name": "ProtectedRoute added to App.tsx — session expiry redirects to /login", "status": "done", "commit": "uncommitted"}
   ],
   "remaining_tasks": [
     {
-      "id": "16-fix",
-      "name": "Fix GarageCarsPage UX issues — 4 known problems (see context_notes)",
+      "id": "23-fix",
+      "name": "Delete duplicate Datsun row — run: DELETE FROM vehicle_makes WHERE id = 2863",
       "status": "not_started"
     },
-    {"id": 17, "name": "My Cars carousel — /garage/cars swipeable 3/4 car showcase", "status": "not_started"},
-    {"id": 18, "name": "Snapshot screen — /garage/snapshot read-only car spec sheet", "status": "not_started"},
-    {"id": 19, "name": "Tuning screen — /tuning category browsing", "status": "not_started"},
-    {"id": 20, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
-    {"id": 21, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"},
-    {"id": 22, "name": "Username claim flow — post-signup @handle setup with availability check", "status": "not_started"},
-    {"id": 23, "name": "Onboarding coachmarks — first-run tutorial (Build Order Step 11)", "status": "not_started"},
-    {"id": 24, "name": "PostgreSQL MCP setup — needs Supabase DB connection string from user", "status": "blocked_human"},
-    {"id": 25, "name": "GitHub MCP authentication — needs GitHub PAT from user", "status": "blocked_human"}
+    {
+      "id": 24,
+      "name": "End-to-end test — full Add Car flow, confirm car saves and appears in carousel",
+      "status": "not_started"
+    },
+    {
+      "id": 25,
+      "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia S13/S14/S15 → Silvia, Skyline R32/R33/R34 → Skyline",
+      "status": "not_started"
+    },
+    {
+      "id": 26,
+      "name": "Commit all uncommitted files (App.tsx, GarageCarsPage.tsx, import_nhtsa.js, GaragePage.tsx, GarageCarsNewPage.tsx)",
+      "status": "not_started"
+    },
+    {
+      "id": 27,
+      "name": "Snapshot screen — /garage/snapshot read-only car spec sheet",
+      "status": "not_started"
+    },
+    {
+      "id": 28,
+      "name": "Tuning screen — /tuning category browsing",
+      "status": "not_started"
+    },
+    {
+      "id": 29,
+      "name": "Timeline screen — /timeline chronological build narrative",
+      "status": "not_started"
+    },
+    {
+      "id": 30,
+      "name": "Maintenance screen — /maintenance service logging",
+      "status": "not_started"
+    }
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Provide Supabase DB connection string", "context": "Needed for PostgreSQL MCP. Find in Supabase Dashboard → Project Settings → Database → Connection string (URI format)", "blocking": false},
-    {"action": "Provide GitHub Personal Access Token", "context": "Needed to authenticate GitHub MCP. Create at github.com/settings/tokens with 'repo' scope", "blocking": false}
+    {
+      "action": "Delete duplicate Datsun — run SQL: DELETE FROM vehicle_makes WHERE id = 2863",
+      "context": "Two Datsun rows exist: id 36758 (jdm_manual, priority 55, keep) and id 2863 (NHTSA DATSUN, priority 55, delete). Both display as 'Datsun' in the wheel causing a React key conflict.",
+      "blocking": false
+    },
+    {
+      "action": "Run Estima SQL if not already done",
+      "context": "INSERT INTO public.vehicle_models (make_id, model_name, year_start, year_end, is_jdm_only, body_style, source) SELECT id, 'Estima', 1990, 2019, true, 'minivan', 'jdm_manual' FROM public.vehicle_makes WHERE make_name ILIKE 'Toyota' ON CONFLICT DO NOTHING",
+      "blocking": false
+    },
+    {
+      "action": "DB cleanup — remove Honda motorcycles and consolidate chassis-specific model names",
+      "context": "Honda models include motorcycles (CBR, CRF, etc.) from NHTSA — delete these. Silvia S13/S14/S15 should be one 'Silvia' entry; Skyline R32/R33/R34 → one 'Skyline'. Chassis code goes in Trim field for now, dedicated field later.",
+      "blocking": false
+    }
   ],
   "decisions": [
-    {"decision": "Add Car form lives as slide-up overlay inside GarageCarsPage, not a separate route (/garage/cars/new)", "rationale": "User wanted it to feel like one unified place — tap +, fill form, car appears in carousel seamlessly", "phase": "build-order"},
-    {"decision": "GaragePage + button now navigates to /garage/cars (not /garage/cars/new)", "rationale": "Add flow is now inside GarageCarsPage", "phase": "build-order"},
-    {"decision": "Garage icons: 126px, shadow behind icon (top:90), label marginTop:-20 to compensate for PNG transparent padding", "rationale": "Iterated with user to dial in exact sizing and spacing", "phase": "build-order"},
-    {"decision": "Garage header uses Cormorant Garamond italic 'Garage' + GT-style date badge (cream month / burgundy day)", "rationale": "User specified GT-style connected date tiles", "phase": "build-order"},
-    {"decision": "Home map icon nodes positioned as percentages of 390×800 canvas so they scale to any screen", "rationale": "Fixed pixel positions broke layout on real phones"},
-    {"decision": "Garage hero image is full-bleed background behind entire screen with gradient overlay", "rationale": "User wanted image to fill whole page, not just top section"},
-    {"decision": "Garage grid icons use real PNG files from src/assets/icons/garage/, no concrete tile background", "rationale": "User added real icons; removed GRADIENT_PANEL square behind them"},
-    {"decision": "Username claim + onboarding coachmarks deferred until all 5 destinations have screens", "rationale": "Tutorial should point at real screens, not stubs"}
+    {"decision": "Make + Model pickers converted to drum wheel (same as Year picker)", "rationale": "User wanted consistent scroll UX across all pickers", "phase": "build-order"},
+    {"decision": "Other option at bottom of Make and Model wheels opens free-text FreeTextSheet", "rationale": "Handles rare/custom makes and models not in DB", "phase": "build-order"},
+    {"decision": "Mileage stored in miles always; km input converted on save via ×0.621371", "rationale": "Schema (004_cars.sql) mandates miles storage; JDM import users enter km", "phase": "build-order"},
+    {"decision": "NHTSA import script Step 2 now filters gt('priority', 0) instead of all NHTSA makes", "rationale": "Supabase 1000-row default limit was returning only A-B trailer companies, never reaching Toyota/Honda/Nissan alphabetically", "phase": "build-order"},
+    {"decision": "ProtectedRoute wraps all private routes in App.tsx — uses onAuthStateChange", "rationale": "Previously unprotected routes silently 403'd on session expiry instead of redirecting to login", "phase": "build-order"},
+    {"decision": "Return individual tournament submissions instead of aggregated decklist from /api/meta/[deckId]", "rationale": "Competitive players want real tournament lists to copy, not a statistical average nobody actually played", "phase": "meta-detail-page-deck-viewer"},
+    {"decision": "Supabase default 1k row limit bypassed via gt('priority', 0) filter on vehicle_makes", "rationale": "Alphabetical ordering meant all 12k NHTSA junk makes came first; priority filter gets only the ~80 real car brands", "phase": "build-order"}
   ],
   "uncommitted_files": [
-    "src/pages/GaragePage.tsx",
+    "src/App.tsx",
     "src/pages/GarageCarsPage.tsx",
-    "src/pages/GarageCarsNewPage.tsx"
+    "src/pages/GaragePage.tsx",
+    "src/pages/GarageCarsNewPage.tsx",
+    "supabase/migrations/import_nhtsa.js"
   ],
-  "next_action": "Fix GarageCarsPage — 4 issues: (1) Form layout must be non-scrollable, fixed-height, all fields visible on screen at once — redesign as compact grid, (2) Make/Model autocomplete dropdown not working well — ensure ilike query fires and dropdown renders, (3) Floor spotlight too low — move to ~50% height so it illuminates where car name text sits, (4) Overall form feels messy — tighten spacing, remove separate GarageCarsNewPage route confusion.",
-  "context_notes": "Supabase project ref: uxqoernfrtgclpneirvc. Auth is fully working. Dev server on port 5174 with --host. App at ~/Desktop/g-dimension. GarageCarsPage is the unified carousel+add screen. The add form currently scrolls which breaks the app-like feel — it should be a fixed-height non-scrolling layout that fits entirely on screen. User wants it to feel native. Make/Model should show dropdown suggestions from vehicle_makes/vehicle_models Supabase tables (ilike query, trigram index). Nickname is optional (auto-generates from Year Make Model). The GarageCarsNewPage.tsx still exists as a standalone page but the primary UX is through GarageCarsPage overlay — consider whether to keep or remove. Context hit 92% this session — /clear before resuming."
+  "next_action": "1. Run SQL to delete duplicate Datsun (id 2863). 2. Log in to the app. 3. Do end-to-end Add Car test — Year wheel → Make wheel → search for a make → select model → set mileage with mi/km toggle → Next → Place in Garage → confirm car appears in carousel. 4. Then tackle DB cleanup: pull Honda models via SQL, delete motorcycles, consolidate Silvia/Skyline.",
+  "context_notes": "Dev server runs on port 5174 with --host (accessible from phone). App at ~/Desktop/g-dimension. Supabase project ref: uxqoernfrtgclpneirvc. Auth working. All three picker sheets (Year, Make, Model) now use the same drum wheel pattern. Make wheel has a search bar that filters the ~71 priority makes locally; Other → FreeTextSheet. Model wheel has Other → FreeTextSheet. When a free-text make is entered (no make_id), the model field falls back to a plain text input. The NHTSA script now runs in ~70 seconds instead of 30 minutes. DB has ~71 priority makes + 2839 USDM models + JDM manual models. ProtectedRoute uses getSession + onAuthStateChange — returns null while checking (blank flash), then redirects or renders. GarageCarsPage.tsx no longer has the old PickerSheet list component — replaced by MakePickerSheet and ModelPickerSheet."
 }

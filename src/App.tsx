@@ -1,4 +1,6 @@
-import { Routes, Route } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { supabase } from './lib/supabase'
 
 // Auth / marketing
 import LandingPage from './pages/LandingPage'
@@ -11,7 +13,6 @@ import HomePage from './pages/HomePage'
 // Garage
 import GaragePage from './pages/GaragePage'
 import GarageCarsPage from './pages/GarageCarsPage'
-import GarageCarsNewPage from './pages/GarageCarsNewPage'
 import GarageCarsEditPage from './pages/GarageCarsEditPage'
 import GarageSnapshotPage from './pages/GarageSnapshotPage'
 import GarageDocumentsPage from './pages/GarageDocumentsPage'
@@ -49,6 +50,24 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 // Public (non-auth)
 import PublicProfilePage from './pages/PublicProfilePage'
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const [authed, setAuthed] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setAuthed(!!data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAuthed(!!session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (authed === null) return null
+  if (!authed) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <Routes>
@@ -56,39 +75,38 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route path="/home" element={<HomePage />} />
+      <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
-      <Route path="/garage" element={<GaragePage />} />
-      <Route path="/garage/cars" element={<GarageCarsPage />} />
-      <Route path="/garage/cars/new" element={<GarageCarsNewPage />} />
-      <Route path="/garage/cars/:carId/edit" element={<GarageCarsEditPage />} />
-      <Route path="/garage/snapshot" element={<GarageSnapshotPage />} />
-      <Route path="/garage/documents" element={<GarageDocumentsPage />} />
-      <Route path="/garage/contacts" element={<GarageContactsPage />} />
-      <Route path="/garage/reminders" element={<GarageRemindersPage />} />
-      <Route path="/garage/pdf" element={<GaragePdfPage />} />
+      <Route path="/garage" element={<ProtectedRoute><GaragePage /></ProtectedRoute>} />
+      <Route path="/garage/cars" element={<ProtectedRoute><GarageCarsPage /></ProtectedRoute>} />
+      <Route path="/garage/cars/:carId/edit" element={<ProtectedRoute><GarageCarsEditPage /></ProtectedRoute>} />
+      <Route path="/garage/snapshot" element={<ProtectedRoute><GarageSnapshotPage /></ProtectedRoute>} />
+      <Route path="/garage/documents" element={<ProtectedRoute><GarageDocumentsPage /></ProtectedRoute>} />
+      <Route path="/garage/contacts" element={<ProtectedRoute><GarageContactsPage /></ProtectedRoute>} />
+      <Route path="/garage/reminders" element={<ProtectedRoute><GarageRemindersPage /></ProtectedRoute>} />
+      <Route path="/garage/pdf" element={<ProtectedRoute><GaragePdfPage /></ProtectedRoute>} />
 
-      <Route path="/tuning" element={<TuningPage />} />
-      <Route path="/tuning/build-sheet" element={<TuningBuildSheetPage />} />
-      <Route path="/tuning/blueprint" element={<TuningBlueprintPage />} />
-      <Route path="/tuning/parts-bin" element={<TuningPartsPage />} />
-      <Route path="/tuning/add" element={<TuningAddPage />} />
-      <Route path="/tuning/mods/:modId" element={<TuningModDetailPage />} />
-      <Route path="/tuning/mods/:modId/edit" element={<TuningModEditPage />} />
+      <Route path="/tuning" element={<ProtectedRoute><TuningPage /></ProtectedRoute>} />
+      <Route path="/tuning/build-sheet" element={<ProtectedRoute><TuningBuildSheetPage /></ProtectedRoute>} />
+      <Route path="/tuning/blueprint" element={<ProtectedRoute><TuningBlueprintPage /></ProtectedRoute>} />
+      <Route path="/tuning/parts-bin" element={<ProtectedRoute><TuningPartsPage /></ProtectedRoute>} />
+      <Route path="/tuning/add" element={<ProtectedRoute><TuningAddPage /></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId" element={<ProtectedRoute><TuningModDetailPage /></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
 
-      <Route path="/maintenance" element={<MaintenancePage />} />
-      <Route path="/maintenance/:sessionId" element={<MaintenanceSessionDetailPage />} />
-      <Route path="/maintenance/detail" element={<MaintenanceDetailPage />} />
-      <Route path="/maintenance/detail/new" element={<MaintenanceDetailNewPage />} />
+      <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
+      <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
+      <Route path="/maintenance/detail" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
+      <Route path="/maintenance/detail/new" element={<ProtectedRoute><MaintenanceDetailNewPage /></ProtectedRoute>} />
 
-      <Route path="/timeline" element={<TimelinePage />} />
-      <Route path="/timeline/entry/:entryId" element={<EntryDetailPage />} />
+      <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />
+      <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
 
-      <Route path="/photos" element={<PhotosPage />} />
+      <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
 
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/settings/archived" element={<SettingsArchivedPage />} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
 
       {/* Non-authenticated public route — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
