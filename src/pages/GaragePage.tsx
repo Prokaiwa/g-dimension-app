@@ -1,4 +1,9 @@
 // Route: /garage — Garage hero + dashboard grid (Build Order Step 7)
+const _now        = new Date()
+const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTH_LABEL = MONTHS[_now.getMonth()]
+const DAY_LABEL   = String(_now.getDate())
+
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -46,8 +51,8 @@ const GRID_TILES = [
 export default function GaragePage() {
   const navigate = useNavigate()
   const [displayName, setDisplayName] = useState('')
-  const [carName, setCarName] = useState<string | null>(null)
-  const [hasCar, setHasCar] = useState(false)
+  const [carInfo, setCarInfo] = useState<string | null>(null)
+  const [hasCar, setHasCar] = useState<boolean | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -58,12 +63,16 @@ export default function GaragePage() {
     })
     supabase
       .from('cars')
-      .select('id, nickname')
+      .select('id, year, model')
+      .is('deleted_at', null)
       .limit(1)
       .then(({ data }) => {
         if (data && data.length > 0) {
           setHasCar(true)
-          setCarName(data[0].nickname ?? null)
+          const c = data[0]
+          setCarInfo([c.year, c.model].filter(Boolean).join(' '))
+        } else {
+          setHasCar(false)
         }
       })
   }, [])
@@ -145,23 +154,19 @@ export default function GaragePage() {
           </span>
         </button>
 
-        {carName && (
-          <div style={{
-            position: 'absolute', right: 12, top: 0, height: '100%',
-            display: 'flex', alignItems: 'center',
-          }}>
-            <span style={{
-              color: COLOR_HEADER_WARM, fontFamily: FONT_UI,
-              fontWeight: 700, fontSize: 12, letterSpacing: '0.04em', opacity: 0.75,
-            }}>
-              {carName}
+        <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
+          {carInfo && (
+            <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>
+              {carInfo}
             </span>
-          </div>
-        )}
+          )}
+          <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
+          <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
+        </div>
       </div>
 
       {/* Empty state — no car yet */}
-      {!hasCar && (
+      {hasCar === false && (
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', flexDirection: 'column',
@@ -242,7 +247,7 @@ export default function GaragePage() {
       </div>
 
       {/* Add car prompt — centered in upper half */}
-      {!hasCar && (
+      {hasCar === false && (
         <div style={{
           position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0,
           bottom: '45%',

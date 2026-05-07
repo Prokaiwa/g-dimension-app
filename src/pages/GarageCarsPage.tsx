@@ -498,6 +498,11 @@ export default function GarageCarsPage() {
   const [selectedMakeId, setSelectedMakeId]   = useState<number | null>(null)
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null)
   const [picker, setPicker]                   = useState<'year' | 'make' | 'model' | null>(null)
+  const [showDetails, setShowDetails]         = useState(false)
+  const [detailsData, setDetailsData]         = useState<Record<string, string> | null>(null)
+  const [detailsSaving, setDetailsSaving]     = useState(false)
+  const [detailsErr, setDetailsErr]           = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete]     = useState(false)
   const scrollRef                             = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -613,6 +618,81 @@ export default function GarageCarsPage() {
     if (updated.length > 1) setShowHints(true)
   }
 
+  async function openDetails() {
+    const car = cars[activeIdx]
+    if (!car) return
+    const { data } = await supabase
+      .from('cars')
+      .select('color, paint_code, nickname, trim, current_mileage, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story')
+      .eq('id', car.id)
+      .single()
+    const autoNick = [car.year, car.make, car.model].filter(Boolean).join(' ')
+    setDetailsData({
+      color:             data?.color              ?? '',
+      colorCode:         data?.paint_code ?? '',
+      nickname:          data?.nickname === autoNick ? '' : (data?.nickname ?? ''),
+      trim:              data?.trim               ?? '',
+      mileage:           data?.current_mileage    != null ? String(data.current_mileage) : '',
+      mileageUnit:       'mi',
+      purchaseDate:      data?.purchase_date      ?? '',
+      purchasePrice:     data?.purchase_price     != null ? String(data.purchase_price)  : '',
+      purchaseCurrency:  data?.purchase_currency  ?? 'USD',
+      mileageAtPurchase: data?.mileage_at_purchase != null ? String(data.mileage_at_purchase) : '',
+      wherePurchased:    data?.purchase_dealer    ?? '',
+      originStory:       data?.purchase_story     ?? '',
+    })
+    setDetailsErr(null)
+    setConfirmDelete(false)
+    setShowDetails(true)
+  }
+
+  async function saveDetails() {
+    if (!detailsData) return
+    const car = cars[activeIdx]
+    setDetailsSaving(true); setDetailsErr(null)
+    const rawMileage = parseInt(detailsData.mileage) || null
+    const mileageInMiles = rawMileage && detailsData.mileageUnit === 'km'
+      ? Math.round(rawMileage * 0.621371) : rawMileage
+    const { error } = await supabase
+      .from('cars')
+      .update({
+        color:             detailsData.color.trim()          || null,
+        paint_code:        (detailsData.colorCode ?? '').trim() || null,
+        nickname:          detailsData.nickname.trim()       || [car.year, car.model].filter(Boolean).join(' '),
+        trim:              detailsData.trim.trim()           || null,
+        current_mileage:   mileageInMiles,
+        purchase_date:     detailsData.purchaseDate          || null,
+        purchase_price:    parseFloat(detailsData.purchasePrice) || null,
+        purchase_currency: detailsData.purchaseCurrency      || 'USD',
+        mileage_at_purchase: parseInt(detailsData.mileageAtPurchase) || null,
+        purchase_dealer:   detailsData.wherePurchased.trim() || null,
+        purchase_story:    detailsData.originStory.trim()    || null,
+      })
+      .eq('id', car.id)
+    setDetailsSaving(false)
+    if (error) { setDetailsErr(error.message); return }
+    setCars(prev => prev.map(c => c.id === car.id
+      ? { ...c, color: detailsData.color.trim() || null, trim: detailsData.trim.trim() || null,
+          nickname: detailsData.nickname.trim() || [car.year, car.model].filter(Boolean).join(' '),
+          current_mileage: mileageInMiles }
+      : c))
+    setShowDetails(false)
+  }
+
+  async function removeCar() {
+    const car = cars[activeIdx]
+    setDetailsSaving(true); setDetailsErr(null)
+    const { error } = await supabase
+      .from('cars').update({ deleted_at: new Date().toISOString() }).eq('id', car.id)
+    setDetailsSaving(false)
+    if (error) { setDetailsErr(error.message); return }
+    const updated = cars.filter(c => c.id !== car.id)
+    setCars(updated)
+    setActiveIdx(Math.max(0, activeIdx - 1))
+    setShowDetails(false)
+    setConfirmDelete(false)
+  }
+
   const ctaStyle = (active: boolean): React.CSSProperties => ({
     width: '100%', padding: '14px',
     background: active ? COLOR_ACCENT : 'rgba(200,102,26,0.22)',
@@ -640,7 +720,7 @@ export default function GarageCarsPage() {
       `}</style>
 
       <GarageBg />
-      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && cars[activeIdx] ? cars[activeIdx].nickname : undefined} />
+      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && cars[activeIdx] ? [cars[activeIdx].year, cars[activeIdx].model].filter(Boolean).join(' ') : undefined} />
 
       {/* ── CAROUSEL ── */}
       {!loading && (
@@ -695,7 +775,7 @@ export default function GarageCarsPage() {
                       {/* Color */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {car.color
-                          ? <><div style={{ width: 10, height: 10, borderRadius: '50%', background: car.color, border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }} /><span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{car.color}</span></>
+                          ? <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{car.color}</span>
                           : <span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>+ Add color</span>
                         }
                       </div>
@@ -720,10 +800,10 @@ export default function GarageCarsPage() {
                       {/* Actions */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
-                          { src: iconChoose, label: 'Choose' },
-                          { src: iconDetails, label: 'Details' },
-                        ] as const).map(({ src, label }) => (
-                          <button key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                          { src: iconChoose, label: 'Choose', onPress: () => {} },
+                          { src: iconDetails, label: 'Details', onPress: openDetails },
+                        ] as const).map(({ src, label, onPress }) => (
+                          <button key={label} onClick={onPress} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
                             <div style={{ position: 'relative', width: 101, height: 101 }}>
                               <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: 'translate(-50%,-50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
                               <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain' }} />
@@ -766,6 +846,110 @@ export default function GarageCarsPage() {
           )}
         </div>
       )}
+
+      {/* ── DETAILS OVERLAY ── */}
+      <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showDetails ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <GarageBg />
+        <Header onBack={() => confirmDelete ? setConfirmDelete(false) : setShowDetails(false)} />
+
+        {!confirmDelete ? (
+          <>
+            <div className="form-scroll" style={{ flex: 1, overflowY: 'auto', padding: `${SPACE_MD}px ${SPACE_MD}px 0`, position: 'relative', zIndex: 1 }}>
+              {cars[activeIdx] && (
+                <div style={{ marginBottom: SPACE_LG }}>
+                  <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 28, color: COLOR_HEADER_TITLE, margin: '0 0 4px', lineHeight: 1.1 }}>
+                    {cars[activeIdx].year} {cars[activeIdx].model}
+                  </p>
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
+                    {cars[activeIdx].make}
+                  </p>
+                </div>
+              )}
+              {detailsData && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Paint Color <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" placeholder="e.g. Midnight Purple II, Championship White" value={detailsData.color} onChange={e => setDetailsData(d => ({ ...d!, color: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Paint Color Code <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="e.g. TT2, NH-0, A66" value={detailsData.colorCode ?? ''} onChange={e => setDetailsData(d => ({ ...d!, colorCode: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Nickname <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" placeholder="e.g. The S14, Project R" value={detailsData.nickname} onChange={e => setDetailsData(d => ({ ...d!, nickname: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Trim <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" value={detailsData.trim} onChange={e => setDetailsData(d => ({ ...d!, trim: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Current Mileage</span>
+                    <div style={{ display: 'flex', gap: SPACE_SM }}>
+                      <input type="number" inputMode="numeric" value={detailsData.mileage} onChange={e => setDetailsData(d => ({ ...d!, mileage: e.target.value }))} style={{ ...INPUT, flex: 1 }} />
+                      <button type="button" onClick={() => setDetailsData(d => ({ ...d!, mileageUnit: d!.mileageUnit === 'mi' ? 'km' : 'mi' }))} style={{ flexShrink: 0, padding: '8px 12px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: COLOR_HEADER_WARM, fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', borderRadius: 2 }}>
+                        {detailsData.mileageUnit}
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
+                  <span style={{ ...LABEL, opacity: 0.4 }}>Purchase Info</span>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Purchase Date <span style={OPT}>opt</span></span>
+                    <input type="date" value={detailsData.purchaseDate} onChange={e => setDetailsData(d => ({ ...d!, purchaseDate: e.target.value }))} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px', gap: SPACE_SM }}>
+                    <div style={FIELD}>
+                      <span style={LABEL}>Purchase Price <span style={OPT}>opt</span></span>
+                      <input type="number" inputMode="decimal" value={detailsData.purchasePrice} onChange={e => setDetailsData(d => ({ ...d!, purchasePrice: e.target.value }))} style={INPUT} />
+                    </div>
+                    <div style={FIELD}>
+                      <span style={LABEL}>Currency</span>
+                      <select value={detailsData.purchaseCurrency} onChange={e => setDetailsData(d => ({ ...d!, purchaseCurrency: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' }}>
+                        {['USD','CAD','GBP','EUR','JPY','AUD','NZD'].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Mileage at Purchase <span style={OPT}>opt</span></span>
+                    <input type="number" inputMode="numeric" value={detailsData.mileageAtPurchase} onChange={e => setDetailsData(d => ({ ...d!, mileageAtPurchase: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Where you got it <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" placeholder="e.g. private party, dealer, gift…" value={detailsData.wherePurchased} onChange={e => setDetailsData(d => ({ ...d!, wherePurchased: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
+                  <div style={FIELD}>
+                    <span style={LABEL}>Origin Story <span style={OPT}>opt</span></span>
+                    <textarea value={detailsData.originStory} onChange={e => setDetailsData(d => ({ ...d!, originStory: e.target.value }))} rows={4} placeholder="The hunt, the first drive, the reason you kept it." style={{ ...INPUT, resize: 'none', lineHeight: 1.65 } as React.CSSProperties} />
+                  </div>
+                </div>
+              )}
+              {detailsErr && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', marginTop: SPACE_SM }}>{detailsErr}</p>}
+              <div style={{ height: SPACE_MD }} />
+            </div>
+            <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(5,5,7,0.96)', display: 'flex', flexDirection: 'column', gap: SPACE_SM, position: 'relative', zIndex: 5 }}>
+              <button disabled={detailsSaving} onClick={saveDetails} style={ctaStyle(true)}>{detailsSaving ? 'Saving…' : 'Save Changes'}</button>
+              <button onClick={() => setConfirmDelete(true)} style={{ width: '100%', padding: '10px', background: 'none', border: 'none', color: 'rgba(224,85,85,0.65)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Remove Car
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `0 ${SPACE_LG}px`, position: 'relative', zIndex: 1 }}>
+              <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: COLOR_HEADER_TITLE, margin: '0 0 12px', textAlign: 'center', lineHeight: 1.2 }}>Remove this car?</p>
+              <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(245,245,245,0.45)', textAlign: 'center', lineHeight: 1.6, margin: 0, maxWidth: 260 }}>
+                It'll be held for 7 days before permanent deletion. You can restore it from your profile.
+              </p>
+            </div>
+            <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, display: 'flex', flexDirection: 'column', gap: SPACE_SM, position: 'relative', zIndex: 5 }}>
+              <button disabled={detailsSaving} onClick={removeCar} style={{ ...ctaStyle(true), background: '#c0392b' }}>{detailsSaving ? 'Removing…' : 'Yes, Remove It'}</button>
+              <button onClick={() => setConfirmDelete(false)} style={{ width: '100%', padding: '10px', background: 'none', border: 'none', color: 'rgba(245,245,245,0.45)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>Keep It</button>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* ── ADD CAR OVERLAY ── */}
       <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showAdd ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
