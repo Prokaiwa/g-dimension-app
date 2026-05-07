@@ -1,5 +1,8 @@
 // Route: /garage/cars — My Cars carousel + inline Add Car flow
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import garagePlaceholder from '../assets/garage_placeholder.png'
+import iconChoose from '../assets/icons/car-carousel/choose.png'
+import iconDetails from '../assets/icons/car-carousel/details.png'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
@@ -32,7 +35,7 @@ const DAY_LABEL   = String(_now.getDate())
 type Car = {
   id: string; year: number | null; make: string | null
   model: string | null; trim: string | null
-  nickname: string; current_mileage: number | null
+  nickname: string; current_mileage: number | null; color: string | null
 }
 type MakeItem  = { id: number; name: string; priority: number }
 type ModelItem = { id: number; name: string }
@@ -63,6 +66,123 @@ const INPUT: React.CSSProperties = {
 }
 const FIELD: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: SPACE_XS }
 const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9 }
+
+// ── Floor-aware studio reflection ────────────────────────────────────────────
+// The floor line connects two tire contact points in image space.
+// For each output pixel we interpolate the floor height at that x, then mirror
+// the source pixel across it — giving a physically grounded reflection where
+// BOTH front and rear tires connect to the floor simultaneously.
+//
+// Tune these fractions against the actual placeholder image:
+const FL_FX = 0.13   // front-left tire contact x  (fraction of image width)
+const FL_FY = 1.1   // front-left tire contact y  (fraction of image height, near bottom)
+const FL_RX = 0.93   // rear-right  tire contact x
+const FL_RY = 0.82   // rear-right  tire contact y  (higher up = further from viewer)
+const FL_DEPTH = 0.28 // reflection extends this fraction of car height below each contact
+
+function CarReflection({ src }: { src: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const raf = requestAnimationFrame(() => {
+      const parent = canvas.parentElement
+      if (!parent) return
+      const dw = parent.offsetWidth
+      if (!dw) return
+      const dpr = window.devicePixelRatio || 1
+      const img = new Image()
+
+      img.onload = () => {
+        const scale = dw / img.naturalWidth
+        const dh    = Math.min(img.naturalHeight * scale, 220) // respect maxHeight:220
+        const cH    = Math.round(dh * (1 + FL_DEPTH))
+
+        canvas.width        = Math.round(dw * dpr)
+        canvas.height       = Math.round(cH * dpr)
+        canvas.style.height = cH + 'px'
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+        // Render source at pixel resolution into an offscreen canvas for getImageData
+        const pW  = Math.round(dw * dpr)
+        const pH  = Math.round(dh * dpr)
+        const off = document.createElement('canvas')
+        off.width = pW; off.height = pH
+        const oCtx = off.getContext('2d')!
+        oCtx.drawImage(img, 0, 0, pW, pH)
+        const src4 = oCtx.getImageData(0, 0, pW, pH)
+
+        const outW  = Math.round(dw * dpr)
+        const outH  = Math.round(cH * dpr)
+        const pxOut = ctx.createImageData(outW, outH)
+
+        // Floor contact points in source pixel space
+        const fX = FL_FX * pW;  const fY = FL_FY * pH
+        const rX = FL_RX * pW;  const rY = FL_RY * pH
+        const maxD = FL_DEPTH * pH
+
+        // Fast-skip rows above the highest contact point
+        const minFloorY = Math.min(fY, rY)
+
+        for (let cy = Math.floor(minFloorY); cy < outH; cy++) {
+          for (let cx = 0; cx < outW; cx++) {
+            // Floor line y at this x (linear interpolation between contacts)
+            const t      = (cx - rX) / (fX - rX)
+            const floorY = rY + t * (fY - rY)
+            if (cy <= floorY) continue        // above floor: leave transparent (car on top)
+
+            const depth = cy - floorY
+            if (depth >= maxD) continue
+
+            const srcYf = floorY - depth      // mirror: same distance above floor line
+            if (srcYf < 0) continue
+
+            const si = Math.floor(srcYf) * pW * 4 + cx * 4
+            const di = cy * outW * 4 + cx * 4
+
+            const r = src4.data[si], g = src4.data[si + 1], b = src4.data[si + 2]
+            // Treat near-white pixels as background (handles white-bg PNGs)
+            const srcAlpha = (r > 235 && g > 235 && b > 235) ? 0 : src4.data[si + 3] / 255
+            if (srcAlpha === 0) continue
+
+            const alpha = 0.68 * (1 - depth / maxD)
+
+            pxOut.data[di]     = r
+            pxOut.data[di + 1] = g
+            pxOut.data[di + 2] = b
+            pxOut.data[di + 3] = Math.round(255 * alpha * srcAlpha)
+          }
+        }
+
+        ctx.putImageData(pxOut, 0, 0)
+      }
+
+      img.src = src
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [src])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        display: 'block',
+        pointerEvents: 'none',
+        filter: 'blur(1.5px) brightness(0.52) contrast(0.78)',
+        zIndex: 0,
+      }}
+    />
+  )
+}
 
 // Normalize DB make names: "TOYOTA" → "Toyota", "BMW" → "BMW", "LAND ROVER" → "Land Rover"
 function normMake(s: string): string {
@@ -123,13 +243,7 @@ const YEAR_LIST = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(C
 function YearPickerSheet({ value, onSelect, onClose }: { value: string; onSelect: (v: string) => void; onClose: () => void }) {
   const [local, setLocal] = useState(value || String(CURRENT_YEAR))
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
-      <div style={{ height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', paddingLeft: SPACE_MD, paddingRight: SPACE_MD, background: COLOR_HEADER_BLACK, borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 0', display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
-        </button>
-        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Year</span>
-      </div>
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `0 ${SPACE_XL}px` }}>
         <WheelPicker items={YEAR_LIST} value={local} onChange={setLocal} />
       </div>
@@ -179,7 +293,9 @@ function FreeTextSheet({ label, placeholder, onDone, onBack }: { label: string; 
   useEffect(() => { setTimeout(() => ref.current?.focus(), 120) }, [])
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
-      <PickerHeader label={label} onBack={onBack} />
+      <div style={{ padding: `${SPACE_XS}px ${SPACE_MD}px`, borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{label}</span>
+      </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `0 ${SPACE_MD}px` }}>
         <input
           ref={ref}
@@ -243,8 +359,7 @@ function MakePickerSheet({
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
-      <PickerHeader label="Make" onBack={onClose} />
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
       <div style={{ padding: `${SPACE_SM}px ${SPACE_MD}px`, background: '#0a0a0c', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <input
           type="text"
@@ -271,9 +386,20 @@ function ModelPickerSheet({
   onClose: () => void
   onFreeText: (text: string) => void
 }) {
-  const items = useMemo(() => [...models.map(m => m.name), 'Other'], [models])
-  const [local, setLocal] = useState(items[0] ?? 'Other')
+  const [search, setSearch] = useState('')
   const [showOther, setShowOther] = useState(false)
+
+  const filteredNames = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = q ? models.filter(m => m.name.toLowerCase().includes(q)) : models
+    return [...filtered.map(m => m.name), 'Other']
+  }, [search, models])
+
+  const [local, setLocal] = useState(filteredNames[0] ?? 'Other')
+
+  useEffect(() => {
+    setLocal(filteredNames[0] ?? 'Other')
+  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDone() {
     if (local === 'Other') { setShowOther(true); return }
@@ -295,10 +421,18 @@ function ModelPickerSheet({
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
-      <PickerHeader label="Model" onBack={onClose} />
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
+      <div style={{ padding: `${SPACE_SM}px ${SPACE_MD}px`, background: '#0a0a0c', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search models…"
+          style={{ ...INPUT, background: 'rgba(255,255,255,0.06)', borderBottom: 'none', color: '#f0ece4', borderRadius: 4 }}
+        />
+      </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `0 ${SPACE_XL}px` }}>
-        <WheelPicker items={items} value={local} onChange={setLocal} />
+        <WheelPicker key={search} items={filteredNames} value={local} onChange={setLocal} />
       </div>
       <PickerDoneButton onPress={handleDone} />
     </div>
@@ -329,7 +463,7 @@ function GarageBg() {
 }
 
 // ── Shared header ──
-function Header({ onBack }: { onBack: () => void }) {
+function Header({ onBack, subtitle }: { onBack: () => void; subtitle?: string }) {
   return (
     <div style={{ position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -338,7 +472,8 @@ function Header({ onBack }: { onBack: () => void }) {
         </button>
         <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: COLOR_HEADER_TITLE, letterSpacing: '0.01em' }}>Garage</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+        {subtitle && <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, display: 'flex', alignItems: 'center', paddingRight: 10 }}>{subtitle}</span>}
         <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
         <div style={{ background: COLOR_BURGUNDY_M, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
       </div>
@@ -366,15 +501,18 @@ export default function GarageCarsPage() {
   const scrollRef                             = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    supabase
-      .from('cars')
-      .select('id, year, make, model, trim, nickname, current_mileage')
-      .is('deleted_at', null)
-      .order('created_at')
-      .then(({ data }) => {
-        if (data) { setCars(data); if (data.length > 1) setShowHints(true) }
-        setLoading(false)
-      })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) { setLoading(false); return }
+      supabase
+        .from('cars')
+        .select('id, year, make, model, trim, nickname, current_mileage, color')
+        .is('deleted_at', null)
+        .order('created_at')
+        .then(({ data }) => {
+          if (data) { setCars(data); if (data.length > 1) setShowHints(true) }
+          setLoading(false)
+        })
+    })
   }, [])
 
   useEffect(() => {
@@ -502,7 +640,7 @@ export default function GarageCarsPage() {
       `}</style>
 
       <GarageBg />
-      <Header onBack={() => navigate('/garage')} />
+      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && cars[activeIdx] ? cars[activeIdx].nickname : undefined} />
 
       {/* ── CAROUSEL ── */}
       {!loading && (
@@ -520,24 +658,82 @@ export default function GarageCarsPage() {
             <>
               <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
                 {cars.map((car, i) => (
-                  <div key={car.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: `0 ${SPACE_XL}px` }}>
-                    <div style={{ position: 'absolute', top: SPACE_MD, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.3)', textTransform: 'uppercase' }}>
-                      {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
+                  <div key={car.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                    {/* Top bar — logo + model */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
+                      <img
+                        src={`/manufacturer_logos/${(car.make ?? '').toLowerCase()}.png`}
+                        alt={car.make ?? ''}
+                        style={{ height: 51, width: 'auto', objectFit: 'contain', mixBlendMode: 'screen' }}
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                      />
+                      <span style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 33, color: 'rgba(245,240,228,0.95)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                        {car.model}
+                      </span>
                     </div>
-                    <div style={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
-                      <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 46, color: COLOR_HEADER_TITLE, margin: '0 0 8px', lineHeight: 1.05, letterSpacing: '-0.01em' }}>{car.nickname}</p>
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,245,245,0.55)', margin: '0 0 4px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                        {[car.year, car.make, car.model].filter(Boolean).join(' ')}
-                      </p>
-                      {car.trim && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: 'rgba(245,245,245,0.3)', margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{car.trim}</p>}
-                    </div>
-                    {car.current_mileage != null && (
-                      <div style={{ position: 'absolute', bottom: SPACE_XL + 20, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: SPACE_XS, alignItems: 'baseline' }}>
-                        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 22, color: COLOR_ACCENT, letterSpacing: '-0.02em' }}>{car.current_mileage.toLocaleString()}</span>
-                        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, color: COLOR_TEXT_SECONDARY, letterSpacing: '0.12em', textTransform: 'uppercase' }}>mi</span>
+
+                    {/* Spotlight + car image */}
+                    <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                      <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)' }} />
+                      <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to bottom, transparent 0%, rgba(220,218,214,0.06) 65%, rgba(220,218,214,0.13) 100%)' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '8%', zIndex: 2 }}>
+                        {/* Car + ground shadow + canvas reflection */}
+                        <div style={{ position: 'relative', width: '88%', display: 'flex', justifyContent: 'center' }}>
+                          <div aria-hidden style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '90%', height: 44, background: 'radial-gradient(ellipse 85% 60% at 50% 60%, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.5) 55%, transparent 72%)', filter: 'blur(5px)', zIndex: 1 }} />
+                          <img src={garagePlaceholder} alt="Vehicle" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', objectPosition: 'bottom', display: 'block', position: 'relative', zIndex: 2 }} />
+                          <CarReflection src={garagePlaceholder} />
+                        </div>
                       </div>
-                    )}
-                    <div aria-hidden style={{ position: 'absolute', bottom: '22%', left: '10%', right: '10%', height: 1, background: 'linear-gradient(90deg,transparent,rgba(245,240,230,0.08) 30%,rgba(245,240,230,0.08) 70%,transparent)', pointerEvents: 'none' }} />
+                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>
+                        {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
+                      </div>
+                    </div>
+
+                    {/* Info strip */}
+                    <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)', position: 'relative', zIndex: 2 }}>
+                      {/* Color */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        {car.color
+                          ? <><div style={{ width: 10, height: 10, borderRadius: '50%', background: car.color, border: '1px solid rgba(255,255,255,0.2)', flexShrink: 0 }} /><span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{car.color}</span></>
+                          : <span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>+ Add color</span>
+                        }
+                      </div>
+                      {/* Year / Trim / Mileage */}
+                      <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'center', padding: `7px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Year</span>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.year}</span>
+                        </div>
+                        {car.trim && (
+                          <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Trim</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.trim}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Mileage</span>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.current_mileage != null ? car.current_mileage.toLocaleString() : '—'}</span>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>mi</span>
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        {([
+                          { src: iconChoose, label: 'Choose' },
+                          { src: iconDetails, label: 'Details' },
+                        ] as const).map(({ src, label }) => (
+                          <button key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                            <div style={{ position: 'relative', width: 101, height: 101 }}>
+                              <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: 'translate(-50%,-50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
+                              <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain' }} />
+                            </div>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1 }}>{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
                 ))}
                 <div style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
@@ -574,7 +770,7 @@ export default function GarageCarsPage() {
       {/* ── ADD CAR OVERLAY ── */}
       <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showAdd ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <GarageBg />
-        <Header onBack={() => step === 2 ? setStep(1) : setShowAdd(false)} />
+        <Header onBack={() => picker !== null ? setPicker(null) : step === 2 ? setStep(1) : setShowAdd(false)} />
 
         {/* ── STEP 1 ── */}
         {step === 1 && (
@@ -704,15 +900,15 @@ export default function GarageCarsPage() {
                 <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', color: COLOR_TEXT_SECONDARY, textTransform: 'uppercase', paddingLeft: SPACE_XS }}>2 / 2</span>
               </div>
 
-              <div style={{ marginBottom: SPACE_LG, animation: 'storyReveal 700ms ease-out both' }}>
+              <div style={{ marginBottom: SPACE_LG, animation: 'storyReveal 900ms ease-out 150ms both' }}>
                 <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 28, color: COLOR_HEADER_TITLE, margin: '0 0 6px', lineHeight: 1.1 }}>Tell your story.</p>
                 <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.38)', letterSpacing: '0.06em', margin: 0 }}>Every build has a beginning.</p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM, animation: 'storyReveal 500ms ease-out 280ms both' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM, animation: 'storyReveal 600ms ease-out 1100ms both' }}>
                 <div style={FIELD}>
                   <span style={LABEL}>Purchase Date <span style={OPT}>opt</span></span>
-                  <input type="date" value={form.purchaseDate} onChange={set('purchaseDate')} style={{ ...INPUT, WebkitAppearance: 'auto' }} />
+                  <input type="date" value={form.purchaseDate} onChange={set('purchaseDate')} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px', gap: SPACE_SM }}>
                   <div style={FIELD}>
@@ -732,7 +928,7 @@ export default function GarageCarsPage() {
                 </div>
                 <div style={FIELD}>
                   <span style={LABEL}>Where you got it <span style={OPT}>opt</span></span>
-                  <input type="text" autoCapitalize="words" value={form.wherePurchased} onChange={set('wherePurchased')} style={INPUT} />
+                  <input type="text" autoCapitalize="words" placeholder="e.g. private party, dealer, gift…" value={form.wherePurchased} onChange={set('wherePurchased')} style={INPUT} />
                 </div>
                 <div style={FIELD}>
                   <span style={LABEL}>Origin story <span style={OPT}>opt</span></span>
