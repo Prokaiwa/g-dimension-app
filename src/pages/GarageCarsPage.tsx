@@ -623,7 +623,7 @@ export default function GarageCarsPage() {
     if (!car) return
     const { data } = await supabase
       .from('cars')
-      .select('color, paint_code, nickname, trim, current_mileage, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story')
+      .select('color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story')
       .eq('id', car.id)
       .single()
     const autoNick = [car.year, car.make, car.model].filter(Boolean).join(' ')
@@ -634,6 +634,18 @@ export default function GarageCarsPage() {
       trim:              data?.trim               ?? '',
       mileage:           data?.current_mileage    != null ? String(data.current_mileage) : '',
       mileageUnit:       'mi',
+      chassisCode:       data?.chassis_code       ?? '',
+      vin:               data?.vin                ?? '',
+      licensePlate:      data?.license_plate      ?? '',
+      engineType:        data?.engine_type        ?? '',
+      forcedInduction:   data?.forced_induction   ?? 'none',
+      horsepower:        data?.horsepower         != null ? String(data.horsepower) : '',
+      torque:            data?.torque             != null ? String(data.torque) : '',
+      transmission:      data?.transmission       ?? '',
+      drivetrain:        data?.drivetrain         ?? '',
+      oilType:           data?.oil_type           ?? '',
+      tireSize:          data?.tire_size          ?? '',
+      batteryModel:      data?.battery_model      ?? '',
       purchaseDate:      data?.purchase_date      ?? '',
       purchasePrice:     data?.purchase_price     != null ? String(data.purchase_price)  : '',
       purchaseCurrency:  data?.purchase_currency  ?? 'USD',
@@ -661,6 +673,18 @@ export default function GarageCarsPage() {
         nickname:          detailsData.nickname.trim()       || [car.year, car.model].filter(Boolean).join(' '),
         trim:              detailsData.trim.trim()           || null,
         current_mileage:   mileageInMiles,
+        chassis_code:      detailsData.chassisCode?.trim()   || null,
+        vin:               detailsData.vin?.trim()           || null,
+        license_plate:     detailsData.licensePlate?.trim()  || null,
+        engine_type:       detailsData.engineType?.trim()    || null,
+        forced_induction:  detailsData.forcedInduction       || 'none',
+        horsepower:        parseInt(detailsData.horsepower)  || null,
+        torque:            parseInt(detailsData.torque)      || null,
+        transmission:      detailsData.transmission          || null,
+        drivetrain:        detailsData.drivetrain            || null,
+        oil_type:          detailsData.oilType?.trim()       || null,
+        tire_size:         detailsData.tireSize?.trim()      || null,
+        battery_model:     detailsData.batteryModel?.trim()  || null,
         purchase_date:     detailsData.purchaseDate          || null,
         purchase_price:    parseFloat(detailsData.purchasePrice) || null,
         purchase_currency: detailsData.purchaseCurrency      || 'USD',
@@ -800,7 +824,7 @@ export default function GarageCarsPage() {
                       {/* Actions */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
-                          { src: iconChoose, label: 'Choose', onPress: () => {} },
+                          { src: iconChoose, label: 'Choose', onPress: () => { localStorage.setItem('gdim_chosen_car_id', cars[activeIdx].id); navigate('/garage') } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },
                         ] as const).map(({ src, label, onPress }) => (
                           <button key={label} onClick={onPress} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
@@ -893,10 +917,82 @@ export default function GarageCarsPage() {
                     </div>
                   </div>
                   <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
+                  <span style={{ ...LABEL, opacity: 0.4 }}>Vehicle Specs</span>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Chassis Code <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="e.g. S14, BNR32, JZA80" value={detailsData.chassisCode ?? ''} onChange={e => setDetailsData(d => ({ ...d!, chassisCode: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>VIN <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="17-character VIN" value={detailsData.vin ?? ''} onChange={e => setDetailsData(d => ({ ...d!, vin: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>License Plate <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" value={detailsData.licensePlate ?? ''} onChange={e => setDetailsData(d => ({ ...d!, licensePlate: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Engine Type <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="e.g. SR20DET, 2JZ-GTE, RB26" value={detailsData.engineType ?? ''} onChange={e => setDetailsData(d => ({ ...d!, engineType: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Forced Induction</span>
+                    <select value={detailsData.forcedInduction ?? 'none'} onChange={e => setDetailsData(d => ({ ...d!, forcedInduction: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' as any }}>
+                      <option value="none">None (N/A)</option>
+                      <option value="turbo">Turbo</option>
+                      <option value="twin-turbo">Twin Turbo</option>
+                      <option value="supercharged">Supercharged</option>
+                      <option value="e-boost">E-Boost</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SPACE_SM }}>
+                    <div style={FIELD}>
+                      <span style={LABEL}>Horsepower <span style={OPT}>hp</span></span>
+                      <input type="number" inputMode="numeric" placeholder="276" value={detailsData.horsepower ?? ''} onChange={e => setDetailsData(d => ({ ...d!, horsepower: e.target.value }))} style={INPUT} />
+                    </div>
+                    <div style={FIELD}>
+                      <span style={LABEL}>Torque <span style={OPT}>lb-ft</span></span>
+                      <input type="number" inputMode="numeric" placeholder="260" value={detailsData.torque ?? ''} onChange={e => setDetailsData(d => ({ ...d!, torque: e.target.value }))} style={INPUT} />
+                    </div>
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Transmission</span>
+                    <select value={detailsData.transmission ?? ''} onChange={e => setDetailsData(d => ({ ...d!, transmission: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' as any }}>
+                      <option value="">— select —</option>
+                      <option value="manual">Manual</option>
+                      <option value="automatic">Automatic</option>
+                      <option value="sequential">Sequential</option>
+                      <option value="cvt">CVT</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Drivetrain</span>
+                    <select value={detailsData.drivetrain ?? ''} onChange={e => setDetailsData(d => ({ ...d!, drivetrain: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' as any }}>
+                      <option value="">— select —</option>
+                      <option value="rwd">RWD</option>
+                      <option value="fwd">FWD</option>
+                      <option value="awd">AWD</option>
+                      <option value="4wd">4WD</option>
+                    </select>
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Oil Type <span style={OPT}>opt</span></span>
+                    <input type="text" placeholder="e.g. 5W-30 Full Synthetic" value={detailsData.oilType ?? ''} onChange={e => setDetailsData(d => ({ ...d!, oilType: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Tire Size <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="e.g. 225/45R17" value={detailsData.tireSize ?? ''} onChange={e => setDetailsData(d => ({ ...d!, tireSize: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Battery Model <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="characters" placeholder="e.g. Optima Red Top 34/78" value={detailsData.batteryModel ?? ''} onChange={e => setDetailsData(d => ({ ...d!, batteryModel: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
                   <span style={{ ...LABEL, opacity: 0.4 }}>Purchase Info</span>
                   <div style={FIELD}>
                     <span style={LABEL}>Purchase Date <span style={OPT}>opt</span></span>
-                    <input type="date" value={detailsData.purchaseDate} onChange={e => setDetailsData(d => ({ ...d!, purchaseDate: e.target.value }))} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' }} />
+                    <input type="date" value={detailsData.purchaseDate} onChange={e => setDetailsData(d => ({ ...d!, purchaseDate: e.target.value }))} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' as any }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px', gap: SPACE_SM }}>
                     <div style={FIELD}>
@@ -905,7 +1001,7 @@ export default function GarageCarsPage() {
                     </div>
                     <div style={FIELD}>
                       <span style={LABEL}>Currency</span>
-                      <select value={detailsData.purchaseCurrency} onChange={e => setDetailsData(d => ({ ...d!, purchaseCurrency: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' }}>
+                      <select value={detailsData.purchaseCurrency} onChange={e => setDetailsData(d => ({ ...d!, purchaseCurrency: e.target.value }))} style={{ ...INPUT, WebkitAppearance: 'auto' as any }}>
                         {['USD','CAD','GBP','EUR','JPY','AUD','NZD'].map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
@@ -1092,7 +1188,7 @@ export default function GarageCarsPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM, animation: 'storyReveal 600ms ease-out 1100ms both' }}>
                 <div style={FIELD}>
                   <span style={LABEL}>Purchase Date <span style={OPT}>opt</span></span>
-                  <input type="date" value={form.purchaseDate} onChange={set('purchaseDate')} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' }} />
+                  <input type="date" value={form.purchaseDate} onChange={set('purchaseDate')} min="1900-01-01" max="2030-12-31" style={{ ...INPUT, WebkitAppearance: 'auto' as any }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 76px', gap: SPACE_SM }}>
                   <div style={FIELD}>
@@ -1101,7 +1197,7 @@ export default function GarageCarsPage() {
                   </div>
                   <div style={FIELD}>
                     <span style={LABEL}>Currency</span>
-                    <select value={form.purchaseCurrency} onChange={set('purchaseCurrency')} style={{ ...INPUT, WebkitAppearance: 'auto' }}>
+                    <select value={form.purchaseCurrency} onChange={set('purchaseCurrency')} style={{ ...INPUT, WebkitAppearance: 'auto' as any }}>
                       {['USD','CAD','GBP','EUR','JPY','AUD','NZD'].map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
