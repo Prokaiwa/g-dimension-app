@@ -111,7 +111,7 @@ export default function GaragePage() {
           0%, 100% { box-shadow: 0 0 8px rgba(200,102,26,0.35), 0 0 0 0 rgba(200,102,26,0.0); }
           50%       { box-shadow: 0 0 24px rgba(200,102,26,0.85), 0 0 0 14px rgba(200,102,26,0.14); }
         }
-        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); }
+        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); user-select: none; -webkit-touch-callout: none; }
         .icon-tile:active { transform: scale(0.92); transition: transform 80ms ease-out; }
       `}</style>
 
@@ -229,6 +229,7 @@ export default function GaragePage() {
                     position: 'absolute', top: 0, left: 0,
                     width: 126, height: 126,
                     objectFit: 'contain',
+                    pointerEvents: 'none',
                   }}
                   draggable={false} />
               </div>

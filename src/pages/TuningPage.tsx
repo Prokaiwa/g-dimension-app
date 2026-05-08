@@ -45,7 +45,7 @@ export default function TuningPage() {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); }
+        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); user-select: none; -webkit-touch-callout: none; }
         .icon-tile:active { transform: scale(0.92); transition: transform 80ms ease-out; }
       `}</style>
 
@@ -169,6 +169,7 @@ export default function TuningPage() {
                 position: 'absolute', top: 0, left: 0,
                 width: 126, height: 126,
                 objectFit: 'contain',
+                pointerEvents: 'none',
               }}
             />
           </div>
