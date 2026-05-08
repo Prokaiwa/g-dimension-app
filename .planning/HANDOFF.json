@@ -1,61 +1,41 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T11:58:43.899Z",
+  "timestamp": "2026-05-08T12:48:19.425Z",
   "phase": "build-order",
   "phase_name": "G-Dimension PWA — UI Build",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 28,
+  "task": 29,
   "total_tasks": 30,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1,  "name": "Project init — Vite + React 18 + Router v6 + Tailwind", "status": "done", "commit": "fdbc691"},
-    {"id": 2,  "name": "Design tokens", "status": "done", "commit": "fdbc691"},
-    {"id": 3,  "name": "Base component stubs", "status": "done", "commit": "fdbc691"},
-    {"id": 4,  "name": "Supabase migrations 001-023", "status": "done", "commit": "external"},
-    {"id": 5,  "name": "Landing page auth gate", "status": "done", "commit": "095d242"},
-    {"id": 6,  "name": "Vercel routing fixed", "status": "done", "commit": "ed72fee"},
-    {"id": 7,  "name": "Architecture v3.0", "status": "done", "commit": "91e2721"},
-    {"id": 9,  "name": "App.tsx routes v3 + tokens", "status": "done", "commit": "bf70c80"},
-    {"id": 12, "name": "Login + Signup screens", "status": "done", "commit": "da04663"},
-    {"id": 13, "name": "Home map screen", "status": "done", "commit": "a25ff29"},
-    {"id": 14, "name": "Garage screen", "status": "done", "commit": "a25ff29"},
-    {"id": 15, "name": "Add a Car flow overlay", "status": "done", "commit": "a25ff29"},
-    {"id": 16, "name": "Year/make/model pickers, mileage", "status": "done", "commit": "a25ff29"},
-    {"id": 17, "name": "Make picker drum wheel", "status": "done", "commit": "a25ff29"},
-    {"id": 18, "name": "Model picker drum wheel", "status": "done", "commit": "a25ff29"},
-    {"id": 19, "name": "Mileage mi/km toggle", "status": "done", "commit": "a25ff29"},
-    {"id": 20, "name": "Datsun + NHTSA import", "status": "done", "commit": "a25ff29"},
-    {"id": 23, "name": "ProtectedRoute session expiry", "status": "done", "commit": "a25ff29"},
-    {"id": "23b", "name": "GT car carousel card", "status": "done", "commit": "670afe6"},
-    {"id": "23c", "name": "CarReflection canvas renderer + S14 constants tuned", "status": "done", "commit": "670afe6"},
-    {"id": 24, "name": "E2E Add Car flow verified", "status": "done", "commit": "n/a"},
-    {"id": 25, "name": "Header unification + Details overlay + flash fix", "status": "done", "commit": "7ef5813"},
-    {"id": 27, "name": "Snapshot screen — handoff card redesign + Details Specs section", "status": "done", "commit": "9fe33b5"},
-    {"id": "vercel-fix", "name": "Fix Vercel TS build errors (TS6133/TS2345/TS2353)", "status": "done", "commit": "4775c4a"},
-    {"id": "28a", "name": "TuningPage hero screen — background, header, L-shape icon layout", "status": "done", "commit": "uncommitted"}
+    {"id": "28a", "name": "TuningPage hero screen", "status": "done", "commit": "31e3cc9"},
+    {"id": "28b", "name": "iOS long-press fix (all icon screens) + stagger delay reduction", "status": "done", "commit": "fb890fd"},
+    {"id": "28c", "name": "TuningBuildSheetPage + TuningAddPage (empty grid, spec list, add flow)", "status": "done", "commit": "ca2fea3"}
   ],
   "remaining_tasks": [
     {
-      "id": "28b",
-      "name": "Fix iOS long-press on icon tiles — add -webkit-touch-callout:none + user-select:none to .icon-tile, pointerEvents:none on icon imgs",
+      "id": "28d",
+      "name": "TuningBlueprintPage — wishlist mods + add form",
       "status": "not_started",
-      "notes": "NEXT. Holding icons triggers iOS native image save dialog. Affects both TuningPage and GaragePage."
+      "notes": "NEXT. Same pattern as BuildSheet but status='planned'. Query: jobs WHERE status='planned' AND type='modification'. Same TUNING_CATEGORIES export from TuningBuildSheetPage."
     },
-    {"id": "28c", "name": "TuningBuildSheetPage — list of installed mods + add form", "status": "not_started"},
-    {"id": "28d", "name": "TuningBlueprintPage — wishlist mods + add form", "status": "not_started"},
-    {"id": "28e", "name": "TuningPartsPage (Parts Bin) — shelf parts + add form", "status": "not_started"},
-    {"id": "25b", "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline chassis names", "status": "not_started"},
+    {
+      "id": "28e",
+      "name": "TuningPartsPage (Parts Bin) — shelf parts + add form",
+      "status": "not_started",
+      "notes": "Same pattern. status='purchased'. Parts here are owned but not installed."
+    },
+    {
+      "id": "25b",
+      "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline chassis names",
+      "status": "not_started",
+      "notes": "Human SQL task, non-blocking."
+    },
     {"id": 29, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
     {"id": 30, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"}
   ],
-  "blockers": [
-    {
-      "description": "iOS long-press on icon buttons triggers native image save dialog instead of press animation.",
-      "type": "technical",
-      "workaround": "Add `-webkit-touch-callout: none; user-select: none;` to .icon-tile CSS in both TuningPage and GaragePage. Add `pointerEvents: 'none'` to all icon <img> elements. This prevents the callout and routes touch through the button."
-    }
-  ],
+  "blockers": [],
   "human_actions_pending": [
     {
       "action": "Delete duplicate Datsun — SQL: DELETE FROM vehicle_makes WHERE id = 2863",
@@ -74,24 +54,16 @@
     }
   ],
   "decisions": [
-    {"decision": "Header title is 'The Shop' not 'Tuning'", "rationale": "User preferred 'The Shop' after testing. Hanken Grotesk bold italic -0.1em at fontSize 24.", "phase": "build-order"},
-    {"decision": "Icon layout: L-shape with absolute positioning", "rationale": "Blueprint (left:16, bottom:190), Build Sheet (left:58, bottom:54), Parts Bin (left:222, bottom:88). Asymmetric to complement the off-center lift in the background. Lift columns are on the right of the image.", "phase": "build-order"},
-    {"decision": "Per-tile labelMargin for icon labels", "rationale": "Blueprint/BuildSheet are landscape PNGs (~330x230), Parts Bin is squarer (~300x254). Blueprint/BuildSheet labelMargin:-6, Parts Bin labelMargin:6.", "phase": "build-order"},
-    {"decision": "Three Tuning sub-sections: Build Sheet (on car), Blueprint (planned), Parts Bin (owned not installed)", "rationale": "Matches real JDM owner mental model. Parts flow: Blueprint → Parts Bin → Build Sheet. Add directly within each sub-screen for v1.", "phase": "build-order"},
-    {"decision": "tuning_hero.png: late-night premium JDM workshop, 3/4 angle, empty lift, gloss white floor, red accents", "rationale": "Generated on NanoBanana. No car to avoid copyright. Nismo Omori Factory reference.", "phase": "build-order"},
-    {"decision": "Snapshot redesigned as practical handoff card, not full spec sheet", "rationale": "A shop doesn't need HP/torque — they have a scanner. Build Sheet = enthusiast specs.", "phase": "build-order"},
-    {"decision": "Snapshot sections: Vehicle, Service, Important Dates, Contacts", "rationale": "Matches user mockup. Important Dates = registration + insurance renewal.", "phase": "build-order"},
-    {"decision": "Details overlay in My Cars has Vehicle Specs section", "rationale": "All specs (engine, HP, torque, transmission, etc.) editable from My Cars → Details.", "phase": "build-order"},
-    {"decision": "CarReflection FL constants: FL_FX=0.13 FL_FY=1.1 FL_RX=0.93 FL_RY=0.82 FL_DEPTH=0.28", "rationale": "FL_FY>1.0 intentional — extends floor contact below image for front tire perspective.", "phase": "build-order"}
+    {"decision": "iOS press feedback via onPointerDown/onPointerUp state, not CSS :active", "rationale": "CSS :active is unreliable on iOS Safari. onPointerDown fires immediately on touch with no delay.", "phase": "build-order"},
+    {"decision": "Inner wrapper div carries press transform, outer button carries animation", "rationale": "Prevents transform conflict between CSS animation (fade-in) and press scale on same element.", "phase": "build-order"},
+    {"decision": "STAGGER_BASE_MS reduced 400→80, STAGGER_STEP_MS 70→60", "rationale": "400ms base meant icons were opacity:0 for too long — users tapping immediately saw no feedback.", "phase": "build-order"},
+    {"decision": "TUNING_CATEGORIES exported from TuningBuildSheetPage", "rationale": "Shared by BuildSheet, Blueprint, PartsPage, and AddPage. Single source of truth for 15 categories.", "phase": "build-order"},
+    {"decision": "TuningAddPage two-step: category picker → form", "rationale": "Category picker has dramatic black+blue+burgundy aesthetic. Pre-selects category via ?category= query param when navigating from grid tile.", "phase": "build-order"},
+    {"decision": "Add DIY Steps is a future phase stub", "rationale": "Needs mod_steps DB table, image upload, step editor UI. Button reserved on form with 'coming soon' label.", "phase": "build-order"},
+    {"decision": "Header title is 'The Shop' not 'Tuning'", "rationale": "User preferred 'The Shop' after testing.", "phase": "build-order"},
+    {"decision": "Phosphorous green #39ff14 for Add Mods CTA", "rationale": "User requested CSS phosphorous green + sign with 'Add Mods' text below.", "phase": "build-order"}
   ],
-  "uncommitted_files": [
-    "src/pages/GaragePage.tsx",
-    "src/pages/TuningPage.tsx",
-    "src/assets/backgrounds/tuning_hero.png",
-    "src/assets/icons/tuning-dashboard/tuning_blueprint.png",
-    "src/assets/icons/tuning-dashboard/tuning_buildsheet.png",
-    "src/assets/icons/tuning-dashboard/tuning_partsbin.png"
-  ],
-  "next_action": "Fix iOS long-press issue: in TuningPage and GaragePage <style> blocks add `user-select: none; -webkit-touch-callout: none;` to .icon-tile rule. Add `pointerEvents: 'none'` to icon <img> elements in both pages. Then commit all uncommitted files and move to Task 28c: TuningBuildSheetPage.",
-  "context_notes": "Dev server runs on port 5173 or 5176 with --host flag. App at ~/Desktop/g-dimension. Supabase: uxqoernfrtgclpneirvc. TuningPage hero is visually complete and approved. The Shop name approved. Sub-screens are stubs — routes wired in App.tsx. Snapshot is a practical handoff card. photo_y_offset column (0-100, default 50) controls vertical crop. gdim_chosen_car_id in localStorage selects active car for Snapshot."
+  "uncommitted_files": [],
+  "next_action": "Build TuningBlueprintPage (28d) — same pattern as TuningBuildSheetPage. Import TUNING_CATEGORIES from TuningBuildSheetPage. Query: status='planned'. Empty state: same 3x5 grid + green CTA. Filled state: same grouped spec list. The add form at /tuning/add already works — just pass ?category= param.",
+  "context_notes": "Dev server: npx vite --port 5176 --host. Supabase: uxqoernfrtgclpneirvc. All code clean (tsc passes). TuningBuildSheetPage exports TUNING_CATEGORIES const so Blueprint and PartsPage can import it without duplication. The 15 icon files live in src/assets/icons/tuning/. TuningAddPage handles both Build Sheet adds (status=installed) and can be extended for Blueprint (planned) and Parts Bin (purchased) by passing a ?status= param."
 }
