@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-07T09:08:32.861Z",
+  "timestamp": "2026-05-08T03:48:13.898Z",
   "phase": "build-order",
   "phase_name": "G-Dimension PWA — UI Build",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 27,
+  "task": 28,
   "total_tasks": 30,
   "status": "paused",
   "completed_tasks": [
@@ -30,7 +30,8 @@
     {"id": "23b", "name": "GT car carousel card", "status": "done", "commit": "670afe6"},
     {"id": "23c", "name": "CarReflection canvas renderer + S14 constants tuned", "status": "done", "commit": "670afe6"},
     {"id": 24, "name": "E2E Add Car flow verified", "status": "done", "commit": "n/a"},
-    {"id": 25, "name": "Header unification + Details overlay + flash fix", "status": "done", "commit": "7ef5813"}
+    {"id": 25, "name": "Header unification + Details overlay + flash fix", "status": "done", "commit": "7ef5813"},
+    {"id": 27, "name": "Snapshot screen — handoff card redesign + Details Specs section", "status": "done", "commit": "9fe33b5"}
   ],
   "remaining_tasks": [
     {
@@ -39,16 +40,21 @@
       "status": "not_started"
     },
     {
-      "id": 27,
-      "name": "Snapshot screen — /garage/snapshot read-only car spec sheet",
+      "id": 28,
+      "name": "Tuning screen — /tuning category browsing",
       "status": "not_started",
-      "notes": "NEXT. Schema has: horsepower, torque, engine_type, transmission, drivetrain, forced_induction, chassis_code, vin, tire_size, oil_type, battery_model, license_plate, is_import."
+      "notes": "NEXT."
     },
-    {"id": 28, "name": "Tuning screen — /tuning category browsing", "status": "not_started"},
     {"id": 29, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
     {"id": 30, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "Vercel build failing due to pre-existing unused imports in HomePage.tsx and GaragePage.tsx (TS6133 errors). Not caused by today's work.",
+      "type": "technical",
+      "workaround": "Fix unused imports in those two files before next push, or they'll keep blocking Vercel deployment."
+    }
+  ],
   "human_actions_pending": [
     {
       "action": "Delete duplicate Datsun — SQL: DELETE FROM vehicle_makes WHERE id = 2863",
@@ -67,14 +73,17 @@
     }
   ],
   "decisions": [
-    {"decision": "CarReflection FL constants: FL_FX=0.13 FL_FY=1.1 FL_RX=0.93 FL_RY=0.82 FL_DEPTH=0.28", "rationale": "FL_FY>1.0 intentional — extends floor contact below image for front tire perspective. White-bg exclusion: r>235&&g>235&&b>235 treated as transparent.", "phase": "build-order"},
-    {"decision": "Soft delete via deleted_at (already in schema), 7-day recovery", "rationale": "Per architecture. Hard delete not needed.", "phase": "build-order"},
-    {"decision": "Stats (HP, torque etc.) belong in Snapshot, not Details", "rationale": "Details = ownership data. Snapshot = spec sheet. All spec columns already in schema.", "phase": "build-order"},
-    {"decision": "paint_code is the correct column name (not color_code)", "rationale": "Discovered from live schema.", "phase": "build-order"},
-    {"decision": "Nickname shown blank in Details if it matches auto-generated default", "rationale": "Add Car auto-generates 'year make model' nickname if left blank. Details strips this so user knows they haven't set a real one.", "phase": "build-order"},
-    {"decision": "Date badge: black day square on home+garage, burgundy on carousel", "rationale": "Burgundy headers on home/garage — black day square avoids clash. Carousel black header so burgundy adds variety.", "phase": "build-order"}
+    {"decision": "Snapshot redesigned as practical handoff card, not full spec sheet", "rationale": "A shop doesn't need HP/torque — they have a scanner. Snapshot = show mechanic/spouse/dealer. Build Sheet (future, /tuning/build-sheet) = enthusiast specs.", "phase": "build-order"},
+    {"decision": "Snapshot sections: Vehicle (VIN/plate/engine/tires/oil/battery/mileage), Service, Important Dates (registration + insurance renewal), Contacts", "rationale": "Matches user's mockup exactly. Important Dates split from Service as its own section.", "phase": "build-order"},
+    {"decision": "HP, torque, drivetrain, transmission, chassis code removed from Snapshot", "rationale": "These belong in Build Sheet when that phase comes.", "phase": "build-order"},
+    {"decision": "Details overlay in My Cars expanded with Vehicle Specs section", "rationale": "User chose this over a separate edit screen. Specs (engine, induction, HP, torque, transmission, drivetrain, chassis code, VIN, plate, oil, tires, battery) all editable from My Cars → Details.", "phase": "build-order"},
+    {"decision": "Choose button → saves gdim_chosen_car_id to localStorage → navigate to /garage", "rationale": "Choose sets active car for Snapshot. No longer jumps to Snapshot directly.", "phase": "build-order"},
+    {"decision": "Snapshot hero: photo box left (150×110, background-image to avoid Tailwind Preflight height:auto override), car name right (Hanken Grotesk bold italic -0.1em)", "rationale": "Used background-image on div instead of <img> to bypass Tailwind Preflight img reset that caused height to override.", "phase": "build-order"},
+    {"decision": "Snapshot palette: light grey #e8e8e6 bg, dark #1a1a1c text", "rationale": "Contrast to dark GT aesthetic of rest of app. Readable for anyone, not just enthusiasts.", "phase": "build-order"},
+    {"decision": "CarReflection FL constants: FL_FX=0.13 FL_FY=1.1 FL_RX=0.93 FL_RY=0.82 FL_DEPTH=0.28", "rationale": "FL_FY>1.0 intentional — extends floor contact below image for front tire perspective.", "phase": "build-order"},
+    {"decision": "Stats (HP, torque etc.) belong in Snapshot, not Details — REVISED: now in Build Sheet", "rationale": "Originally planned for Snapshot. After user discussion, moved to Build Sheet (tuning section).", "phase": "build-order"}
   ],
   "uncommitted_files": [],
-  "next_action": "Build Snapshot screen at /garage/snapshot. Read-only spec sheet. Pull from cars table: engine_type, transmission, drivetrain, forced_induction, horsepower, torque, chassis_code, vin, license_plate, tire_size, oil_type, battery_model, is_import, year, make, model, trim. Dark GT aesthetic, consistent with existing screens. Route already in App.tsx.",
-  "context_notes": "Dev server port 5174. App ~/Desktop/g-dimension. Supabase: uxqoernfrtgclpneirvc. All committed clean (670afe6, 95798a7, 7ef5813). CarReflection production-ready for placeholder — server-side generation needed when real photos added. Details overlay fully wired (open/save/soft-delete). Cars schema much richer than expected: engine, drivetrain, forced induction, chassis code, VIN, tire size, oil type, battery model all exist as columns."
+  "next_action": "Fix pre-existing Vercel build errors: remove unused imports from src/pages/HomePage.tsx (FONT_TITLE, SHADOW_ICON_FOCAL, SHADOW_ICON_STANDARD, SHADOW_GROUND, 'entered' var) and src/pages/GaragePage.tsx (GRADIENT_APP_BG, COLOR_CAVITY_BG, SPACE_MD). Then begin task 28: Tuning screen at /tuning.",
+  "context_notes": "Dev server runs on port 5176 with --host flag (accessible on local network at 192.168.3.9:5176). App ~/Desktop/g-dimension. Supabase project: uxqoernfrtgclpneirvc. All committed clean (9fe33b5). Snapshot is a practical handoff card — show your mechanic, spouse, or dealer. Service/Contacts stubs will fill automatically when Reminders and Contacts screens are built. photo_y_offset column (0-100, default 50) controls vertical crop position for car photos. gdim_chosen_car_id in localStorage selects which car shows in Snapshot; falls back to first car if not set."
 }
