@@ -4,6 +4,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import tuningHero     from '../assets/backgrounds/tuning_hero.png'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
@@ -37,6 +38,7 @@ const TILES = [
 
 export default function TuningPage() {
   const navigate = useNavigate()
+  const [pressed, setPressed] = useState<string | null>(null)
 
   return (
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden' }}>
@@ -45,8 +47,7 @@ export default function TuningPage() {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); user-select: none; -webkit-touch-callout: none; }
-        .icon-tile:active { transform: scale(0.92); transition: transform 80ms ease-out; }
+        .icon-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
       {/* Full-bleed workshop photo */}
@@ -140,6 +141,10 @@ export default function TuningPage() {
           key={tile.id}
           onClick={() => navigate(tile.route)}
           className="icon-tile"
+          onPointerDown={() => setPressed(tile.id)}
+          onPointerUp={() => setPressed(null)}
+          onPointerLeave={() => setPressed(null)}
+          onPointerCancel={() => setPressed(null)}
           style={{
             position: 'absolute',
             left: tile.left,
@@ -150,37 +155,44 @@ export default function TuningPage() {
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          <div style={{ position: 'relative', width: 126, height: 126 }}>
-            {/* Angled cast shadow — matches Garage dashboard exactly */}
-            <div style={{
-              position: 'absolute',
-              top: 90, left: 63,
-              width: 66, height: 60,
-              transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
-              background: 'rgba(0,0,0,1)',
-              opacity: CAST_SHADOW_OPACITY,
-              filter: 'blur(5px)',
-            }} />
-            <img
-              src={tile.src}
-              alt={tile.label}
-              draggable={false}
-              style={{
-                position: 'absolute', top: 0, left: 0,
-                width: 126, height: 126,
-                objectFit: 'contain',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-          <span style={{
-            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-            color: 'rgba(245,245,245,0.8)',
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            marginTop: tile.labelMargin, position: 'relative', zIndex: 1,
+          {/* Inner wrapper owns the press transform, separate from the fade-in animation on the button */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)',
+            transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
           }}>
-            {tile.label}
-          </span>
+            <div style={{ position: 'relative', width: 126, height: 126 }}>
+              {/* Angled cast shadow — matches Garage dashboard exactly */}
+              <div style={{
+                position: 'absolute',
+                top: 90, left: 63,
+                width: 66, height: 60,
+                transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
+                background: 'rgba(0,0,0,1)',
+                opacity: CAST_SHADOW_OPACITY,
+                filter: 'blur(5px)',
+              }} />
+              <img
+                src={tile.src}
+                alt={tile.label}
+                draggable={false}
+                style={{
+                  position: 'absolute', top: 0, left: 0,
+                  width: 126, height: 126,
+                  objectFit: 'contain',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+            <span style={{
+              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+              color: 'rgba(245,245,245,0.8)',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              marginTop: tile.labelMargin, position: 'relative', zIndex: 1,
+            }}>
+              {tile.label}
+            </span>
+          </div>
         </button>
       ))}
     </div>

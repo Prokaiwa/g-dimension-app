@@ -50,6 +50,7 @@ export default function GaragePage() {
   const [displayName, setDisplayName] = useState('')
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [hasCar, setHasCar] = useState<boolean | null>(null)
+  const [pressed, setPressed] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -111,8 +112,7 @@ export default function GaragePage() {
           0%, 100% { box-shadow: 0 0 8px rgba(200,102,26,0.35), 0 0 0 0 rgba(200,102,26,0.0); }
           50%       { box-shadow: 0 0 24px rgba(200,102,26,0.85), 0 0 0 14px rgba(200,102,26,0.14); }
         }
-        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); user-select: none; -webkit-touch-callout: none; }
-        .icon-tile:active { transform: scale(0.92); transition: transform 80ms ease-out; }
+        .icon-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
       {/* ── Header ── */}
@@ -202,6 +202,10 @@ export default function GaragePage() {
               key={tile.id}
               onClick={() => navigate(tile.route)}
               className="icon-tile"
+              onPointerDown={() => setPressed(tile.id)}
+              onPointerUp={() => setPressed(null)}
+              onPointerLeave={() => setPressed(null)}
+              onPointerCancel={() => setPressed(null)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
@@ -209,39 +213,46 @@ export default function GaragePage() {
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Icon tile + cast shadow */}
-              <div style={{ position: 'relative', width: 126, height: 126 }}>
-                {/* Shadow entirely behind icon — shows through PNG transparency as a halo */}
-                <div style={{
-                  position: 'absolute',
-                  top: 90,
-                  left: 63,
-                  width: 66,
-                  height: 60,
-                  transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
-                  background: 'rgba(0,0,0,1)',
-                  opacity: CAST_SHADOW_OPACITY,
-                  filter: 'blur(5px)',
-                }} />
-                {/* Icon — renders on top of shadow */}
-                <img src={tile.src} alt={tile.label}
-                  style={{
-                    position: 'absolute', top: 0, left: 0,
-                    width: 126, height: 126,
-                    objectFit: 'contain',
-                    pointerEvents: 'none',
-                  }}
-                  draggable={false} />
-              </div>
-              {/* Label — zIndex above any shadow bleed */}
-              <span style={{
-                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-                color: 'rgba(245,245,245,0.8)',
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                marginTop: -20, position: 'relative', zIndex: 1,
+              {/* Inner wrapper owns the press transform, separate from the fade-in animation */}
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)',
+                transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
               }}>
-                {tile.label}
-              </span>
+                {/* Icon tile + cast shadow */}
+                <div style={{ position: 'relative', width: 126, height: 126 }}>
+                  {/* Shadow entirely behind icon — shows through PNG transparency as a halo */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 90,
+                    left: 63,
+                    width: 66,
+                    height: 60,
+                    transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
+                    background: 'rgba(0,0,0,1)',
+                    opacity: CAST_SHADOW_OPACITY,
+                    filter: 'blur(5px)',
+                  }} />
+                  {/* Icon — renders on top of shadow */}
+                  <img src={tile.src} alt={tile.label}
+                    style={{
+                      position: 'absolute', top: 0, left: 0,
+                      width: 126, height: 126,
+                      objectFit: 'contain',
+                      pointerEvents: 'none',
+                    }}
+                    draggable={false} />
+                </div>
+                {/* Label — zIndex above any shadow bleed */}
+                <span style={{
+                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                  color: 'rgba(245,245,245,0.8)',
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  marginTop: -20, position: 'relative', zIndex: 1,
+                }}>
+                  {tile.label}
+                </span>
+              </div>
             </button>
           ))}
         </div>
