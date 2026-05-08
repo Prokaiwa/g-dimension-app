@@ -491,6 +491,7 @@ export default function GarageCarsPage() {
   const [detailsSaving, setDetailsSaving]     = useState(false)
   const [detailsErr, setDetailsErr]           = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete]     = useState(false)
+  const [pressedAction, setPressedAction]     = useState<string | null>(null)
   const scrollRef                             = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -815,10 +816,22 @@ export default function GarageCarsPage() {
                           { src: iconChoose, label: 'Choose', onPress: () => { localStorage.setItem('gdim_chosen_car_id', cars[activeIdx].id); navigate('/garage') } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },
                         ] as const).map(({ src, label, onPress }) => (
-                          <button key={label} onClick={onPress} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
+                          <button key={label} onClick={onPress}
+                            onPointerDown={() => setPressedAction(label)}
+                            onPointerUp={() => setPressedAction(null)}
+                            onPointerLeave={() => setPressedAction(null)}
+                            onPointerCancel={() => setPressedAction(null)}
+                            style={{
+                              display: 'flex', flexDirection: 'column', alignItems: 'center',
+                              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                              WebkitTapHighlightColor: 'transparent',
+                              touchAction: 'manipulation', userSelect: 'none',
+                              transform: pressedAction === label ? 'scale(0.92)' : 'scale(1)',
+                              transition: pressedAction === label ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+                            }}>
                             <div style={{ position: 'relative', width: 101, height: 101 }}>
                               <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: 'translate(-50%,-50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
-                              <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain' }} />
+                              <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain', pointerEvents: 'none' }} />
                             </div>
                             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1 }}>{label}</span>
                           </button>

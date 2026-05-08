@@ -63,6 +63,7 @@ export default function HomePage() {
   const [displayName, setDisplayName] = useState('...')
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [_entered, setEntered] = useState(false)
+  const [pressedNode, setPressedNode] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -384,6 +385,10 @@ export default function HomePage() {
             <div
               key={dest.id}
               onClick={() => navigate(dest.route)}
+              onPointerDown={() => setPressedNode(dest.id)}
+              onPointerUp={() => setPressedNode(null)}
+              onPointerLeave={() => setPressedNode(null)}
+              onPointerCancel={() => setPressedNode(null)}
               style={{
                 position: 'absolute',
                 left: `${(dest.pos.left / 390 * 100).toFixed(2)}%`,
@@ -393,9 +398,10 @@ export default function HomePage() {
                 cursor: 'pointer',
                 animation: `destIn 700ms ${EASING_SETTLE} ${STAGGER_MS[i]}ms both`,
                 WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation', userSelect: 'none',
               }}
             >
-              {/* Focal amber halo */}
+              {/* Focal amber halo — outside scale wrapper so it doesn't shrink on press */}
               {dest.focal && (
                 <div style={{
                   position: 'absolute',
@@ -408,65 +414,73 @@ export default function HomePage() {
                 }} />
               )}
 
+              {/* Inner wrapper owns the press transform, separate from the fade-in animation */}
               <div style={{
-                position: 'relative',
-                width: dest.size, height: dest.size,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                transform: pressedNode === dest.id ? 'scale(0.92)' : 'scale(1)',
+                transition: pressedNode === dest.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
               }}>
-                <img
-                  src={dest.icon}
-                  alt={dest.label}
-                  style={{
-                    width: dest.size * 0.85,
-                    height: dest.size * 0.85,
-                    objectFit: 'contain',
-                    filter: 'none',
-                    userSelect: 'none',
-                  }}
-                  draggable={false}
-                />
-              </div>
-
-              {/* Ground shadow — flow element, sits between icon and label */}
-              <div style={{
-                width: dest.size * 0.6,
-                height: 8,
-                marginTop: dest.focal ? -6 : -4,
-                borderRadius: '50%',
-                background: 'rgba(0,0,0,0.45)',
-                filter: 'blur(7px)',
-                flexShrink: 0,
-                alignSelf: 'center',
-                pointerEvents: 'none',
-              }} />
-
-              {/* Label */}
-              <span style={{
-                fontFamily: FONT_UI,
-                fontWeight: dest.focal ? 800 : 700,
-                fontSize: dest.focal ? 13 : 11,
-                color: dest.focal ? '#f5f5f5' : 'rgba(245,245,245,0.8)',
-                letterSpacing: dest.focal ? '0.12em' : '0.08em',
-                textTransform: 'uppercase',
-                textShadow: '0 1px 3px rgba(0,0,0,0.7)',
-                marginTop: 4,
-                position: 'relative', zIndex: 1,
-                pointerEvents: 'none',
-              }}>
-                {dest.label}
-              </span>
-
-              {/* Focal underline accent */}
-              {dest.focal && (
                 <div style={{
-                  width: FOCAL_UNDERLINE_W,
-                  height: FOCAL_UNDERLINE_H,
-                  background: COLOR_ACCENT,
-                  borderRadius: 1,
-                  marginTop: 3,
-                  opacity: 0.9,
+                  position: 'relative',
+                  width: dest.size, height: dest.size,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <img
+                    src={dest.icon}
+                    alt={dest.label}
+                    style={{
+                      width: dest.size * 0.85,
+                      height: dest.size * 0.85,
+                      objectFit: 'contain',
+                      filter: 'none',
+                      userSelect: 'none',
+                      pointerEvents: 'none',
+                    }}
+                    draggable={false}
+                  />
+                </div>
+
+                {/* Ground shadow — flow element, sits between icon and label */}
+                <div style={{
+                  width: dest.size * 0.6,
+                  height: 8,
+                  marginTop: dest.focal ? -6 : -4,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.45)',
+                  filter: 'blur(7px)',
+                  flexShrink: 0,
+                  alignSelf: 'center',
+                  pointerEvents: 'none',
                 }} />
-              )}
+
+                {/* Label */}
+                <span style={{
+                  fontFamily: FONT_UI,
+                  fontWeight: dest.focal ? 800 : 700,
+                  fontSize: dest.focal ? 13 : 11,
+                  color: dest.focal ? '#f5f5f5' : 'rgba(245,245,245,0.8)',
+                  letterSpacing: dest.focal ? '0.12em' : '0.08em',
+                  textTransform: 'uppercase',
+                  textShadow: '0 1px 3px rgba(0,0,0,0.7)',
+                  marginTop: 4,
+                  position: 'relative', zIndex: 1,
+                  pointerEvents: 'none',
+                }}>
+                  {dest.label}
+                </span>
+
+                {/* Focal underline accent */}
+                {dest.focal && (
+                  <div style={{
+                    width: FOCAL_UNDERLINE_W,
+                    height: FOCAL_UNDERLINE_H,
+                    background: COLOR_ACCENT,
+                    borderRadius: 1,
+                    marginTop: 3,
+                    opacity: 0.9,
+                  }} />
+                )}
+              </div>
             </div>
           ))}
         </div>
