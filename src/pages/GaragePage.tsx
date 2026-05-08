@@ -111,6 +111,8 @@ export default function GaragePage() {
           0%, 100% { box-shadow: 0 0 8px rgba(200,102,26,0.35), 0 0 0 0 rgba(200,102,26,0.0); }
           50%       { box-shadow: 0 0 24px rgba(200,102,26,0.85), 0 0 0 14px rgba(200,102,26,0.14); }
         }
+        .icon-tile { transition: transform 200ms cubic-bezier(0.22,1,0.36,1); }
+        .icon-tile:active { transform: scale(0.92); transition: transform 80ms ease-out; }
       `}</style>
 
       {/* ── Header ── */}
@@ -199,6 +201,7 @@ export default function GaragePage() {
             <button
               key={tile.id}
               onClick={() => navigate(tile.route)}
+              className="icon-tile"
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,

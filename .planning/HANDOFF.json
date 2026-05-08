@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T03:48:13.898Z",
+  "timestamp": "2026-05-08T11:58:43.899Z",
   "phase": "build-order",
   "phase_name": "G-Dimension PWA — UI Build",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
@@ -31,28 +31,29 @@
     {"id": "23c", "name": "CarReflection canvas renderer + S14 constants tuned", "status": "done", "commit": "670afe6"},
     {"id": 24, "name": "E2E Add Car flow verified", "status": "done", "commit": "n/a"},
     {"id": 25, "name": "Header unification + Details overlay + flash fix", "status": "done", "commit": "7ef5813"},
-    {"id": 27, "name": "Snapshot screen — handoff card redesign + Details Specs section", "status": "done", "commit": "9fe33b5"}
+    {"id": 27, "name": "Snapshot screen — handoff card redesign + Details Specs section", "status": "done", "commit": "9fe33b5"},
+    {"id": "vercel-fix", "name": "Fix Vercel TS build errors (TS6133/TS2345/TS2353)", "status": "done", "commit": "4775c4a"},
+    {"id": "28a", "name": "TuningPage hero screen — background, header, L-shape icon layout", "status": "done", "commit": "uncommitted"}
   ],
   "remaining_tasks": [
     {
-      "id": "25b",
-      "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline chassis names",
-      "status": "not_started"
-    },
-    {
-      "id": 28,
-      "name": "Tuning screen — /tuning category browsing",
+      "id": "28b",
+      "name": "Fix iOS long-press on icon tiles — add -webkit-touch-callout:none + user-select:none to .icon-tile, pointerEvents:none on icon imgs",
       "status": "not_started",
-      "notes": "NEXT."
+      "notes": "NEXT. Holding icons triggers iOS native image save dialog. Affects both TuningPage and GaragePage."
     },
+    {"id": "28c", "name": "TuningBuildSheetPage — list of installed mods + add form", "status": "not_started"},
+    {"id": "28d", "name": "TuningBlueprintPage — wishlist mods + add form", "status": "not_started"},
+    {"id": "28e", "name": "TuningPartsPage (Parts Bin) — shelf parts + add form", "status": "not_started"},
+    {"id": "25b", "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline chassis names", "status": "not_started"},
     {"id": 29, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
     {"id": 30, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"}
   ],
   "blockers": [
     {
-      "description": "Vercel build failing due to pre-existing unused imports in HomePage.tsx and GaragePage.tsx (TS6133 errors). Not caused by today's work.",
+      "description": "iOS long-press on icon buttons triggers native image save dialog instead of press animation.",
       "type": "technical",
-      "workaround": "Fix unused imports in those two files before next push, or they'll keep blocking Vercel deployment."
+      "workaround": "Add `-webkit-touch-callout: none; user-select: none;` to .icon-tile CSS in both TuningPage and GaragePage. Add `pointerEvents: 'none'` to all icon <img> elements. This prevents the callout and routes touch through the button."
     }
   ],
   "human_actions_pending": [
@@ -73,17 +74,24 @@
     }
   ],
   "decisions": [
-    {"decision": "Snapshot redesigned as practical handoff card, not full spec sheet", "rationale": "A shop doesn't need HP/torque — they have a scanner. Snapshot = show mechanic/spouse/dealer. Build Sheet (future, /tuning/build-sheet) = enthusiast specs.", "phase": "build-order"},
-    {"decision": "Snapshot sections: Vehicle (VIN/plate/engine/tires/oil/battery/mileage), Service, Important Dates (registration + insurance renewal), Contacts", "rationale": "Matches user's mockup exactly. Important Dates split from Service as its own section.", "phase": "build-order"},
-    {"decision": "HP, torque, drivetrain, transmission, chassis code removed from Snapshot", "rationale": "These belong in Build Sheet when that phase comes.", "phase": "build-order"},
-    {"decision": "Details overlay in My Cars expanded with Vehicle Specs section", "rationale": "User chose this over a separate edit screen. Specs (engine, induction, HP, torque, transmission, drivetrain, chassis code, VIN, plate, oil, tires, battery) all editable from My Cars → Details.", "phase": "build-order"},
-    {"decision": "Choose button → saves gdim_chosen_car_id to localStorage → navigate to /garage", "rationale": "Choose sets active car for Snapshot. No longer jumps to Snapshot directly.", "phase": "build-order"},
-    {"decision": "Snapshot hero: photo box left (150×110, background-image to avoid Tailwind Preflight height:auto override), car name right (Hanken Grotesk bold italic -0.1em)", "rationale": "Used background-image on div instead of <img> to bypass Tailwind Preflight img reset that caused height to override.", "phase": "build-order"},
-    {"decision": "Snapshot palette: light grey #e8e8e6 bg, dark #1a1a1c text", "rationale": "Contrast to dark GT aesthetic of rest of app. Readable for anyone, not just enthusiasts.", "phase": "build-order"},
-    {"decision": "CarReflection FL constants: FL_FX=0.13 FL_FY=1.1 FL_RX=0.93 FL_RY=0.82 FL_DEPTH=0.28", "rationale": "FL_FY>1.0 intentional — extends floor contact below image for front tire perspective.", "phase": "build-order"},
-    {"decision": "Stats (HP, torque etc.) belong in Snapshot, not Details — REVISED: now in Build Sheet", "rationale": "Originally planned for Snapshot. After user discussion, moved to Build Sheet (tuning section).", "phase": "build-order"}
+    {"decision": "Header title is 'The Shop' not 'Tuning'", "rationale": "User preferred 'The Shop' after testing. Hanken Grotesk bold italic -0.1em at fontSize 24.", "phase": "build-order"},
+    {"decision": "Icon layout: L-shape with absolute positioning", "rationale": "Blueprint (left:16, bottom:190), Build Sheet (left:58, bottom:54), Parts Bin (left:222, bottom:88). Asymmetric to complement the off-center lift in the background. Lift columns are on the right of the image.", "phase": "build-order"},
+    {"decision": "Per-tile labelMargin for icon labels", "rationale": "Blueprint/BuildSheet are landscape PNGs (~330x230), Parts Bin is squarer (~300x254). Blueprint/BuildSheet labelMargin:-6, Parts Bin labelMargin:6.", "phase": "build-order"},
+    {"decision": "Three Tuning sub-sections: Build Sheet (on car), Blueprint (planned), Parts Bin (owned not installed)", "rationale": "Matches real JDM owner mental model. Parts flow: Blueprint → Parts Bin → Build Sheet. Add directly within each sub-screen for v1.", "phase": "build-order"},
+    {"decision": "tuning_hero.png: late-night premium JDM workshop, 3/4 angle, empty lift, gloss white floor, red accents", "rationale": "Generated on NanoBanana. No car to avoid copyright. Nismo Omori Factory reference.", "phase": "build-order"},
+    {"decision": "Snapshot redesigned as practical handoff card, not full spec sheet", "rationale": "A shop doesn't need HP/torque — they have a scanner. Build Sheet = enthusiast specs.", "phase": "build-order"},
+    {"decision": "Snapshot sections: Vehicle, Service, Important Dates, Contacts", "rationale": "Matches user mockup. Important Dates = registration + insurance renewal.", "phase": "build-order"},
+    {"decision": "Details overlay in My Cars has Vehicle Specs section", "rationale": "All specs (engine, HP, torque, transmission, etc.) editable from My Cars → Details.", "phase": "build-order"},
+    {"decision": "CarReflection FL constants: FL_FX=0.13 FL_FY=1.1 FL_RX=0.93 FL_RY=0.82 FL_DEPTH=0.28", "rationale": "FL_FY>1.0 intentional — extends floor contact below image for front tire perspective.", "phase": "build-order"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Fix pre-existing Vercel build errors: remove unused imports from src/pages/HomePage.tsx (FONT_TITLE, SHADOW_ICON_FOCAL, SHADOW_ICON_STANDARD, SHADOW_GROUND, 'entered' var) and src/pages/GaragePage.tsx (GRADIENT_APP_BG, COLOR_CAVITY_BG, SPACE_MD). Then begin task 28: Tuning screen at /tuning.",
-  "context_notes": "Dev server runs on port 5176 with --host flag (accessible on local network at 192.168.3.9:5176). App ~/Desktop/g-dimension. Supabase project: uxqoernfrtgclpneirvc. All committed clean (9fe33b5). Snapshot is a practical handoff card — show your mechanic, spouse, or dealer. Service/Contacts stubs will fill automatically when Reminders and Contacts screens are built. photo_y_offset column (0-100, default 50) controls vertical crop position for car photos. gdim_chosen_car_id in localStorage selects which car shows in Snapshot; falls back to first car if not set."
+  "uncommitted_files": [
+    "src/pages/GaragePage.tsx",
+    "src/pages/TuningPage.tsx",
+    "src/assets/backgrounds/tuning_hero.png",
+    "src/assets/icons/tuning-dashboard/tuning_blueprint.png",
+    "src/assets/icons/tuning-dashboard/tuning_buildsheet.png",
+    "src/assets/icons/tuning-dashboard/tuning_partsbin.png"
+  ],
+  "next_action": "Fix iOS long-press issue: in TuningPage and GaragePage <style> blocks add `user-select: none; -webkit-touch-callout: none;` to .icon-tile rule. Add `pointerEvents: 'none'` to icon <img> elements in both pages. Then commit all uncommitted files and move to Task 28c: TuningBuildSheetPage.",
+  "context_notes": "Dev server runs on port 5173 or 5176 with --host flag. App at ~/Desktop/g-dimension. Supabase: uxqoernfrtgclpneirvc. TuningPage hero is visually complete and approved. The Shop name approved. Sub-screens are stubs — routes wired in App.tsx. Snapshot is a practical handoff card. photo_y_offset column (0-100, default 50) controls vertical crop. gdim_chosen_car_id in localStorage selects active car for Snapshot."
 }
