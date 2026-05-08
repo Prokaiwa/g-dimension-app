@@ -139,9 +139,9 @@ export const SCALE_PRESS_DEFAULT = 0.95; // most interactive elements
 export const SCALE_PRESS_EMPHASIS = 0.92; // emphasis press (heavier tap)
 export const SCALE_PRESS_SUBTLE   = 0.97; // subtle press
 
-// Stagger delay formula for grid reveals: 400 + index * 70 ms
-export const STAGGER_BASE_MS  = 400;
-export const STAGGER_STEP_MS  = 70;
+// Stagger delay formula for grid reveals: 80 + index * 60 ms
+export const STAGGER_BASE_MS  = 80;
+export const STAGGER_STEP_MS  = 60;
 
 // Keyframe definitions (reference names for CSS / styled usage)
 // doorSettle:   translateY(-16px) opacity:0 → translateY(0) opacity:1
