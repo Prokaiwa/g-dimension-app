@@ -259,18 +259,6 @@ function YearPickerSheet({ value, onSelect, onClose }: { value: string; onSelect
   )
 }
 
-// Shared header style for picker sheets
-function PickerHeader({ label, onBack }: { label: string; onBack: () => void }) {
-  return (
-    <div style={{ height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', paddingLeft: SPACE_MD, paddingRight: SPACE_MD, background: COLOR_HEADER_BLACK, borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 0', display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
-      </button>
-      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{label}</span>
-    </div>
-  )
-}
-
 // Shared Done button for picker sheets
 function PickerDoneButton({ onPress, disabled }: { onPress: () => void; disabled?: boolean }) {
   return (
@@ -287,7 +275,7 @@ function PickerDoneButton({ onPress, disabled }: { onPress: () => void; disabled
 }
 
 // Free-text entry overlay (used by Make "Other" and Model "Other")
-function FreeTextSheet({ label, placeholder, onDone, onBack }: { label: string; placeholder: string; onDone: (text: string) => void; onBack: () => void }) {
+function FreeTextSheet({ label, placeholder, onDone, onBack: _onBack }: { label: string; placeholder: string; onDone: (text: string) => void; onBack: () => void }) {
   const [text, setText] = useState('')
   const ref = useRef<HTMLInputElement>(null)
   useEffect(() => { setTimeout(() => ref.current?.focus(), 120) }, [])
@@ -605,7 +593,7 @@ export default function GarageCarsPage() {
         purchase_dealer: form.wherePurchased.trim() || null,
         purchase_story: form.originStory.trim() || null,
       })
-      .select('id, year, make, model, trim, nickname, current_mileage')
+      .select('id, year, make, model, trim, nickname, current_mileage, color')
       .single()
     setSaving(false)
     if (error || !data) { setSaveErr(error?.message ?? 'Save failed'); return }

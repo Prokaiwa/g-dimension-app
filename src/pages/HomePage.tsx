@@ -15,14 +15,10 @@ import {
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
   FONT_UI,
-  FONT_TITLE,
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
-  SHADOW_ICON_FOCAL,
-  SHADOW_ICON_STANDARD,
   SHADOW_AMBER_HALO,
-  SHADOW_GROUND,
   GRADIENT_HEADER_SHADOW,
   ICON_WRAPPER_FOCAL,
   ICON_WRAPPER_STANDARD,
@@ -66,7 +62,7 @@ export default function HomePage() {
   const rectRef  = useRef<DOMRect | null>(null)
   const [displayName, setDisplayName] = useState('...')
   const [carInfo, setCarInfo] = useState<string | null>(null)
-  const [entered, setEntered] = useState(false)
+  const [_entered, setEntered] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -426,7 +422,6 @@ export default function HomePage() {
                     objectFit: 'contain',
                     filter: 'none',
                     userSelect: 'none',
-                    WebkitUserDrag: 'none' as never,
                   }}
                   draggable={false}
                 />

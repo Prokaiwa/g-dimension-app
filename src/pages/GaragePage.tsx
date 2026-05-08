@@ -15,8 +15,6 @@ import iconDocs      from '../assets/icons/garage/docs.png'
 import iconContacts  from '../assets/icons/garage/contacts.png'
 import iconReminders from '../assets/icons/garage/reminders.png'
 import {
-  GRADIENT_APP_BG,
-  COLOR_CAVITY_BG,
   COLOR_ACCENT,
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -31,7 +29,6 @@ import {
   HEADER_WEDGE_RIGHT,
   CAST_SHADOW_OPACITY,
   SPACE_LG,
-  SPACE_MD,
   SPACE_SM,
   SPACE_XS,
   STAGGER_BASE_MS,
