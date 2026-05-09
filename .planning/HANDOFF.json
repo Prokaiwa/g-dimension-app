@@ -1,8 +1,8 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T12:48:19.425Z",
+  "timestamp": "2026-05-09T00:21:57.831Z",
   "phase": "build-order",
-  "phase_name": "G-Dimension PWA — UI Build",
+  "phase_name": "G-Dimension PWA — UI Build (Build Sheet polish session)",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
   "task": 29,
@@ -11,35 +11,54 @@
   "completed_tasks": [
     {"id": "28a", "name": "TuningPage hero screen", "status": "done", "commit": "31e3cc9"},
     {"id": "28b", "name": "iOS long-press fix (all icon screens) + stagger delay reduction", "status": "done", "commit": "fb890fd"},
-    {"id": "28c", "name": "TuningBuildSheetPage + TuningAddPage (empty grid, spec list, add flow)", "status": "done", "commit": "ca2fea3"}
+    {"id": "28c", "name": "TuningBuildSheetPage + TuningAddPage (empty grid, spec list, add flow)", "status": "done", "commit": "ca2fea3"},
+    {"id": "BS-polish", "name": "TuningBuildSheetPage full redesign: 'Where you are.' header (Cormorant Garamond italic), burgundy date chip, dark radial gradient behind hero car photo, 4 alternating mod sections (Power/Chassis/Exterior/Interior) with grey photo placeholders, brand+title inline silver, orange FAB", "status": "done"},
+    {"id": "ADD-polish", "name": "TuningAddPage category picker: black bg, per-tile box-shadow (burgundy left / blue bottom OUTSIDE box), label inside tile, 74px icons, 3x5 no-scroll grid, Add to Build Sheet → burgundy, Add DIY Steps → blue, saveErr error display added", "status": "done"},
+    {"id": "ADD-brakes", "name": "Brakes icon mix-blend-mode: multiply — BROKEN, makes icon invisible on dark background", "status": "in_progress", "progress": "Applied but wrong — needs immediate revert next session"}
   ],
   "remaining_tasks": [
+    {
+      "id": "FIX-1",
+      "name": "URGENT FIRST: Revert brakes icon mix-blend-mode in TuningAddPage",
+      "status": "not_started",
+      "notes": "File: src/pages/TuningAddPage.tsx ~line 124. Remove `mixBlendMode: cat.id === 'Brakes' ? 'multiply' : undefined` from img style. multiply on #0a0a0c bg makes entire icon black/invisible. Alternative fix: edit the PNG with sips or just leave the white center for now — visible icon > perfect icon."
+    },
+    {
+      "id": "FIX-2",
+      "name": "Diagnose Wheels/Intake/Paint not appearing in build sheet",
+      "status": "not_started",
+      "notes": "saveErr is now displayed in TuningAddPage form. Have user try adding a Wheels item — if error shows, it's a DB constraint. Check Supabase: SELECT * FROM jobs WHERE category IN ('Wheels','Intake','Paint') — if rows exist, filter logic issue. Check jobs table for CHECK constraint on category column."
+    },
     {
       "id": "28d",
       "name": "TuningBlueprintPage — wishlist mods + add form",
       "status": "not_started",
-      "notes": "NEXT. Same pattern as BuildSheet but status='planned'. Query: jobs WHERE status='planned' AND type='modification'. Same TUNING_CATEGORIES export from TuningBuildSheetPage."
+      "notes": "Same pattern as TuningBuildSheetPage but status='planned'. Import TUNING_CATEGORIES. Same 4 group layout. Add form: /tuning/add?status=planned&category=X"
     },
     {
       "id": "28e",
-      "name": "TuningPartsPage (Parts Bin) — shelf parts + add form",
-      "status": "not_started",
-      "notes": "Same pattern. status='purchased'. Parts here are owned but not installed."
-    },
-    {
-      "id": "25b",
-      "name": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline chassis names",
-      "status": "not_started",
-      "notes": "Human SQL task, non-blocking."
+      "name": "TuningPartsPage (Parts Bin) — shelf parts + add form (status='purchased')",
+      "status": "not_started"
     },
     {"id": 29, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
     {"id": 30, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "Brakes icon invisible — mix-blend-mode: multiply on dark bg (#0a0a0c) made entire icon disappear",
+      "type": "technical",
+      "workaround": "Remove mixBlendMode from TuningAddPage img style immediately. Accept white rotor center for now or fix PNG separately."
+    },
+    {
+      "description": "Wheels/Intake/Paint mods not saving or not appearing in build sheet",
+      "type": "technical",
+      "workaround": "Error display now added to form. Try adding, read error. Check Supabase jobs table for category CHECK constraint."
+    }
+  ],
   "human_actions_pending": [
     {
-      "action": "Delete duplicate Datsun — SQL: DELETE FROM vehicle_makes WHERE id = 2863",
-      "context": "Two Datsun rows: id 36758 (keep) and id 2863 (NHTSA duplicate, delete).",
+      "action": "Delete duplicate Datsun: DELETE FROM vehicle_makes WHERE id = 2863",
+      "context": "Two Datsun rows: id 36758 (keep) and id 2863 (NHTSA duplicate)",
       "blocking": false
     },
     {
@@ -48,22 +67,27 @@
       "blocking": false
     },
     {
-      "action": "DB cleanup — remove Honda motorcycles, consolidate Silvia/Skyline",
-      "context": "Honda models include motorcycles (CBR, CRF, etc.). Silvia S13/S14/S15 → Silvia; Skyline R32/R33/R34 → Skyline.",
+      "action": "Future DB migration for build sheet photo columns (when ready for photo upload feature)",
+      "context": "ALTER TABLE public.cars ADD COLUMN IF NOT EXISTS build_sheet_power_photo text, ADD COLUMN IF NOT EXISTS build_sheet_chassis_photo text, ADD COLUMN IF NOT EXISTS build_sheet_exterior_photo text, ADD COLUMN IF NOT EXISTS build_sheet_interior_photo text",
       "blocking": false
     }
   ],
   "decisions": [
-    {"decision": "iOS press feedback via onPointerDown/onPointerUp state, not CSS :active", "rationale": "CSS :active is unreliable on iOS Safari. onPointerDown fires immediately on touch with no delay.", "phase": "build-order"},
-    {"decision": "Inner wrapper div carries press transform, outer button carries animation", "rationale": "Prevents transform conflict between CSS animation (fade-in) and press scale on same element.", "phase": "build-order"},
-    {"decision": "STAGGER_BASE_MS reduced 400→80, STAGGER_STEP_MS 70→60", "rationale": "400ms base meant icons were opacity:0 for too long — users tapping immediately saw no feedback.", "phase": "build-order"},
-    {"decision": "TUNING_CATEGORIES exported from TuningBuildSheetPage", "rationale": "Shared by BuildSheet, Blueprint, PartsPage, and AddPage. Single source of truth for 15 categories.", "phase": "build-order"},
-    {"decision": "TuningAddPage two-step: category picker → form", "rationale": "Category picker has dramatic black+blue+burgundy aesthetic. Pre-selects category via ?category= query param when navigating from grid tile.", "phase": "build-order"},
-    {"decision": "Add DIY Steps is a future phase stub", "rationale": "Needs mod_steps DB table, image upload, step editor UI. Button reserved on form with 'coming soon' label.", "phase": "build-order"},
-    {"decision": "Header title is 'The Shop' not 'Tuning'", "rationale": "User preferred 'The Shop' after testing.", "phase": "build-order"},
-    {"decision": "Phosphorous green #39ff14 for Add Mods CTA", "rationale": "User requested CSS phosphorous green + sign with 'Add Mods' text below.", "phase": "build-order"}
+    {"decision": "iOS press feedback via onPointerDown/onPointerUp state, not CSS :active", "rationale": "CSS :active unreliable on iOS Safari", "phase": "build-order"},
+    {"decision": "TUNING_CATEGORIES exported from TuningBuildSheetPage", "rationale": "Shared by Blueprint, PartsPage, AddPage — single source of truth", "phase": "build-order"},
+    {"decision": "Build Sheet title: 'Where you are.' in Cormorant Garamond italic", "rationale": "User wanted personality over plain 'Build Sheet'", "phase": "build-order"},
+    {"decision": "Build Sheet header: flat black, burgundy date chip — matches carousel/snapshot pattern", "rationale": "Consistency — no SVG wedges on this screen", "phase": "build-order"},
+    {"decision": "4 mod groups: Power (Engine/Drivetrain/Exhaust/Cooling/Fuel System/Intake), Chassis (Suspension/Brakes/Wheels), Exterior (Exterior/Paint), Interior (Interior/Audio/Safety/Electrical)", "rationale": "Hot Version spec card groupings. Alternating left/right layout per section.", "phase": "build-order"},
+    {"decision": "Section photo placeholders (#1e1e20 grey boxes) — real photos deferred to DB migration", "rationale": "Needs 4 new columns on cars table + Supabase storage wiring", "phase": "build-order"},
+    {"decision": "Electrical stays in Interior by default; per-item override deferred to DB migration", "rationale": "No build_sheet_group column yet on jobs table", "phase": "build-order"},
+    {"decision": "TuningAddPage tile shadow: box-shadow OUTSIDE black box (not gradient inside)", "rationale": "User wanted colored shading to lift the box off background, not color the interior", "phase": "build-order"},
+    {"decision": "TILE_SHADOW = '-5px 0 7px -1px rgba(105,12,22,0.65), 0 5px 7px -1px rgba(18,55,190,0.5)'", "rationale": "Negative spread prevents bleeding to top/right", "phase": "build-order"},
+    {"decision": "Add to Build Sheet: burgundy. Add DIY Steps: blue. FAB on build sheet: COLOR_ACCENT orange.", "rationale": "Cohesive color story — green removed from these screens", "phase": "build-order"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Build TuningBlueprintPage (28d) — same pattern as TuningBuildSheetPage. Import TUNING_CATEGORIES from TuningBuildSheetPage. Query: status='planned'. Empty state: same 3x5 grid + green CTA. Filled state: same grouped spec list. The add form at /tuning/add already works — just pass ?category= param.",
-  "context_notes": "Dev server: npx vite --port 5176 --host. Supabase: uxqoernfrtgclpneirvc. All code clean (tsc passes). TuningBuildSheetPage exports TUNING_CATEGORIES const so Blueprint and PartsPage can import it without duplication. The 15 icon files live in src/assets/icons/tuning/. TuningAddPage handles both Build Sheet adds (status=installed) and can be extended for Blueprint (planned) and Parts Bin (purchased) by passing a ?status= param."
+  "uncommitted_files": [
+    "src/pages/TuningAddPage.tsx",
+    "src/pages/TuningBuildSheetPage.tsx"
+  ],
+  "next_action": "FIRST: remove mixBlendMode from TuningAddPage img (line ~124) to restore Brakes icon. THEN: diagnose Wheels/Intake/Paint — have user add one and read saveErr. Check Supabase jobs table for category CHECK constraint.",
+  "context_notes": "Dev server: npx vite --port 5176 --host. Supabase: uxqoernfrtgclpneirvc. tsc clean. Build sheet is Hot Version spec card — hero (car photo + identity), then 4 alternating sections (details left/photo right, flip each). TuningAddPage 3x5 grid uses gridTemplateRows: repeat(5,1fr) + flex:1 to fill screen without scroll. Both modified files uncommitted."
 }

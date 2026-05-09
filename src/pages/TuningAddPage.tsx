@@ -25,23 +25,9 @@ const INPUT: React.CSSProperties = {
   WebkitAppearance: 'none' as const,
 }
 
-// Black bg + blue from bottom + burgundy from left
-function BgGradients() {
-  return (
-    <>
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(to top, rgba(18,55,190,0.52) 0%, rgba(18,55,190,0.18) 45%, transparent 72%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(to right, rgba(105,12,22,0.62) 0%, rgba(105,12,22,0.22) 42%, transparent 68%)',
-        pointerEvents: 'none',
-      }} />
-    </>
-  )
-}
+// Per-tile depth: colored shadow outside the black box
+// Burgundy bleeds left, blue bleeds down — lifts the tile off the background
+const TILE_SHADOW = '-5px 0 7px -1px rgba(105,12,22,0.65), 0 5px 7px -1px rgba(18,55,190,0.5)'
 
 export default function TuningAddPage() {
   const navigate        = useNavigate()
@@ -52,6 +38,7 @@ export default function TuningAddPage() {
   const [category, setCategory] = useState<string | null>(preCategory)
   const [form, setForm]         = useState({ title: '', brand: '', dateInstalled: '', notes: '' })
   const [saving, setSaving]     = useState(false)
+  const [saveErr, setSaveErr]   = useState<string | null>(null)
   const [pressed, setPressed]   = useState<string | null>(null)
 
   const press   = (id: string) => setPressed(id)
@@ -75,43 +62,40 @@ export default function TuningAddPage() {
       status:         'installed',
     })
     setSaving(false)
-    if (!error) navigate('/tuning/build-sheet')
+    if (error) { setSaveErr(error.message); return }
+    navigate('/tuning/build-sheet')
   }
 
   // ── Step 1: Category picker ──────────────────────────────────────────
   if (step === 'category') {
     return (
-      <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden', background: '#000' }}>
-        <BgGradients />
+      <div style={{ height: '100dvh', background: '#000', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <style>{`
           @keyframes tileIn {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(6px); }
             to   { opacity: 1; transform: translateY(0); }
           }
         `}</style>
 
         {/* Cancel */}
         <button onClick={() => navigate(-1)} style={{
-          position: 'absolute', top: 0, left: 0, height: 52, padding: '0 20px',
+          flexShrink: 0, height: 52, padding: '0 20px',
           display: 'flex', alignItems: 'center', gap: 6,
-          background: 'none', border: 'none', cursor: 'pointer', zIndex: 10,
-          WebkitTapHighlightColor: 'transparent',
+          background: 'none', border: 'none', cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent', alignSelf: 'flex-start',
         }}>
           <span style={{ color: 'rgba(245,240,228,0.5)', fontSize: 20, fontWeight: 300 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)' }}>Cancel</span>
         </button>
 
-        <div style={{ position: 'relative', zIndex: 1, paddingTop: 60, paddingBottom: 32, paddingLeft: 20 }}>
-          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.85)' }}>
-            Select Category
-          </span>
-        </div>
-
+        {/* 3×5 grid — fills remaining height, no scroll */}
         <div style={{
-          position: 'relative', zIndex: 1,
-          padding: '0 16px 48px',
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16,
-          overflowY: 'auto', maxHeight: 'calc(100dvh - 108px)',
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateRows: 'repeat(5, 1fr)',
+          gap: 8,
+          padding: '4px 16px 20px',
         }}>
           {TUNING_CATEGORIES.map((cat, i) => (
             <button
@@ -119,29 +103,31 @@ export default function TuningAddPage() {
               onClick={() => { setCategory(cat.id); setStep('form') }}
               onPointerDown={() => press(cat.id)} onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
               style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                animation: `tileIn 350ms ${EASING_SETTLE} ${i * 35}ms both`,
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: '4px 4px 4px 8px', // extra left + bottom room for shadow
+                animation: `tileIn 320ms ${EASING_SETTLE} ${i * 28}ms both`,
                 WebkitTapHighlightColor: 'transparent',
                 touchAction: 'manipulation', userSelect: 'none',
               }}
             >
+              {/* Black box — shadow bleeds outside, lifting tile off background */}
               <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
-                transform: pressed === cat.id ? 'scale(0.92)' : 'scale(1)',
+                width: '100%', height: '100%',
+                background: '#0a0a0c',
+                boxShadow: TILE_SHADOW,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 6,
+                transform: pressed === cat.id ? 'scale(0.93)' : 'scale(1)',
                 transition: pressed === cat.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
               }}>
-                <div style={{
-                  width: 78, height: 78,
-                  background: '#0a0a0c',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: 6,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                <img src={cat.icon} alt={cat.label} draggable={false}
+                  style={{ width: 74, height: 74, objectFit: 'contain', pointerEvents: 'none',
+                    mixBlendMode: cat.id === 'Brakes' ? 'multiply' : undefined }} />
+                <span style={{
+                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: 'rgba(245,240,228,0.55)',
                 }}>
-                  <img src={cat.icon} alt={cat.label} draggable={false}
-                    style={{ width: 54, height: 54, objectFit: 'contain', pointerEvents: 'none' }} />
-                </div>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.5)' }}>
                   {cat.label}
                 </span>
               </div>
@@ -157,7 +143,6 @@ export default function TuningAddPage() {
 
   return (
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden', background: '#000' }}>
-      <BgGradients />
 
       {/* Back / category breadcrumb */}
       <button
@@ -245,15 +230,15 @@ export default function TuningAddPage() {
             style={{
               width: '100%', padding: '12px 0',
               background: 'transparent',
-              border: '1px solid rgba(57,255,20,0.2)',
+              border: '1px solid rgba(18,55,190,0.35)',
               borderRadius: 4, cursor: 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(57,255,20,0.45)' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(60,100,220,0.6)' }}>
               + Add DIY Steps
             </span>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 400, fontSize: 9, color: 'rgba(57,255,20,0.28)', letterSpacing: '0.04em' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 400, fontSize: 9, color: 'rgba(60,100,220,0.38)', letterSpacing: '0.04em' }}>
               — coming soon
             </span>
           </button>
@@ -267,20 +252,25 @@ export default function TuningAddPage() {
             onPointerDown={() => canSubmit && press('submit')} onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
             style={{
               width: '100%', padding: '14px 0',
-              background: canSubmit ? 'rgba(57,255,20,0.1)' : 'transparent',
-              border: `1.5px solid ${canSubmit ? 'rgba(57,255,20,0.65)' : 'rgba(255,255,255,0.08)'}`,
+              background: canSubmit ? 'rgba(105,12,22,0.2)' : 'transparent',
+              border: `1.5px solid ${canSubmit ? 'rgba(105,12,22,0.8)' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 4,
               fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
               letterSpacing: '0.16em', textTransform: 'uppercase',
-              color: canSubmit ? '#39ff14' : 'rgba(245,240,228,0.2)',
+              color: canSubmit ? '#c0303a' : 'rgba(245,240,228,0.2)',
               cursor: canSubmit ? 'pointer' : 'default',
               transition: 'all 200ms ease',
               transform: pressed === 'submit' ? 'scale(0.97)' : 'scale(1)',
-              boxShadow: canSubmit ? '0 0 14px rgba(57,255,20,0.12)' : 'none',
+              boxShadow: canSubmit ? '0 0 14px rgba(105,12,22,0.3)' : 'none',
             }}
           >
             {saving ? 'Saving…' : 'Add to Build Sheet'}
           </button>
+          {saveErr && (
+            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', marginTop: 10, lineHeight: 1.5 }}>
+              {saveErr}
+            </p>
+          )}
         </div>
       </div>
     </div>
