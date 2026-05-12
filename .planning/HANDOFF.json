@@ -1,93 +1,67 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-09T00:21:57.831Z",
-  "phase": "build-order",
-  "phase_name": "G-Dimension PWA — UI Build (Build Sheet polish session)",
+  "timestamp": "2026-05-12T13:49:20.731Z",
+  "phase": "tuning-add-phase2",
+  "phase_name": "G-Dimension — TuningAddPage Phase 2 (3-step flow + specs)",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 29,
-  "total_tasks": 30,
+  "task": 1,
+  "total_tasks": 2,
   "status": "paused",
   "completed_tasks": [
-    {"id": "28a", "name": "TuningPage hero screen", "status": "done", "commit": "31e3cc9"},
-    {"id": "28b", "name": "iOS long-press fix (all icon screens) + stagger delay reduction", "status": "done", "commit": "fb890fd"},
-    {"id": "28c", "name": "TuningBuildSheetPage + TuningAddPage (empty grid, spec list, add flow)", "status": "done", "commit": "ca2fea3"},
-    {"id": "BS-polish", "name": "TuningBuildSheetPage full redesign: 'Where you are.' header (Cormorant Garamond italic), burgundy date chip, dark radial gradient behind hero car photo, 4 alternating mod sections (Power/Chassis/Exterior/Interior) with grey photo placeholders, brand+title inline silver, orange FAB", "status": "done"},
-    {"id": "ADD-polish", "name": "TuningAddPage category picker: black bg, per-tile box-shadow (burgundy left / blue bottom OUTSIDE box), label inside tile, 74px icons, 3x5 no-scroll grid, Add to Build Sheet → burgundy, Add DIY Steps → blue, saveErr error display added", "status": "done"},
-    {"id": "ADD-brakes", "name": "Brakes icon mix-blend-mode: multiply — BROKEN, makes icon invisible on dark background", "status": "in_progress", "progress": "Applied but wrong — needs immediate revert next session"}
+    {
+      "id": 1,
+      "name": "Rewrite TuningAddPage into 3-step animated flow (category → part type → form + specs + photos)",
+      "status": "done"
+    }
   ],
   "remaining_tasks": [
     {
-      "id": "FIX-1",
-      "name": "URGENT FIRST: Revert brakes icon mix-blend-mode in TuningAddPage",
+      "id": 2,
+      "name": "Fix 'No part types found' — Step 2 returns empty for all categories",
       "status": "not_started",
-      "notes": "File: src/pages/TuningAddPage.tsx ~line 124. Remove `mixBlendMode: cat.id === 'Brakes' ? 'multiply' : undefined` from img style. multiply on #0a0a0c bg makes entire icon black/invisible. Alternative fix: edit the PNG with sips or just leave the white center for now — visible icon > perfect icon."
-    },
-    {
-      "id": "FIX-2",
-      "name": "Diagnose Wheels/Intake/Paint not appearing in build sheet",
-      "status": "not_started",
-      "notes": "saveErr is now displayed in TuningAddPage form. Have user try adding a Wheels item — if error shows, it's a DB constraint. Check Supabase: SELECT * FROM jobs WHERE category IN ('Wheels','Intake','Paint') — if rows exist, filter logic issue. Check jobs table for CHECK constraint on category column."
-    },
-    {
-      "id": "28d",
-      "name": "TuningBlueprintPage — wishlist mods + add form",
-      "status": "not_started",
-      "notes": "Same pattern as TuningBuildSheetPage but status='planned'. Import TUNING_CATEGORIES. Same 4 group layout. Add form: /tuning/add?status=planned&category=X"
-    },
-    {
-      "id": "28e",
-      "name": "TuningPartsPage (Parts Bin) — shelf parts + add form (status='purchased')",
-      "status": "not_started"
-    },
-    {"id": 29, "name": "Timeline screen — /timeline chronological build narrative", "status": "not_started"},
-    {"id": 30, "name": "Maintenance screen — /maintenance service logging", "status": "not_started"}
+      "notes": "Query: SELECT id, name, display_order, notes_placeholder FROM part_types WHERE category = [cat] AND is_active = true ORDER BY display_order ASC. Returns empty for every category tested. Root cause unknown — either (a) migration 026_part_spec_domain.sql seed data wasn't run in Supabase, or (b) is_active defaults to false instead of true, or (c) FK constraint mismatch between TUNING_CATEGORIES ids and part_categories.name. Must diagnose before next session."
+    }
   ],
   "blockers": [
     {
-      "description": "Brakes icon invisible — mix-blend-mode: multiply on dark bg (#0a0a0c) made entire icon disappear",
+      "description": "Step 2 part type picker shows 'No part types found' for every category. The part_types table either has no rows, no rows with is_active = true, or category FK values don't match TUNING_CATEGORIES ids.",
       "type": "technical",
-      "workaround": "Remove mixBlendMode from TuningAddPage img style immediately. Accept white rotor center for now or fix PNG separately."
-    },
-    {
-      "description": "Wheels/Intake/Paint mods not saving or not appearing in build sheet",
-      "type": "technical",
-      "workaround": "Error display now added to form. Try adding, read error. Check Supabase jobs table for category CHECK constraint."
+      "workaround": "Diagnose by running: SELECT id, name, category, is_active FROM part_types LIMIT 20; in Supabase SQL editor. If empty → seed data from migration 024/026 not applied. If rows exist but is_active = false → update part_types SET is_active = true. If category mismatch → check against part_categories.name."
     }
   ],
   "human_actions_pending": [
     {
-      "action": "Delete duplicate Datsun: DELETE FROM vehicle_makes WHERE id = 2863",
-      "context": "Two Datsun rows: id 36758 (keep) and id 2863 (NHTSA duplicate)",
-      "blocking": false
-    },
-    {
-      "action": "Run Estima SQL if not done",
-      "context": "INSERT INTO public.vehicle_models (make_id, model_name, year_start, year_end, is_jdm_only, body_style, source) SELECT id, 'Estima', 1990, 2019, true, 'minivan', 'jdm_manual' FROM public.vehicle_makes WHERE make_name ILIKE 'Toyota' ON CONFLICT DO NOTHING",
-      "blocking": false
-    },
-    {
-      "action": "Future DB migration for build sheet photo columns (when ready for photo upload feature)",
-      "context": "ALTER TABLE public.cars ADD COLUMN IF NOT EXISTS build_sheet_power_photo text, ADD COLUMN IF NOT EXISTS build_sheet_chassis_photo text, ADD COLUMN IF NOT EXISTS build_sheet_exterior_photo text, ADD COLUMN IF NOT EXISTS build_sheet_interior_photo text",
-      "blocking": false
+      "action": "Run SELECT id, name, category, is_active FROM part_types LIMIT 20 in Supabase SQL editor to diagnose empty part_types",
+      "context": "Step 2 of the new TuningAddPage returns 'No part types found' for every category. Need to know if the table is empty, rows exist with is_active=false, or category values mismatch.",
+      "blocking": true
     }
   ],
   "decisions": [
-    {"decision": "iOS press feedback via onPointerDown/onPointerUp state, not CSS :active", "rationale": "CSS :active unreliable on iOS Safari", "phase": "build-order"},
-    {"decision": "TUNING_CATEGORIES exported from TuningBuildSheetPage", "rationale": "Shared by Blueprint, PartsPage, AddPage — single source of truth", "phase": "build-order"},
-    {"decision": "Build Sheet title: 'Where you are.' in Cormorant Garamond italic", "rationale": "User wanted personality over plain 'Build Sheet'", "phase": "build-order"},
-    {"decision": "Build Sheet header: flat black, burgundy date chip — matches carousel/snapshot pattern", "rationale": "Consistency — no SVG wedges on this screen", "phase": "build-order"},
-    {"decision": "4 mod groups: Power (Engine/Drivetrain/Exhaust/Cooling/Fuel System/Intake), Chassis (Suspension/Brakes/Wheels), Exterior (Exterior/Paint), Interior (Interior/Audio/Safety/Electrical)", "rationale": "Hot Version spec card groupings. Alternating left/right layout per section.", "phase": "build-order"},
-    {"decision": "Section photo placeholders (#1e1e20 grey boxes) — real photos deferred to DB migration", "rationale": "Needs 4 new columns on cars table + Supabase storage wiring", "phase": "build-order"},
-    {"decision": "Electrical stays in Interior by default; per-item override deferred to DB migration", "rationale": "No build_sheet_group column yet on jobs table", "phase": "build-order"},
-    {"decision": "TuningAddPage tile shadow: box-shadow OUTSIDE black box (not gradient inside)", "rationale": "User wanted colored shading to lift the box off background, not color the interior", "phase": "build-order"},
-    {"decision": "TILE_SHADOW = '-5px 0 7px -1px rgba(105,12,22,0.65), 0 5px 7px -1px rgba(18,55,190,0.5)'", "rationale": "Negative spread prevents bleeding to top/right", "phase": "build-order"},
-    {"decision": "Add to Build Sheet: burgundy. Add DIY Steps: blue. FAB on build sheet: COLOR_ACCENT orange.", "rationale": "Cohesive color story — green removed from these screens", "phase": "build-order"}
+    {
+      "decision": "3-step animated slide using a 300vw strip with translateX — no extra direction state needed, reverse is inherent",
+      "rationale": "Simplest CSS-only approach for directional slide: step 1=translateX(0), step 2=translateX(-33.33%), step 3=translateX(-66.67%). Back slides right automatically.",
+      "phase": "tuning-add-phase2"
+    },
+    {
+      "decision": "Dev server must run on port 5176 — localStorage is origin-scoped",
+      "rationale": "gdim_chosen_car_id is set under http://localhost:5176. Running on 5177 breaks car/mod queries silently (empty data, 'Unknown' car). Always use: npx vite --port 5176 --host",
+      "phase": "tuning-add-phase2"
+    },
+    {
+      "decision": "boolean spec values: 'false' is not stored in job_specs (skip on save)",
+      "rationale": "'false' means user left toggle off — no meaningful data to store. Only 'true' booleans are inserted.",
+      "phase": "tuning-add-phase2"
+    }
   ],
   "uncommitted_files": [
     "src/pages/TuningAddPage.tsx",
-    "src/pages/TuningBuildSheetPage.tsx"
+    "src/pages/TuningBuildSheetPage.tsx",
+    "src/assets/icons/tuning/tuning_brakes.png",
+    "src/assets/icons/tuning/forced_induction.png",
+    "package.json",
+    "package-lock.json"
   ],
-  "next_action": "FIRST: remove mixBlendMode from TuningAddPage img (line ~124) to restore Brakes icon. THEN: diagnose Wheels/Intake/Paint — have user add one and read saveErr. Check Supabase jobs table for category CHECK constraint.",
-  "context_notes": "Dev server: npx vite --port 5176 --host. Supabase: uxqoernfrtgclpneirvc. tsc clean. Build sheet is Hot Version spec card — hero (car photo + identity), then 4 alternating sections (details left/photo right, flip each). TuningAddPage 3x5 grid uses gridTemplateRows: repeat(5,1fr) + flex:1 to fill screen without scroll. Both modified files uncommitted."
+  "next_action": "Diagnose part_types table in Supabase SQL editor. Run: SELECT id, name, category, is_active FROM part_types LIMIT 20. Then fix whatever is missing (empty table → run seed data; is_active=false → update; category mismatch → align with TUNING_CATEGORIES ids). After fix, verify Step 2 shows part types, then test full 3-step flow end-to-end.",
+  "context_notes": "TuningAddPage is fully rewritten. Step 1 (category picker) is pixel-identical to Phase 1. Step 2 queries part_types. Step 3 has all 9 universal fields + Full Specs section + Advanced Specs accordion + photo upload with browser-image-compression EXIF stripping. Save flow: INSERT jobs → INSERT job_specs → compress+upload photos → INSERT job_photos → navigate('/tuning'). browser-image-compression installed. TypeScript clean. Dev server: npx vite --port 5176 --host. Machine IP: 192.168.3.4. The only remaining issue is Step 2 being empty due to part_types table state in Supabase."
 }
