@@ -21,7 +21,7 @@ interface SpecTemplate {
   spec_key: string
   spec_label: string
   input_type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date'
-  options: string | string[] | null
+  options: string | null
   unit: string | null
   unit_preference: string | null
   required: boolean
@@ -211,7 +211,7 @@ export default function TuningAddPage() {
       .eq('part_type_id', selectedPartType.id)
       .order('display_order', { ascending: true })
       .then(({ data }) => {
-        setSpecTemplates(data ?? [])
+        setSpecTemplates((data as unknown as SpecTemplate[]) ?? [])
         setSpecValues({})
         setMultiValues({})
         setSpecsExpanded(false)
@@ -271,9 +271,9 @@ export default function TuningAddPage() {
       return { ...v, [key]: cur.includes(option) ? cur.filter(x => x !== option) : [...cur, option] }
     })
 
-  const parseOpts = (raw: string | string[] | null): string[] => {
+  const parseOpts = (raw: string | null): string[] => {
     if (!raw) return []
-    if (Array.isArray(raw)) return raw
+    if (Array.isArray(raw as unknown)) return raw as unknown as string[]
     try { return JSON.parse(raw) as string[] } catch { return [] }
   }
 
