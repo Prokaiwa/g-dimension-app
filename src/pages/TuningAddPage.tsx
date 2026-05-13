@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
+import { getActiveCarId } from '../lib/activeCar'
 import { TUNING_CATEGORIES } from './TuningBuildSheetPage'
 import { FONT_UI, EASING_SETTLE } from '../tokens'
 
@@ -20,7 +21,7 @@ interface SpecTemplate {
   spec_key: string
   spec_label: string
   input_type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date'
-  options: string | null
+  options: string | string[] | null
   unit: string | null
   unit_preference: string | null
   required: boolean
@@ -59,6 +60,77 @@ const COMPRESSION_OPTIONS = {
   maxWidthOrHeight: 1920,
   useWebWorker: true,
   exifOrientation: -1 as const,
+  fileType: 'image/jpeg' as const,
+}
+
+const TITLE_PLACEHOLDER: Record<string, string> = {
+  // Wheels & Tires
+  'Wheels':                          'e.g. Enkei RPF1 17×9 +35',
+  'Tires — Metric':                  'e.g. Michelin Pilot Sport 4S 235/40R17',
+  'Tires — Truck/Standard':          'e.g. BFGoodrich All-Terrain T/A KO2 285/70R17',
+  'Wheel Spacers / Adapters':        'e.g. H&R 20mm Wheel Spacers',
+  // Suspension
+  'Coilovers':                       'e.g. BC Racing BR Series Coilovers',
+  'Air Suspension / Bags':           'e.g. Air Lift Performance 3P Kit',
+  'Lowering Springs':                'e.g. Tein S-Tech Lowering Springs',
+  'Sway Bars':                       'e.g. Whiteline 27mm Front Sway Bar',
+  'Control Arms':                    'e.g. Megan Racing Adjustable Rear Upper Arms',
+  // Brakes
+  'Brake Pads':                      'e.g. Hawk HPS Performance Brake Pads',
+  'Rotors':                          'e.g. StopTech Sport Slotted Rotors',
+  'Brake Calipers':                  'e.g. Wilwood Superlite 4-Piston Calipers',
+  'Big Brake Kit':                   'e.g. Brembo GT 4-Pot Big Brake Kit',
+  'Brake Fluid':                     'e.g. Motul RBF 600 Brake Fluid',
+  // Engine
+  'Camshafts':                       'e.g. HKS 264° Step 2 Camshafts',
+  'Cold Air Intake / Short Ram':     'e.g. AEM Cold Air Intake System',
+  'Engine Management / ECU':         'e.g. Link G4X ECU',
+  'Pistons':                         'e.g. Wiseco 86mm Forged Pistons',
+  'Connecting Rods':                 'e.g. Eagle H-Beam Connecting Rods',
+  'Head Work / Porting':             'e.g. Stage 2 Port & Polish by JGY Engines',
+  // Forced Induction
+  'Turbocharger':                    'e.g. HKS GT2530 Turbocharger',
+  'Intercooler':                     'e.g. Mishimoto Front Mount Intercooler',
+  'Wastegate':                       'e.g. TiAL 38mm External Wastegate',
+  'Blow-off Valve / Bypass Valve':   'e.g. TiAL Q BOV',
+  // Exhaust
+  'Headers / Exhaust Manifold':      'e.g. Tomei Equal Length Exhaust Manifold',
+  'Catback System':                  'e.g. HKS Hi-Power Catback Exhaust',
+  'Downpipe / Frontpipe':            'e.g. Agency Power High Flow Downpipe',
+  // Drivetrain
+  'Clutch':                          'e.g. ACT Heavy Duty Clutch Kit',
+  'Flywheel':                        'e.g. Fidanza Aluminum Lightweight Flywheel',
+  'Differential':                    'e.g. Cusco Type RS LSD',
+  'Driveshaft':                      'e.g. Driveshaft Shop Aluminum 1-Piece Driveshaft',
+  // Cooling
+  'Radiator':                        'e.g. Mishimoto Aluminum Racing Radiator',
+  'Oil Cooler':                      'e.g. Setrab 16-Row Oil Cooler Kit',
+  'Thermostat':                      'e.g. Mishimoto Racing Thermostat',
+  // Electrical
+  'Battery':                         'e.g. Odyssey PC680 AGM Battery',
+  // Safety
+  'Harness / Seatbelt':              'e.g. Sparco 4-Point FIA Harness',
+  'Roll Bar / Roll Cage':            'e.g. Autopower 6-Point Street Roll Bar',
+  'Helmet':                          'e.g. Bell GTX.3 Full Face Helmet',
+  'Fire Suppression System':         'e.g. Lifeline Zero 2000 Fire System',
+  // Exterior
+  'Wing / Spoiler':                  'e.g. Voltex Type 1.5 GT Wing',
+  'Fenders / Widebody':              'e.g. Work Wheels Overfenders +50mm',
+  // Interior
+  'Seats':                           'e.g. Bride Zeta III FRP Racing Seat',
+  'Window Tint':                     'e.g. Llumar ATR 35% Window Tint',
+  // Paint & Wrap
+  'Full Paint':                      'e.g. Phantom Grey Pearl Custom Paint',
+  'Vinyl Wrap':                      'e.g. 3M 1080 Matte Black Vinyl Wrap',
+  // Audio
+  'Head Unit':                       'e.g. Pioneer AVH-W4500NEX Head Unit',
+  'Amplifier':                       'e.g. JL Audio RD400/4 Amplifier',
+  'Subwoofer':                       'e.g. JL Audio 10W3v3 Subwoofer',
+  // Lighting
+  'Headlights':                      'e.g. Morimoto XB LED Headlights',
+  // Fuel System
+  'Fuel Injectors':                  'e.g. DeatschWerks 1000cc Fuel Injectors',
+  'Fuel Pump':                       'e.g. Walbro 255lph High Pressure Fuel Pump',
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────
@@ -122,7 +194,8 @@ export default function TuningAddPage() {
       .order('display_order', { ascending: true })
       .then(({ data, error }) => {
         setPartTypesLoading(false)
-        if (!error && data) setPartTypes(data)
+        if (error) console.error('part_types query failed:', error.message)
+        else if (data) setPartTypes(data)
       })
   }, [selectedCategory])
 
@@ -155,7 +228,7 @@ export default function TuningAddPage() {
   // ── Navigation ──────────────────────────────────────────────────────────
 
   const handleBack = () => {
-    if (step === 1) navigate('/tuning')
+    if (step === 1) navigate('/tuning/build-sheet')
     else if (step === 2) setStep(1)
     else setStep(2)
   }
@@ -198,14 +271,17 @@ export default function TuningAddPage() {
       return { ...v, [key]: cur.includes(option) ? cur.filter(x => x !== option) : [...cur, option] }
     })
 
-  const parseOpts = (raw: string | null): string[] => {
+  const parseOpts = (raw: string | string[] | null): string[] => {
     if (!raw) return []
+    if (Array.isArray(raw)) return raw
     try { return JSON.parse(raw) as string[] } catch { return [] }
   }
 
   const renderSpecField = (t: SpecTemplate) => {
     const opts = parseOpts(t.options)
     const val  = specValues[t.spec_key] ?? ''
+
+    if ((t.input_type === 'select' || t.input_type === 'multiselect') && opts.length === 0) return null
 
     return (
       <div key={t.spec_key} style={{ paddingTop: 18 }}>
@@ -233,7 +309,7 @@ export default function TuningAddPage() {
               type="number"
               value={val}
               onChange={e => setSpecVal(t.spec_key, e.target.value)}
-              placeholder={t.placeholder ?? ''}
+              placeholder=""
               style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
             />
             {t.unit && (
@@ -318,7 +394,7 @@ export default function TuningAddPage() {
     if (!form.title.trim() || !selectedCategory || !selectedPartType || saving) return
     setSaving(true)
     setSaveErr(null)
-    const carId = localStorage.getItem('gdim_chosen_car_id')
+    const carId = await getActiveCarId()
     if (!carId) { setSaving(false); return }
 
     // 1. INSERT job
@@ -377,7 +453,7 @@ export default function TuningAddPage() {
     for (const photo of photos) {
       try {
         const compressed = await imageCompression(photo, COMPRESSION_OPTIONS)
-        const ext  = (compressed.name.split('.').pop() ?? 'jpg').toLowerCase()
+        const ext  = 'jpg'
         const path = `${carId}/${jobId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { data: up, error: upErr } = await supabase.storage
           .from('job-photos')
@@ -396,13 +472,14 @@ export default function TuningAddPage() {
     }
 
     setSaving(false)
-    navigate('/tuning')
+    navigate('/tuning/build-sheet')
   }
 
   // ── Derived spec groups ─────────────────────────────────────────────────
 
-  const basicSpecs    = specTemplates.filter(t => !t.is_advanced)
-  const advancedSpecs = specTemplates.filter(t => t.is_advanced)
+  const MAIN_FORM_KEYS = new Set(['brand'])
+  const basicSpecs    = specTemplates.filter(t => !t.is_advanced && !MAIN_FORM_KEYS.has(t.spec_key))
+  const advancedSpecs = specTemplates.filter(t => t.is_advanced  && !MAIN_FORM_KEYS.has(t.spec_key))
   const basicGroups   = groupBy(basicSpecs, t => t.group_label ?? '')
   const advancedGroups = groupBy(advancedSpecs, t => t.group_label ?? '')
 
@@ -452,7 +529,6 @@ export default function TuningAddPage() {
           fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
           letterSpacing: '0.12em', textTransform: 'uppercase',
           color: 'rgba(245,240,228,0.4)',
-          maxWidth: 180, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
         }}>
           {backLabel}
         </span>
@@ -553,18 +629,6 @@ export default function TuningAddPage() {
         <div style={{ width: '33.333%', height: '100%', overflow: 'hidden', flexShrink: 0 }}>
           <div style={{ height: '100%', overflowY: 'auto', paddingTop: 52 }}>
 
-            {/* Category header strip */}
-            {selectedCat && (
-              <div style={{ padding: '14px 22px 10px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(245,240,228,0.05)' }}>
-                {selectedCat.icon && (
-                  <img src={selectedCat.icon} alt="" style={{ width: 20, height: 20, objectFit: 'contain', opacity: 0.6, pointerEvents: 'none' }} />
-                )}
-                <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.5)' }}>
-                  {selectedCat.label}
-                </span>
-              </div>
-            )}
-
             {partTypesLoading && (
               <div style={{ padding: '40px 22px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 12, letterSpacing: '0.1em', color: 'rgba(245,240,228,0.25)' }}>
                 Loading…
@@ -621,7 +685,7 @@ export default function TuningAddPage() {
               <input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="e.g. HKS GT2530 Turbocharger"
+                placeholder={TITLE_PLACEHOLDER[selectedPartType?.name ?? ''] ?? 'e.g. Add a title'}
                 style={{ ...INPUT, caretColor: '#39ff14' }}
               />
             </div>
@@ -637,17 +701,6 @@ export default function TuningAddPage() {
               />
             </div>
 
-            {/* Part Number */}
-            <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Part Number</label>
-              <input
-                value={form.partNumber}
-                onChange={e => setForm(f => ({ ...f, partNumber: e.target.value }))}
-                placeholder="e.g. 14004-AN001"
-                style={{ ...INPUT, caretColor: '#39ff14' }}
-              />
-            </div>
-
             {/* Date Installed */}
             <div style={{ padding: '20px 22px 0' }}>
               <label style={LABEL}>Date Installed</label>
@@ -657,36 +710,6 @@ export default function TuningAddPage() {
                 onChange={e => setForm(f => ({ ...f, dateInstalled: e.target.value }))}
                 style={{ ...INPUT, colorScheme: 'dark', caretColor: '#39ff14' }}
               />
-            </div>
-
-            {/* Parts Cost + Labor Cost — side by side */}
-            <div style={{ padding: '20px 22px 0', display: 'flex', gap: 20 }}>
-              <div style={{ flex: 1 }}>
-                <label style={LABEL}>Parts Cost</label>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={form.partsCost}
-                    onChange={e => setForm(f => ({ ...f, partsCost: e.target.value }))}
-                    placeholder="0.00"
-                    style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
-                  />
-                </div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={LABEL}>Labor Cost</label>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={form.laborCost}
-                    onChange={e => setForm(f => ({ ...f, laborCost: e.target.value }))}
-                    placeholder="0.00"
-                    style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
-                  />
-                </div>
-              </div>
             </div>
 
             {/* Installed By — segmented toggle */}
@@ -716,6 +739,38 @@ export default function TuningAddPage() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* Costs — Labor hidden when self-installed */}
+            <div style={{ padding: '20px 22px 0', display: 'flex', gap: 20 }}>
+              <div style={{ flex: 1 }}>
+                <label style={LABEL}>Parts Cost</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
+                  <input
+                    type="number" inputMode="decimal" min="0" step="0.01"
+                    value={form.partsCost}
+                    onChange={e => setForm(f => ({ ...f, partsCost: e.target.value }))}
+                    placeholder="0.00"
+                    style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+                  />
+                </div>
+              </div>
+              {form.installedBy === 'shop' && (
+                <div style={{ flex: 1 }}>
+                  <label style={LABEL}>Labor Cost</label>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
+                    <input
+                      type="number" inputMode="decimal" min="0" step="0.01"
+                      value={form.laborCost}
+                      onChange={e => setForm(f => ({ ...f, laborCost: e.target.value }))}
+                      placeholder="0.00"
+                      style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes */}
@@ -776,100 +831,87 @@ export default function TuningAddPage() {
               </label>
             </div>
 
-            {/* Full Specs toggle — only if the part type has spec templates */}
-            {specTemplates.length > 0 && (
-              <div style={{ padding: '24px 22px 0' }}>
-                <button
-                  onClick={() => setSpecsExpanded(x => !x)}
-                  style={{
-                    width: '100%', padding: '13px 0',
-                    background: specsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent',
-                    border: `1px solid ${specsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
-                    cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    transition: 'all 200ms ease',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  <span style={{
-                    fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
-                    letterSpacing: '0.18em', textTransform: 'uppercase',
-                    color: specsExpanded ? 'rgba(60,100,220,0.82)' : 'rgba(245,240,228,0.42)',
-                  }}>
-                    Full Specs
-                  </span>
-                  <span style={{
-                    color: specsExpanded ? 'rgba(60,100,220,0.55)' : 'rgba(245,240,228,0.22)',
-                    fontSize: 11,
-                    display: 'inline-block',
-                    transform: specsExpanded ? 'rotate(180deg)' : 'none',
-                    transition: 'transform 200ms ease',
-                  }}>▾</span>
-                </button>
+            {/* Full Specs toggle — always shown (Part Number lives here) */}
+            <div style={{ padding: '24px 22px 0' }}>
+              <button
+                onClick={() => setSpecsExpanded(x => !x)}
+                style={{
+                  width: '100%', padding: '13px 0',
+                  background: specsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent',
+                  border: `1px solid ${specsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  transition: 'all 200ms ease',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                <span style={{
+                  fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                  color: specsExpanded ? 'rgba(60,100,220,0.82)' : 'rgba(245,240,228,0.42)',
+                }}>
+                  Full Specs
+                </span>
+                <span style={{
+                  color: specsExpanded ? 'rgba(60,100,220,0.55)' : 'rgba(245,240,228,0.22)',
+                  fontSize: 11,
+                  display: 'inline-block',
+                  transform: specsExpanded ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 200ms ease',
+                }}>▾</span>
+              </button>
 
-                {specsExpanded && (
-                  <div style={{ paddingTop: 8 }}>
+              {specsExpanded && (
+                <div style={{ paddingTop: 8 }}>
 
-                    {/* Basic spec groups */}
-                    {Object.entries(basicGroups).map(([groupLabel, fields]) => (
-                      <div key={groupLabel || '__ungrouped__'} style={{ marginTop: 20 }}>
-                        {groupLabel && (
-                          <div style={{ paddingBottom: 8, marginBottom: 2, borderBottom: '1px solid rgba(245,240,228,0.07)' }}>
-                            <span style={{
-                              fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                              letterSpacing: '0.2em', textTransform: 'uppercase',
-                              color: 'rgba(245,240,228,0.22)',
-                            }}>
-                              {groupLabel}
-                            </span>
-                          </div>
-                        )}
-                        {fields.map(renderSpecField)}
-                      </div>
-                    ))}
-
-                    {/* Advanced specs collapsible */}
-                    {advancedSpecs.length > 0 && (
-                      <div style={{ marginTop: 28 }}>
-                        <button
-                          onClick={() => setAdvancedExpanded(x => !x)}
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            padding: '6px 0', display: 'flex', alignItems: 'center', gap: 6,
-                            WebkitTapHighlightColor: 'transparent',
-                          }}
-                        >
-                          <span style={{
-                            fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
-                            letterSpacing: '0.14em', textTransform: 'uppercase',
-                            color: 'rgba(245,240,228,0.28)',
-                          }}>
-                            {advancedExpanded ? '− Advanced Specs' : '+ Advanced Specs'}
-                          </span>
-                        </button>
-
-                        {advancedExpanded && Object.entries(advancedGroups).map(([groupLabel, fields]) => (
-                          <div key={groupLabel || '__adv_ungrouped__'} style={{ marginTop: 16 }}>
-                            {groupLabel && (
-                              <div style={{ paddingBottom: 8, marginBottom: 2, borderBottom: '1px solid rgba(245,240,228,0.05)' }}>
-                                <span style={{
-                                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                                  letterSpacing: '0.2em', textTransform: 'uppercase',
-                                  color: 'rgba(245,240,228,0.18)',
-                                }}>
-                                  {groupLabel}
-                                </span>
-                              </div>
-                            )}
-                            {fields.map(renderSpecField)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                  {/* Part Number */}
+                  <div style={{ paddingTop: 18 }}>
+                    <label style={LABEL}>Part Number</label>
+                    <input
+                      value={form.partNumber}
+                      onChange={e => setForm(f => ({ ...f, partNumber: e.target.value }))}
+                      placeholder="e.g. 14004-AN001"
+                      style={{ ...INPUT, caretColor: '#39ff14' }}
+                    />
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* Basic specs (flat — no group headers) */}
+                  {Object.entries(basicGroups).map(([groupLabel, fields]) => (
+                    <div key={groupLabel || '__ungrouped__'}>
+                      {fields.map(renderSpecField)}
+                    </div>
+                  ))}
+
+                  {/* Advanced specs collapsible */}
+                  {advancedSpecs.length > 0 && (
+                    <div style={{ marginTop: 28 }}>
+                      <button
+                        onClick={() => setAdvancedExpanded(x => !x)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: '6px 0', display: 'flex', alignItems: 'center', gap: 6,
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        <span style={{
+                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
+                          letterSpacing: '0.14em', textTransform: 'uppercase',
+                          color: 'rgba(245,240,228,0.28)',
+                        }}>
+                          {advancedExpanded ? '− Advanced Specs' : '+ Advanced Specs'}
+                        </span>
+                      </button>
+
+                      {advancedExpanded && Object.entries(advancedGroups).map(([groupLabel, fields]) => (
+                        <div key={groupLabel || '__adv_ungrouped__'} style={{ marginTop: 16 }}>
+                          {fields.map(renderSpecField)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Save button */}
             <div style={{ padding: '32px 22px 0' }}>

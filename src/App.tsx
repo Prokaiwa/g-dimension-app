@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { syncActiveCarFromServer } from './lib/activeCar'
 
 // Auth / marketing
 import LandingPage from './pages/LandingPage'
@@ -69,6 +70,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    // Seed localStorage from server on every sign-in and on page load
+    // when a session already exists (e.g. returning user, page refresh).
+    syncActiveCarFromServer()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') syncActiveCarFromServer()
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
   return (
     <Routes>
       {/* Part 10 — Full Route Map */}

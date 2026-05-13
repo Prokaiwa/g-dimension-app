@@ -5,6 +5,7 @@ import iconChoose from '../assets/icons/car-carousel/choose.png'
 import iconDetails from '../assets/icons/car-carousel/details.png'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { setActiveCar } from '../lib/activeCar'
 import {
   COLOR_CAVITY_BG,
   COLOR_HEADER_BLACK,
@@ -813,7 +814,7 @@ export default function GarageCarsPage() {
                       {/* Actions */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
-                          { src: iconChoose, label: 'Choose', onPress: () => { localStorage.setItem('gdim_chosen_car_id', cars[activeIdx].id); navigate('/garage') } },
+                          { src: iconChoose, label: 'Choose', onPress: () => { setActiveCar(cars[activeIdx].id).then(() => navigate('/garage')) } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },
                         ] as const).map(({ src, label, onPress }) => (
                           <button key={label} onClick={onPress}

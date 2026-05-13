@@ -373,6 +373,16 @@ alter table public.spec_templates enable row level security;
 grant select on public.part_types     to anon, authenticated;
 grant select on public.spec_templates to anon, authenticated;
 
+create policy "part_types_select_public"
+  on public.part_types for select
+  to anon, authenticated
+  using (true);
+
+create policy "spec_templates_select_public"
+  on public.spec_templates for select
+  to anon, authenticated
+  using (true);
+
 -- job_specs: owner full access + public read for installed mods on public cars
 alter table public.job_specs enable row level security;
 

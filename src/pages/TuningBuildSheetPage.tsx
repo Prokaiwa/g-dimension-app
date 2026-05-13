@@ -8,52 +8,56 @@ const DAY_LABEL   = String(_now.getDate())
 import { useState, useEffect } from 'react'
 import { useNavigate }          from 'react-router-dom'
 import { supabase }             from '../lib/supabase'
+import { getActiveCarId }       from '../lib/activeCar'
 import garagePlaceholder        from '../assets/garage_placeholder.png'
 import iconEngine      from '../assets/icons/tuning/tuning_engine.png'
 import iconDrivetrain  from '../assets/icons/tuning/tuning_drivetrain.png'
 import iconSuspension  from '../assets/icons/tuning/tuning_suspension.png'
 import iconBrakes      from '../assets/icons/tuning/tuning_brakes.png'
 import iconWheels      from '../assets/icons/tuning/tuning_wheels.png'
-import iconExhaust     from '../assets/icons/tuning/exhaust.png'
-import iconCooling     from '../assets/icons/tuning/cooling.png'
-import iconFuelSystem  from '../assets/icons/tuning/fuel_system.png'
-import iconIntake      from '../assets/icons/tuning/tuning_intake.png'
-import iconElectrical  from '../assets/icons/tuning/tuning_lighting.png'
-import iconAudio       from '../assets/icons/tuning/audio.png'
-import iconSafety      from '../assets/icons/tuning/safety.png'
-import iconExterior    from '../assets/icons/tuning/tuning_exterior.png'
-import iconPaint       from '../assets/icons/tuning/paint.png'
-import iconInterior    from '../assets/icons/tuning/tuning_interior.png'
+import iconForcedInduction from '../assets/icons/tuning/forced_induction.png'
+import iconExhaust          from '../assets/icons/tuning/exhaust.png'
+import iconCooling          from '../assets/icons/tuning/cooling.png'
+import iconFuelSystem       from '../assets/icons/tuning/fuel_system.png'
+import iconLighting         from '../assets/icons/tuning/tuning_lighting.png'
+import iconAudio            from '../assets/icons/tuning/audio.png'
+import iconSafety           from '../assets/icons/tuning/safety.png'
+import iconExterior         from '../assets/icons/tuning/tuning_exterior.png'
+import iconPaint            from '../assets/icons/tuning/paint.png'
+import iconInterior         from '../assets/icons/tuning/tuning_interior.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
 } from '../tokens'
 
 // Exported so TuningBlueprintPage, TuningPartsPage, TuningAddPage can import
-export const TUNING_CATEGORIES = [
-  { id: 'Engine',      label: 'Engine',     icon: iconEngine      },
-  { id: 'Drivetrain',  label: 'Drivetrain', icon: iconDrivetrain  },
-  { id: 'Suspension',  label: 'Suspension', icon: iconSuspension  },
-  { id: 'Brakes',      label: 'Brakes',     icon: iconBrakes      },
-  { id: 'Wheels',      label: 'Wheels',     icon: iconWheels      },
-  { id: 'Exhaust',     label: 'Exhaust',    icon: iconExhaust     },
-  { id: 'Cooling',     label: 'Cooling',    icon: iconCooling     },
-  { id: 'Fuel System', label: 'Fuel',       icon: iconFuelSystem  },
-  { id: 'Intake',      label: 'Intake',     icon: iconIntake      },
-  { id: 'Electrical',  label: 'Electrical', icon: iconElectrical  },
-  { id: 'Audio',       label: 'Audio',      icon: iconAudio       },
-  { id: 'Safety',      label: 'Safety',     icon: iconSafety      },
-  { id: 'Exterior',    label: 'Exterior',   icon: iconExterior    },
-  { id: 'Paint',       label: 'Paint',      icon: iconPaint       },
-  { id: 'Interior',    label: 'Interior',   icon: iconInterior    },
+// ids MUST match part_categories.name in Supabase (FK constraint from migration 025)
+export const TUNING_CATEGORIES: { id: string; label: string; icon: string | null }[] = [
+  { id: 'Engine',           label: 'Engine',     icon: iconEngine          },
+  { id: 'Drivetrain',       label: 'Drivetrain', icon: iconDrivetrain      },
+  { id: 'Suspension',       label: 'Suspension', icon: iconSuspension      },
+  { id: 'Brakes',           label: 'Brakes',     icon: iconBrakes          },
+  { id: 'Wheels & Tires',   label: 'Wheels',     icon: iconWheels          },
+  { id: 'Forced Induction', label: 'Forced Ind', icon: iconForcedInduction },
+  { id: 'Exhaust',          label: 'Exhaust',    icon: iconExhaust         },
+  { id: 'Cooling',          label: 'Cooling',    icon: iconCooling         },
+  { id: 'Fuel System',      label: 'Fuel',       icon: iconFuelSystem      },
+  { id: 'Lighting',         label: 'Lighting',   icon: iconLighting        },
+  { id: 'Audio',            label: 'Audio',      icon: iconAudio           },
+  { id: 'Safety',           label: 'Safety',     icon: iconSafety          },
+  { id: 'Exterior',         label: 'Exterior',   icon: iconExterior        },
+  { id: 'Paint & Wrap',     label: 'Paint',      icon: iconPaint           },
+  { id: 'Interior',         label: 'Interior',   icon: iconInterior        },
+  { id: 'Other',            label: 'Other',      icon: null                },
 ]
 
-// 4 display groups — empty sections are hidden
+// 4 display groups (frontend-only, no DB equivalent). Electrical legacy data → Power.
 const MOD_GROUPS = [
-  { id: 'power',    label: 'Power',    categories: ['Engine','Drivetrain','Exhaust','Cooling','Fuel System','Intake'] },
-  { id: 'chassis',  label: 'Chassis',  categories: ['Suspension','Brakes','Wheels'] },
-  { id: 'exterior', label: 'Exterior', categories: ['Exterior','Paint'] },
-  { id: 'interior', label: 'Interior', categories: ['Interior','Audio','Safety','Electrical'] },
+  { id: 'power',    label: 'Power',    categories: ['Engine','Drivetrain','Forced Induction','Exhaust','Cooling','Fuel System','Electrical'] },
+  { id: 'chassis',  label: 'Chassis',  categories: ['Suspension','Brakes','Wheels & Tires'] },
+  { id: 'exterior', label: 'Exterior', categories: ['Exterior','Paint & Wrap','Lighting'] },
+  { id: 'interior', label: 'Interior', categories: ['Interior','Audio','Safety'] },
+  { id: 'other',    label: 'Other',    categories: ['Other'] },
 ]
 
 type Car = {
@@ -65,6 +69,11 @@ type Car = {
   photo_y_offset: number | null
   horsepower: number | null
   torque: number | null
+  weight_lbs: number | null
+  build_sheet_power_photo: string | null
+  build_sheet_chassis_photo: string | null
+  build_sheet_exterior_photo: string | null
+  build_sheet_interior_photo: string | null
 }
 
 type Mod = {
@@ -74,7 +83,6 @@ type Mod = {
   category: string | null
 }
 
-// Grey placeholder for section photos (to be wired up in a later step)
 function SectionPhotoPlaceholder() {
   return (
     <div style={{
@@ -92,17 +100,55 @@ function SectionPhotoPlaceholder() {
   )
 }
 
-function ModList({ mods }: { mods: Mod[] }) {
+function SectionPhoto({ groupId, car }: { groupId: string; car: Car | null }) {
+  const photoMap: Record<string, string | null | undefined> = {
+    power:    car?.build_sheet_power_photo,
+    chassis:  car?.build_sheet_chassis_photo,
+    exterior: car?.build_sheet_exterior_photo,
+    interior: car?.build_sheet_interior_photo,
+  }
+  const url = photoMap[groupId]
+  if (!url) return <SectionPhotoPlaceholder />
+  return (
+    <div style={{
+      width: 130, height: 130, flexShrink: 0,
+      backgroundImage: `url(${url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      border: '1px solid rgba(255,255,255,0.06)',
+    }} />
+  )
+}
+
+function ModList({ mods, navigate }: { mods: Mod[]; navigate: (path: string) => void }) {
+  const [pressedId, setPressedId] = useState<string | null>(null)
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       {mods.map((mod, i) => (
-        <div key={mod.id} style={{ marginBottom: i < mods.length - 1 ? 10 : 0 }}>
+        <div
+          key={mod.id}
+          onClick={() => navigate(`/tuning/mods/${mod.id}`)}
+          onPointerDown={() => setPressedId(mod.id)}
+          onPointerUp={() => setPressedId(null)}
+          onPointerLeave={() => setPressedId(null)}
+          onPointerCancel={() => setPressedId(null)}
+          style={{
+            marginBottom: i < mods.length - 1 ? 10 : 0,
+            paddingLeft: 6,
+            borderLeft: pressedId === mod.id ? '2px solid rgba(105,12,22,0.7)' : '2px solid transparent',
+            cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
+            opacity: pressedId === mod.id ? 0.65 : 1,
+            transition: 'opacity 80ms ease, border-left-color 80ms ease',
+          }}
+        >
           <div style={{
             fontFamily: FONT_UI, fontWeight: 600, fontSize: 12,
             color: 'rgba(180,192,205,0.82)',
             lineHeight: 1.35,
           }}>
-            {mod.brand ? `${mod.brand} · ${mod.title}` : mod.title}
+            {mod.title}
           </div>
         </div>
       ))}
@@ -118,27 +164,30 @@ export default function TuningBuildSheetPage() {
   const [pressed, setPressed] = useState(false)
 
   useEffect(() => {
-    const carId = localStorage.getItem('gdim_chosen_car_id')
-    if (!carId) { setLoading(false); return }
+    async function load() {
+      const carId = await getActiveCarId()
+      if (!carId) { setLoading(false); return }
 
-    Promise.all([
-      supabase
-        .from('cars')
-        .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque')
-        .eq('id', carId)
-        .single(),
-      supabase
-        .from('jobs')
-        .select('id, title, brand, category')
-        .eq('car_id', carId)
-        .eq('status', 'installed')
-        .eq('type', 'modification')
-        .order('date_installed', { ascending: false, nullsFirst: false }),
-    ]).then(([{ data: carData }, { data: modsData }]) => {
+      const [{ data: carData }, { data: modsData }] = await Promise.all([
+        supabase
+          .from('cars')
+          .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs')
+          .eq('id', carId)
+          .single(),
+        supabase
+          .from('jobs')
+          .select('id, title, brand, category')
+          .eq('car_id', carId)
+          .eq('status', 'installed')
+          .eq('type', 'modification')
+          .order('date_installed', { ascending: false, nullsFirst: false }),
+      ])
+
       if (carData) setCar(carData as unknown as Car)
       setMods(modsData ?? [])
       setLoading(false)
-    })
+    }
+    load()
   }, [])
 
   const activeGroups = MOD_GROUPS
@@ -225,33 +274,25 @@ export default function TuningBuildSheetPage() {
                   {car.make}
                 </p>
               )}
-              {(car?.horsepower || car?.torque) && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {(car?.horsepower || car?.torque || car?.weight_lbs) && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {car?.horsepower != null && (
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                      <span style={{
-                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 18,
-                        color: 'rgba(245,240,228,0.92)', lineHeight: 1,
-                      }}>{car.horsepower}</span>
-                      <span style={{
-                        fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                        letterSpacing: '0.12em', textTransform: 'uppercase',
-                        color: 'rgba(200,160,80,0.7)',
-                      }}>hp</span>
-                    </div>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
+                      {car.horsepower}{' '}
+                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>hp</span>
+                    </span>
                   )}
                   {car?.torque != null && (
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                      <span style={{
-                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 18,
-                        color: 'rgba(245,240,228,0.92)', lineHeight: 1,
-                      }}>{car.torque}</span>
-                      <span style={{
-                        fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                        letterSpacing: '0.12em', textTransform: 'uppercase',
-                        color: 'rgba(200,160,80,0.7)',
-                      }}>lb-ft</span>
-                    </div>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
+                      {car.torque}{' '}
+                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb-ft</span>
+                    </span>
+                  )}
+                  {car?.weight_lbs != null && (
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
+                      {car.weight_lbs}{' '}
+                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb</span>
+                    </span>
                   )}
                 </div>
               )}
@@ -269,13 +310,13 @@ export default function TuningBuildSheetPage() {
               }}>
                 {photoRight ? (
                   <>
-                    <ModList mods={group.mods} />
-                    <SectionPhotoPlaceholder />
+                    <ModList mods={group.mods} navigate={navigate} />
+                    <SectionPhoto groupId={group.id} car={car} />
                   </>
                 ) : (
                   <>
-                    <SectionPhotoPlaceholder />
-                    <ModList mods={group.mods} />
+                    <SectionPhoto groupId={group.id} car={car} />
+                    <ModList mods={group.mods} navigate={navigate} />
                   </>
                 )}
               </div>
