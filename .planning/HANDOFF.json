@@ -1,67 +1,87 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-12T13:49:20.731Z",
+  "timestamp": "2026-05-13T13:40:22.334Z",
   "phase": "tuning-add-phase2",
-  "phase_name": "G-Dimension — TuningAddPage Phase 2 (3-step flow + specs)",
+  "phase_name": "G-Dimension — TuningAddPage Phase 2 (form UX polish)",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": 0,
-  "task": 1,
-  "total_tasks": 2,
+  "task": 3,
+  "total_tasks": 5,
   "status": "paused",
   "completed_tasks": [
     {
       "id": 1,
-      "name": "Rewrite TuningAddPage into 3-step animated flow (category → part type → form + specs + photos)",
+      "name": "Fix 'No part types found' — RLS policies + notes_placeholder column",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "name": "Active car persists cross-device via users.active_car_id + activeCar.ts",
+      "status": "done"
+    },
+    {
+      "id": 3,
+      "name": "Form UX polish — field reorder, labor conditional, Part Number to Full Specs, remove group headers, filter brand dupe, build sheet title-only",
       "status": "done"
     }
   ],
   "remaining_tasks": [
     {
-      "id": 2,
-      "name": "Fix 'No part types found' — Step 2 returns empty for all categories",
+      "id": 4,
+      "name": "Fix Labor Cost visibility — currently shows when installedBy is null (no selection). Should only show when 'Shop' is explicitly selected.",
       "status": "not_started",
-      "notes": "Query: SELECT id, name, display_order, notes_placeholder FROM part_types WHERE category = [cat] AND is_active = true ORDER BY display_order ASC. Returns empty for every category tested. Root cause unknown — either (a) migration 026_part_spec_domain.sql seed data wasn't run in Supabase, or (b) is_active defaults to false instead of true, or (c) FK constraint mismatch between TUNING_CATEGORIES ids and part_categories.name. Must diagnose before next session."
-    }
-  ],
-  "blockers": [
+      "notes": "Current condition: `form.installedBy !== 'self'` shows Labor when null too. Fix: `form.installedBy === 'shop'`"
+    },
     {
-      "description": "Step 2 part type picker shows 'No part types found' for every category. The part_types table either has no rows, no rows with is_active = true, or category FK values don't match TUNING_CATEGORIES ids.",
-      "type": "technical",
-      "workaround": "Diagnose by running: SELECT id, name, category, is_active FROM part_types LIMIT 20; in Supabase SQL editor. If empty → seed data from migration 024/026 not applied. If rows exist but is_active = false → update part_types SET is_active = true. If category mismatch → check against part_categories.name."
+      "id": 5,
+      "name": "Restore Intake Type / Filter Type selects — they disappeared because renderSpecField returns null when opts.length === 0. The spec_templates for these fields have null/empty options in Supabase. Need to either populate options in spec_templates DB rows or handle them differently.",
+      "status": "not_started",
+      "notes": "Run this to diagnose: SELECT spec_key, spec_label, input_type, options FROM spec_templates JOIN part_types ON part_types.id = spec_templates.part_type_id WHERE part_types.name = 'Cold Air Intake / Short Ram'; — if options is null/empty for intake_type and filter_type rows, populate them with the correct JSON array in Supabase."
     }
   ],
-  "human_actions_pending": [
-    {
-      "action": "Run SELECT id, name, category, is_active FROM part_types LIMIT 20 in Supabase SQL editor to diagnose empty part_types",
-      "context": "Step 2 of the new TuningAddPage returns 'No part types found' for every category. Need to know if the table is empty, rows exist with is_active=false, or category values mismatch.",
-      "blocking": true
-    }
-  ],
+  "blockers": [],
+  "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "3-step animated slide using a 300vw strip with translateX — no extra direction state needed, reverse is inherent",
-      "rationale": "Simplest CSS-only approach for directional slide: step 1=translateX(0), step 2=translateX(-33.33%), step 3=translateX(-66.67%). Back slides right automatically.",
+      "decision": "Labor Cost shown only when installedBy === 'shop' (not just !== 'self')",
+      "rationale": "User expectation: Labor Cost is irrelevant until Shop is chosen. Showing it before any selection is chosen adds noise.",
       "phase": "tuning-add-phase2"
     },
     {
-      "decision": "Dev server must run on port 5176 — localStorage is origin-scoped",
-      "rationale": "gdim_chosen_car_id is set under http://localhost:5176. Running on 5177 breaks car/mod queries silently (empty data, 'Unknown' car). Always use: npx vite --port 5176 --host",
+      "decision": "renderSpecField returns null for select/multiselect with empty options — hides label too",
+      "rationale": "Previous code showed the label but no input, creating orphaned headers. Full null return is cleaner.",
       "phase": "tuning-add-phase2"
     },
     {
-      "decision": "boolean spec values: 'false' is not stored in job_specs (skip on save)",
-      "rationale": "'false' means user left toggle off — no meaningful data to store. Only 'true' booleans are inserted.",
+      "decision": "getActiveCarId() checks localStorage first, falls back to Supabase — no race condition",
+      "rationale": "Pages are self-sufficient, no dependency on syncActiveCarFromServer() completing first.",
+      "phase": "tuning-add-phase2"
+    },
+    {
+      "decision": "GRANT SELECT,UPDATE ON users TO authenticated required explicitly",
+      "rationale": "PostgreSQL checks privileges before RLS. Fixed in migration 027.",
+      "phase": "tuning-add-phase2"
+    },
+    {
+      "decision": "Build sheet shows mod.title only (not brand · title)",
+      "rationale": "Users were including brand in title, causing 'Blitz · Blitz short ram intake' duplication.",
+      "phase": "tuning-add-phase2"
+    },
+    {
+      "decision": "Dev server must run on port 5176",
+      "rationale": "getActiveCarId() now falls back to Supabase so this is less critical, but localStorage origin-scoping still matters for other keys.",
       "phase": "tuning-add-phase2"
     }
   ],
   "uncommitted_files": [
     "src/pages/TuningAddPage.tsx",
     "src/pages/TuningBuildSheetPage.tsx",
-    "src/assets/icons/tuning/tuning_brakes.png",
-    "src/assets/icons/tuning/forced_induction.png",
-    "package.json",
-    "package-lock.json"
+    "src/pages/GarageCarsPage.tsx",
+    "src/App.tsx",
+    "src/lib/activeCar.ts",
+    "supabase/migrations/024_part_spec_system.sql",
+    "supabase/migrations/027_active_car.sql"
   ],
-  "next_action": "Diagnose part_types table in Supabase SQL editor. Run: SELECT id, name, category, is_active FROM part_types LIMIT 20. Then fix whatever is missing (empty table → run seed data; is_active=false → update; category mismatch → align with TUNING_CATEGORIES ids). After fix, verify Step 2 shows part types, then test full 3-step flow end-to-end.",
-  "context_notes": "TuningAddPage is fully rewritten. Step 1 (category picker) is pixel-identical to Phase 1. Step 2 queries part_types. Step 3 has all 9 universal fields + Full Specs section + Advanced Specs accordion + photo upload with browser-image-compression EXIF stripping. Save flow: INSERT jobs → INSERT job_specs → compress+upload photos → INSERT job_photos → navigate('/tuning'). browser-image-compression installed. TypeScript clean. Dev server: npx vite --port 5176 --host. Machine IP: 192.168.3.4. The only remaining issue is Step 2 being empty due to part_types table state in Supabase."
+  "next_action": "1. Fix Labor Cost: change `form.installedBy !== 'self'` to `form.installedBy === 'shop'` in TuningAddPage.tsx. 2. Diagnose Intake Type / Filter Type: run the SQL above to check spec_templates options for Cold Air Intake. If empty, populate with correct values in Supabase and update the seed data in migration 024.",
+  "context_notes": "Dev server: npx vite --port 5176 --host. Machine IP: 192.168.3.4. The form UX is mostly good — field order, conditional labor, Part Number in Full Specs, no group headers, no brand dupe. Two small fixes left before the 3-step flow is fully polished."
 }
