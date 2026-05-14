@@ -90,70 +90,86 @@ type Mod = {
   category: string | null
 }
 
+const COLLAPSE_AT = 5
+
+// ── Noise grain data URI (fractal noise → analog zine texture) ────────────
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
+
+// ── Sub-components ────────────────────────────────────────────────────────
+
+function SectionHeroPhoto({ url, onTap }: { url: string; onTap: () => void }) {
+  return (
+    <div
+      onClick={onTap}
+      style={{
+        width: '100%', height: 195,
+        position: 'relative', overflow: 'hidden',
+        cursor: 'pointer', flexShrink: 0,
+        marginBottom: 16,
+      }}
+    >
+      <img
+        src={url}
+        alt=""
+        draggable={false}
+        style={{
+          width: '100%', height: '100%',
+          objectFit: 'cover', objectPosition: 'center',
+          display: 'block',
+        }}
+      />
+      {/* Bottom fade to ground the list below */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: 48,
+        background: 'linear-gradient(to bottom, transparent, rgba(13,13,15,0.72))',
+        pointerEvents: 'none',
+      }} />
+    </div>
+  )
+}
+
 function SectionPhotoPlaceholder({ onClick }: { onClick?: () => void }) {
   return (
     <div
       onClick={onClick}
       style={{
-        width: 130, height: 130, flexShrink: 0,
-        background: '#1e1e20',
-        border: '1px solid rgba(255,255,255,0.06)',
+        width: '100%', height: 72,
+        border: '1px dashed rgba(245,240,228,0.09)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: onClick ? 'pointer' : 'default',
+        marginBottom: 16,
+        background: 'rgba(255,255,255,0.012)',
       }}
     >
       <span style={{
-        fontFamily: FONT_UI, fontWeight: 700, fontSize: 8,
-        letterSpacing: '0.14em', textTransform: 'uppercase',
-        color: onClick ? 'rgba(245,240,228,0.25)' : 'rgba(245,240,228,0.12)',
-        textAlign: 'center', lineHeight: 1.6, padding: '0 8px',
-      }}>{onClick ? '+ Set\nPhoto' : 'Photo'}</span>
+        fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: onClick ? 'rgba(245,240,228,0.2)' : 'rgba(245,240,228,0.07)',
+      }}>
+        {onClick ? '+ Set Section Photo' : ''}
+      </span>
     </div>
   )
 }
 
-function SectionPhoto({ groupId, car, onClick }: { groupId: string; car: Car | null; onClick?: () => void }) {
-  const photoMap: Record<string, string | null | undefined> = {
-    power:    car?.build_sheet_power_photo,
-    chassis:  car?.build_sheet_chassis_photo,
-    exterior: car?.build_sheet_exterior_photo,
-    interior: car?.build_sheet_interior_photo,
-  }
-  const url = photoMap[groupId]
-  if (!url) return <SectionPhotoPlaceholder onClick={onClick} />
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        width: 130, height: 130, flexShrink: 0,
-        backgroundImage: `url(${url})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        border: '1px solid rgba(255,255,255,0.06)',
-        cursor: onClick ? 'pointer' : 'default',
-        position: 'relative',
-      }}
-    >
-      {onClick && (
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          background: 'rgba(0,0,0,0.55)',
-          padding: '4px 0',
-          textAlign: 'center',
-          fontFamily: FONT_UI, fontWeight: 700, fontSize: 7,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
-          color: 'rgba(245,240,228,0.55)',
-        }}>Change</div>
-      )}
-    </div>
-  )
-}
-
-function ModList({ mods, navigate }: { mods: Mod[]; navigate: (path: string) => void }) {
+function ModList({
+  mods,
+  navigate,
+  expanded,
+  onToggleExpand,
+}: {
+  mods: Mod[]
+  navigate: (path: string) => void
+  expanded: boolean
+  onToggleExpand: () => void
+}) {
   const [pressedId, setPressedId] = useState<string | null>(null)
+  const visible = expanded ? mods : mods.slice(0, COLLAPSE_AT)
+  const hiddenCount = mods.length - COLLAPSE_AT
+
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
-      {mods.map((mod, i) => (
+    <div>
+      {visible.map((mod) => (
         <div
           key={mod.id}
           onClick={() => navigate(`/tuning/mods/${mod.id}`)}
@@ -162,28 +178,83 @@ function ModList({ mods, navigate }: { mods: Mod[]; navigate: (path: string) => 
           onPointerLeave={() => setPressedId(null)}
           onPointerCancel={() => setPressedId(null)}
           style={{
-            marginBottom: i < mods.length - 1 ? 10 : 0,
-            paddingLeft: 6,
-            borderLeft: pressedId === mod.id ? '2px solid rgba(105,12,22,0.7)' : '2px solid transparent',
+            padding: '10px 0 10px 8px',
+            borderBottom: '1px solid rgba(255,255,255,0.04)',
+            borderLeft: pressedId === mod.id
+              ? '2px solid rgba(105,12,22,0.7)'
+              : '2px solid transparent',
             cursor: 'pointer',
             WebkitTapHighlightColor: 'transparent',
             touchAction: 'manipulation',
-            opacity: pressedId === mod.id ? 0.65 : 1,
+            opacity: pressedId === mod.id ? 0.6 : 1,
             transition: 'opacity 80ms ease, border-left-color 80ms ease',
           }}
         >
           <div style={{
-            fontFamily: FONT_UI, fontWeight: 600, fontSize: 12,
-            color: 'rgba(180,192,205,0.82)',
-            lineHeight: 1.35,
+            fontFamily: FONT_UI, fontWeight: 600, fontSize: 14,
+            color: 'rgba(180,192,205,0.88)',
+            lineHeight: 1.3,
           }}>
             {mod.title}
           </div>
+          {mod.brand && (
+            <div style={{
+              fontFamily: FONT_UI, fontWeight: 500, fontSize: 11,
+              color: 'rgba(245,240,228,0.26)',
+              marginTop: 2,
+            }}>
+              {mod.brand}
+            </div>
+          )}
         </div>
       ))}
+
+      {/* Expand / collapse toggle */}
+      {!expanded && hiddenCount > 0 && (
+        <button
+          onClick={onToggleExpand}
+          style={{
+            display: 'block', width: '100%',
+            padding: '13px 8px',
+            background: 'none', border: 'none',
+            cursor: 'pointer', textAlign: 'left',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{
+            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+            letterSpacing: '0.1em',
+            color: 'rgba(245,240,228,0.26)',
+          }}>
+            — {hiddenCount} more mod{hiddenCount !== 1 ? 's' : ''} —
+          </span>
+        </button>
+      )}
+      {expanded && mods.length > COLLAPSE_AT && (
+        <button
+          onClick={onToggleExpand}
+          style={{
+            display: 'block', width: '100%',
+            padding: '13px 8px',
+            background: 'none', border: 'none',
+            cursor: 'pointer', textAlign: 'left',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{
+            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+            letterSpacing: '0.1em',
+            color: 'rgba(245,240,228,0.18)',
+          }}>
+            — show less —
+          </span>
+        </button>
+      )}
     </div>
   )
 }
+
+// ── Main page ─────────────────────────────────────────────────────────────
 
 export default function TuningBuildSheetPage() {
   const navigate = useNavigate()
@@ -191,6 +262,24 @@ export default function TuningBuildSheetPage() {
   const [mods, setMods]       = useState<Mod[]>([])
   const [loading, setLoading] = useState(true)
   const [pressed, setPressed] = useState(false)
+
+  // Expand/collapse per group
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const toggleGroup = (groupId: string) =>
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      next.has(groupId) ? next.delete(groupId) : next.add(groupId)
+      return next
+    })
+
+  // Lightbox
+  const [lightboxUrl,   setLightboxUrl]   = useState<string | null>(null)
+  const [lightboxGroup, setLightboxGroup] = useState<string | null>(null)
+  const openLightbox = (url: string, groupId: string) => {
+    setLightboxUrl(url)
+    setLightboxGroup(groupId)
+  }
+  const closeLightbox = () => { setLightboxUrl(null); setLightboxGroup(null) }
 
   // Photo picker
   const [pickerGroup,   setPickerGroup]   = useState<string | null>(null)
@@ -257,12 +346,39 @@ export default function TuningBuildSheetPage() {
     load()
   }, [])
 
+  const photoMap: Record<string, string | null | undefined> = car ? {
+    power:    car.build_sheet_power_photo,
+    chassis:  car.build_sheet_chassis_photo,
+    exterior: car.build_sheet_exterior_photo,
+    interior: car.build_sheet_interior_photo,
+  } : {}
+
   const activeGroups = MOD_GROUPS
     .map(g => ({ ...g, mods: mods.filter(m => g.categories.includes(m.category ?? '')) }))
     .filter(g => g.mods.length > 0)
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0d0d0f', overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0d0d0f', overflow: 'hidden', position: 'relative' }}>
+
+      {/* ── Magazine sheen + grain overlays (pointer-events: none) ── */}
+      {/* Fixed so the light source stays in place as you scroll — like a physical magazine */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none',
+        background: [
+          // Warm sun-bounce — bottom-right corner, angled ellipse
+          'radial-gradient(ellipse 70% 48% at 90% 94%, rgba(245,232,195,0.065) 0%, rgba(245,232,195,0.025) 48%, transparent 72%)',
+          // Cool ambient — top-left, GT4 blue filter
+          'radial-gradient(ellipse 55% 30% at 10% 6%, rgba(175,195,215,0.04) 0%, transparent 60%)',
+        ].join(', '),
+      }} />
+      {/* Grain layer — fractal noise at low opacity, screen blend for dark backgrounds */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 4, pointerEvents: 'none',
+        backgroundImage: NOISE_SVG,
+        backgroundSize: '220px 220px',
+        opacity: 0.028,
+        mixBlendMode: 'screen',
+      }} />
 
       {/* ── Header ── */}
       <div style={{
@@ -305,11 +421,11 @@ export default function TuningBuildSheetPage() {
 
       {/* ── Body ── */}
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 6 }}>
           <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.2)', letterSpacing: '0.12em' }}>LOADING</span>
         </div>
       ) : (
-        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96 }}>
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96, position: 'relative', zIndex: 6 }}>
 
           {/* ── Hero: car photo + identity ── */}
           <div style={{
@@ -366,30 +482,146 @@ export default function TuningBuildSheetPage() {
             </div>
           </div>
 
-          {/* ── Mod sections (alternating layout) ── */}
-          {activeGroups.map((group, idx) => {
-            const photoRight = idx % 2 === 0  // even: details left, photo right
+          {/* ── Mod sections — vertical hero layout ── */}
+          {activeGroups.map(group => {
+            const photoUrl     = photoMap[group.id] ?? null
+            const hasPhotoCol  = !!GROUP_PHOTO_COL[group.id]
+            const isExpanded   = expandedGroups.has(group.id)
+
             return (
               <div key={group.id} style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                padding: '20px 16px',
+                padding: '22px 16px 8px',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}>
-                {photoRight ? (
-                  <>
-                    <ModList mods={group.mods} navigate={navigate} />
-                    <SectionPhoto groupId={group.id} car={car} onClick={GROUP_PHOTO_COL[group.id] ? () => openPicker(group.id) : undefined} />
-                  </>
+
+                {/* Section header — editorial label */}
+                <div style={{
+                  display: 'flex', alignItems: 'baseline', gap: 10,
+                  marginBottom: 14,
+                }}>
+                  <span style={{
+                    fontFamily: FONT_UI, fontWeight: 900, fontSize: 11,
+                    letterSpacing: '0.22em', textTransform: 'uppercase',
+                    color: 'rgba(245,240,228,0.55)',
+                  }}>
+                    {group.label}
+                  </span>
+                  <span style={{
+                    fontFamily: FONT_UI, fontWeight: 600, fontSize: 10,
+                    letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: 'rgba(245,240,228,0.2)',
+                  }}>
+                    · {group.mods.length} {group.mods.length === 1 ? 'mod' : 'mods'}
+                  </span>
+                </div>
+
+                {/* Section photo — full width hero */}
+                {photoUrl ? (
+                  <SectionHeroPhoto
+                    url={photoUrl}
+                    onTap={() => hasPhotoCol && openLightbox(photoUrl, group.id)}
+                  />
                 ) : (
-                  <>
-                    <SectionPhoto groupId={group.id} car={car} onClick={GROUP_PHOTO_COL[group.id] ? () => openPicker(group.id) : undefined} />
-                    <ModList mods={group.mods} navigate={navigate} />
-                  </>
+                  hasPhotoCol && (
+                    <SectionPhotoPlaceholder onClick={() => openPicker(group.id)} />
+                  )
                 )}
+
+                {/* Mod list */}
+                <ModList
+                  mods={group.mods}
+                  navigate={navigate}
+                  expanded={isExpanded}
+                  onToggleExpand={() => toggleGroup(group.id)}
+                />
+
               </div>
             )
           })}
 
+        </div>
+      )}
+
+      {/* ── Lightbox — tap photo → full view → Change button ── */}
+      {lightboxUrl && (
+        <div
+          onClick={closeLightbox}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 70,
+            background: 'rgba(0,0,0,0.96)',
+            display: 'flex', flexDirection: 'column',
+          }}
+        >
+          {/* Close */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 60,
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+            padding: '0 16px',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.65), transparent)',
+            zIndex: 10, pointerEvents: 'none',
+          }}>
+            <button
+              onClick={e => { e.stopPropagation(); closeLightbox() }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 8, pointerEvents: 'auto',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ color: 'rgba(245,240,228,0.55)', fontSize: 30, fontWeight: 200, lineHeight: 1 }}>×</span>
+            </button>
+          </div>
+
+          {/* Photo — full natural dimensions, pinch-zoomable */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'auto', touchAction: 'pinch-zoom',
+              padding: '60px 0 80px',
+            }}
+          >
+            <img
+              src={lightboxUrl}
+              alt=""
+              draggable={false}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          </div>
+
+          {/* Change button — owner only (this page is always auth-protected) */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              padding: '12px 20px 36px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 60%, transparent)',
+            }}
+          >
+            <button
+              onClick={() => {
+                closeLightbox()
+                if (lightboxGroup) openPicker(lightboxGroup)
+              }}
+              style={{
+                width: '100%', padding: '13px 0',
+                background: 'transparent',
+                border: '1px solid rgba(245,240,228,0.18)',
+                cursor: 'pointer',
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                letterSpacing: '0.16em', textTransform: 'uppercase',
+                color: 'rgba(245,240,228,0.5)',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              Change Photo
+            </button>
+          </div>
         </div>
       )}
 
@@ -400,7 +632,6 @@ export default function TuningBuildSheetPage() {
           background: 'rgba(0,0,0,0.88)',
           display: 'flex', flexDirection: 'column',
         }}>
-          {/* Header */}
           <div style={{
             height: 52, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -414,7 +645,6 @@ export default function TuningBuildSheetPage() {
               <span style={{ color: 'rgba(245,240,228,0.4)', fontSize: 22, fontWeight: 300, lineHeight: 1 }}>×</span>
             </button>
           </div>
-          {/* Body */}
           <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
             {pickerLoading ? (
               <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)', letterSpacing: '0.1em', textAlign: 'center', paddingTop: 40 }}>LOADING…</p>
@@ -450,10 +680,10 @@ export default function TuningBuildSheetPage() {
           onPointerLeave={() => setPressed(false)}
           onPointerCancel={() => setPressed(false)}
           style={{
-            position: 'absolute', right: 20, bottom: 30,
+            position: 'fixed', right: 20, bottom: 30, zIndex: 20,
             width: 54, height: 54, borderRadius: '50%',
             background: 'rgba(200,102,26,0.12)',
-            border: `1.5px solid rgba(200,102,26,0.55)`,
+            border: '1.5px solid rgba(200,102,26,0.55)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
             cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
             boxShadow: '0 0 18px rgba(200,102,26,0.2)',
