@@ -1,87 +1,71 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-13T13:40:22.334Z",
-  "phase": "tuning-add-phase2",
-  "phase_name": "G-Dimension — TuningAddPage Phase 2 (form UX polish)",
+  "timestamp": "2026-05-14T12:07:59.214Z",
+  "phase": null,
+  "phase_name": "g-dimension — TuningAddPage polish + section photo system",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
-  "plan": 0,
-  "task": 3,
-  "total_tasks": 5,
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {
-      "id": 1,
-      "name": "Fix 'No part types found' — RLS policies + notes_placeholder column",
-      "status": "done"
-    },
-    {
-      "id": 2,
-      "name": "Active car persists cross-device via users.active_car_id + activeCar.ts",
-      "status": "done"
-    },
-    {
-      "id": 3,
-      "name": "Form UX polish — field reorder, labor conditional, Part Number to Full Specs, remove group headers, filter brand dupe, build sheet title-only",
-      "status": "done"
-    }
+    {"id": 1, "name": "Fix navigation: back from step 1 + after Log It → /tuning/build-sheet", "status": "done", "commit": "b362612"},
+    {"id": 2, "name": "Fix Labor Cost: only show when installedBy === 'shop'", "status": "done", "commit": "b362612"},
+    {"id": 3, "name": "Remove duplicate category header in step 2 (back button already shows it)", "status": "done", "commit": "b362612"},
+    {"id": 4, "name": "Remove back button label truncation (maxWidth: 180 + ellipsis)", "status": "done", "commit": "b362612"},
+    {"id": 5, "name": "Add per-part-type title placeholders for all 50+ part types (TITLE_PLACEHOLDER map)", "status": "done", "commit": "b362612"},
+    {"id": 6, "name": "Force JPEG output on photo uploads (fileType: image/jpeg + ext = jpg)", "status": "done", "commit": "b362612"},
+    {"id": 7, "name": "Add inputMode=decimal to cost inputs for numeric keyboard on mobile", "status": "done", "commit": "b362612"},
+    {"id": 8, "name": "Fix TypeScript build error: spec_templates query cast (as unknown as SpecTemplate[])", "status": "done", "commit": "dc11679"},
+    {"id": 9, "name": "Fix TuningAddPage.tsx: prepend user_id to job-photos storage path", "status": "done", "commit": "43175e5"},
+    {"id": 10, "name": "Fix app routing (PR from claude/fix-app-routing-UKwQX)", "status": "done", "commit": "ccfc519"},
+    {"id": 11, "name": "Add Log In / Sign Up nav to marketing page", "status": "done", "commit": "4c8f6e1"},
+    {"id": 12, "name": "TuningModDetailPage: full implementation with mod details, photos, Set as section photo", "status": "done", "commit": "186b2d0"},
+    {"id": 13, "name": "TuningBuildSheetPage: tappable section photos/placeholders + inline photo picker modal", "status": "done", "commit": "186b2d0"},
+    {"id": 14, "name": "Fix cars SELECT to include all 4 build_sheet_*_photo fields", "status": "done", "commit": "186b2d0"},
+    {"id": 15, "name": "Migration 029: add build_sheet_*_photo columns to cars", "status": "done", "commit": "186b2d0"},
+    {"id": 16, "name": "hotfixes.sql: grant SELECT/INSERT/UPDATE/DELETE on job_specs to authenticated", "status": "done", "commit": "186b2d0"}
   ],
   "remaining_tasks": [
     {
-      "id": 4,
-      "name": "Fix Labor Cost visibility — currently shows when installedBy is null (no selection). Should only show when 'Shop' is explicitly selected.",
+      "id": 17,
+      "name": "End-to-end testing of TuningAddPage flow on live site (each category, specs, photos, costs)",
       "status": "not_started",
-      "notes": "Current condition: `form.installedBy !== 'self'` shows Labor when null too. Fix: `form.installedBy === 'shop'`"
+      "notes": "User is doing manual testing. Report bugs found and fix them."
     },
     {
-      "id": 5,
-      "name": "Restore Intake Type / Filter Type selects — they disappeared because renderSpecField returns null when opts.length === 0. The spec_templates for these fields have null/empty options in Supabase. Need to either populate options in spec_templates DB rows or handle them differently.",
-      "status": "not_started",
-      "notes": "Run this to diagnose: SELECT spec_key, spec_label, input_type, options FROM spec_templates JOIN part_types ON part_types.id = spec_templates.part_type_id WHERE part_types.name = 'Cold Air Intake / Short Ram'; — if options is null/empty for intake_type and filter_type rows, populate them with the correct JSON array in Supabase."
+      "id": 18,
+      "name": "Test section photo flow: add mod with photo → mod detail → Set as [Group] → verify build sheet shows it",
+      "status": "not_started"
+    },
+    {
+      "id": 19,
+      "name": "Test build sheet photo picker: tap placeholder → picker opens → pick photo → build sheet updates",
+      "status": "not_started"
     }
   ],
   "blockers": [],
-  "human_actions_pending": [],
-  "decisions": [
+  "human_actions_pending": [
     {
-      "decision": "Labor Cost shown only when installedBy === 'shop' (not just !== 'self')",
-      "rationale": "User expectation: Labor Cost is irrelevant until Shop is chosen. Showing it before any selection is chosen adds noise.",
-      "phase": "tuning-add-phase2"
+      "action": "Run migration 029 in Supabase SQL Editor (add build_sheet_*_photo columns to cars)",
+      "context": "User confirmed this was run already this session",
+      "blocking": false
     },
     {
-      "decision": "renderSpecField returns null for select/multiselect with empty options — hides label too",
-      "rationale": "Previous code showed the label but no input, creating orphaned headers. Full null return is cleaner.",
-      "phase": "tuning-add-phase2"
-    },
-    {
-      "decision": "getActiveCarId() checks localStorage first, falls back to Supabase — no race condition",
-      "rationale": "Pages are self-sufficient, no dependency on syncActiveCarFromServer() completing first.",
-      "phase": "tuning-add-phase2"
-    },
-    {
-      "decision": "GRANT SELECT,UPDATE ON users TO authenticated required explicitly",
-      "rationale": "PostgreSQL checks privileges before RLS. Fixed in migration 027.",
-      "phase": "tuning-add-phase2"
-    },
-    {
-      "decision": "Build sheet shows mod.title only (not brand · title)",
-      "rationale": "Users were including brand in title, causing 'Blitz · Blitz short ram intake' duplication.",
-      "phase": "tuning-add-phase2"
-    },
-    {
-      "decision": "Dev server must run on port 5176",
-      "rationale": "getActiveCarId() now falls back to Supabase so this is less critical, but localStorage origin-scoping still matters for other keys.",
-      "phase": "tuning-add-phase2"
+      "action": "Run hotfixes.sql in Supabase SQL Editor (job_specs grants)",
+      "context": "User confirmed this was run already this session",
+      "blocking": false
     }
   ],
-  "uncommitted_files": [
-    "src/pages/TuningAddPage.tsx",
-    "src/pages/TuningBuildSheetPage.tsx",
-    "src/pages/GarageCarsPage.tsx",
-    "src/App.tsx",
-    "src/lib/activeCar.ts",
-    "supabase/migrations/024_part_spec_system.sql",
-    "supabase/migrations/027_active_car.sql"
+  "decisions": [
+    {"decision": "Force all photo uploads to JPEG (fileType: image/jpeg, ext: jpg)", "rationale": "HEIC from iPhones not universally compatible on Android/Windows browsers", "phase": "tuning-add-polish"},
+    {"decision": "Back from step 1 and after Log It both navigate to /tuning/build-sheet", "rationale": "User expectation: adding a mod lands you back on the build sheet to see it, not the tuning hub", "phase": "tuning-add-polish"},
+    {"decision": "Labor Cost only shows when installedBy === 'shop', not when null or 'self'", "rationale": "Showing it before any selection creates noise; irrelevant until Shop is chosen", "phase": "tuning-add-polish"},
+    {"decision": "Section photos on build sheet are tappable inline modal picker, not a separate route", "rationale": "Keeps context, matches the app's overlay style, simpler to implement", "phase": "section-photo-system"},
+    {"decision": "TuningModDetailPage shows per-photo Set button based on mod category → group mapping", "rationale": "Multiple photos on one mod → user picks which one to feature; group derived from category", "phase": "section-photo-system"},
+    {"decision": "hotfixes.sql tracks manual DB fixes outside migration sequence", "rationale": "Keeps a record of ad-hoc SQL applied to live DB that isn't in the numbered migration sequence", "phase": "section-photo-system"}
   ],
-  "next_action": "1. Fix Labor Cost: change `form.installedBy !== 'self'` to `form.installedBy === 'shop'` in TuningAddPage.tsx. 2. Diagnose Intake Type / Filter Type: run the SQL above to check spec_templates options for Cold Air Intake. If empty, populate with correct values in Supabase and update the seed data in migration 024.",
-  "context_notes": "Dev server: npx vite --port 5176 --host. Machine IP: 192.168.3.4. The form UX is mostly good — field order, conditional labor, Part Number in Full Specs, no group headers, no brand dupe. Two small fixes left before the 3-step flow is fully polished."
+  "uncommitted_files": [],
+  "next_action": "Resume testing. User is going through each category and part type on the live site (gdimension.app). Collect bug reports and fix them. Key flows to verify: (1) Add mod end-to-end, (2) Section photo set from mod detail, (3) Section photo picker from build sheet placeholder.",
+  "context_notes": "All code pushed to GitHub, Vercel should auto-deploy. Supabase migration 029 and hotfixes.sql were run manually by the user. The TuningModDetailPage was previously a stub (one line). Chrome Remote Desktop setup was attempted for remote access but failed — user fell back to claude.ai/code for the mid-session work. Build sheet already had the Car type with build_sheet_*_photo fields but the columns didn't exist in DB and the cars query didn't select them — both now fixed."
 }
