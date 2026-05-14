@@ -396,6 +396,9 @@ export default function TuningAddPage() {
     setSaveErr(null)
     const carId = await getActiveCarId()
     if (!carId) { setSaving(false); return }
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user?.id
+    if (!userId) { setSaving(false); return }
 
     // 1. INSERT job
     const { data: jobData, error: jobErr } = await supabase
@@ -454,7 +457,7 @@ export default function TuningAddPage() {
       try {
         const compressed = await imageCompression(photo, COMPRESSION_OPTIONS)
         const ext  = 'jpg'
-        const path = `${carId}/${jobId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const path = `${userId}/${carId}/${jobId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { data: up, error: upErr } = await supabase.storage
           .from('job-photos')
           .upload(path, compressed, { contentType: compressed.type })
