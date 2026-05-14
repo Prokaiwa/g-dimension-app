@@ -144,11 +144,25 @@ body{
   animation:blink 2.5s ease-in-out infinite;
 }
 @keyframes blink{0%,100%{opacity:0.35;}50%{opacity:1;}}
-.h-status{
-  font-family:var(--font-ui);font-weight:700;
-  font-size:9px;letter-spacing:0.22em;
-  text-transform:uppercase;color:var(--accent);
+.h-login{
+  font-family:var(--font-ui);font-weight:600;
+  font-size:12px;letter-spacing:0.04em;
+  color:#e8e8e8;text-decoration:none;
+  padding:6px 10px;
+  transition:color 0.2s;
 }
+.h-login:hover{color:var(--accent);}
+.h-signup{
+  font-family:var(--font-ui);font-weight:700;
+  font-size:10px;letter-spacing:0.14em;
+  text-transform:uppercase;color:#fff;
+  text-decoration:none;
+  background:var(--accent);
+  padding:7px 13px;
+  border-radius:20px;
+  transition:background 0.2s;
+}
+.h-signup:hover{background:var(--accent-dim);}
 .header-shadow{
   position:fixed;top:52px;left:0;right:0;height:32px;
   z-index:200;pointer-events:none;
@@ -798,10 +812,10 @@ body{
   <img class="h-logo" src="data:image/png;base64,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" alt="G-Dimension logo">
   <span class="h-wordmark" aria-hidden="true">G-Dimension</span>
   <div class="h-spacer"></div>
-  <div class="h-right" role="status" aria-label="Coming soon">
-    <div class="pip" aria-hidden="true"></div>
-    <span class="h-status">Coming Soon</span>
-  </div>
+  <nav class="h-right" aria-label="Account navigation">
+    <a class="h-login" href="/login">Log In</a>
+    <a class="h-signup" href="/signup">Sign Up</a>
+  </nav>
 </header>
 <div class="header-shadow" aria-hidden="true"></div>
 
