@@ -425,7 +425,7 @@ export default function TuningBuildSheetPage() {
             display: 'flex', alignItems: 'flex-start', gap: 14,
           }}>
             <div style={{
-              flexShrink: 0, width: 172, height: 128,
+              flexShrink: 0, width: 185, height: 138,
               backgroundImage: `url(${car?.garage_photo_url ?? garagePlaceholder}), radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)`,
               backgroundSize: 'contain, cover',
               backgroundPosition: `center ${car?.photo_y_offset ?? 50}%, center`,
