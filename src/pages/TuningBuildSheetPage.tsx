@@ -197,15 +197,6 @@ function ModList({
           }}>
             {mod.title}
           </div>
-          {mod.brand && (
-            <div style={{
-              fontFamily: FONT_UI, fontWeight: 500, fontSize: 11,
-              color: 'rgba(245,240,228,0.26)',
-              marginTop: 2,
-            }}>
-              {mod.brand}
-            </div>
-          )}
         </div>
       ))}
 
@@ -434,7 +425,7 @@ export default function TuningBuildSheetPage() {
             display: 'flex', alignItems: 'flex-start', gap: 14,
           }}>
             <div style={{
-              flexShrink: 0, width: 150, height: 110,
+              flexShrink: 0, width: 172, height: 128,
               backgroundImage: `url(${car?.garage_photo_url ?? garagePlaceholder}), radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)`,
               backgroundSize: 'contain, cover',
               backgroundPosition: `center ${car?.photo_y_offset ?? 50}%, center`,
@@ -505,13 +496,6 @@ export default function TuningBuildSheetPage() {
                     color: 'rgba(245,240,228,0.55)',
                   }}>
                     {group.label}
-                  </span>
-                  <span style={{
-                    fontFamily: FONT_UI, fontWeight: 600, fontSize: 10,
-                    letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: 'rgba(245,240,228,0.2)',
-                  }}>
-                    · {group.mods.length} {group.mods.length === 1 ? 'mod' : 'mods'}
                   </span>
                 </div>
 
