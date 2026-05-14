@@ -60,6 +60,13 @@ const MOD_GROUPS = [
   { id: 'other',    label: 'Other',    categories: ['Other'] },
 ]
 
+const GROUP_PHOTO_COL: Record<string, string> = {
+  power:    'build_sheet_power_photo',
+  chassis:  'build_sheet_chassis_photo',
+  exterior: 'build_sheet_exterior_photo',
+  interior: 'build_sheet_interior_photo',
+}
+
 type Car = {
   id: string
   year: number | null
@@ -83,24 +90,29 @@ type Mod = {
   category: string | null
 }
 
-function SectionPhotoPlaceholder() {
+function SectionPhotoPlaceholder({ onClick }: { onClick?: () => void }) {
   return (
-    <div style={{
-      width: 130, height: 130, flexShrink: 0,
-      background: '#1e1e20',
-      border: '1px solid rgba(255,255,255,0.06)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        width: 130, height: 130, flexShrink: 0,
+        background: '#1e1e20',
+        border: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+    >
       <span style={{
         fontFamily: FONT_UI, fontWeight: 700, fontSize: 8,
         letterSpacing: '0.14em', textTransform: 'uppercase',
-        color: 'rgba(245,240,228,0.12)',
-      }}>Photo</span>
+        color: onClick ? 'rgba(245,240,228,0.25)' : 'rgba(245,240,228,0.12)',
+        textAlign: 'center', lineHeight: 1.6, padding: '0 8px',
+      }}>{onClick ? '+ Set\nPhoto' : 'Photo'}</span>
     </div>
   )
 }
 
-function SectionPhoto({ groupId, car }: { groupId: string; car: Car | null }) {
+function SectionPhoto({ groupId, car, onClick }: { groupId: string; car: Car | null; onClick?: () => void }) {
   const photoMap: Record<string, string | null | undefined> = {
     power:    car?.build_sheet_power_photo,
     chassis:  car?.build_sheet_chassis_photo,
@@ -108,15 +120,32 @@ function SectionPhoto({ groupId, car }: { groupId: string; car: Car | null }) {
     interior: car?.build_sheet_interior_photo,
   }
   const url = photoMap[groupId]
-  if (!url) return <SectionPhotoPlaceholder />
+  if (!url) return <SectionPhotoPlaceholder onClick={onClick} />
   return (
-    <div style={{
-      width: 130, height: 130, flexShrink: 0,
-      backgroundImage: `url(${url})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      border: '1px solid rgba(255,255,255,0.06)',
-    }} />
+    <div
+      onClick={onClick}
+      style={{
+        width: 130, height: 130, flexShrink: 0,
+        backgroundImage: `url(${url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        border: '1px solid rgba(255,255,255,0.06)',
+        cursor: onClick ? 'pointer' : 'default',
+        position: 'relative',
+      }}
+    >
+      {onClick && (
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'rgba(0,0,0,0.55)',
+          padding: '4px 0',
+          textAlign: 'center',
+          fontFamily: FONT_UI, fontWeight: 700, fontSize: 7,
+          letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: 'rgba(245,240,228,0.55)',
+        }}>Change</div>
+      )}
+    </div>
   )
 }
 
@@ -163,6 +192,44 @@ export default function TuningBuildSheetPage() {
   const [loading, setLoading] = useState(true)
   const [pressed, setPressed] = useState(false)
 
+  // Photo picker
+  const [pickerGroup,   setPickerGroup]   = useState<string | null>(null)
+  const [pickerPhotos,  setPickerPhotos]  = useState<{ id: string; photo_url: string }[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+
+  const openPicker = async (groupId: string) => {
+    if (!car?.id) return
+    setPickerGroup(groupId)
+    setPickerLoading(true)
+    setPickerPhotos([])
+    const cats = MOD_GROUPS.find(g => g.id === groupId)?.categories ?? []
+    const { data: jobRows } = await supabase
+      .from('jobs')
+      .select('id')
+      .eq('car_id', car.id)
+      .in('category', cats)
+    const jobIds = (jobRows ?? []).map((j: { id: string }) => j.id)
+    if (jobIds.length > 0) {
+      const { data: photos } = await supabase
+        .from('job_photos')
+        .select('id, photo_url')
+        .in('job_id', jobIds)
+      setPickerPhotos((photos ?? []) as { id: string; photo_url: string }[])
+    }
+    setPickerLoading(false)
+  }
+
+  const closePicker = () => setPickerGroup(null)
+
+  const handlePickPhoto = async (url: string) => {
+    if (!car?.id || !pickerGroup) return
+    const col = GROUP_PHOTO_COL[pickerGroup]
+    if (!col) return
+    await supabase.from('cars').update({ [col]: url }).eq('id', car.id)
+    setCar(c => c ? { ...c, [col]: url } : c)
+    closePicker()
+  }
+
   useEffect(() => {
     async function load() {
       const carId = await getActiveCarId()
@@ -171,7 +238,7 @@ export default function TuningBuildSheetPage() {
       const [{ data: carData }, { data: modsData }] = await Promise.all([
         supabase
           .from('cars')
-          .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs')
+          .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo')
           .eq('id', carId)
           .single(),
         supabase
@@ -311,11 +378,11 @@ export default function TuningBuildSheetPage() {
                 {photoRight ? (
                   <>
                     <ModList mods={group.mods} navigate={navigate} />
-                    <SectionPhoto groupId={group.id} car={car} />
+                    <SectionPhoto groupId={group.id} car={car} onClick={GROUP_PHOTO_COL[group.id] ? () => openPicker(group.id) : undefined} />
                   </>
                 ) : (
                   <>
-                    <SectionPhoto groupId={group.id} car={car} />
+                    <SectionPhoto groupId={group.id} car={car} onClick={GROUP_PHOTO_COL[group.id] ? () => openPicker(group.id) : undefined} />
                     <ModList mods={group.mods} navigate={navigate} />
                   </>
                 )}
@@ -323,6 +390,54 @@ export default function TuningBuildSheetPage() {
             )
           })}
 
+        </div>
+      )}
+
+      {/* ── Photo picker modal ── */}
+      {pickerGroup && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'rgba(0,0,0,0.88)',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Header */}
+          <div style={{
+            height: 52, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 20px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.55)' }}>
+              {MOD_GROUPS.find(g => g.id === pickerGroup)?.label} Photo
+            </span>
+            <button onClick={closePicker} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, WebkitTapHighlightColor: 'transparent' }}>
+              <span style={{ color: 'rgba(245,240,228,0.4)', fontSize: 22, fontWeight: 300, lineHeight: 1 }}>×</span>
+            </button>
+          </div>
+          {/* Body */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+            {pickerLoading ? (
+              <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)', letterSpacing: '0.1em', textAlign: 'center', paddingTop: 40 }}>LOADING…</p>
+            ) : pickerPhotos.length === 0 ? (
+              <p style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.3)', textAlign: 'center', paddingTop: 40, lineHeight: 1.6 }}>
+                No photos yet.{'\n'}Log a mod with photos first.
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                {pickerPhotos.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => handlePickPhoto(p.photo_url)}
+                    style={{
+                      aspectRatio: '1', backgroundImage: `url(${p.photo_url})`,
+                      backgroundSize: 'cover', backgroundPosition: 'center',
+                      cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
