@@ -51,6 +51,9 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 // Public (non-auth)
 import PublicProfilePage from './pages/PublicProfilePage'
 
+// Dev tools
+import SpecTestPage from './pages/SpecTestPage'
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState<boolean | null>(null)
 
@@ -122,6 +125,9 @@ export default function App() {
 
       {/* Non-authenticated public route — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
+
+      {/* Dev tools */}
+      <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
     </Routes>
   )
 }
