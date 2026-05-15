@@ -130,7 +130,7 @@ export default function TuningPartsPage() {
                 {[car.year, car.model].filter(Boolean).join(' ')}
               </span>
             )}
-            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 12px 4px 10px' }}>
+            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px' }}>
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
                 {todayMonth} {todayDay}
               </span>
