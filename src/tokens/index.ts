@@ -64,8 +64,12 @@ export const FONT_UI    = "'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial,
 // (Home title watermark, screen headings like "Hiroshi's Garage", hero taglines)
 export const FONT_TITLE = "'Cormorant Garamond', 'Garamond', serif";
 
+// Parts Bin only — handwritten aesthetic
+export const FONT_HANDWRITTEN = "'Caveat', cursive";           // part names, body text
+export const FONT_STAMP       = "'Permanent Marker', cursive"; // headers, stamps
+
 // Google Fonts import string (add to index.html <head>)
-// @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap');
+// @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Caveat:wght@400;500;600;700&family=Permanent+Marker&display=swap');
 
 // ------------------------------------------------------------
 // PART 5 — SPACING & SIZING SCALE
@@ -183,6 +187,16 @@ export const MAP_NODE_PHOTOS      = { left: 120, top: 625 };
 
 // Timeline card border-radius — the ONE exception to RADIUS_NONE rule (Part 8)
 export const RADIUS_TIMELINE_CARD = 4;
+
+// ------------------------------------------------------------
+// PARTS BIN COLOR TOKENS — cardboard / kraft paper palette
+// ------------------------------------------------------------
+
+export const COLOR_CARDBOARD_BG     = '#c4a26a'; // kraft tan base
+export const COLOR_CARDBOARD_DARK   = '#c9a96e'; // slightly lighter kraft (section areas)
+export const COLOR_CARDBOARD_INK    = '#1a1008'; // near-black warm — primary text
+export const COLOR_CARDBOARD_INK2   = '#3d2810'; // secondary ink — muted text
+export const COLOR_CARDBOARD_STAMP  = '#8b3a0a'; // dark amber — stamp/accent color
 
 // ------------------------------------------------------------
 // PART 3 ADDENDUM — TIMELINE COLOR TOKENS

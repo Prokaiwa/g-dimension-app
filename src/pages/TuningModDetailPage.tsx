@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT, FONT_HANDWRITTEN, COLOR_CARDBOARD_STAMP } from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -70,7 +70,9 @@ export default function TuningModDetailPage() {
   const [photos,       setPhotos]       = useState<Photo[]>([])
   const [loading,      setLoading]      = useState(true)
   const [setSuccess,   setSetSuccess]   = useState<string | null>(null)
-  const [editPressed,  setEditPressed]  = useState(false)
+  const [editPressed,   setEditPressed]   = useState(false)
+  const [removeSheet,   setRemoveSheet]   = useState(false)
+  const [removing,      setRemoving]      = useState(false)
 
   useEffect(() => {
     if (!modId) return
@@ -103,6 +105,17 @@ export default function TuningModDetailPage() {
     }
     load()
   }, [modId])
+
+  const handleRemove = async (stillOwned: boolean) => {
+    if (!modId) return
+    setRemoving(true)
+    await supabase.from('jobs').update({
+      status:      'removed',
+      still_owned: stillOwned,
+      date_removed: new Date().toISOString().split('T')[0],
+    }).eq('id', modId)
+    navigate('/tuning/build-sheet')
+  }
 
   const handleSetSectionPhoto = async (photoUrl: string) => {
     if (!job?.category) return
@@ -289,29 +302,117 @@ export default function TuningModDetailPage() {
 
       </div>
 
-      {/* ── Edit FAB ── */}
-      <button
-        onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
-        onPointerDown={() => setEditPressed(true)}
-        onPointerUp={() => setEditPressed(false)}
-        onPointerLeave={() => setEditPressed(false)}
-        onPointerCancel={() => setEditPressed(false)}
-        style={{
-          position: 'fixed', right: 20, bottom: 30, zIndex: 20,
-          padding: '12px 22px',
-          background: 'rgba(200,102,26,0.12)',
-          border: '1.5px solid rgba(200,102,26,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-          boxShadow: '0 0 18px rgba(200,102,26,0.2)',
-          transform: editPressed ? 'scale(0.92)' : 'scale(1)',
-          transition: editPressed ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
-        }}
-      >
-        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
-          EDIT MOD
-        </span>
-      </button>
+      {/* ── FAB row: Remove + Edit ── */}
+      <div style={{ position: 'fixed', right: 20, bottom: 30, zIndex: 20, display: 'flex', gap: 10 }}>
+        <button
+          onClick={() => setRemoveSheet(true)}
+          style={{
+            padding: '12px 18px',
+            background: 'rgba(245,240,228,0.04)',
+            border: '1.5px solid rgba(245,240,228,0.18)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+          }}
+        >
+          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(245,240,228,0.4)' }}>
+            REMOVE
+          </span>
+        </button>
+        <button
+          onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
+          onPointerDown={() => setEditPressed(true)}
+          onPointerUp={() => setEditPressed(false)}
+          onPointerLeave={() => setEditPressed(false)}
+          onPointerCancel={() => setEditPressed(false)}
+          style={{
+            padding: '12px 22px',
+            background: 'rgba(200,102,26,0.12)',
+            border: '1.5px solid rgba(200,102,26,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+            boxShadow: '0 0 18px rgba(200,102,26,0.2)',
+            transform: editPressed ? 'scale(0.92)' : 'scale(1)',
+            transition: editPressed ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+          }}
+        >
+          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
+            EDIT MOD
+          </span>
+        </button>
+      </div>
+
+      {/* ── Remove bottom sheet ── */}
+      {removeSheet && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+          {/* Backdrop */}
+          <div
+            onClick={() => setRemoveSheet(false)}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+          />
+          {/* Sheet */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#181818',
+            borderTop: '1px solid rgba(245,240,228,0.08)',
+            borderRadius: '12px 12px 0 0',
+            padding: '24px 20px 48px',
+          }}>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.9)', marginBottom: 6 }}>
+              Remove from build?
+            </p>
+            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 24, lineHeight: 1.5 }}>
+              Where is this part going?
+            </p>
+
+            {/* Still in garage */}
+            <button
+              onClick={() => handleRemove(true)}
+              disabled={removing}
+              style={{
+                width: '100%', padding: '16px 20px', marginBottom: 10,
+                background: 'rgba(200,102,26,0.08)',
+                border: '1px solid rgba(200,102,26,0.3)',
+                cursor: removing ? 'default' : 'pointer',
+                textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, display: 'block' }}>
+                Still in my garage →
+              </span>
+              <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>
+                Moves to Parts Bin — you can put it back anytime
+              </span>
+            </button>
+
+            {/* No longer with the car */}
+            <button
+              onClick={() => handleRemove(false)}
+              disabled={removing}
+              style={{
+                width: '100%', padding: '16px 20px',
+                background: 'transparent',
+                border: '1px solid rgba(245,240,228,0.1)',
+                cursor: removing ? 'default' : 'pointer',
+                textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.55)', display: 'block' }}>
+                Sold / Scrapped
+              </span>
+              <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)' }}>
+                Stays in history, not in Parts Bin
+              </span>
+            </button>
+
+            <button
+              onClick={() => setRemoveSheet(false)}
+              style={{ width: '100%', padding: '14px', marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Success toast ── */}
       {setSuccess && (
