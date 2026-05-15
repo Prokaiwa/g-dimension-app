@@ -124,17 +124,16 @@ export default function TuningPartsPage() {
             </span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {car && (
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, paddingRight: 8 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
                 {[car.year, car.model].filter(Boolean).join(' ')}
               </span>
             )}
-            <div style={{ background: 'rgba(26,16,8,0.12)', padding: '4px 7px' }}>
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, color: COLOR_CARDBOARD_INK, opacity: 0.7 }}>{todayMonth}</span>
-            </div>
-            <div style={{ background: 'rgba(26,16,8,0.22)', padding: '4px 7px' }}>
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, color: COLOR_CARDBOARD_INK, opacity: 0.8 }}>{todayDay}</span>
+            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 10px' }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
+                {todayMonth} {todayDay}
+              </span>
             </div>
           </div>
 
