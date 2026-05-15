@@ -45,7 +45,8 @@ export default function TuningPartsPage() {
   const [onHand,  setOnHand]  = useState<Part[]>([])
   const [car,     setCar]     = useState<Car | null>(null)
   const [loading, setLoading] = useState(true)
-  const [putting, setPutting] = useState<string | null>(null)
+  const [putting,      setPutting]      = useState<string | null>(null)
+  const [addPressed,   setAddPressed]   = useState(false)
 
   // Today's date for the box stamp
   const now    = new Date()
@@ -199,6 +200,51 @@ export default function TuningPartsPage() {
         )}
 
       </div>
+
+      {/* ── Add Part FAB — hand-drawn ellipse ── */}
+      <button
+        onClick={() => navigate('/tuning/parts-bin/add')}
+        onPointerDown={() => setAddPressed(true)}
+        onPointerUp={() => setAddPressed(false)}
+        onPointerLeave={() => setAddPressed(false)}
+        onPointerCancel={() => setAddPressed(false)}
+        style={{
+          position: 'fixed', right: 18, bottom: 28, zIndex: 20,
+          width: 108, height: 62,
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: 0, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+          transform: addPressed ? 'scale(0.91) rotate(-1deg)' : 'scale(1) rotate(-1.5deg)',
+          transition: addPressed
+            ? 'transform 80ms ease-out'
+            : 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        {/* Hand-drawn open ellipse — drawn as an SVG path that spirals
+            slightly inward at the end, leaving a visible gap */}
+        <svg
+          viewBox="0 0 108 62"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}
+        >
+          <path
+            d="M 98 31 C 97 14, 76 5, 54 5 C 32 5, 8 14, 8 31 C 8 48, 30 57, 54 57 C 77 57, 97 49, 98 35"
+            fill="rgba(139,58,10,0.07)"
+            stroke={COLOR_CARDBOARD_STAMP}
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            opacity="0.75"
+          />
+        </svg>
+        {/* Label inside */}
+        <div style={{
+          position: 'relative', height: '100%',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 0,
+        }}>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_STAMP, lineHeight: 1, opacity: 0.8 }}>+</span>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 12, color: COLOR_CARDBOARD_STAMP, lineHeight: 1, opacity: 0.7 }}>Add Part</span>
+        </div>
+      </button>
+
     </div>
   )
 }
