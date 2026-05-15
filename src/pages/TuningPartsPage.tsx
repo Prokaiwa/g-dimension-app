@@ -53,7 +53,6 @@ export default function TuningPartsPage() {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const todayMonth = MONTHS[now.getMonth()]
   const todayDay   = now.getDate()
-  const todayYear  = now.getFullYear()
 
   async function load() {
     const carId = await getActiveCarId()
