@@ -111,12 +111,12 @@ export default function TuningPartsPage() {
 
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 60 }}>
 
-        {/* ── Top bar: back + car info + date all inline ── */}
-        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        {/* ── Top bar: back left, year+model+date right ── */}
+        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           <button
             onClick={() => navigate('/tuning')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent' }}
           >
             <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>
@@ -124,17 +124,18 @@ export default function TuningPartsPage() {
             </span>
           </button>
 
-          {car && (
-            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 15, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, flex: 1, textAlign: 'center' }}>
-              {[car.year, car.make, car.model].filter(Boolean).join(' ')}
-            </p>
-          )}
-
-          {/* Date stamp */}
-          <div style={{ border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 10px', flexShrink: 0 }}>
-            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, lineHeight: 1.2 }}>
-              {todayMonth} {todayDay}
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            {car && (
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, paddingRight: 8 }}>
+                {[car.year, car.model].filter(Boolean).join(' ')}
+              </span>
+            )}
+            <div style={{ background: 'rgba(26,16,8,0.12)', padding: '4px 7px' }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, color: COLOR_CARDBOARD_INK, opacity: 0.7 }}>{todayMonth}</span>
+            </div>
+            <div style={{ background: 'rgba(26,16,8,0.22)', padding: '4px 7px' }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, color: COLOR_CARDBOARD_INK, opacity: 0.8 }}>{todayDay}</span>
+            </div>
           </div>
 
         </div>
