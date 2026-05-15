@@ -200,7 +200,7 @@ export default function TuningPartsPage() {
 
       </div>
 
-      {/* ── Add Part FAB — hand-drawn ellipse ── */}
+      {/* ── Add Part FAB — hand-drawn marker ellipse ── */}
       <button
         onClick={() => navigate('/tuning/parts-bin/add')}
         onPointerDown={() => setAddPressed(true)}
@@ -208,8 +208,8 @@ export default function TuningPartsPage() {
         onPointerLeave={() => setAddPressed(false)}
         onPointerCancel={() => setAddPressed(false)}
         style={{
-          position: 'fixed', right: 18, bottom: 28, zIndex: 20,
-          width: 108, height: 62,
+          position: 'fixed', right: 16, bottom: 26, zIndex: 20,
+          width: 132, height: 78,
           background: 'none', border: 'none', cursor: 'pointer',
           padding: 0, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
           transform: addPressed ? 'scale(0.91) rotate(-1deg)' : 'scale(1) rotate(-1.5deg)',
@@ -218,29 +218,28 @@ export default function TuningPartsPage() {
             : 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
         }}
       >
-        {/* Hand-drawn open ellipse — drawn as an SVG path that spirals
-            slightly inward at the end, leaving a visible gap */}
+        {/* Thick marker ellipse — loop overshoots start, tail exits upper area */}
         <svg
-          viewBox="0 0 108 62"
+          viewBox="0 0 132 78"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}
         >
           <path
-            d="M 98 31 C 97 14, 76 5, 54 5 C 32 5, 8 14, 8 31 C 8 48, 30 57, 54 57 C 77 57, 97 49, 98 35"
-            fill="rgba(139,58,10,0.07)"
-            stroke={COLOR_CARDBOARD_STAMP}
-            strokeWidth="1.8"
+            d="M 22 24 C 48 8, 94 7, 116 30 C 128 44, 120 62, 98 70 C 70 80, 36 76, 16 58 C 4 46, 8 28, 22 24 C 30 18, 50 11, 72 9"
+            fill="rgba(26,16,8,0.04)"
+            stroke={COLOR_CARDBOARD_INK}
+            strokeWidth="5.5"
             strokeLinecap="round"
-            opacity="0.75"
+            strokeLinejoin="round"
+            opacity="0.82"
           />
         </svg>
-        {/* Label inside */}
         <div style={{
           position: 'relative', height: '100%',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 0,
         }}>
-          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_STAMP, lineHeight: 1, opacity: 0.8 }}>+</span>
-          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 12, color: COLOR_CARDBOARD_STAMP, lineHeight: 1, opacity: 0.7 }}>Add Part</span>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_INK, lineHeight: 1, opacity: 0.82 }}>+</span>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 12, color: COLOR_CARDBOARD_INK, lineHeight: 1, opacity: 0.72 }}>Add Part</span>
         </div>
       </button>
 
