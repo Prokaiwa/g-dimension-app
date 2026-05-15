@@ -162,6 +162,12 @@ export default function TuningModDetailPage() {
             Build Sheet
           </span>
         </button>
+        <button
+          onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', WebkitTapHighlightColor: 'transparent', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_ACCENT }}
+        >
+          Edit
+        </button>
       </div>
 
       {/* ── Body ── */}
