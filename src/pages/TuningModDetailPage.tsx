@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { FONT_UI, FONT_TITLE, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,8 @@ const VALUE: React.CSSProperties = {
   marginTop: 3,
 }
 
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 import React from 'react'
@@ -68,6 +70,7 @@ export default function TuningModDetailPage() {
   const [photos,       setPhotos]       = useState<Photo[]>([])
   const [loading,      setLoading]      = useState(true)
   const [setSuccess,   setSetSuccess]   = useState<string | null>(null)
+  const [editPressed,  setEditPressed]  = useState(false)
 
   useEffect(() => {
     if (!modId) return
@@ -145,6 +148,20 @@ export default function TuningModDetailPage() {
   return (
     <div style={{ height: '100dvh', background: '#0d0d0f', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
+      {/* ── Magazine sheen + grain overlays ── */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none',
+        background: [
+          'radial-gradient(ellipse 70% 48% at 90% 94%, rgba(245,232,195,0.065) 0%, rgba(245,232,195,0.025) 48%, transparent 72%)',
+          'radial-gradient(ellipse 55% 30% at 10% 6%, rgba(175,195,215,0.04) 0%, transparent 60%)',
+        ].join(', '),
+      }} />
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 4, pointerEvents: 'none',
+        backgroundImage: NOISE_SVG, backgroundSize: '220px 220px',
+        opacity: 0.028, mixBlendMode: 'screen',
+      }} />
+
       {/* ── Header ── */}
       <div style={{
         height: HEADER_HEIGHT, flexShrink: 0,
@@ -152,6 +169,7 @@ export default function TuningModDetailPage() {
         display: 'flex', alignItems: 'center',
         paddingLeft: 4, paddingRight: 16,
         borderBottom: '1px solid rgba(255,255,255,0.04)',
+        position: 'relative', zIndex: 10,
       }}>
         <button
           onClick={() => navigate('/tuning/build-sheet')}
@@ -162,20 +180,18 @@ export default function TuningModDetailPage() {
             Build Sheet
           </span>
         </button>
-        <button
-          onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', WebkitTapHighlightColor: 'transparent', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_ACCENT }}
-        >
-          Edit
-        </button>
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100, position: 'relative', zIndex: 6 }}>
 
         {/* Title block */}
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 28, letterSpacing: '-0.01em', lineHeight: 1.1, color: 'rgba(245,240,228,0.95)', margin: 0 }}>
+          <p style={{
+            fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700,
+            fontSize: 28, lineHeight: 0.9,
+            color: 'rgba(245,240,228,0.95)', margin: 0,
+          }}>
             {job.title}
           </p>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -272,6 +288,30 @@ export default function TuningModDetailPage() {
         )}
 
       </div>
+
+      {/* ── Edit FAB ── */}
+      <button
+        onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
+        onPointerDown={() => setEditPressed(true)}
+        onPointerUp={() => setEditPressed(false)}
+        onPointerLeave={() => setEditPressed(false)}
+        onPointerCancel={() => setEditPressed(false)}
+        style={{
+          position: 'fixed', right: 20, bottom: 30, zIndex: 20,
+          padding: '12px 22px',
+          background: 'rgba(200,102,26,0.12)',
+          border: '1.5px solid rgba(200,102,26,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+          boxShadow: '0 0 18px rgba(200,102,26,0.2)',
+          transform: editPressed ? 'scale(0.92)' : 'scale(1)',
+          transition: editPressed ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
+          EDIT MOD
+        </span>
+      </button>
 
       {/* ── Success toast ── */}
       {setSuccess && (

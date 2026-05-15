@@ -1,6 +1,7 @@
 // Route: /tuning/mods/:modId/edit
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 
@@ -18,6 +19,8 @@ interface SpecTemplate {
   help_text: string | null
   placeholder: string | null
 }
+
+interface ExistingPhoto { id: string; photo_url: string }
 
 // ── Style constants ────────────────────────────────────────────────────────
 
@@ -38,8 +41,11 @@ const INPUT: React.CSSProperties = {
   WebkitAppearance: 'none' as const,
 }
 
-const SECTION: React.CSSProperties = {
-  padding: '24px 20px 0',
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
+
+const COMPRESSION_OPTIONS = {
+  maxSizeMB: 1, maxWidthOrHeight: 1920,
+  useWebWorker: true, exifOrientation: -1 as const, fileType: 'image/jpeg' as const,
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -65,46 +71,54 @@ export default function TuningModEditPage() {
   const navigate   = useNavigate()
 
   // Basic fields
-  const [title,        setTitle]        = useState('')
-  const [brand,        setBrand]        = useState('')
-  const [partNumber,   setPartNumber]   = useState('')
-  const [dateInstalled,setDateInstalled]= useState('')
-  const [installedBy,  setInstalledBy]  = useState<'self' | 'shop' | ''>('')
-  const [partsCost,    setPartsCost]    = useState('')
-  const [laborCost,    setLaborCost]    = useState('')
-  const [notes,        setNotes]        = useState('')
+  const [title,         setTitle]         = useState('')
+  const [brand,         setBrand]         = useState('')
+  const [partNumber,    setPartNumber]     = useState('')
+  const [dateInstalled, setDateInstalled]  = useState('')
+  const [installedBy,   setInstalledBy]   = useState<'self' | 'shop' | ''>('')
+  const [partsCost,     setPartsCost]     = useState('')
+  const [laborCost,     setLaborCost]     = useState('')
+  const [notes,         setNotes]         = useState('')
 
   // Spec fields
-  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([])
-  const [specValues,    setSpecValues]    = useState<Record<string, string>>({})
-  const [multiValues,   setMultiValues]   = useState<Record<string, string[]>>({})
+  const [specTemplates,  setSpecTemplates]  = useState<SpecTemplate[]>([])
+  const [specValues,     setSpecValues]     = useState<Record<string, string>>({})
+  const [multiValues,    setMultiValues]    = useState<Record<string, string[]>>({})
+  const [specsExpanded,  setSpecsExpanded]  = useState(false)
+  const [advExpanded,    setAdvExpanded]    = useState(false)
 
-  // UI state
-  const [partTypeName,  setPartTypeName]  = useState('')
-  const [loading,       setLoading]       = useState(true)
-  const [saving,        setSaving]        = useState(false)
-  const [saveErr,       setSaveErr]       = useState<string | null>(null)
-  const [showAdvanced,  setShowAdvanced]  = useState(false)
+  // Photos
+  const [existingPhotos,  setExistingPhotos]  = useState<ExistingPhoto[]>([])
+  const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([])
+  const [newPhotos,       setNewPhotos]       = useState<File[]>([])
+  const [newPreviews,     setNewPreviews]     = useState<string[]>([])
+
+  // UI
+  const [partTypeName, setPartTypeName] = useState('')
+  const [carId,        setCarId]        = useState<string | null>(null)
+  const [userId,       setUserId]       = useState<string | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [saving,       setSaving]       = useState(false)
+  const [saveErr,      setSaveErr]      = useState<string | null>(null)
 
   useEffect(() => {
     if (!modId) return
     async function load() {
-      // Load job + specs in parallel
-      const [{ data: job }, { data: existingSpecs }] = await Promise.all([
+      const { data: { session } } = await supabase.auth.getSession()
+      setUserId(session?.user?.id ?? null)
+
+      const [{ data: job }, { data: existingSpecs }, { data: photoData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
+          .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id')
           .eq('id', modId)
           .single(),
-        supabase
-          .from('job_specs')
-          .select('spec_key, spec_value, spec_unit')
-          .eq('job_id', modId),
+        supabase.from('job_specs').select('spec_key, spec_value, spec_unit').eq('job_id', modId),
+        supabase.from('job_photos').select('id, photo_url').eq('job_id', modId).order('display_order'),
       ])
 
       if (!job) { setLoading(false); return }
 
-      // Pre-fill basic fields
       setTitle(job.title ?? '')
       setBrand(job.brand ?? '')
       setPartNumber(job.part_number ?? '')
@@ -113,9 +127,10 @@ export default function TuningModEditPage() {
       setPartsCost(job.parts_cost != null ? String(job.parts_cost) : '')
       setLaborCost(job.labor_cost != null ? String(job.labor_cost) : '')
       setNotes(job.notes ?? '')
+      setCarId(job.car_id ?? null)
+      setExistingPhotos((photoData ?? []) as ExistingPhoto[])
 
       if (job.part_type_id) {
-        // Load part type name + spec templates
         const [{ data: pt }, { data: templates }] = await Promise.all([
           supabase.from('part_types').select('name').eq('id', job.part_type_id).single(),
           supabase
@@ -130,7 +145,7 @@ export default function TuningModEditPage() {
         const tmplList = (templates ?? []) as SpecTemplate[]
         setSpecTemplates(tmplList)
 
-        // Pre-fill spec values from existing job_specs
+        // Pre-fill spec values
         const sv: Record<string, string>   = {}
         const mv: Record<string, string[]> = {}
         for (const s of existingSpecs ?? []) {
@@ -142,6 +157,8 @@ export default function TuningModEditPage() {
             sv[s.spec_key] = s.spec_value
           }
         }
+        // If any specs exist, open the Full Specs section pre-expanded
+        if (existingSpecs && existingSpecs.length > 0) setSpecsExpanded(true)
         setSpecValues(sv)
         setMultiValues(mv)
       }
@@ -150,6 +167,30 @@ export default function TuningModEditPage() {
     }
     load()
   }, [modId])
+
+  // ── Photo handlers ─────────────────────────────────────────────────────
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setNewPhotos(prev => [...prev, ...files])
+    files.forEach(f => {
+      const reader = new FileReader()
+      reader.onload = ev => setNewPreviews(prev => [...prev, ev.target?.result as string])
+      reader.readAsDataURL(f)
+    })
+    e.target.value = ''
+  }
+
+  const removeNewPhoto = (i: number) => {
+    setNewPhotos(prev => prev.filter((_, idx) => idx !== i))
+    setNewPreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const removeExistingPhoto = (id: string) => {
+    setRemovedPhotoIds(prev => [...prev, id])
+    setExistingPhotos(prev => prev.filter(p => p.id !== id))
+  }
 
   // ── Spec field helpers ─────────────────────────────────────────────────
 
@@ -167,7 +208,6 @@ export default function TuningModEditPage() {
   const renderSpecField = (t: SpecTemplate) => {
     const opts = parseOptions(t.options)
     const val  = specValues[t.spec_key] ?? ''
-
     if ((t.input_type === 'select' || t.input_type === 'multiselect') && opts.length === 0) return null
 
     return (
@@ -283,36 +323,44 @@ export default function TuningModEditPage() {
       })
       .eq('id', modId!)
 
-    if (jobErr) {
-      setSaveErr(jobErr.message)
-      setSaving(false)
-      return
-    }
+    if (jobErr) { setSaveErr(jobErr.message); setSaving(false); return }
 
-    // 2. Replace all job_specs — delete existing then insert fresh set
+    // 2. Replace all job_specs
     await supabase.from('job_specs').delete().eq('job_id', modId!)
-
     const specRows: { job_id: string; spec_key: string; spec_value: string; spec_unit: string | null }[] = []
     for (const t of specTemplates) {
       if (t.input_type === 'multiselect') {
         const vals = multiValues[t.spec_key] ?? []
-        if (vals.length > 0) {
-          specRows.push({ job_id: modId!, spec_key: t.spec_key, spec_value: JSON.stringify(vals), spec_unit: t.unit ?? null })
-        }
+        if (vals.length > 0) specRows.push({ job_id: modId!, spec_key: t.spec_key, spec_value: JSON.stringify(vals), spec_unit: t.unit ?? null })
       } else {
         const v = specValues[t.spec_key]
-        if (v && v !== '' && v !== 'false') {
-          specRows.push({ job_id: modId!, spec_key: t.spec_key, spec_value: String(v), spec_unit: t.unit ?? null })
-        }
+        if (v && v !== '' && v !== 'false') specRows.push({ job_id: modId!, spec_key: t.spec_key, spec_value: String(v), spec_unit: t.unit ?? null })
       }
     }
-
     if (specRows.length > 0) {
       const { error: specErr } = await supabase.from('job_specs').insert(specRows)
-      if (specErr) {
-        setSaveErr(specErr.message)
-        setSaving(false)
-        return
+      if (specErr) { setSaveErr(specErr.message); setSaving(false); return }
+    }
+
+    // 3. Delete removed photos from DB (storage cleanup best-effort)
+    for (const id of removedPhotoIds) {
+      await supabase.from('job_photos').delete().eq('id', id)
+    }
+
+    // 4. Upload new photos
+    if (userId && carId) {
+      for (const photo of newPhotos) {
+        try {
+          const compressed = await imageCompression(photo, COMPRESSION_OPTIONS)
+          const path = `${userId}/${carId}/${modId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+          const { data: up, error: upErr } = await supabase.storage
+            .from('job-photos')
+            .upload(path, compressed, { contentType: 'image/jpeg' })
+          if (!upErr && up) {
+            const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(up.path)
+            await supabase.from('job_photos').insert({ job_id: modId, car_id: carId, photo_url: urlData.publicUrl })
+          }
+        } catch (_) { /* skip failed photo */ }
       }
     }
 
@@ -332,10 +380,25 @@ export default function TuningModEditPage() {
   const basicSpecs    = specTemplates.filter(t => !t.is_advanced)
   const advancedSpecs = specTemplates.filter(t =>  t.is_advanced)
   const basicGroups   = groupBy(basicSpecs,    t => t.group_label ?? '')
-  const advancedGroups= groupBy(advancedSpecs, t => t.group_label ?? '')
+  const advGroups     = groupBy(advancedSpecs, t => t.group_label ?? '')
+  const visibleExisting = existingPhotos.filter(p => !removedPhotoIds.includes(p.id))
 
   return (
     <div style={{ minHeight: '100dvh', background: '#0d0d0f', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── Magazine sheen + grain overlays ── */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none',
+        background: [
+          'radial-gradient(ellipse 70% 48% at 90% 94%, rgba(245,232,195,0.065) 0%, rgba(245,232,195,0.025) 48%, transparent 72%)',
+          'radial-gradient(ellipse 55% 30% at 10% 6%, rgba(175,195,215,0.04) 0%, transparent 60%)',
+        ].join(', '),
+      }} />
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 4, pointerEvents: 'none',
+        backgroundImage: NOISE_SVG, backgroundSize: '220px 220px',
+        opacity: 0.028, mixBlendMode: 'screen',
+      }} />
 
       {/* Header */}
       <div style={{
@@ -361,25 +424,31 @@ export default function TuningModEditPage() {
       </div>
 
       {/* Form */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 120 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 120, position: 'relative', zIndex: 6 }}>
+        <div style={{ padding: '24px 20px 0' }}>
 
-        {/* Core fields */}
-        <div style={SECTION}>
-          <div style={{ paddingTop: 4 }}>
+          {/* Title */}
+          <div>
             <label style={LABEL}>Title *</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
               placeholder="e.g. HKS Timing Belt" style={{ ...INPUT, caretColor: '#39ff14' }} />
           </div>
+
+          {/* Brand */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Brand</label>
             <input value={brand} onChange={e => setBrand(e.target.value)}
               placeholder="e.g. HKS" style={{ ...INPUT, caretColor: '#39ff14' }} />
           </div>
+
+          {/* Date Installed */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Date Installed</label>
             <input type="date" value={dateInstalled} onChange={e => setDateInstalled(e.target.value)}
               style={{ ...INPUT, colorScheme: 'dark' }} />
           </div>
+
+          {/* Installed By */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Installed By</label>
             <select value={installedBy} onChange={e => setInstalledBy(e.target.value as 'self' | 'shop' | '')}
@@ -389,11 +458,15 @@ export default function TuningModEditPage() {
               <option value="shop">Shop</option>
             </select>
           </div>
+
+          {/* Parts Cost */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Parts Cost</label>
             <input type="number" value={partsCost} onChange={e => setPartsCost(e.target.value)}
               placeholder="0.00" style={{ ...INPUT, caretColor: '#39ff14' }} />
           </div>
+
+          {/* Labor Cost — shop only */}
           {installedBy === 'shop' && (
             <div style={{ paddingTop: 18 }}>
               <label style={LABEL}>Labor Cost</label>
@@ -401,58 +474,162 @@ export default function TuningModEditPage() {
                 placeholder="0.00" style={{ ...INPUT, caretColor: '#39ff14' }} />
             </div>
           )}
+
+          {/* Notes */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Notes</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               rows={3} placeholder="Any notes about this modification…"
-              style={{ ...INPUT, resize: 'none', lineHeight: 1.5, caretColor: '#39ff14' }} />
+              style={{ ...INPUT, resize: 'none', lineHeight: 1.5, caretColor: '#39ff14' } as React.CSSProperties} />
           </div>
+
         </div>
 
-        {/* Basic spec groups */}
-        {Object.entries(basicGroups).map(([group, specs]) => (
-          <div key={group} style={SECTION}>
-            {group && (
-              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.2)', marginBottom: 0 }}>
-                {group}
-              </p>
-            )}
-            {specs.map(renderSpecField)}
-          </div>
-        ))}
+        {/* ── Photos ── */}
+        <div style={{ padding: '24px 20px 0' }}>
+          <label style={LABEL}>Photos</label>
 
-        {/* Advanced specs */}
-        {advancedSpecs.length > 0 && (
-          <div style={SECTION}>
+          {/* Existing photos */}
+          {visibleExisting.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {visibleExisting.map(p => (
+                <div key={p.id} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  <img src={p.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <button
+                    onClick={() => removeExistingPhoto(p.id)}
+                    style={{
+                      position: 'absolute', top: 3, right: 3,
+                      width: 20, height: 20, padding: 0,
+                      background: 'rgba(0,0,0,0.75)', border: 'none', cursor: 'pointer',
+                      borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* New photo previews */}
+          {newPreviews.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {newPreviews.map((src, i) => (
+                <div key={i} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <button
+                    onClick={() => removeNewPhoto(i)}
+                    style={{
+                      position: 'absolute', top: 3, right: 3,
+                      width: 20, height: 20, padding: 0,
+                      background: 'rgba(0,0,0,0.75)', border: 'none', cursor: 'pointer',
+                      borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add photos picker */}
+          <label style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '13px 0', cursor: 'pointer',
+            border: '1px dashed rgba(245,240,228,0.14)',
+            fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+            letterSpacing: '0.16em', textTransform: 'uppercase',
+            color: 'rgba(245,240,228,0.3)',
+          }}>
+            + Add Photos
+            <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
+          </label>
+        </div>
+
+        {/* ── Full Specs toggle ── */}
+        {specTemplates.length > 0 && (
+          <div style={{ padding: '24px 20px 0' }}>
             <button
-              onClick={() => setShowAdvanced(v => !v)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 8, WebkitTapHighlightColor: 'transparent' }}
+              onClick={() => setSpecsExpanded(x => !x)}
+              style={{
+                width: '100%', padding: '13px 0',
+                background: specsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent',
+                border: `1px solid ${specsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'all 200ms ease', WebkitTapHighlightColor: 'transparent',
+              }}
             >
-              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}>
-                {showAdvanced ? '— Advanced Specs' : '+ Advanced Specs'}
+              <span style={{
+                fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                letterSpacing: '0.18em', textTransform: 'uppercase',
+                color: specsExpanded ? 'rgba(60,100,220,0.82)' : 'rgba(245,240,228,0.42)',
+              }}>
+                Full Specs
               </span>
+              <span style={{
+                color: specsExpanded ? 'rgba(60,100,220,0.55)' : 'rgba(245,240,228,0.22)',
+                fontSize: 11, display: 'inline-block',
+                transform: specsExpanded ? 'rotate(180deg)' : 'none',
+                transition: 'transform 200ms ease',
+              }}>▾</span>
             </button>
-            {showAdvanced && Object.entries(advancedGroups).map(([group, specs]) => (
-              <div key={group}>
-                {group && (
-                  <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.2)', marginTop: 20, marginBottom: 0 }}>
-                    {group}
-                  </p>
+
+            {specsExpanded && (
+              <div style={{ paddingTop: 8 }}>
+
+                {/* Part Number */}
+                <div style={{ paddingTop: 18 }}>
+                  <label style={LABEL}>Part Number</label>
+                  <input value={partNumber} onChange={e => setPartNumber(e.target.value)}
+                    placeholder="e.g. 14004-AN001" style={{ ...INPUT, caretColor: '#39ff14' }} />
+                </div>
+
+                {/* Basic specs */}
+                {Object.entries(basicGroups).map(([groupLabel, fields]) => (
+                  <div key={groupLabel || '__ungrouped__'}>
+                    {fields.map(renderSpecField)}
+                  </div>
+                ))}
+
+                {/* Advanced specs */}
+                {advancedSpecs.length > 0 && (
+                  <div style={{ marginTop: 28 }}>
+                    <button
+                      onClick={() => setAdvExpanded(x => !x)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: '6px 0', display: 'flex', alignItems: 'center', gap: 6,
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <span style={{
+                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 9,
+                        letterSpacing: '0.18em', textTransform: 'uppercase',
+                        color: advExpanded ? 'rgba(245,240,228,0.55)' : 'rgba(245,240,228,0.28)',
+                      }}>
+                        {advExpanded ? '— Advanced Specs' : '+ Advanced Specs'}
+                      </span>
+                    </button>
+                    {advExpanded && (
+                      <div>
+                        {Object.entries(advGroups).map(([groupLabel, fields]) => (
+                          <div key={groupLabel || '__ungrouped__'}>
+                            {fields.map(renderSpecField)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-                {specs.map(renderSpecField)}
+
               </div>
-            ))}
+            )}
           </div>
         )}
-
-        {/* Part number */}
-        <div style={SECTION}>
-          <div style={{ paddingTop: 18 }}>
-            <label style={LABEL}>Part Number</label>
-            <input value={partNumber} onChange={e => setPartNumber(e.target.value)}
-              placeholder="e.g. 14004-AN001" style={{ ...INPUT, caretColor: '#39ff14' }} />
-          </div>
-        </div>
 
         {/* Error */}
         {saveErr && (
@@ -463,7 +640,7 @@ export default function TuningModEditPage() {
       </div>
 
       {/* Save button */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px 32px', background: 'linear-gradient(to top, #0d0d0f 60%, transparent)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px 32px', background: 'linear-gradient(to top, #0d0d0f 60%, transparent)', zIndex: 10 }}>
         <button
           onClick={handleSave}
           disabled={!title.trim() || saving}
