@@ -111,11 +111,12 @@ export default function TuningPartsPage() {
 
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 60 }}>
 
-        {/* ── Top bar: back ── */}
-        <div style={{ padding: '16px 20px 0' }}>
+        {/* ── Top bar: back + car info + date all inline ── */}
+        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+
           <button
             onClick={() => navigate('/tuning')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}
           >
             <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>
@@ -123,18 +124,19 @@ export default function TuningPartsPage() {
             </span>
           </button>
 
-          {/* Car info + date inline */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 15, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0 }}>
-              {car ? [car.year, car.make, car.model].filter(Boolean).join(' ') : ''}
+          {car && (
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 15, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, flex: 1, textAlign: 'center' }}>
+              {[car.year, car.make, car.model].filter(Boolean).join(' ')}
             </p>
-            {/* Date stamp — month/day in faint box */}
-            <div style={{ border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 10px' }}>
-              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, lineHeight: 1.2 }}>
-                {todayMonth} {todayDay}
-              </p>
-            </div>
+          )}
+
+          {/* Date stamp */}
+          <div style={{ border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 10px', flexShrink: 0 }}>
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, lineHeight: 1.2 }}>
+              {todayMonth} {todayDay}
+            </p>
           </div>
+
         </div>
 
         {/* ── Stamp header ── */}
