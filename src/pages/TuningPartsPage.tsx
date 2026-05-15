@@ -111,10 +111,8 @@ export default function TuningPartsPage() {
 
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 60 }}>
 
-        {/* ── Top bar: back + date stamp ── */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '16px 20px 0' }}>
-
-          {/* Back */}
+        {/* ── Top bar: back ── */}
+        <div style={{ padding: '16px 20px 0' }}>
           <button
             onClick={() => navigate('/tuning')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent' }}
@@ -125,34 +123,19 @@ export default function TuningPartsPage() {
             </span>
           </button>
 
-          {/* Date stamp — month/day in a faint box, year below */}
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              border: `1px solid rgba(26,16,8,0.2)`,
-              padding: '4px 10px',
-              display: 'inline-block',
-            }}>
+          {/* Car info + date inline */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 15, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0 }}>
+              {car ? [car.year, car.make, car.model].filter(Boolean).join(' ') : ''}
+            </p>
+            {/* Date stamp — month/day in faint box */}
+            <div style={{ border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 10px' }}>
               <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0, lineHeight: 1.2 }}>
                 {todayMonth} {todayDay}
               </p>
             </div>
-            <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 11, color: COLOR_CARDBOARD_INK2, opacity: 0.4, margin: '2px 0 0', lineHeight: 1 }}>
-              {todayYear}
-            </p>
           </div>
         </div>
-
-        {/* ── Car info ── */}
-        {car && (
-          <div style={{ padding: '10px 20px 0' }}>
-            <p style={{
-              fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 15,
-              color: COLOR_CARDBOARD_INK, opacity: 0.55, margin: 0,
-            }}>
-              {[car.year, car.make, car.model].filter(Boolean).join(' ')}
-            </p>
-          </div>
-        )}
 
         {/* ── Stamp header ── */}
         <div style={{ padding: '10px 24px 0', textAlign: 'center' }}>
