@@ -377,8 +377,9 @@ export default function TuningModEditPage() {
     )
   }
 
-  const basicSpecs    = specTemplates.filter(t => !t.is_advanced)
-  const advancedSpecs = specTemplates.filter(t =>  t.is_advanced)
+  const MAIN_FORM_KEYS = new Set(['brand'])
+  const basicSpecs    = specTemplates.filter(t => !t.is_advanced && !MAIN_FORM_KEYS.has(t.spec_key))
+  const advancedSpecs = specTemplates.filter(t =>  t.is_advanced && !MAIN_FORM_KEYS.has(t.spec_key))
   const basicGroups   = groupBy(basicSpecs,    t => t.group_label ?? '')
   const advGroups     = groupBy(advancedSpecs, t => t.group_label ?? '')
   const visibleExisting = existingPhotos.filter(p => !removedPhotoIds.includes(p.id))
