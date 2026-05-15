@@ -437,7 +437,7 @@ export default function TuningAddPage() {
       if (t.input_type === 'multiselect') {
         const vals = multiValues[t.spec_key] ?? []
         if (vals.length > 0) {
-          specRows.push({ job_id: jobId, spec_key: t.spec_key, spec_value: vals.join(','), spec_unit: t.unit ?? null })
+          specRows.push({ job_id: jobId, spec_key: t.spec_key, spec_value: JSON.stringify(vals), spec_unit: t.unit ?? null })
         }
       } else {
         const v = specValues[t.spec_key]
