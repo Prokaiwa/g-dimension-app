@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT, FONT_HANDWRITTEN, COLOR_CARDBOARD_STAMP } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -364,7 +364,7 @@ export default function TuningModDetailPage() {
               Where is this part going?
             </p>
 
-            {/* Still in garage */}
+            {/* Move to Storage */}
             <button
               onClick={() => handleRemove(true)}
               disabled={removing}
@@ -376,11 +376,11 @@ export default function TuningModDetailPage() {
                 textAlign: 'left', WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, display: 'block' }}>
-                Still in my garage →
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.75)', display: 'block' }}>
+                Move to Storage
               </span>
               <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>
-                Moves to Parts Bin — you can put it back anytime
+                Moves to Parts — you can put it back anytime
               </span>
             </button>
 

@@ -41,6 +41,8 @@ All design tokens live in `src/tokens/index.ts`. **Never hardcode colors, fonts,
 Key tokens used constantly:
 - `FONT_UI` — Hanken Grotesk — all UI text
 - `FONT_TITLE` — Cormorant Garamond — display moments only (see rules below)
+- `FONT_HANDWRITTEN` — Caveat — **Parts page only**
+- `FONT_STAMP` — Permanent Marker — **Parts page only** (the "Parts" header stamp)
 - `COLOR_ACCENT` — `#c8661a` — the only warm accent color
 - `COLOR_HEADER_BLACK`, `COLOR_HEADER_WARM` — header bar colors
 - `HEADER_HEIGHT` — 44 (px)
