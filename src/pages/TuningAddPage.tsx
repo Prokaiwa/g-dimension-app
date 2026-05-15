@@ -304,20 +304,27 @@ export default function TuningAddPage() {
         )}
 
         {t.input_type === 'number' && (
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              type="number"
-              value={val}
-              onChange={e => setSpecVal(t.spec_key, e.target.value)}
-              placeholder=""
-              style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
-            />
-            {t.unit && (
-              <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, whiteSpace: 'nowrap', paddingBottom: 1 }}>
-                {t.unit}
-              </span>
+          <>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={val}
+                onChange={e => setSpecVal(t.spec_key, e.target.value)}
+                placeholder={t.placeholder ?? ''}
+                style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+              />
+              {t.unit && (
+                <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, whiteSpace: 'nowrap', paddingBottom: 1 }}>
+                  {t.unit}
+                </span>
+              )}
+            </div>
+            {t.help_text && (
+              <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.28)', marginTop: 5, lineHeight: 1.5 }}>
+                {t.help_text}
+              </p>
             )}
-          </div>
+          </>
         )}
 
         {t.input_type === 'date' && (
