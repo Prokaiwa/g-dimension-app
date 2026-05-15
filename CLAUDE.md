@@ -205,16 +205,21 @@ All user tables have Row-Level Security enabled. Reference tables (`vehicle_make
 ## Key File Map
 
 ```
-src/tokens/index.ts          — ALL design tokens (colors, fonts, spacing, animation)
-src/lib/supabase.ts          — Supabase client (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
-src/lib/activeCar.ts         — Active car get/set/sync helpers
-src/App.tsx                  — Route tree + ProtectedRoute + auth sync on sign-in
-src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by 3 other pages)
-src/pages/TuningAddPage.tsx  — 3-step add mod flow (category → part type → form)
-src/pages/TuningModDetailPage.tsx   — Mod detail + section photo setter
-MASTER_ARCHITECTURE.md       — Product spec, design system, data model, decisions log
-supabase/migrations/         — Numbered SQL files 001–029
-supabase/hotfixes.sql        — Ad-hoc fixes applied to live DB
+src/tokens/index.ts                 — ALL design tokens (colors, fonts, spacing, animation)
+src/lib/supabase.ts                 — Supabase client (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+src/lib/activeCar.ts                — Active car get/set/sync helpers
+src/App.tsx                         — Route tree + ProtectedRoute + auth sync on sign-in
+src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by 4 other pages)
+src/pages/TuningAddPage.tsx         — 3-step add mod flow (category → part type → form)
+src/pages/TuningModDetailPage.tsx   — Mod detail + section photo setter + Remove from Car sheet
+src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + photos)
+src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic, In Storage + On Hand)
+src/pages/TuningPartsAddPage.tsx    — Add Part directly to Parts Bin (purchased status)
+src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
+MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
+supabase/migrations/                — Numbered SQL files 001–029
+supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
+scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
 
 ---
@@ -225,7 +230,7 @@ All primary routes are implemented:
 - Auth: Landing, Login, Signup
 - Hub: Home map
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
-- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint, Parts Bin, Add Mod (3-step), Mod Detail (with Set section photo), Mod Edit
+- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (3-step), Mod Detail (with Set section photo + Remove from Car), Mod Edit (full form)
 - Maintenance: overview, session detail, detail log, add detail session
 - Timeline: scroll, entry detail
 - Photos: masonry gallery
@@ -234,6 +239,22 @@ All primary routes are implemented:
 **Section photo system** (added in `186b2d0`):
 - Mod photos have a "Set [Group]" button → writes to `cars.build_sheet_*_photo`
 - Build sheet shows section photos as tappable placeholders → inline modal picker
+
+**Parts Bin** (cardboard / kraft paper aesthetic — Caveat + Permanent Marker fonts only):
+- `/tuning/parts-bin` — lists parts in "In Storage" (status=`removed`, still_owned=true) and "On Hand" (status=`purchased`) sections
+- `/tuning/parts-bin/add` — form to add a part directly (inserts as status=`purchased`, still_owned=true). Fields: name, brand, category, cost, date acquired, notes
+- "Put Back" button on each part → sets status=`installed`, clears `date_removed`, returns to Build Sheet
+- Parts page header: `‹ Tuning` left, `[year model] [Month Day box]` right — same inline pattern as Garage
+- Hand-drawn SVG ellipse FAB navigates to `/tuning/parts-bin/add`
+- TUNING_CATEGORIES imported from TuningBuildSheetPage for the category dropdown
+
+**Remove from Car flow** (TuningModDetailPage bottom sheet):
+- "Move to Storage" → status=`removed`, still_owned=true, date_removed=today → navigates to `/tuning/build-sheet`
+- "Sold / Scrapped" → status=`removed`, still_owned=false, date_removed=today → navigates to `/tuning/build-sheet`
+
+**Spec system** (migrations 024–026):
+- Multiselect spec values must be stored as JSON arrays (e.g. `["Option A","Option B"]`), not comma-joined strings. The DB trigger `job_specs_validate_value` enforces this.
+- All 168 part type specs verified passing via `/spec-test` dev page and `scripts/test-specs.mjs`
 
 ---
 
@@ -280,7 +301,20 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 ## Things to Watch
 
 - **Migrations jump from 027 to 029** — 028 does not exist. Do not create a `028_*.sql` unless intentionally filling that slot.
-- **TUNING_CATEGORIES** is exported from `TuningBuildSheetPage.tsx` and imported by `TuningBlueprintPage`, `TuningPartsPage`, and `TuningAddPage`. Category `id` values must match `part_categories.name` in Supabase (FK constraint from migration 025).
+- **TUNING_CATEGORIES** is exported from `TuningBuildSheetPage.tsx` and imported by `TuningBlueprintPage`, `TuningPartsPage`, `TuningPartsAddPage`, and `TuningAddPage`. Category `id` values must match `part_categories.name` in Supabase (FK constraint from migration 025).
 - **`formatDate` in `TuningModDetailPage`** — destructures split as `[y, m, mo]` which is redundant. The month index is `(m ?? mo) - 1`. Leave it as-is unless specifically fixing it.
 - **TypeScript:** `spec_templates` query requires `as unknown as SpecTemplate[]` cast — this is intentional, not a mistake.
 - **No 028 migration** — skip that number.
+- **TuningModDetailPage title:** `fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28` — Hanken Grotesk bold italic, NOT Cormorant. Tuning never uses Cormorant.
+- **Parts Bin aesthetic is intentionally different** from the rest of the app — kraft paper, corrugation lines, grain overlay, Caveat + Permanent Marker fonts. Do not apply this aesthetic outside `/tuning/parts-bin*` routes.
+- **Magazine sheen overlay** on TuningModDetailPage and TuningModEditPage: two `position: fixed` divs (radial gradients) + SVG fractal noise grain at `opacity: 0.028, mixBlendMode: 'screen'`. This is intentional and should stay.
+- **hotfixes.sql** — `durometer` spec_template has `unit='A'` and `placeholder=null` (changed from 'Shore' and '75' respectively). Applied directly to live DB.
+
+---
+
+## What's Next (not yet built)
+
+- **Blueprint page** — currently a stub. Should show planned/purchased mods not yet installed. Blueprint items are status=`planned` or status=`purchased` jobs. The page exists at `/tuning/blueprint` but has no real content.
+- **Parts Bin tappable rows** — currently no detail view for a part. Tapping a part in the bin could open a simple detail/edit sheet.
+- **Mod lifecycle completeness** — parts can be "Put Back" (→ installed) or "Move to Storage" / "Sold". No flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
+- **Unit conversion display** — `users.distance_unit`, `power_unit`, `torque_unit` columns exist but display conversion is not wired up on all screens.
