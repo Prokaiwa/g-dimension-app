@@ -427,6 +427,7 @@ export default function TuningAddPage() {
         installed_by:   form.installedBy        || null,
         notes:          form.notes.trim()       || null,
         status:         partsBinMode ? 'purchased' : 'installed',
+        still_owned:    partsBinMode ? true : undefined,
       })
       .select('id')
       .single()
