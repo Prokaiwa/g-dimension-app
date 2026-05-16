@@ -4,8 +4,10 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { getActiveCarId } from '../lib/activeCar'
 import tuningHero     from '../assets/backgrounds/tuning_hero.png'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
 import iconBlueprint  from '../assets/icons/tuning-dashboard/tuning_blueprint.png'
@@ -39,6 +41,15 @@ const TILES = [
 export default function TuningPage() {
   const navigate = useNavigate()
   const [pressed, setPressed] = useState<string | null>(null)
+  const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
+
+  useEffect(() => {
+    getActiveCarId().then(carId => {
+      if (!carId) return
+      supabase.from('cars').select('year, model').eq('id', carId).single()
+        .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null }) })
+    })
+  }, [])
 
   return (
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden' }}>
@@ -111,11 +122,19 @@ export default function TuningPage() {
           </span>
         </button>
 
-        {/* Date chips */}
+        {/* Year/model + Date chips */}
         <div style={{
           position: 'absolute', right: 0, top: 0, height: '100%',
-          display: 'flex', alignItems: 'center', paddingRight: 14,
+          display: 'flex', alignItems: 'center', paddingRight: 14, gap: 8,
         }}>
+          {car && (
+            <span style={{
+              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+              color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75,
+            }}>
+              {[car.year, car.model].filter(Boolean).join(' ')}
+            </span>
+          )}
           <div style={{
             background: 'rgba(242,238,228,0.94)', color: '#0d0d0d',
             padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800,
