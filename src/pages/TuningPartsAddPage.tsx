@@ -38,9 +38,8 @@ export default function TuningPartsAddPage() {
   const [title,     setTitle]     = useState('')
   const [brand,     setBrand]     = useState('')
   const [category,  setCategory]  = useState('')
-  const [cost,      setCost]      = useState('')
-  const [acquired,  setAcquired]  = useState(() => new Date().toISOString().slice(0, 10))
-  const [notes,     setNotes]     = useState('')
+  const [cost,  setCost]  = useState('')
+  const [notes, setNotes] = useState('')
 
   useEffect(() => {
     getActiveCarId().then(id => setCarId(id))
@@ -53,21 +52,16 @@ export default function TuningPartsAddPage() {
     setSaving(true)
     setError(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('Not signed in'); setSaving(false); return }
-
     const row: Record<string, unknown> = {
-      car_id:        carId,
-      user_id:       user.id,
-      type:          'modification',
-      status:        'purchased',
-      still_owned:   true,
-      title:         title.trim(),
-      brand:         brand.trim() || null,
-      category:      category || null,
-      parts_cost:    cost ? parseFloat(cost) : null,
-      date_installed: acquired || null,
-      notes:         notes.trim() || null,
+      car_id:      carId,
+      type:        'modification',
+      status:      'purchased',
+      still_owned: true,
+      title:       title.trim(),
+      brand:       brand.trim() || null,
+      category:    category || null,
+      parts_cost:  cost ? parseFloat(cost) : null,
+      notes:       notes.trim() || null,
     }
 
     const { error: err } = await supabase.from('jobs').insert(row)
@@ -188,19 +182,6 @@ export default function TuningPartsAddPage() {
               value={cost}
               onChange={e => setCost(e.target.value)}
               placeholder="0"
-              style={inputStyle}
-            />
-          </div>
-
-          {/* Date acquired */}
-          <div style={{ marginBottom: 28 }}>
-            <label style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 6 }}>
-              Date Acquired
-            </label>
-            <input
-              type="date"
-              value={acquired}
-              onChange={e => setAcquired(e.target.value)}
               style={inputStyle}
             />
           </div>
