@@ -192,8 +192,8 @@ export default function TuningAddPage() {
   // Kraft paper label/input styles — swapped in when partsBinMode
   const lbl: React.CSSProperties = partsBinMode ? {
     display: 'block',
-    fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13,
-    color: COLOR_CARDBOARD_INK2, opacity: 0.65, marginBottom: 7,
+    fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+    color: COLOR_CARDBOARD_INK, opacity: 0.8, marginBottom: 7,
   } : LABEL
 
   const inp: React.CSSProperties = partsBinMode ? {
@@ -561,6 +561,8 @@ export default function TuningAddPage() {
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
+        .pb-form input::placeholder,
+        .pb-form textarea::placeholder { color: rgba(26,16,8,0.38); }
       `}</style>
 
       {/* Back button — always on top across all steps */}
@@ -616,7 +618,7 @@ export default function TuningAddPage() {
                 display: 'grid', gridTemplateColumns: '1fr 1fr',
                 gap: 8, padding: '0 14px 20px',
               }}>
-                {TUNING_CATEGORIES.filter(c => c.id !== 'Other').map(cat => (
+                {TUNING_CATEGORIES.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => selectCategory(cat.id)}
@@ -641,29 +643,6 @@ export default function TuningAddPage() {
                     </span>
                   </button>
                 ))}
-                <button
-                  onClick={() => selectCategory('Other')}
-                  onPointerDown={() => setPressed('Other')}
-                  onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
-                  style={{
-                    gridColumn: '1 / -1',
-                    background: 'rgba(26,16,8,0.02)',
-                    border: `1px dashed rgba(26,16,8,0.18)`,
-                    cursor: 'pointer', padding: '13px 8px', textAlign: 'center',
-                    WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-                    transform: pressed === 'Other' ? 'scale(0.97)' : 'scale(1)',
-                    transition: pressed === 'Other'
-                      ? 'transform 80ms ease-out'
-                      : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
-                  }}
-                >
-                  <span style={{
-                    fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16,
-                    color: COLOR_CARDBOARD_INK2, opacity: 0.6,
-                  }}>
-                    Other
-                  </span>
-                </button>
               </div>
             </div>
           ) : (
@@ -814,7 +793,7 @@ export default function TuningAddPage() {
 
         {/* ───────────────── STEP 3: Form ───────────────── */}
         <div style={{ width: '33.333%', height: '100%', overflowY: 'auto', flexShrink: 0 }}>
-          <div style={{ paddingTop: 60, paddingBottom: 72 }}>
+          <div className={partsBinMode ? 'pb-form' : undefined} style={{ paddingTop: 60, paddingBottom: 72 }}>
 
             {/* Title */}
             <div style={{ padding: '4px 22px 0' }}>
@@ -953,12 +932,18 @@ export default function TuningAddPage() {
                 </div>
               )}
 
-              <label style={{
+              <label style={partsBinMode ? {
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '13px 0', cursor: 'pointer',
+                border: `1px solid rgba(26,16,8,0.2)`,
+                fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+                color: COLOR_CARDBOARD_STAMP,
+              } : {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '13px 0', cursor: 'pointer',
                 border: '1px dashed rgba(245,240,228,0.14)',
                 fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
-                letterSpacing: '0.16em', textTransform: 'uppercase',
+                letterSpacing: '0.16em', textTransform: 'uppercase' as const,
                 color: 'rgba(245,240,228,0.3)',
               }}>
                 + Add Photos
@@ -1089,7 +1074,7 @@ export default function TuningAddPage() {
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                {saving ? (partsBinMode ? 'adding...' : 'Saving…') : partsBinMode ? 'Add to Parts Bin' : 'Log It'}
+                {saving ? (partsBinMode ? 'adding...' : 'Saving…') : partsBinMode ? 'Add part' : 'Log It'}
               </button>
 
               {saveErr && (
