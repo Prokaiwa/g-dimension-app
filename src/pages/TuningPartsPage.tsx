@@ -204,7 +204,7 @@ export default function TuningPartsPage() {
 
       {/* ── Add Part FAB — hand-drawn marker ellipse ── */}
       <button
-        onClick={() => navigate('/tuning/parts-bin/add')}
+        onClick={() => navigate('/tuning/add?dest=parts-bin')}
         onPointerDown={() => setAddPressed(true)}
         onPointerUp={() => setAddPressed(false)}
         onPointerLeave={() => setAddPressed(false)}

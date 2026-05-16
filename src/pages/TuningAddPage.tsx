@@ -1,7 +1,7 @@
 // Route: /tuning/add — 3-step animated Add Modification flow
 // Step 1: Category picker → Step 2: Part type picker → Step 3: Form + Specs
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -147,6 +147,9 @@ function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
 
 export default function TuningAddPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const partsBinMode = searchParams.get('dest') === 'parts-bin'
+  const returnPath = partsBinMode ? '/tuning/parts-bin' : '/tuning/build-sheet'
 
   // step state — drives the sliding strip
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -228,7 +231,7 @@ export default function TuningAddPage() {
   // ── Navigation ──────────────────────────────────────────────────────────
 
   const handleBack = () => {
-    if (step === 1) navigate('/tuning/build-sheet')
+    if (step === 1) navigate(returnPath)
     else if (step === 2) setStep(1)
     else setStep(2)
   }
@@ -423,7 +426,7 @@ export default function TuningAddPage() {
         labor_cost:     form.laborCost  ? parseFloat(form.laborCost)  : null,
         installed_by:   form.installedBy        || null,
         notes:          form.notes.trim()       || null,
-        status:         'installed',
+        status:         partsBinMode ? 'purchased' : 'installed',
       })
       .select('id')
       .single()
@@ -482,7 +485,7 @@ export default function TuningAddPage() {
     }
 
     setSaving(false)
-    navigate('/tuning/build-sheet')
+    navigate(returnPath)
   }
 
   // ── Derived spec groups ─────────────────────────────────────────────────
@@ -711,47 +714,49 @@ export default function TuningAddPage() {
               />
             </div>
 
-            {/* Date Installed */}
-            <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Date Installed</label>
-              <input
-                type="date"
-                value={form.dateInstalled}
-                onChange={e => setForm(f => ({ ...f, dateInstalled: e.target.value }))}
-                style={{ ...INPUT, colorScheme: 'dark', caretColor: '#39ff14' }}
-              />
-            </div>
+            {/* Date Installed + Installed By — hidden in parts-bin mode */}
+            {!partsBinMode && (
+              <>
+                <div style={{ padding: '20px 22px 0' }}>
+                  <label style={LABEL}>Date Installed</label>
+                  <input
+                    type="date"
+                    value={form.dateInstalled}
+                    onChange={e => setForm(f => ({ ...f, dateInstalled: e.target.value }))}
+                    style={{ ...INPUT, colorScheme: 'dark', caretColor: '#39ff14' }}
+                  />
+                </div>
+                <div style={{ padding: '20px 22px 0' }}>
+                  <label style={LABEL}>Installed By</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['self', 'shop'] as const).map(opt => {
+                      const active = form.installedBy === opt
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setForm(f => ({ ...f, installedBy: active ? null : opt }))}
+                          style={{
+                            flex: 1, padding: '11px 0',
+                            background: active ? 'rgba(105,12,22,0.22)' : 'transparent',
+                            border: `1.5px solid ${active ? 'rgba(105,12,22,0.75)' : 'rgba(245,240,228,0.11)'}`,
+                            cursor: 'pointer',
+                            fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+                            letterSpacing: '0.14em', textTransform: 'uppercase',
+                            color: active ? '#c0303a' : 'rgba(245,240,228,0.38)',
+                            transition: 'all 200ms ease',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          {opt === 'self' ? 'Self' : 'Shop'}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
 
-            {/* Installed By — segmented toggle */}
-            <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Installed By</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(['self', 'shop'] as const).map(opt => {
-                  const active = form.installedBy === opt
-                  return (
-                    <button
-                      key={opt}
-                      onClick={() => setForm(f => ({ ...f, installedBy: active ? null : opt }))}
-                      style={{
-                        flex: 1, padding: '11px 0',
-                        background: active ? 'rgba(105,12,22,0.22)' : 'transparent',
-                        border: `1.5px solid ${active ? 'rgba(105,12,22,0.75)' : 'rgba(245,240,228,0.11)'}`,
-                        cursor: 'pointer',
-                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
-                        letterSpacing: '0.14em', textTransform: 'uppercase',
-                        color: active ? '#c0303a' : 'rgba(245,240,228,0.38)',
-                        transition: 'all 200ms ease',
-                        WebkitTapHighlightColor: 'transparent',
-                      }}
-                    >
-                      {opt === 'self' ? 'Self' : 'Shop'}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Costs — Labor hidden when self-installed */}
+            {/* Costs — Labor hidden when self-installed or parts-bin mode */}
             <div style={{ padding: '20px 22px 0', display: 'flex', gap: 20 }}>
               <div style={{ flex: 1 }}>
                 <label style={LABEL}>Parts Cost</label>
@@ -766,7 +771,7 @@ export default function TuningAddPage() {
                   />
                 </div>
               </div>
-              {form.installedBy === 'shop' && (
+              {!partsBinMode && form.installedBy === 'shop' && (
                 <div style={{ flex: 1 }}>
                   <label style={LABEL}>Labor Cost</label>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -941,7 +946,7 @@ export default function TuningAddPage() {
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                {saving ? 'Saving…' : 'Log It'}
+                {saving ? 'Saving…' : partsBinMode ? 'Add to Parts Bin' : 'Log It'}
               </button>
 
               {saveErr && (

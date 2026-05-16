@@ -26,7 +26,6 @@ import TuningPage from './pages/TuningPage'
 import TuningBuildSheetPage from './pages/TuningBuildSheetPage'
 import TuningBlueprintPage from './pages/TuningBlueprintPage'
 import TuningPartsPage from './pages/TuningPartsPage'
-import TuningPartsAddPage from './pages/TuningPartsAddPage'
 import TuningAddPage from './pages/TuningAddPage'
 import TuningModDetailPage from './pages/TuningModDetailPage'
 import TuningModEditPage from './pages/TuningModEditPage'
@@ -106,7 +105,6 @@ export default function App() {
       <Route path="/tuning/build-sheet" element={<ProtectedRoute><TuningBuildSheetPage /></ProtectedRoute>} />
       <Route path="/tuning/blueprint" element={<ProtectedRoute><TuningBlueprintPage /></ProtectedRoute>} />
       <Route path="/tuning/parts-bin" element={<ProtectedRoute><TuningPartsPage /></ProtectedRoute>} />
-      <Route path="/tuning/parts-bin/add" element={<ProtectedRoute><TuningPartsAddPage /></ProtectedRoute>} />
       <Route path="/tuning/add" element={<ProtectedRoute><TuningAddPage /></ProtectedRoute>} />
       <Route path="/tuning/mods/:modId" element={<ProtectedRoute><TuningModDetailPage /></ProtectedRoute>} />
       <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
