@@ -6,7 +6,11 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { TUNING_CATEGORIES } from './TuningBuildSheetPage'
-import { FONT_UI, EASING_SETTLE } from '../tokens'
+import {
+  FONT_UI, EASING_SETTLE,
+  FONT_HANDWRITTEN, FONT_STAMP,
+  COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
+} from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -54,6 +58,8 @@ const INPUT: React.CSSProperties = {
 }
 
 const TILE_SHADOW = '-5px 0 7px -1px rgba(105,12,22,0.65), 0 5px 7px -1px rgba(18,55,190,0.5)'
+
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 1,
@@ -183,6 +189,23 @@ export default function TuningAddPage() {
   const release      = () => setPressed(null)
   const selectedCat  = TUNING_CATEGORIES.find(c => c.id === selectedCategory)
 
+  // Kraft paper label/input styles — swapped in when partsBinMode
+  const lbl: React.CSSProperties = partsBinMode ? {
+    display: 'block',
+    fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13,
+    color: COLOR_CARDBOARD_INK2, opacity: 0.65, marginBottom: 7,
+  } : LABEL
+
+  const inp: React.CSSProperties = partsBinMode ? {
+    display: 'block', width: '100%', boxSizing: 'border-box' as const,
+    background: 'transparent', border: 'none',
+    borderBottom: `1px solid rgba(26,16,8,0.18)`,
+    padding: '9px 0',
+    fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 19,
+    color: COLOR_CARDBOARD_INK,
+    outline: 'none', WebkitAppearance: 'none' as const,
+  } : INPUT
+
   // Load part types when category is chosen
   useEffect(() => {
     if (!selectedCategory) return
@@ -288,7 +311,7 @@ export default function TuningAddPage() {
 
     return (
       <div key={t.spec_key} style={{ paddingTop: 18 }}>
-        <label style={LABEL}>{t.spec_label}</label>
+        <label style={lbl}>{t.spec_label}</label>
 
         {t.input_type === 'text' && (
           <>
@@ -296,7 +319,7 @@ export default function TuningAddPage() {
               value={val}
               onChange={e => setSpecVal(t.spec_key, e.target.value)}
               placeholder={t.placeholder ?? ''}
-              style={{ ...INPUT, caretColor: '#39ff14' }}
+              style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
             />
             {t.help_text && (
               <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.28)', marginTop: 5, lineHeight: 1.5 }}>
@@ -314,7 +337,7 @@ export default function TuningAddPage() {
                 value={val}
                 onChange={e => setSpecVal(t.spec_key, e.target.value)}
                 placeholder={t.placeholder ?? ''}
-                style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+                style={{ ...inp, flex: 1, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
               {t.unit && (
                 <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, whiteSpace: 'nowrap', paddingBottom: 1 }}>
@@ -335,7 +358,7 @@ export default function TuningAddPage() {
             type="date"
             value={val}
             onChange={e => setSpecVal(t.spec_key, e.target.value)}
-            style={{ ...INPUT, colorScheme: 'dark', caretColor: '#39ff14' }}
+            style={{ ...inp, colorScheme: 'dark', caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
           />
         )}
 
@@ -343,7 +366,7 @@ export default function TuningAddPage() {
           <select
             value={val}
             onChange={e => setSpecVal(t.spec_key, e.target.value)}
-            style={{ ...INPUT, cursor: 'pointer', colorScheme: 'dark' }}
+            style={{ ...inp, cursor: 'pointer', colorScheme: 'dark' }}
           >
             <option value="">—</option>
             {opts.map(o => <option key={o} value={o}>{o}</option>)}
@@ -509,7 +532,22 @@ export default function TuningAddPage() {
   // ── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ height: '100dvh', background: '#000', overflow: 'hidden', position: 'relative' }}>
+    <div style={partsBinMode ? {
+      height: '100dvh', overflow: 'hidden', position: 'relative' as const,
+      background: COLOR_CARDBOARD_BG,
+      backgroundImage: [
+        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
+        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
+      ].join(', '),
+    } : { height: '100dvh', background: '#000', overflow: 'hidden', position: 'relative' as const }}>
+
+      {partsBinMode && (
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+          backgroundImage: NOISE_SVG, backgroundSize: '180px 180px',
+          opacity: 0.09, mixBlendMode: 'multiply' as const,
+        }} />
+      )}
 
       <style>{`
         @keyframes tileIn {
@@ -535,13 +573,16 @@ export default function TuningAddPage() {
           WebkitTapHighlightColor: 'transparent',
         }}
       >
-        <span style={{ color: 'rgba(245,240,228,0.5)', fontSize: 20, fontWeight: 300 }}>‹</span>
-        {step === 2 && selectedCat?.icon && (
+        <span style={{ color: partsBinMode ? COLOR_CARDBOARD_STAMP : 'rgba(245,240,228,0.5)', fontSize: 22, fontWeight: 300 }}>‹</span>
+        {!partsBinMode && step === 2 && selectedCat?.icon && (
           <img src={selectedCat.icon} alt="" style={{ width: 14, height: 14, objectFit: 'contain', opacity: 0.55, pointerEvents: 'none' }} />
         )}
-        <span style={{
+        <span style={partsBinMode ? {
+          fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 16,
+          color: COLOR_CARDBOARD_STAMP,
+        } : {
           fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
+          letterSpacing: '0.12em', textTransform: 'uppercase' as const,
           color: 'rgba(245,240,228,0.4)',
         }}>
           {backLabel}
@@ -551,7 +592,7 @@ export default function TuningAddPage() {
       {/* ── Sliding strip: 3 steps side by side, strip is 300vw wide ── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, bottom: 0,
-        width: '300%',
+        width: '300%', zIndex: 2,
         display: 'flex',
         transform: `translateX(${-(step - 1) * (100 / 3)}%)`,
         transition: 'transform 280ms ease-in-out',
@@ -560,24 +601,126 @@ export default function TuningAddPage() {
 
         {/* ───────────────── STEP 1: Category picker ───────────────── */}
         <div style={{ width: '33.333%', height: '100%', overflow: 'hidden', flexShrink: 0 }}>
-          <div style={{
-            height: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gridTemplateRows: 'repeat(6, 1fr)',
-            gap: 8,
-            padding: '56px 16px 20px',
-          }}>
-            {TUNING_CATEGORIES.filter(c => c.id !== 'Other').map((cat, i) => (
+          {partsBinMode ? (
+            /* Parts bin mode: scrollable 2-col grid of Caveat text tiles */
+            <div style={{ height: '100%', overflowY: 'auto', paddingTop: 56 }}>
+              <p style={{
+                fontFamily: FONT_STAMP, fontSize: 13,
+                color: COLOR_CARDBOARD_INK, opacity: 0.35,
+                textAlign: 'center', margin: '0 0 14px',
+                letterSpacing: '0.06em',
+              }}>
+                what kind of part?
+              </p>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr',
+                gap: 8, padding: '0 14px 20px',
+              }}>
+                {TUNING_CATEGORIES.filter(c => c.id !== 'Other').map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => selectCategory(cat.id)}
+                    onPointerDown={() => setPressed(cat.id)}
+                    onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
+                    style={{
+                      background: pressed === cat.id ? 'rgba(26,16,8,0.1)' : 'rgba(26,16,8,0.04)',
+                      border: `1.5px solid rgba(26,16,8,0.22)`,
+                      cursor: 'pointer', padding: '16px 8px', textAlign: 'center',
+                      WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+                      transform: pressed === cat.id ? 'scale(0.95)' : 'scale(1)',
+                      transition: pressed === cat.id
+                        ? 'transform 80ms ease-out'
+                        : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18,
+                      color: COLOR_CARDBOARD_INK, lineHeight: 1.2,
+                    }}>
+                      {cat.label}
+                    </span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => selectCategory('Other')}
+                  onPointerDown={() => setPressed('Other')}
+                  onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
+                  style={{
+                    gridColumn: '1 / -1',
+                    background: 'rgba(26,16,8,0.02)',
+                    border: `1px dashed rgba(26,16,8,0.18)`,
+                    cursor: 'pointer', padding: '13px 8px', textAlign: 'center',
+                    WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+                    transform: pressed === 'Other' ? 'scale(0.97)' : 'scale(1)',
+                    transition: pressed === 'Other'
+                      ? 'transform 80ms ease-out'
+                      : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+                  }}
+                >
+                  <span style={{
+                    fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16,
+                    color: COLOR_CARDBOARD_INK2, opacity: 0.6,
+                  }}>
+                    Other
+                  </span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Build-sheet mode: original icon tile grid */
+            <div style={{
+              height: '100%',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gridTemplateRows: 'repeat(6, 1fr)',
+              gap: 8,
+              padding: '56px 16px 20px',
+            }}>
+              {TUNING_CATEGORIES.filter(c => c.id !== 'Other').map((cat, i) => (
+                <button
+                  key={cat.id}
+                  onClick={() => selectCategory(cat.id)}
+                  onPointerDown={() => setPressed(cat.id)}
+                  onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '4px 4px 4px 8px',
+                    animation: `tileIn 320ms ${EASING_SETTLE} ${i * 28}ms both`,
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation', userSelect: 'none',
+                  }}
+                >
+                  <div style={{
+                    width: '100%', height: '100%',
+                    background: '#0a0a0c', boxShadow: TILE_SHADOW,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transform: pressed === cat.id ? 'scale(0.93)' : 'scale(1)',
+                    transition: pressed === cat.id
+                      ? 'transform 80ms ease-out'
+                      : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+                  }}>
+                    <img
+                      src={cat.icon!} alt={cat.label} draggable={false}
+                      style={{ width: 66, height: 66, objectFit: 'contain', pointerEvents: 'none' }}
+                    />
+                    <span style={{
+                      fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
+                      letterSpacing: '0.12em', textTransform: 'uppercase',
+                      color: 'rgba(245,240,228,0.55)',
+                    }}>{cat.label}</span>
+                  </div>
+                </button>
+              ))}
+              <div />
               <button
-                key={cat.id}
-                onClick={() => selectCategory(cat.id)}
-                onPointerDown={() => setPressed(cat.id)}
+                onClick={() => selectCategory('Other')}
+                onPointerDown={() => setPressed('Other')}
                 onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   padding: '4px 4px 4px 8px',
-                  animation: `tileIn 320ms ${EASING_SETTLE} ${i * 28}ms both`,
+                  animation: `tileIn 320ms ${EASING_SETTLE} ${15 * 28}ms both`,
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation', userSelect: 'none',
                 }}
@@ -585,58 +728,22 @@ export default function TuningAddPage() {
                 <div style={{
                   width: '100%', height: '100%',
                   background: '#0a0a0c', boxShadow: TILE_SHADOW,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center', gap: 6,
-                  transform: pressed === cat.id ? 'scale(0.93)' : 'scale(1)',
-                  transition: pressed === cat.id
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transform: pressed === 'Other' ? 'scale(0.93)' : 'scale(1)',
+                  transition: pressed === 'Other'
                     ? 'transform 80ms ease-out'
                     : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                 }}>
-                  <img
-                    src={cat.icon!} alt={cat.label} draggable={false}
-                    style={{ width: 66, height: 66, objectFit: 'contain', pointerEvents: 'none' }}
-                  />
                   <span style={{
-                    fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
-                    color: 'rgba(245,240,228,0.55)',
-                  }}>{cat.label}</span>
+                    fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+                    letterSpacing: '0.14em', textTransform: 'uppercase',
+                    color: 'rgba(245,240,228,0.45)',
+                  }}>Other</span>
                 </div>
               </button>
-            ))}
-
-            {/* Row 6: two spacers + Other centered */}
-            <div />
-            <button
-              onClick={() => selectCategory('Other')}
-              onPointerDown={() => setPressed('Other')}
-              onPointerUp={release} onPointerLeave={release} onPointerCancel={release}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                padding: '4px 4px 4px 8px',
-                animation: `tileIn 320ms ${EASING_SETTLE} ${15 * 28}ms both`,
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation', userSelect: 'none',
-              }}
-            >
-              <div style={{
-                width: '100%', height: '100%',
-                background: '#0a0a0c', boxShadow: TILE_SHADOW,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transform: pressed === 'Other' ? 'scale(0.93)' : 'scale(1)',
-                transition: pressed === 'Other'
-                  ? 'transform 80ms ease-out'
-                  : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
-              }}>
-                <span style={{
-                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
-                  letterSpacing: '0.14em', textTransform: 'uppercase',
-                  color: 'rgba(245,240,228,0.45)',
-                }}>Other</span>
-              </div>
-            </button>
-            <div />
-          </div>
+              <div />
+            </div>
+          )}
         </div>
 
         {/* ───────────────── STEP 2: Part type picker ───────────────── */}
@@ -644,22 +751,33 @@ export default function TuningAddPage() {
           <div style={{ height: '100%', overflowY: 'auto', paddingTop: 52 }}>
 
             {partTypesLoading && (
-              <div style={{ padding: '40px 22px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 12, letterSpacing: '0.1em', color: 'rgba(245,240,228,0.25)' }}>
-                Loading…
+              <div style={{ padding: '40px 22px', textAlign: 'center' }}>
+                <span style={partsBinMode
+                  ? { fontFamily: FONT_HANDWRITTEN, fontSize: 18, color: COLOR_CARDBOARD_INK2, opacity: 0.5 }
+                  : { fontFamily: FONT_UI, fontSize: 12, letterSpacing: '0.1em', color: 'rgba(245,240,228,0.25)' }
+                }>
+                  {partsBinMode ? 'checking the box...' : 'Loading…'}
+                </span>
               </div>
             )}
 
             {!partTypesLoading && selectedCategory && partTypes.length === 0 && (
               <div style={{ padding: '40px 22px', textAlign: 'center' }}>
-                <p style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.35)', marginBottom: 20 }}>No part types found</p>
+                <p style={partsBinMode
+                  ? { fontFamily: FONT_HANDWRITTEN, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 20 }
+                  : { fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.35)', marginBottom: 20 }
+                }>No part types found</p>
                 <button
                   onClick={() => setStep(1)}
                   style={{
-                    background: 'none', border: '1px solid rgba(245,240,228,0.14)',
+                    background: 'none',
+                    border: partsBinMode ? `1px solid rgba(26,16,8,0.2)` : '1px solid rgba(245,240,228,0.14)',
                     padding: '10px 24px', cursor: 'pointer',
-                    fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
-                    color: 'rgba(245,240,228,0.35)',
+                    fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI,
+                    fontWeight: 700, fontSize: partsBinMode ? 15 : 10,
+                    letterSpacing: partsBinMode ? 0 : '0.12em',
+                    textTransform: partsBinMode ? 'none' as const : 'uppercase' as const,
+                    color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.35)',
                   }}
                 >
                   ‹ Back
@@ -675,13 +793,18 @@ export default function TuningAddPage() {
                   display: 'block', width: '100%',
                   padding: '15px 22px',
                   background: 'none', border: 'none',
-                  borderBottom: '1px solid rgba(245,240,228,0.05)',
+                  borderBottom: partsBinMode
+                    ? '1px solid rgba(26,16,8,0.12)'
+                    : '1px solid rgba(245,240,228,0.05)',
                   cursor: 'pointer', textAlign: 'left',
                   WebkitTapHighlightColor: 'transparent',
-                  animation: `rowIn 250ms ${EASING_SETTLE} ${i * 25}ms both`,
+                  animation: partsBinMode ? undefined : `rowIn 250ms ${EASING_SETTLE} ${i * 25}ms both`,
                 }}
               >
-                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.78)' }}>
+                <span style={partsBinMode
+                  ? { fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 20, color: COLOR_CARDBOARD_INK }
+                  : { fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.78)' }
+                }>
                   {pt.name}
                 </span>
               </button>
@@ -695,23 +818,23 @@ export default function TuningAddPage() {
 
             {/* Title */}
             <div style={{ padding: '4px 22px 0' }}>
-              <label style={LABEL}>Title *</label>
+              <label style={lbl}>Title *</label>
               <input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder={TITLE_PLACEHOLDER[selectedPartType?.name ?? ''] ?? 'e.g. Add a title'}
-                style={{ ...INPUT, caretColor: '#39ff14' }}
+                style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
             </div>
 
             {/* Brand */}
             <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Brand</label>
+              <label style={lbl}>Brand</label>
               <input
                 value={form.brand}
                 onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
                 placeholder="e.g. HKS"
-                style={{ ...INPUT, caretColor: '#39ff14' }}
+                style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
             </div>
 
@@ -719,16 +842,16 @@ export default function TuningAddPage() {
             {!partsBinMode && (
               <>
                 <div style={{ padding: '20px 22px 0' }}>
-                  <label style={LABEL}>Date Installed</label>
+                  <label style={lbl}>Date Installed</label>
                   <input
                     type="date"
                     value={form.dateInstalled}
                     onChange={e => setForm(f => ({ ...f, dateInstalled: e.target.value }))}
-                    style={{ ...INPUT, colorScheme: 'dark', caretColor: '#39ff14' }}
+                    style={{ ...inp, colorScheme: 'dark', caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
                   />
                 </div>
                 <div style={{ padding: '20px 22px 0' }}>
-                  <label style={LABEL}>Installed By</label>
+                  <label style={lbl}>Installed By</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {(['self', 'shop'] as const).map(opt => {
                       const active = form.installedBy === opt
@@ -760,29 +883,29 @@ export default function TuningAddPage() {
             {/* Costs — Labor hidden when self-installed or parts-bin mode */}
             <div style={{ padding: '20px 22px 0', display: 'flex', gap: 20 }}>
               <div style={{ flex: 1 }}>
-                <label style={LABEL}>Parts Cost</label>
+                <label style={lbl}>Parts Cost</label>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
+                  <span style={{ fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 700, fontSize: 14, color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
                   <input
                     type="number" inputMode="decimal" min="0" step="0.01"
                     value={form.partsCost}
                     onChange={e => setForm(f => ({ ...f, partsCost: e.target.value }))}
                     placeholder="0.00"
-                    style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+                    style={{ ...inp, flex: 1, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
                   />
                 </div>
               </div>
               {!partsBinMode && form.installedBy === 'shop' && (
                 <div style={{ flex: 1 }}>
-                  <label style={LABEL}>Labor Cost</label>
+                  <label style={lbl}>Labor Cost</label>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
+                    <span style={{ fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 700, fontSize: 14, color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
                     <input
                       type="number" inputMode="decimal" min="0" step="0.01"
                       value={form.laborCost}
                       onChange={e => setForm(f => ({ ...f, laborCost: e.target.value }))}
                       placeholder="0.00"
-                      style={{ ...INPUT, flex: 1, caretColor: '#39ff14' }}
+                      style={{ ...inp, flex: 1, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
                     />
                   </div>
                 </div>
@@ -791,22 +914,22 @@ export default function TuningAddPage() {
 
             {/* Notes */}
             <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Notes</label>
+              <label style={lbl}>Notes</label>
               <textarea
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder={selectedPartType?.notes_placeholder ?? 'Add any notes about this modification…'}
                 rows={4}
                 style={{
-                  ...INPUT, resize: 'none', lineHeight: 1.6,
-                  caretColor: '#39ff14',
+                  ...inp, resize: 'none', lineHeight: 1.6,
+                  caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14',
                 } as React.CSSProperties}
               />
             </div>
 
             {/* Photos */}
             <div style={{ padding: '20px 22px 0' }}>
-              <label style={LABEL}>Photos</label>
+              <label style={lbl}>Photos</label>
 
               {photoPreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -853,23 +976,33 @@ export default function TuningAddPage() {
                 onClick={() => setSpecsExpanded(x => !x)}
                 style={{
                   width: '100%', padding: '13px 0',
-                  background: specsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent',
-                  border: `1px solid ${specsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
+                  background: partsBinMode
+                    ? (specsExpanded ? 'rgba(26,16,8,0.07)' : 'transparent')
+                    : (specsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent'),
+                  border: partsBinMode
+                    ? `1px solid ${specsExpanded ? 'rgba(26,16,8,0.3)' : 'rgba(26,16,8,0.15)'}`
+                    : `1px solid ${specsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
                   cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   transition: 'all 200ms ease',
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                <span style={{
+                <span style={partsBinMode ? {
+                  fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+                  color: specsExpanded ? COLOR_CARDBOARD_INK : COLOR_CARDBOARD_INK2,
+                  opacity: specsExpanded ? 0.75 : 0.45,
+                } : {
                   fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
-                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                  letterSpacing: '0.18em', textTransform: 'uppercase' as const,
                   color: specsExpanded ? 'rgba(60,100,220,0.82)' : 'rgba(245,240,228,0.42)',
                 }}>
                   Full Specs
                 </span>
                 <span style={{
-                  color: specsExpanded ? 'rgba(60,100,220,0.55)' : 'rgba(245,240,228,0.22)',
+                  color: partsBinMode
+                    ? (specsExpanded ? COLOR_CARDBOARD_INK : COLOR_CARDBOARD_INK2)
+                    : (specsExpanded ? 'rgba(60,100,220,0.55)' : 'rgba(245,240,228,0.22)'),
                   fontSize: 11,
                   display: 'inline-block',
                   transform: specsExpanded ? 'rotate(180deg)' : 'none',
@@ -882,12 +1015,12 @@ export default function TuningAddPage() {
 
                   {/* Part Number */}
                   <div style={{ paddingTop: 18 }}>
-                    <label style={LABEL}>Part Number</label>
+                    <label style={lbl}>Part Number</label>
                     <input
                       value={form.partNumber}
                       onChange={e => setForm(f => ({ ...f, partNumber: e.target.value }))}
                       placeholder="e.g. 14004-AN001"
-                      style={{ ...INPUT, caretColor: '#39ff14' }}
+                      style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
                     />
                   </div>
 
@@ -934,12 +1067,21 @@ export default function TuningAddPage() {
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                style={{
+                style={partsBinMode ? {
+                  width: '100%', padding: '15px 0',
+                  background: canSubmit ? 'rgba(139,58,10,0.08)' : 'transparent',
+                  border: `1.5px solid ${canSubmit ? COLOR_CARDBOARD_STAMP : 'rgba(26,16,8,0.12)'}`,
+                  fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18,
+                  color: canSubmit ? COLOR_CARDBOARD_STAMP : 'rgba(26,16,8,0.25)',
+                  cursor: canSubmit ? 'pointer' : 'default',
+                  transition: 'all 200ms ease',
+                  WebkitTapHighlightColor: 'transparent',
+                } : {
                   width: '100%', padding: '15px 0',
                   background: canSubmit ? 'rgba(105,12,22,0.22)' : 'transparent',
                   border: `1.5px solid ${canSubmit ? 'rgba(105,12,22,0.82)' : 'rgba(255,255,255,0.07)'}`,
                   fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
-                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                  letterSpacing: '0.18em', textTransform: 'uppercase' as const,
                   color: canSubmit ? '#c0303a' : 'rgba(245,240,228,0.18)',
                   cursor: canSubmit ? 'pointer' : 'default',
                   transition: 'all 200ms ease',
@@ -947,7 +1089,7 @@ export default function TuningAddPage() {
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                {saving ? 'Saving…' : partsBinMode ? 'Add to Parts Bin' : 'Log It'}
+                {saving ? (partsBinMode ? 'adding...' : 'Saving…') : partsBinMode ? 'Add to Parts Bin' : 'Log It'}
               </button>
 
               {saveErr && (
