@@ -124,14 +124,14 @@ export default function TuningPartsPage() {
             </span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {car && (
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
                 {[car.year, car.model].filter(Boolean).join(' ')}
               </span>
             )}
-            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px' }}>
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
+            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 16px', flexShrink: 0 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, whiteSpace: 'nowrap' }}>
                 {todayMonth} {todayDay}
               </span>
             </div>

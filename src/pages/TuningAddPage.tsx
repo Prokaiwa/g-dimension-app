@@ -340,7 +340,7 @@ export default function TuningAddPage() {
                 style={{ ...inp, flex: 1, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
               {t.unit && (
-                <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, whiteSpace: 'nowrap', paddingBottom: 1 }}>
+                <span style={{ fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 600, fontSize: 12, color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.32)', marginLeft: 8, whiteSpace: 'nowrap', paddingBottom: 1 }}>
                   {t.unit}
                 </span>
               )}
@@ -404,15 +404,21 @@ export default function TuningAddPage() {
             onClick={() => setSpecVal(t.spec_key, val === 'true' ? 'false' : 'true')}
             style={{
               width: 44, height: 26, position: 'relative', cursor: 'pointer',
-              background: val === 'true' ? 'rgba(200,102,26,0.35)' : 'rgba(245,240,228,0.07)',
-              border: `1.5px solid ${val === 'true' ? 'rgba(200,102,26,0.65)' : 'rgba(245,240,228,0.14)'}`,
+              background: val === 'true'
+                ? 'rgba(200,102,26,0.35)'
+                : partsBinMode ? 'rgba(26,16,8,0.08)' : 'rgba(245,240,228,0.07)',
+              border: `1.5px solid ${val === 'true'
+                ? 'rgba(200,102,26,0.65)'
+                : partsBinMode ? 'rgba(26,16,8,0.22)' : 'rgba(245,240,228,0.14)'}`,
               borderRadius: 13, transition: 'background 200ms, border-color 200ms',
             }}
           >
             <div style={{
               position: 'absolute', top: 3, left: val === 'true' ? 20 : 3,
               width: 16, height: 16, borderRadius: '50%',
-              background: val === 'true' ? '#c8661a' : 'rgba(245,240,228,0.28)',
+              background: val === 'true'
+                ? '#c8661a'
+                : partsBinMode ? 'rgba(26,16,8,0.3)' : 'rgba(245,240,228,0.28)',
               transition: 'left 200ms, background 200ms',
             }} />
           </div>
@@ -1027,9 +1033,12 @@ export default function TuningAddPage() {
                           WebkitTapHighlightColor: 'transparent',
                         }}
                       >
-                        <span style={{
+                        <span style={partsBinMode ? {
+                          fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14,
+                          color: COLOR_CARDBOARD_INK2, opacity: 0.55,
+                        } : {
                           fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
-                          letterSpacing: '0.14em', textTransform: 'uppercase',
+                          letterSpacing: '0.14em', textTransform: 'uppercase' as const,
                           color: 'rgba(245,240,228,0.28)',
                         }}>
                           {advancedExpanded ? '− Advanced Specs' : '+ Advanced Specs'}
@@ -1074,7 +1083,7 @@ export default function TuningAddPage() {
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                {saving ? (partsBinMode ? 'adding...' : 'Saving…') : partsBinMode ? 'Add part' : 'Log It'}
+                {saving ? (partsBinMode ? 'adding...' : 'Saving…') : partsBinMode ? 'Add Part' : 'Log It'}
               </button>
 
               {saveErr && (
