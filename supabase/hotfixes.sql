@@ -18,3 +18,14 @@ update spec_templates
 set unit = 'A',
     placeholder = null
 where spec_key = 'durometer';
+
+-- Fix missing DML grants on core user tables (2026-05-16)
+-- jobs, job_photos, car_reminders, and cars were missing UPDATE/DELETE grants for
+-- authenticated. SELECT/INSERT worked via Supabase default setup but UPDATE (e.g.
+-- removing a mod, "Put Back" in Parts Bin) and DELETE returned 400. The
+-- jobs_handle_removal trigger also INSERTs into jobs — covered by this grant.
+grant select, insert, update, delete on public.jobs        to authenticated;
+grant select, insert, update, delete on public.job_photos  to authenticated;
+grant select, insert, update, delete on public.cars        to authenticated;
+grant select, insert, update, delete on public.car_reminders to authenticated;
+grant select, insert, update, delete on public.sessions    to authenticated;

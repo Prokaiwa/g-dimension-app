@@ -73,6 +73,7 @@ export default function TuningModDetailPage() {
   const [editPressed,   setEditPressed]   = useState(false)
   const [removeSheet,   setRemoveSheet]   = useState(false)
   const [removing,      setRemoving]      = useState(false)
+  const [removeError,   setRemoveError]   = useState<string | null>(null)
 
   useEffect(() => {
     if (!modId) return
@@ -109,11 +110,17 @@ export default function TuningModDetailPage() {
   const handleRemove = async (stillOwned: boolean) => {
     if (!modId) return
     setRemoving(true)
-    await supabase.from('jobs').update({
-      status:      'removed',
-      still_owned: stillOwned,
+    setRemoveError(null)
+    const { error } = await supabase.from('jobs').update({
+      status:       'removed',
+      still_owned:  stillOwned,
       date_removed: new Date().toISOString().split('T')[0],
     }).eq('id', modId)
+    if (error) {
+      setRemoving(false)
+      setRemoveError(error.message)
+      return
+    }
     navigate('/tuning/build-sheet')
   }
 
@@ -363,6 +370,11 @@ export default function TuningModDetailPage() {
             <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 24, lineHeight: 1.5 }}>
               Where is this part going?
             </p>
+            {removeError && (
+              <p style={{ fontFamily: FONT_UI, fontSize: 11, color: '#e05050', marginBottom: 16, lineHeight: 1.4 }}>
+                {removeError}
+              </p>
+            )}
 
             {/* Move to Storage */}
             <button
