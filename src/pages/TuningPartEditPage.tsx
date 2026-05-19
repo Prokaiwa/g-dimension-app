@@ -11,6 +11,19 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
+interface SpecTemplate {
+  spec_key: string
+  spec_label: string
+  input_type: 'text' | 'number' | 'select' | 'multiselect' | 'boolean' | 'date'
+  options: unknown
+  unit: string | null
+  is_advanced: boolean
+  display_order: number
+  group_label: string | null
+  help_text: string | null
+  placeholder: string | null
+}
+
 type Part = {
   title: string
   brand: string | null
@@ -21,6 +34,7 @@ type Part = {
   notes: string | null
   status: string
   car_id: string
+  part_type_id: number | null
 }
 
 type ExistingPhoto = { id: string; photo_url: string }
@@ -50,12 +64,29 @@ const INPUT: React.CSSProperties = {
   WebkitAppearance: 'none' as const,
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function parseOptions(raw: unknown): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as string[]
+  try { return JSON.parse(raw as string) as string[] } catch { return [] }
+}
+
+function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
+  return arr.reduce((acc, item) => {
+    const k = key(item)
+    ;(acc[k] ??= []).push(item)
+    return acc
+  }, {} as Record<string, T[]>)
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function TuningPartEditPage() {
   const { partId } = useParams<{ partId: string }>()
   const navigate   = useNavigate()
 
+  // Basic fields
   const [title,    setTitle]    = useState('')
   const [brand,    setBrand]    = useState('')
   const [category, setCategory] = useState('')
@@ -64,6 +95,14 @@ export default function TuningPartEditPage() {
   const [notes,    setNotes]    = useState('')
   const [status,   setStatus]   = useState('')
 
+  // Specs
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([])
+  const [specValues,    setSpecValues]    = useState<Record<string, string>>({})
+  const [multiValues,   setMultiValues]   = useState<Record<string, string[]>>({})
+  const [specsOpen,     setSpecsOpen]     = useState(false)
+  const [advOpen,       setAdvOpen]       = useState(false)
+
+  // Photos
   const [existingPhotos,  setExistingPhotos]  = useState<ExistingPhoto[]>([])
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([])
   const [newPhotos,       setNewPhotos]       = useState<File[]>([])
@@ -81,10 +120,10 @@ export default function TuningPartEditPage() {
       const { data: { session } } = await supabase.auth.getSession()
       setUserId(session?.user?.id ?? null)
 
-      const [{ data: job }, { data: photoData }] = await Promise.all([
+      const [{ data: job }, { data: photoData }, { data: specsData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, category, date_removed, date_installed, parts_cost, notes, status, car_id')
+          .select('title, brand, category, date_removed, date_installed, parts_cost, notes, status, car_id, part_type_id')
           .eq('id', partId)
           .single(),
         supabase
@@ -92,6 +131,10 @@ export default function TuningPartEditPage() {
           .select('id, photo_url')
           .eq('job_id', partId)
           .order('display_order'),
+        supabase
+          .from('job_specs')
+          .select('spec_key, spec_value, spec_unit')
+          .eq('job_id', partId),
       ])
 
       if (!job) { setLoading(false); return }
@@ -103,14 +146,137 @@ export default function TuningPartEditPage() {
       setCost(part.parts_cost != null ? String(part.parts_cost) : '')
       setStatus(part.status)
       setCarId(part.car_id)
-      // date field maps to whichever date is relevant for this part's status
       setDate(part.status === 'removed' ? (part.date_removed ?? '') : (part.date_installed ?? ''))
       setNotes(part.notes ?? '')
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
+
+      if (part.part_type_id) {
+        const { data: templates } = await supabase
+          .from('spec_templates')
+          .select('spec_key, spec_label, input_type, options, unit, is_advanced, display_order, group_label, help_text, placeholder')
+          .eq('part_type_id', part.part_type_id)
+          .order('display_order')
+
+        const tmplList = (templates ?? []) as SpecTemplate[]
+        setSpecTemplates(tmplList)
+
+        const sv: Record<string, string>   = {}
+        const mv: Record<string, string[]> = {}
+        for (const s of (specsData ?? []) as { spec_key: string; spec_value: string }[]) {
+          const tmpl = tmplList.find(t => t.spec_key === s.spec_key)
+          if (!tmpl) continue
+          if (tmpl.input_type === 'multiselect') {
+            try { mv[s.spec_key] = JSON.parse(s.spec_value) } catch { mv[s.spec_key] = [] }
+          } else {
+            sv[s.spec_key] = s.spec_value
+          }
+        }
+        if ((specsData ?? []).length > 0) setSpecsOpen(true)
+        setSpecValues(sv)
+        setMultiValues(mv)
+      }
+
       setLoading(false)
     }
     load()
   }, [partId])
+
+  // ── Spec helpers ──────────────────────────────────────────────────────
+
+  const setSpecVal = (key: string, val: string) =>
+    setSpecValues(prev => ({ ...prev, [key]: val }))
+
+  const toggleMulti = (key: string, opt: string) =>
+    setMultiValues(prev => {
+      const cur = prev[key] ?? []
+      return { ...prev, [key]: cur.includes(opt) ? cur.filter(x => x !== opt) : [...cur, opt] }
+    })
+
+  const renderSpecField = (t: SpecTemplate) => {
+    const opts = parseOptions(t.options)
+    const val  = specValues[t.spec_key] ?? ''
+    if ((t.input_type === 'select' || t.input_type === 'multiselect') && opts.length === 0) return null
+
+    return (
+      <div key={t.spec_key} style={{ paddingTop: 20 }}>
+        <label style={LABEL}>{t.spec_label}</label>
+
+        {t.input_type === 'text' && (
+          <>
+            <input value={val} onChange={e => setSpecVal(t.spec_key, e.target.value)}
+              placeholder={t.placeholder ?? ''} style={INPUT} className="kraft-input" />
+            {t.help_text && <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, marginTop: 5, lineHeight: 1.5 }}>{t.help_text}</p>}
+          </>
+        )}
+
+        {t.input_type === 'number' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input type="number" value={val} onChange={e => setSpecVal(t.spec_key, e.target.value)}
+                placeholder={t.placeholder ?? ''} style={{ ...INPUT, flex: 1 }} className="kraft-input" />
+              {t.unit && <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.45, marginLeft: 8, whiteSpace: 'nowrap' }}>{t.unit}</span>}
+            </div>
+            {t.help_text && <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, marginTop: 5, lineHeight: 1.5 }}>{t.help_text}</p>}
+          </>
+        )}
+
+        {t.input_type === 'date' && (
+          <input type="date" value={val} onChange={e => setSpecVal(t.spec_key, e.target.value)}
+            style={{ ...INPUT, colorScheme: 'light' }} />
+        )}
+
+        {t.input_type === 'select' && opts.length > 0 && (
+          <select value={val} onChange={e => setSpecVal(t.spec_key, e.target.value)}
+            style={{ ...INPUT, cursor: 'pointer', colorScheme: 'light' }}>
+            <option value="">—</option>
+            {opts.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        )}
+
+        {t.input_type === 'multiselect' && opts.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 6 }}>
+            {opts.map(o => {
+              const checked = (multiValues[t.spec_key] ?? []).includes(o)
+              return (
+                <label key={o} onClick={() => toggleMulti(t.spec_key, o)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <div style={{
+                    width: 18, height: 18, flexShrink: 0,
+                    border: `1.5px solid ${checked ? `${COLOR_CARDBOARD_STAMP}` : 'rgba(26,16,8,0.25)'}`,
+                    background: checked ? 'rgba(139,58,10,0.12)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 150ms ease',
+                  }}>
+                    {checked && <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 16, color: COLOR_CARDBOARD_INK, opacity: 0.8 }}>{o}</span>
+                </label>
+              )
+            })}
+          </div>
+        )}
+
+        {t.input_type === 'boolean' && (
+          <div onClick={() => setSpecVal(t.spec_key, val === 'true' ? 'false' : 'true')}
+            style={{
+              width: 44, height: 26, position: 'relative', cursor: 'pointer',
+              background: val === 'true' ? 'rgba(139,58,10,0.2)' : 'rgba(26,16,8,0.06)',
+              border: `1.5px solid ${val === 'true' ? COLOR_CARDBOARD_STAMP : 'rgba(26,16,8,0.2)'}`,
+              borderRadius: 13, transition: 'background 200ms, border-color 200ms',
+            }}>
+            <div style={{
+              position: 'absolute', top: 3, left: val === 'true' ? 20 : 3,
+              width: 16, height: 16, borderRadius: '50%',
+              background: val === 'true' ? COLOR_CARDBOARD_STAMP : 'rgba(26,16,8,0.25)',
+              transition: 'left 200ms, background 200ms',
+            }} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Photo helpers ─────────────────────────────────────────────────────
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -134,23 +300,42 @@ export default function TuningPartEditPage() {
     setExistingPhotos(prev => prev.filter(p => p.id !== id))
   }
 
+  // ── Save ──────────────────────────────────────────────────────────────
+
   const handleSave = async () => {
     if (!partId || !title.trim()) return
     setSaving(true)
     setSaveErr(null)
 
     const dateField = status === 'removed' ? 'date_removed' : 'date_installed'
-    const updates: Record<string, unknown> = {
+    const { error: jobErr } = await supabase.from('jobs').update({
       title:      title.trim(),
       brand:      brand.trim() || null,
       category:   category || null,
       parts_cost: cost !== '' ? parseFloat(cost) : null,
       notes:      notes.trim() || null,
       [dateField]: date || null,
-    }
-
-    const { error: jobErr } = await supabase.from('jobs').update(updates).eq('id', partId)
+    }).eq('id', partId)
     if (jobErr) { setSaving(false); setSaveErr(jobErr.message); return }
+
+    // Replace specs
+    if (specTemplates.length > 0) {
+      await supabase.from('job_specs').delete().eq('job_id', partId)
+      const rows: { job_id: string; spec_key: string; spec_value: string; spec_unit: string | null }[] = []
+      for (const t of specTemplates) {
+        if (t.input_type === 'multiselect') {
+          const vals = multiValues[t.spec_key] ?? []
+          if (vals.length > 0) rows.push({ job_id: partId, spec_key: t.spec_key, spec_value: JSON.stringify(vals), spec_unit: t.unit ?? null })
+        } else {
+          const v = specValues[t.spec_key]
+          if (v && v !== '' && v !== 'false') rows.push({ job_id: partId, spec_key: t.spec_key, spec_value: String(v), spec_unit: t.unit ?? null })
+        }
+      }
+      if (rows.length > 0) {
+        const { error: specErr } = await supabase.from('job_specs').insert(rows)
+        if (specErr) { setSaving(false); setSaveErr(specErr.message); return }
+      }
+    }
 
     // Delete removed photos
     if (removedPhotoIds.length > 0) {
@@ -182,7 +367,11 @@ export default function TuningPartEditPage() {
     )
   }
 
-  const dateLabel = status === 'removed' ? 'Date Pulled' : 'Date Acquired'
+  const basicSpecs = specTemplates.filter(t => !t.is_advanced)
+  const advSpecs   = specTemplates.filter(t =>  t.is_advanced)
+  const basicGroups = groupBy(basicSpecs, t => t.group_label ?? 'Specs')
+  const advGroups   = groupBy(advSpecs,   t => t.group_label ?? 'Advanced')
+  const dateLabel   = status === 'removed' ? 'Date Pulled' : 'Date Acquired'
 
   return (
     <div style={{
@@ -194,6 +383,9 @@ export default function TuningPartEditPage() {
       ].join(', '),
       position: 'relative',
     }}>
+
+      {/* Placeholder color injection */}
+      <style>{`.kraft-input::placeholder { color: rgba(26,16,8,0.35); }`}</style>
 
       {/* Kraft grain */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.09, mixBlendMode: 'multiply' }} />
@@ -214,37 +406,26 @@ export default function TuningPartEditPage() {
           </span>
         </div>
 
-        {/* ── Fields ── */}
+        {/* ── Core fields ── */}
         <div style={{ padding: '28px 20px 0', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-          {/* Title */}
           <div>
             <label style={LABEL}>Name</label>
-            <input
-              value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Part name"
-              style={{ ...INPUT, fontSize: 22 }}
-            />
+            <input value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="Part name" className="kraft-input"
+              style={{ ...INPUT, fontSize: 22 }} />
           </div>
 
-          {/* Brand */}
           <div>
             <label style={LABEL}>Brand</label>
-            <input
-              value={brand} onChange={e => setBrand(e.target.value)}
-              placeholder="—"
-              style={INPUT}
-            />
+            <input value={brand} onChange={e => setBrand(e.target.value)}
+              placeholder="—" className="kraft-input" style={INPUT} />
           </div>
 
-          {/* Category */}
           <div>
             <label style={LABEL}>Category</label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              style={{ ...INPUT, cursor: 'pointer', colorScheme: 'light' }}
-            >
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              style={{ ...INPUT, cursor: 'pointer', colorScheme: 'light' }}>
               <option value="">—</option>
               {TUNING_CATEGORIES.map(c => (
                 <option key={c.id} value={c.id}>{c.label}</option>
@@ -252,60 +433,93 @@ export default function TuningPartEditPage() {
             </select>
           </div>
 
-          {/* Cost */}
           <div>
             <label style={LABEL}>Cost Paid</label>
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, paddingRight: 6, opacity: 0.7 }}>$</span>
-              <input
-                type="number" inputMode="decimal"
-                value={cost} onChange={e => setCost(e.target.value)}
-                placeholder="0"
-                style={{ ...INPUT, flex: 1 }}
-              />
+              <input type="number" inputMode="decimal" value={cost} onChange={e => setCost(e.target.value)}
+                placeholder="0" className="kraft-input" style={{ ...INPUT, flex: 1 }} />
             </div>
           </div>
 
-          {/* Date */}
           <div>
             <label style={LABEL}>{dateLabel}</label>
-            <input
-              type="date"
-              value={date} onChange={e => setDate(e.target.value)}
-              style={{ ...INPUT, colorScheme: 'light' }}
-            />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              style={{ ...INPUT, colorScheme: 'light' }} />
           </div>
 
-          {/* Notes */}
           <div>
             <label style={LABEL}>Notes</label>
-            <textarea
-              value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="Any details..."
-              rows={4}
-              style={{
-                ...INPUT,
-                resize: 'none', lineHeight: 1.55,
-                borderBottom: 'none',
-                border: `1px solid rgba(26,16,8,0.18)`,
-                padding: '10px 12px',
-              }}
-            />
+            <textarea value={notes} onChange={e => setNotes(e.target.value)}
+              placeholder="Any details..." rows={4} className="kraft-input"
+              style={{ ...INPUT, resize: 'none', lineHeight: 1.55, borderBottom: 'none', border: `1px solid rgba(26,16,8,0.18)`, padding: '10px 12px' }} />
           </div>
 
         </div>
+
+        {/* ── Spec fields ── */}
+        {specTemplates.length > 0 && (
+          <div style={{ padding: '28px 20px 0' }}>
+            <button
+              onClick={() => setSpecsOpen(v => !v)}
+              style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent', display: 'flex', alignItems: 'center', gap: 10 }}
+            >
+              <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.12 }} />
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.55, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Specs {specsOpen ? '▴' : '▾'}
+              </span>
+              <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.12 }} />
+            </button>
+
+            {specsOpen && (
+              <div style={{ marginTop: 4 }}>
+                {Object.entries(basicGroups).map(([groupName, tmpls]) => (
+                  <div key={groupName} style={{ marginTop: 20 }}>
+                    {groupName !== 'Specs' && (
+                      <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.35, margin: '0 0 4px' }}>
+                        {groupName}
+                      </p>
+                    )}
+                    {tmpls.map(renderSpecField)}
+                  </div>
+                ))}
+
+                {advSpecs.length > 0 && (
+                  <div style={{ marginTop: 24 }}>
+                    <button
+                      onClick={() => setAdvOpen(v => !v)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.4, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        Advanced Specs {advOpen ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {advOpen && Object.entries(advGroups).map(([groupName, tmpls]) => (
+                      <div key={groupName} style={{ marginTop: 16 }}>
+                        {groupName !== 'Advanced' && (
+                          <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.35, margin: '0 0 4px' }}>
+                            {groupName}
+                          </p>
+                        )}
+                        {tmpls.map(renderSpecField)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Photos ── */}
         <div style={{ padding: '28px 20px 0' }}>
           <label style={LABEL}>Photos</label>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
-            {existingPhotos.map(p => (
+            {existingPhotos.filter(p => !removedPhotoIds.includes(p.id)).map(p => (
               <div key={p.id} style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
                 <img src={p.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                <button
-                  onClick={() => removeExistingPhoto(p.id)}
-                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
-                >
+                <button onClick={() => removeExistingPhoto(p.id)}
+                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
                   <span style={{ color: '#e8c98a', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
                 </button>
               </div>
@@ -313,10 +527,8 @@ export default function TuningPartEditPage() {
             {newPreviews.map((src, i) => (
               <div key={`new-${i}`} style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
                 <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.75 }} />
-                <button
-                  onClick={() => removeNewPhoto(i)}
-                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
-                >
+                <button onClick={() => removeNewPhoto(i)}
+                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
                   <span style={{ color: '#e8c98a', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
                 </button>
               </div>
@@ -333,20 +545,15 @@ export default function TuningPartEditPage() {
 
       {/* ── Save bar ── */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
-        {saveErr && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: '#8b0000', marginBottom: 10 }}>{saveErr}</p>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={saving || !title.trim()}
+        {saveErr && <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: '#8b0000', marginBottom: 10 }}>{saveErr}</p>}
+        <button onClick={handleSave} disabled={saving || !title.trim()}
           style={{
             width: '100%', padding: '15px',
             background: title.trim() ? 'rgba(139,58,10,0.15)' : 'transparent',
             border: title.trim() ? `1.5px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.12)`,
             cursor: title.trim() && !saving ? 'pointer' : 'default',
             WebkitTapHighlightColor: 'transparent',
-          }}
-        >
+          }}>
           <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: title.trim() ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: title.trim() ? 1 : 0.3 }}>
             {saving ? 'Saving…' : 'Save'}
           </span>
