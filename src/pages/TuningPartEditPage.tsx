@@ -107,6 +107,7 @@ export default function TuningPartEditPage() {
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([])
   const [newPhotos,       setNewPhotos]       = useState<File[]>([])
   const [newPreviews,     setNewPreviews]     = useState<string[]>([])
+  const [photoInputKey,   setPhotoInputKey]   = useState(0)
 
   const [carId,   setCarId]   = useState<string | null>(null)
   const [userId,  setUserId]  = useState<string | null>(null)
@@ -287,7 +288,7 @@ export default function TuningPartEditPage() {
       reader.onload = ev => setNewPreviews(prev => [...prev, ev.target?.result as string])
       reader.readAsDataURL(f)
     })
-    e.target.value = ''
+    setPhotoInputKey(k => k + 1)
   }
 
   const removeNewPhoto = (i: number) => {
@@ -536,7 +537,7 @@ export default function TuningPartEditPage() {
             <label style={{ width: 80, height: 80, flexShrink: 0, border: `1.5px dashed rgba(26,16,8,0.25)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 2 }}>
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_INK2, opacity: 0.35, lineHeight: 1 }}>+</span>
               <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.3 }}>Photo</span>
-              <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
+              <input key={photoInputKey} type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
             </label>
           </div>
         </div>
