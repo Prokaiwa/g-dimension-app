@@ -10,6 +10,8 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
+type JobPhoto = { photo_url: string; display_order: number | null }
+
 type Part = {
   id: string
   title: string
@@ -21,6 +23,7 @@ type Part = {
   status: string
   sale_price: number | null
   sale_date: string | null
+  job_photos: JobPhoto[]
 }
 
 type Car = { year: number | null; make: string | null; model: string | null }
@@ -36,6 +39,11 @@ function formatDate(d: string | null) {
   const parts = d.split('-').map(Number)
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   return `${months[parts[1] - 1]} ${parts[0]}`
+}
+
+function firstPhoto(photos: JobPhoto[]): string | null {
+  if (!photos?.length) return null
+  return [...photos].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))[0].photo_url
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -64,7 +72,7 @@ export default function TuningPartsPage() {
       supabase.from('cars').select('year, make, model').eq('id', carId).single(),
       supabase
         .from('jobs')
-        .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date')
+        .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date, job_photos(photo_url, display_order)')
         .eq('car_id', carId)
         .eq('type', 'modification')
         .eq('still_owned', true)
@@ -72,7 +80,7 @@ export default function TuningPartsPage() {
         .order('date_removed', { ascending: false, nullsFirst: false }),
       supabase
         .from('jobs')
-        .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date')
+        .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date, job_photos(photo_url, display_order)')
         .eq('car_id', carId)
         .eq('type', 'modification')
         .in('status', ['sold', 'scrapped'])
@@ -202,7 +210,6 @@ export default function TuningPartsPage() {
                 <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.1 }} />
               </div>
             </button>
-
             {soldExpanded && (
               <div style={{ marginTop: 4 }}>
                 {soldScrapped.map((part, i) => (
@@ -284,26 +291,35 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
   part: Part; dateLabel: string | null; dateLine: string
   isLast: boolean; dimmed?: boolean; onClick: () => void
 }) {
-  const opacity = dimmed ? 0.45 : 1
+  const thumb = firstPhoto(part.job_photos)
   return (
     <button
       onClick={onClick}
       style={{
         width: '100%', background: 'none', border: 'none', padding: 0,
         cursor: 'pointer', WebkitTapHighlightColor: 'transparent', textAlign: 'left',
-        paddingTop: 16, paddingBottom: 16,
+        paddingTop: 14, paddingBottom: 14,
         borderBottom: isLast ? 'none' : `1px solid rgba(100,60,20,0.18)`,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-        opacity,
+        display: 'flex', alignItems: 'center', gap: 12,
+        opacity: dimmed ? 0.45 : 1,
       }}
     >
+      {/* Thumbnail */}
+      {thumb && (
+        <img
+          src={thumb} alt=""
+          style={{ width: 52, height: 52, objectFit: 'cover', flexShrink: 0, display: 'block' }}
+        />
+      )}
+
+      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_INK, margin: 0, lineHeight: 1.1 }}>
+        <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 20, color: COLOR_CARDBOARD_INK, margin: 0, lineHeight: 1.1 }}>
           {part.title}
         </p>
         <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
           {part.brand && (
-            <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.7 }}>
+            <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.7 }}>
               {part.brand}
             </span>
           )}
@@ -314,22 +330,23 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
           )}
         </div>
         {dateLabel && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.5, margin: '4px 0 0', textTransform: 'capitalize' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.5, margin: '3px 0 0', textTransform: 'capitalize' }}>
             {dateLine} {dateLabel}
           </p>
         )}
         {part.status === 'sold' && part.sale_price != null && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
             sold for ${part.sale_price.toLocaleString()}
           </p>
         )}
         {part.parts_cost != null && part.status !== 'sold' && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
             ${part.parts_cost.toLocaleString()}
           </p>
         )}
       </div>
-      <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 20, color: COLOR_CARDBOARD_STAMP, opacity: 0.4, flexShrink: 0, marginTop: 4, lineHeight: 1 }}>›</span>
+
+      <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 20, color: COLOR_CARDBOARD_STAMP, opacity: 0.4, flexShrink: 0, lineHeight: 1 }}>›</span>
     </button>
   )
 }

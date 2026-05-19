@@ -1,5 +1,5 @@
 // Route: /tuning/parts-bin/:partId — Part detail from Parts Bin
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -25,7 +25,8 @@ type Part = {
   sale_date: string | null
 }
 
-type Car = { year: number | null; make: string | null; model: string | null }
+type Photo = { id: string; photo_url: string; display_order: number | null }
+type Car   = { year: number | null; make: string | null; model: string | null }
 
 // ── Kraft paper grain ─────────────────────────────────────────────────────
 
@@ -56,16 +57,20 @@ export default function TuningPartDetailPage() {
   const { partId } = useParams<{ partId: string }>()
   const navigate   = useNavigate()
 
-  const [part,       setPart]       = useState<Part | null>(null)
-  const [car,        setCar]        = useState<Car | null>(null)
-  const [loading,    setLoading]    = useState(true)
-  const [actioning,  setActioning]  = useState(false)
+  const [part,        setPart]        = useState<Part | null>(null)
+  const [photos,      setPhotos]      = useState<Photo[]>([])
+  const [car,         setCar]         = useState<Car | null>(null)
+  const [loading,     setLoading]     = useState(true)
+  const [actioning,   setActioning]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [photoIndex,  setPhotoIndex]  = useState(0)
 
   // Sell/Scrap sub-flow
   const [sellScrapOpen, setSellScrapOpen] = useState(false)
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
+
+  const touchStartX = useRef<number>(0)
 
   const now        = new Date()
   const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -76,18 +81,24 @@ export default function TuningPartDetailPage() {
     if (!partId) return
     async function load() {
       const carId = await getActiveCarId()
-      const [{ data: partData }, { data: carData }] = await Promise.all([
+      const [{ data: partData }, { data: photoData }, { data: carData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('id, title, brand, category, date_removed, date_installed, parts_cost, notes, status, still_owned, sale_price, sale_date')
           .eq('id', partId)
           .single(),
+        supabase
+          .from('job_photos')
+          .select('id, photo_url, display_order')
+          .eq('job_id', partId)
+          .order('display_order', { ascending: true }),
         carId
           ? supabase.from('cars').select('year, make, model').eq('id', carId).single()
           : Promise.resolve({ data: null }),
       ])
       if (partData) setPart(partData as unknown as Part)
-      if (carData)  setCar(carData as Car)
+      setPhotos((photoData ?? []) as Photo[])
+      if (carData) setCar(carData as Car)
       setLoading(false)
     }
     load()
@@ -129,6 +140,13 @@ export default function TuningPartDetailPage() {
     setDisposeType(null)
     setSalePrice('')
     setActionError(null)
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
+  const onTouchEnd   = (e: React.TouchEvent) => {
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (diff > 40)       setPhotoIndex(i => Math.min(i + 1, photos.length - 1))
+    else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
   }
 
   if (loading) {
@@ -191,8 +209,54 @@ export default function TuningPartDetailPage() {
           </div>
         </div>
 
+        {/* ── Photo carousel ── */}
+        {photos.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            {/* Slider */}
+            <div
+              style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y' }}
+              onTouchStart={onTouchStart}
+              onTouchEnd={onTouchEnd}
+            >
+              <div style={{
+                display: 'flex', height: '100%',
+                transform: `translateX(-${photoIndex * 100}%)`,
+                transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
+              }}>
+                {photos.map(photo => (
+                  <img
+                    key={photo.id}
+                    src={photo.photo_url}
+                    alt=""
+                    style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Dots */}
+            {photos.length > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, paddingTop: 10 }}>
+                {photos.map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: i === photoIndex ? 18 : 6,
+                      height: 6,
+                      borderRadius: 3,
+                      background: COLOR_CARDBOARD_STAMP,
+                      opacity: i === photoIndex ? 0.7 : 0.2,
+                      transition: 'width 200ms ease, opacity 200ms ease',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Title block ── */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid rgba(26,16,8,0.12)` }}>
+        <div style={{ padding: `${photos.length > 0 ? 20 : 24}px 20px 20px`, borderBottom: `1px solid rgba(26,16,8,0.12)` }}>
           <p style={{ fontFamily: FONT_STAMP, fontSize: 28, color: COLOR_CARDBOARD_INK, opacity: 0.88, margin: 0, lineHeight: 1.1 }}>
             {part.title}
           </p>
@@ -207,7 +271,6 @@ export default function TuningPartDetailPage() {
                 {part.category}
               </span>
             )}
-            {/* Status badge for sold/scrapped */}
             {!active && (
               <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, border: `1px solid rgba(61,40,16,0.3)`, padding: '2px 6px', opacity: 0.55 }}>
                 {part.status}
@@ -267,30 +330,16 @@ export default function TuningPartDetailPage() {
         {active ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={handleInstall}
-              disabled={actioning}
-              style={{
-                flex: 1, padding: '15px',
-                background: 'rgba(139,58,10,0.15)',
-                border: `1.5px solid ${COLOR_CARDBOARD_STAMP}`,
-                cursor: actioning ? 'default' : 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
+              onClick={handleInstall} disabled={actioning}
+              style={{ flex: 1, padding: '15px', background: 'rgba(139,58,10,0.15)', border: `1.5px solid ${COLOR_CARDBOARD_STAMP}`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
             >
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP }}>
                 {actioning ? 'Installing…' : 'Install →'}
               </span>
             </button>
             <button
-              onClick={() => setSellScrapOpen(true)}
-              disabled={actioning}
-              style={{
-                flex: 1, padding: '15px',
-                background: 'transparent',
-                border: `1px solid rgba(26,16,8,0.25)`,
-                cursor: actioning ? 'default' : 'pointer',
-                WebkitTapHighlightColor: 'transparent',
-              }}
+              onClick={() => setSellScrapOpen(true)} disabled={actioning}
+              style={{ flex: 1, padding: '15px', background: 'transparent', border: `1px solid rgba(26,16,8,0.25)`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
             >
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>
                 Sell / Scrap
@@ -299,15 +348,8 @@ export default function TuningPartDetailPage() {
           </div>
         ) : (
           <button
-            onClick={handleMoveBack}
-            disabled={actioning}
-            style={{
-              width: '100%', padding: '15px',
-              background: 'rgba(139,58,10,0.1)',
-              border: `1px solid rgba(139,58,10,0.35)`,
-              cursor: actioning ? 'default' : 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+            onClick={handleMoveBack} disabled={actioning}
+            style={{ width: '100%', padding: '15px', background: 'rgba(139,58,10,0.1)', border: `1px solid rgba(139,58,10,0.35)`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
           >
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP, opacity: 0.8 }}>
               {actioning ? 'Moving…' : '← Move Back to Storage'}
@@ -335,18 +377,11 @@ export default function TuningPartDetailPage() {
               Both stay in your history.
             </p>
 
-            {/* Sold / Scrapped toggle */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
               {(['sold', 'scrapped'] as const).map(type => (
                 <button
-                  key={type}
-                  onClick={() => setDisposeType(type)}
-                  style={{
-                    flex: 1, padding: '14px 10px',
-                    background: disposeType === type ? 'rgba(139,58,10,0.2)' : 'transparent',
-                    border: disposeType === type ? `2px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.2)`,
-                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                  }}
+                  key={type} onClick={() => setDisposeType(type)}
+                  style={{ flex: 1, padding: '14px 10px', background: disposeType === type ? 'rgba(139,58,10,0.2)' : 'transparent', border: disposeType === type ? `2px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.2)`, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
                 >
                   <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: disposeType === type ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: disposeType === type ? 1 : 0.45, display: 'block', textTransform: 'capitalize' }}>
                     {type}
@@ -355,7 +390,6 @@ export default function TuningPartDetailPage() {
               ))}
             </div>
 
-            {/* Price input */}
             {disposeType === 'sold' && (
               <div style={{ marginBottom: 16 }}>
                 <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
@@ -364,11 +398,8 @@ export default function TuningPartDetailPage() {
                 <div style={{ display: 'flex', alignItems: 'center', border: `1px solid rgba(26,16,8,0.25)`, background: 'rgba(26,16,8,0.04)' }}>
                   <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, padding: '12px 8px 12px 14px', opacity: 0.7 }}>$</span>
                   <input
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={salePrice}
-                    onChange={e => setSalePrice(e.target.value)}
+                    type="number" inputMode="decimal" placeholder="0.00"
+                    value={salePrice} onChange={e => setSalePrice(e.target.value)}
                     style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, padding: '12px 14px 12px 0' }}
                   />
                 </div>
@@ -380,15 +411,8 @@ export default function TuningPartDetailPage() {
             )}
 
             <button
-              onClick={handleSellScrap}
-              disabled={!disposeType || actioning}
-              style={{
-                width: '100%', padding: '15px',
-                background: disposeType ? 'rgba(139,58,10,0.15)' : 'transparent',
-                border: disposeType ? `1.5px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.12)`,
-                cursor: disposeType ? 'pointer' : 'default',
-                WebkitTapHighlightColor: 'transparent', marginBottom: 10,
-              }}
+              onClick={handleSellScrap} disabled={!disposeType || actioning}
+              style={{ width: '100%', padding: '15px', background: disposeType ? 'rgba(139,58,10,0.15)' : 'transparent', border: disposeType ? `1.5px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.12)`, cursor: disposeType ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', marginBottom: 10 }}
             >
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: disposeType ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: disposeType ? 1 : 0.3 }}>
                 {actioning ? 'Saving…' : 'Confirm'}
