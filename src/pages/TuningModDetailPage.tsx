@@ -22,6 +22,8 @@ type Job = {
 
 type Photo = { id: string; photo_url: string; display_order: number | null }
 
+type SpecRow = { label: string; value: string; unit: string | null; inputType: string; group: string | null; order: number }
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const CATEGORY_TO_GROUP: Record<string, string> = {
@@ -68,6 +70,7 @@ export default function TuningModDetailPage() {
   const [job,          setJob]          = useState<Job | null>(null)
   const [partTypeName, setPartTypeName] = useState<string | null>(null)
   const [photos,       setPhotos]       = useState<Photo[]>([])
+  const [specRows,     setSpecRows]     = useState<SpecRow[]>([])
   const [loading,      setLoading]      = useState(true)
   const [setSuccess,   setSetSuccess]   = useState<string | null>(null)
   const [editPressed,   setEditPressed]   = useState(false)
@@ -81,7 +84,7 @@ export default function TuningModDetailPage() {
   useEffect(() => {
     if (!modId) return
     async function load() {
-      const [{ data: jobData }, { data: photoData }] = await Promise.all([
+      const [{ data: jobData }, { data: photoData }, { data: specsData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('id, title, brand, category, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
@@ -92,16 +95,27 @@ export default function TuningModDetailPage() {
           .select('id, photo_url, display_order')
           .eq('job_id', modId)
           .order('display_order', { ascending: true }),
+        supabase
+          .from('job_specs')
+          .select('spec_key, spec_value, spec_unit')
+          .eq('job_id', modId),
       ])
       if (jobData) {
         setJob(jobData as unknown as Job)
         if ((jobData as unknown as Job).part_type_id) {
-          const { data: ptData } = await supabase
-            .from('part_types')
-            .select('name')
-            .eq('id', (jobData as unknown as Job).part_type_id)
-            .single()
+          const [{ data: ptData }, { data: templates }] = await Promise.all([
+            supabase.from('part_types').select('name').eq('id', (jobData as unknown as Job).part_type_id).single(),
+            supabase.from('spec_templates').select('spec_key, spec_label, input_type, unit, group_label, display_order').eq('part_type_id', (jobData as unknown as Job).part_type_id).order('display_order'),
+          ])
           if (ptData) setPartTypeName((ptData as { name: string }).name)
+          const specsMap = Object.fromEntries((specsData ?? []).map((s: { spec_key: string; spec_value: string; spec_unit: string | null }) => [s.spec_key, s]))
+          const rows: SpecRow[] = []
+          for (const t of (templates ?? []) as { spec_key: string; spec_label: string; input_type: string; unit: string | null; group_label: string | null; display_order: number }[]) {
+            const s = specsMap[t.spec_key]
+            if (!s?.spec_value) continue
+            rows.push({ label: t.spec_label, value: s.spec_value, unit: s.spec_unit ?? t.unit, inputType: t.input_type, group: t.group_label, order: t.display_order })
+          }
+          setSpecRows(rows)
         }
       }
       setPhotos((photoData ?? []) as Photo[])
@@ -295,6 +309,39 @@ export default function TuningModDetailPage() {
             <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 14, color: 'rgba(245,240,228,0.65)', lineHeight: 1.6, marginTop: 6 }}>
               {job.notes}
             </p>
+          </div>
+        )}
+
+        {/* Specs */}
+        {specRows.length > 0 && (
+          <div style={{ padding: '20px 20px 0' }}>
+            {(() => {
+              const groups: Record<string, SpecRow[]> = {}
+              for (const r of specRows) {
+                const g = r.group ?? 'Specs'
+                ;(groups[g] ??= []).push(r)
+              }
+              return Object.entries(groups).map(([groupName, rows]) => (
+                <div key={groupName} style={{ marginBottom: 20 }}>
+                  <p style={{ ...LABEL, marginBottom: 10 }}>{groupName}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 16px' }}>
+                    {rows.map(r => {
+                      let display = r.value
+                      if (r.inputType === 'boolean') display = r.value === 'true' ? 'Yes' : 'No'
+                      else if (r.inputType === 'multiselect') {
+                        try { display = (JSON.parse(r.value) as string[]).join(' · ') } catch { /* keep raw */ }
+                      }
+                      return (
+                        <div key={r.label}>
+                          <p style={LABEL}>{r.label}</p>
+                          <p style={VALUE}>{display}{r.unit && r.inputType !== 'boolean' && r.inputType !== 'multiselect' ? ` ${r.unit}` : ''}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            })()}
           </div>
         )}
 

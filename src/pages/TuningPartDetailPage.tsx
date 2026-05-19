@@ -23,7 +23,10 @@ type Part = {
   still_owned: boolean
   sale_price: number | null
   sale_date: string | null
+  part_type_id: number | null
 }
+
+type SpecRow = { label: string; value: string; unit: string | null; inputType: string; group: string | null; order: number }
 
 type Photo = { id: string; photo_url: string; display_order: number | null }
 type Car   = { year: number | null; make: string | null; model: string | null }
@@ -60,6 +63,7 @@ export default function TuningPartDetailPage() {
   const [part,        setPart]        = useState<Part | null>(null)
   const [photos,      setPhotos]      = useState<Photo[]>([])
   const [car,         setCar]         = useState<Car | null>(null)
+  const [specRows,    setSpecRows]    = useState<SpecRow[]>([])
   const [loading,     setLoading]     = useState(true)
   const [actioning,   setActioning]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -81,10 +85,10 @@ export default function TuningPartDetailPage() {
     if (!partId) return
     async function load() {
       const carId = await getActiveCarId()
-      const [{ data: partData }, { data: photoData }, { data: carData }] = await Promise.all([
+      const [{ data: partData }, { data: photoData }, { data: carData }, { data: specsData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('id, title, brand, category, date_removed, date_installed, parts_cost, notes, status, still_owned, sale_price, sale_date')
+          .select('id, title, brand, category, date_removed, date_installed, parts_cost, notes, status, still_owned, sale_price, sale_date, part_type_id')
           .eq('id', partId)
           .single(),
         supabase
@@ -95,8 +99,30 @@ export default function TuningPartDetailPage() {
         carId
           ? supabase.from('cars').select('year, make, model').eq('id', carId).single()
           : Promise.resolve({ data: null }),
+        supabase
+          .from('job_specs')
+          .select('spec_key, spec_value, spec_unit')
+          .eq('job_id', partId),
       ])
-      if (partData) setPart(partData as unknown as Part)
+      if (partData) {
+        setPart(partData as unknown as Part)
+        const ptId = (partData as unknown as Part).part_type_id
+        if (ptId) {
+          const { data: templates } = await supabase
+            .from('spec_templates')
+            .select('spec_key, spec_label, input_type, unit, group_label, display_order')
+            .eq('part_type_id', ptId)
+            .order('display_order')
+          const specsMap = Object.fromEntries((specsData ?? []).map((s: { spec_key: string; spec_value: string; spec_unit: string | null }) => [s.spec_key, s]))
+          const rows: SpecRow[] = []
+          for (const t of (templates ?? []) as { spec_key: string; spec_label: string; input_type: string; unit: string | null; group_label: string | null; display_order: number }[]) {
+            const s = specsMap[t.spec_key]
+            if (!s?.spec_value) continue
+            rows.push({ label: t.spec_label, value: s.spec_value, unit: s.spec_unit ?? t.unit, inputType: t.input_type, group: t.group_label, order: t.display_order })
+          }
+          setSpecRows(rows)
+        }
+      }
       setPhotos((photoData ?? []) as Photo[])
       if (carData) setCar(carData as Car)
       setLoading(false)
@@ -320,6 +346,41 @@ export default function TuningPartDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Specs */}
+        {specRows.length > 0 && (
+          <div style={{ padding: '20px 20px 0' }}>
+            {(() => {
+              const groups: Record<string, SpecRow[]> = {}
+              for (const r of specRows) {
+                const g = r.group ?? 'Specs'
+                ;(groups[g] ??= []).push(r)
+              }
+              return Object.entries(groups).map(([groupName, rows]) => (
+                <div key={groupName} style={{ marginBottom: 20 }}>
+                  <p style={{ ...LABEL, marginBottom: 10 }}>{groupName}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 16px' }}>
+                    {rows.map(r => {
+                      let display = r.value
+                      if (r.inputType === 'boolean') display = r.value === 'true' ? 'Yes' : 'No'
+                      else if (r.inputType === 'multiselect') {
+                        try { display = (JSON.parse(r.value) as string[]).join(' · ') } catch { /* keep raw */ }
+                      }
+                      return (
+                        <div key={r.label}>
+                          <p style={LABEL}>{r.label}</p>
+                          <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 16, color: COLOR_CARDBOARD_INK, opacity: 0.82, marginTop: 3 }}>
+                            {display}{r.unit && r.inputType !== 'boolean' && r.inputType !== 'multiselect' ? ` ${r.unit}` : ''}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+        )}
 
         {/* Notes */}
         {part.notes && (
