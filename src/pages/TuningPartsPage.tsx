@@ -167,28 +167,28 @@ export default function TuningPartsPage() {
           </div>
         )}
 
-        {/* In Storage */}
-        {pulled.length > 0 && (
-          <Section label="In storage" style={{ marginTop: 28 }}>
-            {pulled.map((part, i) => (
+        {/* On Hand */}
+        {onHand.length > 0 && (
+          <Section label="On hand" style={{ marginTop: 28 }}>
+            {onHand.map((part, i) => (
               <PartRow
                 key={part.id} part={part}
-                dateLabel={formatDate(part.date_removed)} dateLine="pulled"
-                isLast={i === pulled.length - 1}
+                dateLabel={formatDate(part.date_installed)} dateLine="acquired"
+                isLast={i === onHand.length - 1}
                 onClick={() => navigate(`/tuning/parts-bin/${part.id}`)}
               />
             ))}
           </Section>
         )}
 
-        {/* On Hand */}
-        {onHand.length > 0 && (
-          <Section label="On hand" style={{ marginTop: pulled.length > 0 ? 32 : 28 }}>
-            {onHand.map((part, i) => (
+        {/* In Storage */}
+        {pulled.length > 0 && (
+          <Section label="In storage" style={{ marginTop: onHand.length > 0 ? 32 : 28 }}>
+            {pulled.map((part, i) => (
               <PartRow
                 key={part.id} part={part}
-                dateLabel={formatDate(part.date_installed)} dateLine="acquired"
-                isLast={i === onHand.length - 1}
+                dateLabel={formatDate(part.date_removed)} dateLine="pulled"
+                isLast={i === pulled.length - 1}
                 onClick={() => navigate(`/tuning/parts-bin/${part.id}`)}
               />
             ))}
