@@ -1,67 +1,57 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-16T10:29:34.013Z",
+  "timestamp": "2026-05-19T13:32:23.634Z",
   "phase": null,
-  "phase_name": "g-dimension — parts bin + remove-mod fix",
+  "phase_name": "parts-bin polish — detail, edit, spec display",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": null,
   "task": null,
   "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "hotfixes.sql — job_specs grant already present; added DML grants for jobs, cars, sessions, job_photos, car_reminders", "status": "done", "commit": "fc3464e"},
-    {"id": 2, "name": "TuningPartsAddPage — removed user_id (column doesn't exist on jobs) and dead date-acquired field", "status": "done", "commit": "e43b650"},
-    {"id": 3, "name": "TuningModDetailPage — handleRemove now captures and displays Supabase error instead of silent navigate-away on failure", "status": "done", "commit": "fc3464e"},
-    {"id": 4, "name": "TuningAddPage — ?dest=parts-bin mode: status=purchased, hides date_installed/installed_by, button says Add to Parts Bin, navigates to /tuning/parts-bin", "status": "done", "commit": "970fde4"},
-    {"id": 5, "name": "TuningPartsPage — FAB now routes to /tuning/add?dest=parts-bin (full 3-step flow)", "status": "done", "commit": "970fde4"},
-    {"id": 6, "name": "App.tsx + TuningPartsAddPage.tsx — removed dead route and deleted stripped-down add page", "status": "done", "commit": "970fde4"}
+    {"id": 1, "name": "Parts Bin thumbnails 60px, category only (brand removed from rows)", "status": "done", "commit": "4803318"},
+    {"id": 2, "name": "On Hand section above In Storage", "status": "done", "commit": "dec7f17"},
+    {"id": 3, "name": "Part detail edit page (TuningPartEditPage) at /tuning/parts-bin/:partId/edit", "status": "done", "commit": "a3e2e65"},
+    {"id": 4, "name": "Spec data display in both mod detail and part detail pages (job_specs + spec_templates)", "status": "done", "commit": "279b04c"},
+    {"id": 5, "name": "Parts bin edit: full spec fields (kraft aesthetic), darker placeholder, kraft toggles/checkboxes", "status": "done", "commit": "16e16e4"},
+    {"id": 6, "name": "Parts bin edit: fix photo picker only allowing 1 photo (remount via key, not value clear)", "status": "done", "commit": "5666c41"}
   ],
   "remaining_tasks": [
     {
       "id": 7,
-      "name": "Run 5 grant statements in Supabase SQL editor — BLOCKED on human action",
+      "name": "Test multiple photo fix on parts bin edit page",
       "status": "not_started",
-      "notes": "Grants are in supabase/hotfixes.sql under '-- Fix missing DML grants on core user tables (2026-05-16)'. Must be run BEFORE testing remove-mod flow."
+      "notes": "User hasn't tested yet — confirm photo picker reopens after first selection on device."
     },
     {
       "id": 8,
       "name": "Test remove-mod → parts bin flow on gdimension.app",
       "status": "not_started",
-      "notes": "Tap a mod on build sheet → mod detail → REMOVE → Move to Storage. Should succeed after grants are applied. Error message now surfaces in bottom sheet if it still fails."
+      "notes": "Tap mod on build sheet → mod detail → REMOVE → Move to Storage. DML grants applied, should succeed."
     },
     {
       "id": 9,
       "name": "Test Add Part via FAB on parts bin page",
       "status": "not_started",
-      "notes": "Should now show full 3-step flow (category → part type → form). Submit says Add to Parts Bin. No date installed / installed by fields shown."
+      "notes": "Full 3-step kraft flow. Part should appear in On Hand section."
     },
     {
       "id": 10,
-      "name": "Test Put Back flow — tap Put Back on a parts bin item, verify it moves to build sheet",
-      "status": "not_started"
-    },
-    {
-      "id": 11,
-      "name": "Review TuningAddPage still_owned — purchased parts added via ?dest=parts-bin should have still_owned=true",
+      "name": "Test Put Back flow — tap Put Back on a parts bin item",
       "status": "not_started",
-      "notes": "Currently TuningAddPage does not set still_owned. Parts bin query filters on still_owned=true so purchased parts added via this flow won't appear in the parts bin list. Need to set still_owned:true when partsBinMode."
+      "notes": "Should move part back to build sheet."
     }
   ],
   "blockers": [],
-  "human_actions_pending": [
-    {
-      "action": "Run the 5 grant statements from supabase/hotfixes.sql in the Supabase SQL editor",
-      "context": "Grants are under '-- Fix missing DML grants on core user tables (2026-05-16)'. Without these, PATCH/DELETE on jobs/cars/sessions will return 400. This is the root cause of the remove-mod error.",
-      "blocking": true
-    }
-  ],
+  "human_actions_pending": [],
   "decisions": [
-    {"decision": "Parts bin add routes through TuningAddPage with ?dest=parts-bin param instead of maintaining a separate page", "rationale": "Single source of truth for the add-mod form. Parts bin entries have full parity with build sheet entries — same fields, same spec templates, same photo upload.", "phase": "parts-bin"},
-    {"decision": "Date Installed and Installed By hidden in parts-bin mode", "rationale": "A purchased-but-not-installed part has no install date or installer — those are set when the part actually goes on the car.", "phase": "parts-bin"},
-    {"decision": "Remove-mod error now shown in bottom sheet instead of silent failure", "rationale": "handleRemove was navigating away even on 400 errors, hiding the root cause from the user.", "phase": "remove-mod-fix"},
-    {"decision": "Core table grants (jobs, cars, sessions, job_photos, car_reminders) added to hotfixes.sql", "rationale": "Same root cause as earlier job_specs grant — tables missing UPDATE/DELETE grants for authenticated role. SELECT/INSERT worked via Supabase default setup.", "phase": "remove-mod-fix"}
+    {"decision": "On Hand listed above In Storage", "rationale": "On Hand parts are actionable (ready to install); In Storage is archived history. Inbox before shelf."},
+    {"decision": "Brand removed from part list rows — category badge only", "rationale": "Cleaner row; brand visible on detail page"},
+    {"decision": "Part edit uses separate page /tuning/parts-bin/:partId/edit, not inline editing", "rationale": "Consistent with mod detail → mod edit pattern"},
+    {"decision": "Spec display grouped by group_label, 2-col grid in detail pages", "rationale": "Matches density of info without overwhelming the page"},
+    {"decision": "Photo input remounts via key increment instead of value clear", "rationale": "e.target.value = '' prevents iOS file picker from reopening on subsequent taps"}
   ],
   "uncommitted_files": [],
-  "next_action": "Have user run the 5 grant statements in Supabase SQL editor (from hotfixes.sql), then test the remove-mod flow on gdimension.app. Also fix still_owned=true not being set when adding via ?dest=parts-bin.",
-  "context_notes": "All code is pushed and Vercel has deployed. The remove-mod 400 is almost certainly a missing UPDATE grant on jobs — the hotfix SQL is written and ready but must be run manually in the Supabase dashboard. One bug spotted but not yet fixed: TuningAddPage does not set still_owned=true in partsBinMode, so parts added via the FAB won't appear in the parts bin list (which queries still_owned=true). This is a one-line fix in TuningAddPage handleSubmit."
+  "next_action": "Test the multiple-photo fix on device. Then run the 3 manual QA flows: remove-mod, add part via FAB, put back.",
+  "context_notes": "Parts bin is now fully featured: list with thumbnails, detail page with full spec display, edit page with full spec editing in kraft aesthetic. All 6 sessions worth of work is pushed to Vercel. The only remaining work is manual QA on gdimension.app."
 }
