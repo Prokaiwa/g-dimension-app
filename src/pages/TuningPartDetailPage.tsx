@@ -1,0 +1,406 @@
+// Route: /tuning/parts-bin/:partId — Part detail from Parts Bin
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { getActiveCarId } from '../lib/activeCar'
+import {
+  FONT_HANDWRITTEN, FONT_STAMP, FONT_UI,
+  COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
+} from '../tokens'
+
+// ── Types ─────────────────────────────────────────────────────────────────
+
+type Part = {
+  id: string
+  title: string
+  brand: string | null
+  category: string | null
+  date_removed: string | null
+  date_installed: string | null
+  parts_cost: number | null
+  notes: string | null
+  status: string
+  still_owned: boolean
+  sale_price: number | null
+  sale_date: string | null
+}
+
+type Car = { year: number | null; make: string | null; model: string | null }
+
+// ── Kraft paper grain ─────────────────────────────────────────────────────
+
+const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+const LABEL: React.CSSProperties = {
+  fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 11,
+  letterSpacing: '0.1em', textTransform: 'uppercase',
+  color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: 0,
+}
+
+function formatDate(d: string | null) {
+  if (!d) return null
+  const parts = d.split('-').map(Number)
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${months[parts[1] - 1]} ${parts[0]}`
+}
+
+const isActive = (status: string) => status === 'removed' || status === 'purchased'
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+import React from 'react'
+
+export default function TuningPartDetailPage() {
+  const { partId } = useParams<{ partId: string }>()
+  const navigate   = useNavigate()
+
+  const [part,       setPart]       = useState<Part | null>(null)
+  const [car,        setCar]        = useState<Car | null>(null)
+  const [loading,    setLoading]    = useState(true)
+  const [actioning,  setActioning]  = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  // Sell/Scrap sub-flow
+  const [sellScrapOpen, setSellScrapOpen] = useState(false)
+  const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
+  const [salePrice,     setSalePrice]     = useState('')
+
+  const now        = new Date()
+  const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const todayMonth = MONTHS[now.getMonth()]
+  const todayDay   = now.getDate()
+
+  useEffect(() => {
+    if (!partId) return
+    async function load() {
+      const carId = await getActiveCarId()
+      const [{ data: partData }, { data: carData }] = await Promise.all([
+        supabase
+          .from('jobs')
+          .select('id, title, brand, category, date_removed, date_installed, parts_cost, notes, status, still_owned, sale_price, sale_date')
+          .eq('id', partId)
+          .single(),
+        carId
+          ? supabase.from('cars').select('year, make, model').eq('id', carId).single()
+          : Promise.resolve({ data: null }),
+      ])
+      if (partData) setPart(partData as unknown as Part)
+      if (carData)  setCar(carData as Car)
+      setLoading(false)
+    }
+    load()
+  }, [partId])
+
+  const handleInstall = async () => {
+    if (!partId) return
+    setActioning(true)
+    await supabase.from('jobs').update({ status: 'installed', date_removed: null }).eq('id', partId)
+    navigate('/tuning/build-sheet')
+  }
+
+  const handleSellScrap = async () => {
+    if (!partId || !disposeType) return
+    setActioning(true)
+    setActionError(null)
+    const today = new Date().toISOString().split('T')[0]
+    const updates: Record<string, unknown> = { status: disposeType, still_owned: false }
+    if (disposeType === 'sold' && salePrice.trim()) {
+      const parsed = parseFloat(salePrice.replace(/[^0-9.]/g, ''))
+      if (!isNaN(parsed)) { updates.sale_price = parsed; updates.sale_date = today }
+    }
+    const { error } = await supabase.from('jobs').update(updates).eq('id', partId)
+    if (error) { setActioning(false); setActionError(error.message); return }
+    navigate('/tuning/parts-bin')
+  }
+
+  const handleMoveBack = async () => {
+    if (!partId) return
+    setActioning(true)
+    await supabase.from('jobs').update({
+      status: 'removed', still_owned: true, sale_price: null, sale_date: null,
+    }).eq('id', partId)
+    navigate('/tuning/parts-bin')
+  }
+
+  const closeSellScrap = () => {
+    setSellScrapOpen(false)
+    setDisposeType(null)
+    setSalePrice('')
+    setActionError(null)
+  }
+
+  if (loading) {
+    return (
+      <div style={{ height: '100dvh', background: COLOR_CARDBOARD_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 18, color: COLOR_CARDBOARD_INK2, opacity: 0.6 }}>loading...</p>
+      </div>
+    )
+  }
+
+  if (!part) {
+    return (
+      <div style={{ height: '100dvh', background: COLOR_CARDBOARD_BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 18, color: COLOR_CARDBOARD_INK2, opacity: 0.5 }}>Part not found</p>
+        <button onClick={() => navigate('/tuning/parts-bin')} style={{ background: 'none', border: `1px solid ${COLOR_CARDBOARD_STAMP}`, padding: '10px 24px', cursor: 'pointer', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15, color: COLOR_CARDBOARD_STAMP }}>
+          ← Parts
+        </button>
+      </div>
+    )
+  }
+
+  const active = isActive(part.status)
+
+  return (
+    <div style={{
+      minHeight: '100dvh',
+      background: COLOR_CARDBOARD_BG,
+      backgroundImage: [
+        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
+        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
+      ].join(', '),
+      position: 'relative',
+    }}>
+
+      {/* Kraft paper grain */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.09, mixBlendMode: 'multiply' }} />
+
+      <div style={{ position: 'relative', zIndex: 2, paddingBottom: 120 }}>
+
+        {/* ── Top bar ── */}
+        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button
+            onClick={() => navigate('/tuning/parts-bin')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent' }}
+          >
+            <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
+            <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>Parts</span>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {car && (
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
+                {[car.year, car.model].filter(Boolean).join(' ')}
+              </span>
+            )}
+            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px', flexShrink: 0 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: 'rgba(26,16,8,0.55)' }}>
+                {todayMonth} {todayDay}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Title block ── */}
+        <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid rgba(26,16,8,0.12)` }}>
+          <p style={{ fontFamily: FONT_STAMP, fontSize: 28, color: COLOR_CARDBOARD_INK, opacity: 0.88, margin: 0, lineHeight: 1.1 }}>
+            {part.title}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {part.brand && (
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.7 }}>
+                {part.brand}
+              </span>
+            )}
+            {part.category && (
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_CARDBOARD_STAMP, border: `1px solid ${COLOR_CARDBOARD_STAMP}`, padding: '2px 6px', opacity: 0.65 }}>
+                {part.category}
+              </span>
+            )}
+            {/* Status badge for sold/scrapped */}
+            {!active && (
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, border: `1px solid rgba(61,40,16,0.3)`, padding: '2px 6px', opacity: 0.55 }}>
+                {part.status}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── Info grid ── */}
+        <div style={{ padding: '20px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 16px' }}>
+          {part.date_removed && (
+            <div>
+              <p style={LABEL}>Pulled</p>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.82, marginTop: 4 }}>{formatDate(part.date_removed)}</p>
+            </div>
+          )}
+          {part.date_installed && (
+            <div>
+              <p style={LABEL}>Installed</p>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.82, marginTop: 4 }}>{formatDate(part.date_installed)}</p>
+            </div>
+          )}
+          {part.parts_cost != null && (
+            <div>
+              <p style={LABEL}>Paid</p>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.82, marginTop: 4 }}>${part.parts_cost.toLocaleString()}</p>
+            </div>
+          )}
+          {part.status === 'sold' && part.sale_price != null && (
+            <div>
+              <p style={LABEL}>Sold For</p>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, opacity: 0.9, marginTop: 4 }}>${part.sale_price.toLocaleString()}</p>
+            </div>
+          )}
+          {part.sale_date && (
+            <div>
+              <p style={LABEL}>{part.status === 'sold' ? 'Sold' : 'Scrapped'}</p>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.82, marginTop: 4 }}>{formatDate(part.sale_date)}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Notes */}
+        {part.notes && (
+          <div style={{ padding: '20px 20px 0' }}>
+            <p style={LABEL}>Notes</p>
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.75, lineHeight: 1.55, marginTop: 6 }}>
+              {part.notes}
+            </p>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Actions ── */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
+        {active ? (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={handleInstall}
+              disabled={actioning}
+              style={{
+                flex: 1, padding: '15px',
+                background: 'rgba(139,58,10,0.15)',
+                border: `1.5px solid ${COLOR_CARDBOARD_STAMP}`,
+                cursor: actioning ? 'default' : 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP }}>
+                {actioning ? 'Installing…' : 'Install →'}
+              </span>
+            </button>
+            <button
+              onClick={() => setSellScrapOpen(true)}
+              disabled={actioning}
+              style={{
+                flex: 1, padding: '15px',
+                background: 'transparent',
+                border: `1px solid rgba(26,16,8,0.25)`,
+                cursor: actioning ? 'default' : 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>
+                Sell / Scrap
+              </span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleMoveBack}
+            disabled={actioning}
+            style={{
+              width: '100%', padding: '15px',
+              background: 'rgba(139,58,10,0.1)',
+              border: `1px solid rgba(139,58,10,0.35)`,
+              cursor: actioning ? 'default' : 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP, opacity: 0.8 }}>
+              {actioning ? 'Moving…' : '← Move Back to Storage'}
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* ── Sell / Scrap bottom sheet ── */}
+      {sellScrapOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+          <div onClick={closeSellScrap} style={{ position: 'absolute', inset: 0, background: 'rgba(26,16,8,0.55)' }} />
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#e8c98a',
+            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
+            borderTop: `2px solid rgba(26,16,8,0.15)`,
+            borderRadius: '12px 12px 0 0',
+            padding: '24px 20px 48px',
+          }}>
+            <p style={{ fontFamily: FONT_STAMP, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.8, marginBottom: 6 }}>
+              What happened to it?
+            </p>
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.55, marginBottom: 20 }}>
+              Both stay in your history.
+            </p>
+
+            {/* Sold / Scrapped toggle */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              {(['sold', 'scrapped'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setDisposeType(type)}
+                  style={{
+                    flex: 1, padding: '14px 10px',
+                    background: disposeType === type ? 'rgba(139,58,10,0.2)' : 'transparent',
+                    border: disposeType === type ? `2px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.2)`,
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: disposeType === type ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: disposeType === type ? 1 : 0.45, display: 'block', textTransform: 'capitalize' }}>
+                    {type}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Price input */}
+            {disposeType === 'sold' && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
+                  Sale Price (optional)
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', border: `1px solid rgba(26,16,8,0.25)`, background: 'rgba(26,16,8,0.04)' }}>
+                  <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, padding: '12px 8px 12px 14px', opacity: 0.7 }}>$</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={salePrice}
+                    onChange={e => setSalePrice(e.target.value)}
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, padding: '12px 14px 12px 0' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {actionError && (
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: '#8b0000', marginBottom: 12 }}>{actionError}</p>
+            )}
+
+            <button
+              onClick={handleSellScrap}
+              disabled={!disposeType || actioning}
+              style={{
+                width: '100%', padding: '15px',
+                background: disposeType ? 'rgba(139,58,10,0.15)' : 'transparent',
+                border: disposeType ? `1.5px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.12)`,
+                cursor: disposeType ? 'pointer' : 'default',
+                WebkitTapHighlightColor: 'transparent', marginBottom: 10,
+              }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: disposeType ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: disposeType ? 1 : 0.3 }}>
+                {actioning ? 'Saving…' : 'Confirm'}
+              </span>
+            </button>
+            <button onClick={closeSellScrap} style={{ width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.4 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}

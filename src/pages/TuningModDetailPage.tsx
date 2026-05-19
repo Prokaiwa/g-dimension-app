@@ -74,6 +74,9 @@ export default function TuningModDetailPage() {
   const [removeSheet,   setRemoveSheet]   = useState(false)
   const [removing,      setRemoving]      = useState(false)
   const [removeError,   setRemoveError]   = useState<string | null>(null)
+  const [sellScrapStep, setSellScrapStep] = useState(false)
+  const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
+  const [salePrice,     setSalePrice]     = useState('')
 
   useEffect(() => {
     if (!modId) return
@@ -107,20 +110,43 @@ export default function TuningModDetailPage() {
     load()
   }, [modId])
 
-  const handleRemove = async (stillOwned: boolean) => {
+  const closeRemoveSheet = () => {
+    setRemoveSheet(false)
+    setSellScrapStep(false)
+    setDisposeType(null)
+    setSalePrice('')
+    setRemoveError(null)
+  }
+
+  const handleMoveToStorage = async () => {
     if (!modId) return
     setRemoving(true)
     setRemoveError(null)
     const { error } = await supabase.from('jobs').update({
       status:       'removed',
-      still_owned:  stillOwned,
+      still_owned:  true,
       date_removed: new Date().toISOString().split('T')[0],
     }).eq('id', modId)
-    if (error) {
-      setRemoving(false)
-      setRemoveError(error.message)
-      return
+    if (error) { setRemoving(false); setRemoveError(error.message); return }
+    navigate('/tuning/build-sheet')
+  }
+
+  const handleSellScrap = async () => {
+    if (!modId || !disposeType) return
+    setRemoving(true)
+    setRemoveError(null)
+    const today = new Date().toISOString().split('T')[0]
+    const updates: Record<string, unknown> = {
+      status:       disposeType,
+      still_owned:  false,
+      date_removed: today,
     }
+    if (disposeType === 'sold' && salePrice.trim()) {
+      const parsed = parseFloat(salePrice.replace(/[^0-9.]/g, ''))
+      if (!isNaN(parsed)) { updates.sale_price = parsed; updates.sale_date = today }
+    }
+    const { error } = await supabase.from('jobs').update(updates).eq('id', modId)
+    if (error) { setRemoving(false); setRemoveError(error.message); return }
     navigate('/tuning/build-sheet')
   }
 
@@ -351,12 +377,7 @@ export default function TuningModDetailPage() {
       {/* ── Remove bottom sheet ── */}
       {removeSheet && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
-          {/* Backdrop */}
-          <div
-            onClick={() => setRemoveSheet(false)}
-            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
-          />
-          {/* Sheet */}
+          <div onClick={closeRemoveSheet} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
           <div style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
             background: '#181818',
@@ -364,64 +385,102 @@ export default function TuningModDetailPage() {
             borderRadius: '12px 12px 0 0',
             padding: '24px 20px 48px',
           }}>
-            <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.9)', marginBottom: 6 }}>
-              Remove from build?
-            </p>
-            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 24, lineHeight: 1.5 }}>
-              Where is this part going?
-            </p>
-            {removeError && (
-              <p style={{ fontFamily: FONT_UI, fontSize: 11, color: '#e05050', marginBottom: 16, lineHeight: 1.4 }}>
-                {removeError}
-              </p>
+            {!sellScrapStep ? (
+              <>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.9)', marginBottom: 6 }}>
+                  Remove from build?
+                </p>
+                <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 24, lineHeight: 1.5 }}>
+                  Where is this part going?
+                </p>
+                {removeError && (
+                  <p style={{ fontFamily: FONT_UI, fontSize: 11, color: '#e05050', marginBottom: 16 }}>{removeError}</p>
+                )}
+                <button
+                  onClick={handleMoveToStorage} disabled={removing}
+                  style={{ width: '100%', padding: '16px 20px', marginBottom: 10, background: 'rgba(200,102,26,0.08)', border: '1px solid rgba(200,102,26,0.3)', cursor: removing ? 'default' : 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.75)', display: 'block' }}>Move to Storage</span>
+                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>Keeps part in Parts Bin — install it again anytime</span>
+                </button>
+                <button
+                  onClick={() => setSellScrapStep(true)} disabled={removing}
+                  style={{ width: '100%', padding: '16px 20px', background: 'transparent', border: '1px solid rgba(245,240,228,0.1)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.55)', display: 'block' }}>Sell / Scrap</span>
+                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)' }}>Part is leaving — stays in history</span>
+                </button>
+                <button onClick={closeRemoveSheet} style={{ width: '100%', padding: '14px', marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.9)', marginBottom: 6 }}>
+                  What happened to it?
+                </p>
+                <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 20, lineHeight: 1.5 }}>
+                  Both stay in your history.
+                </p>
+
+                {/* Sold / Scrapped choice */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                  {(['sold', 'scrapped'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setDisposeType(type)}
+                      style={{
+                        flex: 1, padding: '14px 10px',
+                        background: disposeType === type ? 'rgba(200,102,26,0.12)' : 'transparent',
+                        border: disposeType === type ? '1.5px solid rgba(200,102,26,0.5)' : '1px solid rgba(245,240,228,0.12)',
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: disposeType === type ? 'rgba(245,240,228,0.85)' : 'rgba(245,240,228,0.4)', display: 'block', textTransform: 'capitalize' }}>
+                        {type}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Price input — only for sold */}
+                {disposeType === 'sold' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.3)', marginBottom: 8 }}>
+                      Sale Price (optional)
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(245,240,228,0.14)', background: 'rgba(245,240,228,0.03)' }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: 'rgba(245,240,228,0.35)', padding: '12px 10px 12px 14px' }}>$</span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={salePrice}
+                        onChange={e => setSalePrice(e.target.value)}
+                        style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: 'rgba(245,240,228,0.85)', padding: '12px 14px 12px 0' }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {removeError && (
+                  <p style={{ fontFamily: FONT_UI, fontSize: 11, color: '#e05050', marginBottom: 12 }}>{removeError}</p>
+                )}
+
+                <button
+                  onClick={handleSellScrap}
+                  disabled={!disposeType || removing}
+                  style={{ width: '100%', padding: '15px', background: disposeType ? 'rgba(200,102,26,0.1)' : 'transparent', border: `1px solid ${disposeType ? 'rgba(200,102,26,0.4)' : 'rgba(245,240,228,0.08)'}`, cursor: disposeType ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', marginBottom: 10 }}
+                >
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: disposeType ? 'rgba(245,240,228,0.75)' : 'rgba(245,240,228,0.2)' }}>
+                    {removing ? 'Saving…' : 'Confirm'}
+                  </span>
+                </button>
+                <button onClick={() => { setSellScrapStep(false); setDisposeType(null); setSalePrice('') }} style={{ width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}>
+                  ← Back
+                </button>
+              </>
             )}
-
-            {/* Move to Storage */}
-            <button
-              onClick={() => handleRemove(true)}
-              disabled={removing}
-              style={{
-                width: '100%', padding: '16px 20px', marginBottom: 10,
-                background: 'rgba(200,102,26,0.08)',
-                border: '1px solid rgba(200,102,26,0.3)',
-                cursor: removing ? 'default' : 'pointer',
-                textAlign: 'left', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.75)', display: 'block' }}>
-                Move to Storage
-              </span>
-              <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>
-                Moves to Parts — you can put it back anytime
-              </span>
-            </button>
-
-            {/* No longer with the car */}
-            <button
-              onClick={() => handleRemove(false)}
-              disabled={removing}
-              style={{
-                width: '100%', padding: '16px 20px',
-                background: 'transparent',
-                border: '1px solid rgba(245,240,228,0.1)',
-                cursor: removing ? 'default' : 'pointer',
-                textAlign: 'left', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.55)', display: 'block' }}>
-                Sold / Scrapped
-              </span>
-              <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)' }}>
-                Stays in history, not in Parts Bin
-              </span>
-            </button>
-
-            <button
-              onClick={() => setRemoveSheet(false)}
-              style={{ width: '100%', padding: '14px', marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}
-            >
-              Cancel
-            </button>
           </div>
         </div>
       )}

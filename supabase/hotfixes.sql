@@ -29,3 +29,25 @@ grant select, insert, update, delete on public.job_photos  to authenticated;
 grant select, insert, update, delete on public.cars        to authenticated;
 grant select, insert, update, delete on public.car_reminders to authenticated;
 grant select, insert, update, delete on public.sessions    to authenticated;
+
+-- Fix jobs_handle_removal trigger — two-phase fix (2026-05-17)
+-- Phase 1: Migration 024 added is_custom_spec to the trigger INSERT. Migration 025
+-- dropped that column without updating the trigger, causing a 400 on Move to Storage.
+-- Phase 2: The trigger was also creating a ghost duplicate (status='purchased',
+-- still_owned=false) that was invisible in the UI but polluted the DB. The original
+-- 'removed' row already appears in Parts Bin "In Storage" via the UI query, making
+-- the trigger INSERT redundant. Made the function a no-op and deleted the ghost row
+-- created during testing (job id 25961923-8b73-4978-9153-a7e8996ba292).
+create or replace function public.jobs_handle_removal()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return new;
+end;
+$$;
+
+delete from public.job_specs where job_id = '25961923-8b73-4978-9153-a7e8996ba292';
+delete from public.jobs      where id     = '25961923-8b73-4978-9153-a7e8996ba292';
