@@ -196,6 +196,14 @@ export default function TuningPartDetailPage() {
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>Parts</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {active && (
+              <button
+                onClick={() => navigate(`/tuning/parts-bin/${partId}/edit`)}
+                style={{ background: 'none', border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>Edit</span>
+              </button>
+            )}
             {car && (
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
                 {[car.year, car.model].filter(Boolean).join(' ')}
