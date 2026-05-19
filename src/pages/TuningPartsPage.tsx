@@ -308,7 +308,7 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
       {thumb && (
         <img
           src={thumb} alt=""
-          style={{ width: 52, height: 52, objectFit: 'cover', flexShrink: 0, display: 'block' }}
+          style={{ width: 60, height: 60, objectFit: 'cover', flexShrink: 0, display: 'block' }}
         />
       )}
 
@@ -318,11 +318,6 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
           {part.title}
         </p>
         <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-          {part.brand && (
-            <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.7 }}>
-              {part.brand}
-            </span>
-          )}
           {part.category && (
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_CARDBOARD_STAMP, border: `1px solid ${COLOR_CARDBOARD_STAMP}`, padding: '2px 5px', opacity: 0.65 }}>
               {part.category}
