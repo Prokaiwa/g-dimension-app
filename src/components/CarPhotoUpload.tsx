@@ -28,7 +28,6 @@ type Props = {
 const SPOTLIGHT = 'radial-gradient(ellipse 100% 75% at 50% 42%, #3a3a3a 0%, #1f1f1f 55%, #0d0d0f 100%)'
 
 export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlRef = useRef<string | null>(null)
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [busy, setBusy] = useState(false)
@@ -45,6 +44,7 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    console.info('[CarPhotoUpload] file selected:', file.name, file.type, `${Math.round(file.size / 1024)}KB`)
     setError(null)
     setBusy(true)
     try {
@@ -69,15 +69,11 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={busy}
+      <label
         style={{
           position: 'relative',
           width: '100%',
           height: 172,
-          padding: 0,
           overflow: 'hidden',
           cursor: busy ? 'default' : 'pointer',
           background: preview ? SPOTLIGHT : 'rgba(255,255,255,0.02)',
@@ -157,21 +153,20 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
             </span>
           </div>
         )}
-      </button>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          disabled={busy}
+          style={{ display: 'none' }}
+        />
+      </label>
 
       {error && (
         <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: `${SPACE_XS}px 0 0` }}>
           {error}
         </p>
       )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        style={{ display: 'none' }}
-      />
 
       {downloadingModel && (
         <StudioOverlay
