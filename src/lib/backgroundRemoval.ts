@@ -83,12 +83,17 @@ function loadPipeline(): Promise<Segmenter> {
   pipelinePromise = (async () => {
     try {
       const device = (await supportsWebGPU()) ? 'webgpu' : 'wasm'
+      console.info(`[background-removal] device: ${device}`)
       let segmenter: Segmenter
       try {
         segmenter = await buildPipeline(device, PREFERRED_DTYPE[device])
-      } catch {
+      } catch (quantErr) {
         // Quantized weights unavailable — fall back to full precision,
         // which every model ships.
+        console.warn(
+          `[background-removal] ${PREFERRED_DTYPE[device]} load failed on ${device}, retrying fp32:`,
+          quantErr,
+        )
         progress = 0
         notify()
         segmenter = await buildPipeline(device, 'fp32')
@@ -215,9 +220,19 @@ function trimToBlob(image: RawImageLike): Promise<Blob> {
  * first so HEIC input is normalised and the image is downscaled for speed.
  */
 export async function removeCarBackground(file: File | Blob): Promise<Blob> {
-  const segmenter = await loadPipeline()
-  const normalized = await imageCompression(file as File, COMPRESSION_OPTIONS)
-  const result = await segmenter(normalized)
-  const image = Array.isArray(result) ? result[0] : result
-  return trimToBlob(image)
+  let stage = 'load-model'
+  try {
+    const segmenter = await loadPipeline()
+    stage = 'compress'
+    const normalized = await imageCompression(file as File, COMPRESSION_OPTIONS)
+    stage = 'remove-background'
+    const result = await segmenter(normalized)
+    stage = 'trim'
+    const image = Array.isArray(result) ? result[0] : result
+    return await trimToBlob(image)
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error(`[background-removal] failed at stage "${stage}":`, err)
+    throw new Error(`${stage} — ${detail}`)
+  }
 }

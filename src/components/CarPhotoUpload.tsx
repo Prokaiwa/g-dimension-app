@@ -54,8 +54,10 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
       objectUrlRef.current = url
       setPreview(url)
       onChange(blob)
-    } catch {
-      setError('Could not process that photo. Try a clear three-quarter shot.')
+    } catch (err) {
+      console.error('[CarPhotoUpload] processing failed:', err)
+      const detail = err instanceof Error ? err.message : String(err)
+      setError(`Could not process that photo (${detail})`)
       onChange(null)
     } finally {
       setBusy(false)
