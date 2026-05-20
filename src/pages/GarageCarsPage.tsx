@@ -6,6 +6,9 @@ import iconDetails from '../assets/icons/car-carousel/details.png'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { setActiveCar } from '../lib/activeCar'
+import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
+import { uploadGaragePhoto } from '../lib/carPhoto'
+import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
   COLOR_CAVITY_BG,
   COLOR_HEADER_BLACK,
@@ -37,7 +40,10 @@ type Car = {
   id: string; year: number | null; make: string | null
   model: string | null; trim: string | null
   nickname: string; current_mileage: number | null; color: string | null
+  garage_photo_url: string | null
 }
+
+const CAR_COLUMNS = 'id, year, make, model, trim, nickname, current_mileage, color, garage_photo_url'
 type MakeItem  = { id: number; name: string; priority: number }
 type ModelItem = { id: number; name: string }
 
@@ -96,6 +102,7 @@ function CarReflection({ src }: { src: string }) {
       const img = new Image()
 
       img.onload = () => {
+       try {
         const scale = dw / img.naturalWidth
         const dh    = Math.min(img.naturalHeight * scale, 220) // respect maxHeight:220
         const cH    = Math.round(dh * (1 + FL_DEPTH))
@@ -160,8 +167,11 @@ function CarReflection({ src }: { src: string }) {
         }
 
         ctx.putImageData(pxOut, 0, 0)
+       } catch { /* cross-origin taint or decode failure — skip the reflection */ }
       }
 
+      // Allows getImageData on Supabase-hosted photos (public bucket sends CORS).
+      img.crossOrigin = 'anonymous'
       img.src = src
     })
     return () => cancelAnimationFrame(raf)
@@ -493,14 +503,22 @@ export default function GarageCarsPage() {
   const [detailsErr, setDetailsErr]           = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete]     = useState(false)
   const [pressedAction, setPressedAction]     = useState<string | null>(null)
+  const [addPhotoBlob, setAddPhotoBlob]       = useState<Blob | null>(null)
+  const [detailsPhotoBlob, setDetailsPhotoBlob] = useState<Blob | null>(null)
+  const [detailsPhotoUrl, setDetailsPhotoUrl] = useState<string | null>(null)
+  const [photoFieldKey, setPhotoFieldKey]     = useState(0)
   const scrollRef                             = useRef<HTMLDivElement>(null)
+
+  // Begin downloading the background-removal model so it's ready by the
+  // time the user opens the photo picker.
+  useEffect(() => { prewarmBackgroundRemoval() }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { setLoading(false); return }
       supabase
         .from('cars')
-        .select('id, year, make, model, trim, nickname, current_mileage, color')
+        .select(CAR_COLUMNS)
         .is('deleted_at', null)
         .order('created_at')
         .then(({ data }) => {
@@ -525,6 +543,7 @@ export default function GarageCarsPage() {
     setStep(1); setForm(EMPTY_FORM); setSaveErr(null)
     setAllMakes([]); setMakeModels([])
     setSelectedMakeId(null); setSelectedModelId(null); setShowAdd(true)
+    setAddPhotoBlob(null); setPhotoFieldKey(k => k + 1)
     setMakesLoading(true)
     const { data } = await supabase
       .from('vehicle_makes')
@@ -595,11 +614,19 @@ export default function GarageCarsPage() {
         purchase_dealer: form.wherePurchased.trim() || null,
         purchase_story: form.originStory.trim() || null,
       })
-      .select('id, year, make, model, trim, nickname, current_mileage, color')
+      .select(CAR_COLUMNS)
       .single()
+    if (error || !data) { setSaving(false); setSaveErr(error?.message ?? 'Save failed'); return }
+    let savedCar: Car = data
+    if (addPhotoBlob) {
+      try {
+        const url = await uploadGaragePhoto(user.id, data.id, addPhotoBlob)
+        await supabase.from('cars').update({ garage_photo_url: url }).eq('id', data.id)
+        savedCar = { ...data, garage_photo_url: url }
+      } catch { /* photo upload failure is non-fatal — the car is still saved */ }
+    }
     setSaving(false)
-    if (error || !data) { setSaveErr(error?.message ?? 'Save failed'); return }
-    const updated = [...cars, data]
+    const updated = [...cars, savedCar]
     setCars(updated); setShowAdd(false)
     requestAnimationFrame(() => {
       const el = scrollRef.current
@@ -613,7 +640,7 @@ export default function GarageCarsPage() {
     if (!car) return
     const { data } = await supabase
       .from('cars')
-      .select('color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story')
+      .select('color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url')
       .eq('id', car.id)
       .single()
     const autoNick = [car.year, car.make, car.model].filter(Boolean).join(' ')
@@ -643,6 +670,9 @@ export default function GarageCarsPage() {
       wherePurchased:    data?.purchase_dealer    ?? '',
       originStory:       data?.purchase_story     ?? '',
     })
+    setDetailsPhotoUrl(data?.garage_photo_url ?? car.garage_photo_url ?? null)
+    setDetailsPhotoBlob(null)
+    setPhotoFieldKey(k => k + 1)
     setDetailsErr(null)
     setConfirmDelete(false)
     setShowDetails(true)
@@ -655,9 +685,7 @@ export default function GarageCarsPage() {
     const rawMileage = parseInt(detailsData.mileage) || null
     const mileageInMiles = rawMileage && detailsData.mileageUnit === 'km'
       ? Math.round(rawMileage * 0.621371) : rawMileage
-    const { error } = await supabase
-      .from('cars')
-      .update({
+    const update: Record<string, unknown> = {
         color:             detailsData.color.trim()          || null,
         paint_code:        (detailsData.colorCode ?? '').trim() || null,
         nickname:          detailsData.nickname.trim()       || [car.year, car.model].filter(Boolean).join(' '),
@@ -681,14 +709,28 @@ export default function GarageCarsPage() {
         mileage_at_purchase: parseInt(detailsData.mileageAtPurchase) || null,
         purchase_dealer:   detailsData.wherePurchased.trim() || null,
         purchase_story:    detailsData.originStory.trim()    || null,
-      })
+    }
+    let newPhotoUrl: string | null = null
+    if (detailsPhotoBlob) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          newPhotoUrl = await uploadGaragePhoto(user.id, car.id, detailsPhotoBlob)
+          update.garage_photo_url = newPhotoUrl
+        }
+      } catch { /* photo upload failure is non-fatal — other changes still save */ }
+    }
+    const { error } = await supabase
+      .from('cars')
+      .update(update)
       .eq('id', car.id)
     setDetailsSaving(false)
     if (error) { setDetailsErr(error.message); return }
     setCars(prev => prev.map(c => c.id === car.id
       ? { ...c, color: detailsData.color.trim() || null, trim: detailsData.trim.trim() || null,
           nickname: detailsData.nickname.trim() || [car.year, car.model].filter(Boolean).join(' '),
-          current_mileage: mileageInMiles }
+          current_mileage: mileageInMiles,
+          garage_photo_url: newPhotoUrl ?? c.garage_photo_url }
       : c))
     setShowDetails(false)
   }
@@ -775,8 +817,8 @@ export default function GarageCarsPage() {
                         {/* Car + ground shadow + canvas reflection */}
                         <div style={{ position: 'relative', width: '88%', display: 'flex', justifyContent: 'center' }}>
                           <div aria-hidden style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '90%', height: 44, background: 'radial-gradient(ellipse 85% 60% at 50% 60%, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.5) 55%, transparent 72%)', filter: 'blur(5px)', zIndex: 1 }} />
-                          <img src={garagePlaceholder} alt="Vehicle" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', objectPosition: 'bottom', display: 'block', position: 'relative', zIndex: 2 }} />
-                          <CarReflection src={garagePlaceholder} />
+                          <img src={car.garage_photo_url || garagePlaceholder} alt="Vehicle" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', objectPosition: 'bottom', display: 'block', position: 'relative', zIndex: 2 }} />
+                          <CarReflection src={car.garage_photo_url || garagePlaceholder} />
                         </div>
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>
@@ -893,6 +935,10 @@ export default function GarageCarsPage() {
               )}
               {detailsData && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Car Photo <span style={OPT}>opt</span></span>
+                    <CarPhotoUpload key={`details-${photoFieldKey}`} currentUrl={detailsPhotoUrl} onChange={setDetailsPhotoBlob} />
+                  </div>
                   <div style={FIELD}>
                     <span style={LABEL}>Paint Color <span style={OPT}>opt</span></span>
                     <input type="text" autoCapitalize="words" placeholder="e.g. Midnight Purple II, Championship White" value={detailsData.color} onChange={e => setDetailsData(d => ({ ...d!, color: e.target.value }))} style={INPUT} />
@@ -1068,6 +1114,12 @@ export default function GarageCarsPage() {
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
+                {/* Car photo */}
+                <div style={FIELD}>
+                  <span style={LABEL}>Car Photo <span style={OPT}>opt</span></span>
+                  <CarPhotoUpload key={`add-${photoFieldKey}`} onChange={setAddPhotoBlob} />
+                </div>
+
                 {/* Year */}
                 <div style={FIELD}>
                   <span style={LABEL}>Year</span>
