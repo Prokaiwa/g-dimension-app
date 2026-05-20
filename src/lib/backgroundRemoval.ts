@@ -124,22 +124,48 @@ export function prewarmBackgroundRemoval(): void {
 
 const MAX_INPUT_EDGE = 1920  // downscale large photos before inference for speed
 
+function isLikelyHeic(file: File | Blob): boolean {
+  const type = ((file as File).type ?? '').toLowerCase()
+  if (type.includes('heic') || type.includes('heif')) return true
+  if (type) return false // a known, non-HEIC type
+  const name = ((file as File).name ?? '').toLowerCase()
+  return /\.(heic|heif)$/.test(name)
+}
+
 /**
  * Decode an image file into a canvas, applying EXIF orientation and
- * downscaling large photos. `createImageBitmap` decodes reliably across
- * browsers and throws a clear error for formats the browser can't read
- * (notably raw HEIC outside Safari).
+ * downscaling large photos. `createImageBitmap` handles the common web
+ * formats; HEIC/HEIF (the iPhone camera default) is decoded via libheif,
+ * loaded on demand only when such a file is actually picked.
  */
 async function decodeToCanvas(file: File | Blob): Promise<HTMLCanvasElement> {
-  let bitmap: ImageBitmap
+  let bitmap: ImageBitmap | null = null
+
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   } catch {
-    const type = (file as File).type || 'unknown format'
-    throw new Error(
-      `this browser can't decode the image (${type}) — try a JPEG or PNG`,
-    )
+    bitmap = null
   }
+
+  if (!bitmap && isLikelyHeic(file)) {
+    try {
+      const { heicTo } = await import('heic-to')
+      bitmap = await heicTo({
+        blob: file,
+        type: 'bitmap',
+        options: { imageOrientation: 'from-image' },
+      })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      throw new Error(`couldn't read this HEIC photo — ${detail}`)
+    }
+  }
+
+  if (!bitmap) {
+    const type = (file as File).type || 'unknown format'
+    throw new Error(`this browser can't decode the image (${type}) — try a JPEG or PNG`)
+  }
+
   const scale = Math.min(1, MAX_INPUT_EDGE / Math.max(bitmap.width, bitmap.height))
   const width = Math.max(1, Math.round(bitmap.width * scale))
   const height = Math.max(1, Math.round(bitmap.height * scale))
