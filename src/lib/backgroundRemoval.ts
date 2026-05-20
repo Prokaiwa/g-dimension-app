@@ -1,13 +1,13 @@
 // Client-side car background removal.
 //
 // Runs entirely in the browser — no API, no cost, no server. Uses the
-// BiRefNet model (MIT licensed) via Transformers.js, on WebGPU where
-// available and falling back to WASM. The model file downloads once and
-// is then cached by the browser for every future use.
+// RMBG-1.4 model via Transformers.js on the WASM backend. The model file
+// downloads once and is then cached by the browser for every future use.
 
-// BiRefNet_lite — MIT licensed, supported by the Transformers.js
-// `background-removal` pipeline. Hosted by onnx-community on the HF CDN.
-const MODEL_ID = 'onnx-community/BiRefNet_lite-ONNX'
+// RMBG-1.4 — an ISNet-architecture model, light enough to run reliably
+// in-browser, supported by the Transformers.js `background-removal`
+// pipeline with a small quantized build.
+const MODEL_ID = 'briaai/RMBG-1.4'
 
 export type ModelStatus = 'idle' | 'loading' | 'ready' | 'error'
 
