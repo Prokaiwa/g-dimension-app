@@ -5,8 +5,6 @@
 // available and falling back to WASM. The model file downloads once and
 // is then cached by the browser for every future use.
 
-import imageCompression from 'browser-image-compression'
-
 // BiRefNet_lite — MIT licensed, supported by the Transformers.js
 // `background-removal` pipeline. Hosted by onnx-community on the HF CDN.
 const MODEL_ID = 'onnx-community/BiRefNet_lite-ONNX'
@@ -19,7 +17,7 @@ type RawImageLike = {
   height: number
   channels: number
 }
-type Segmenter = (input: Blob) => Promise<RawImageLike | RawImageLike[]>
+type Segmenter = (input: Blob | HTMLCanvasElement) => Promise<RawImageLike | RawImageLike[]>
 
 let pipelinePromise: Promise<Segmenter> | null = null
 let status: ModelStatus = 'idle'
@@ -124,12 +122,35 @@ export function prewarmBackgroundRemoval(): void {
   }
 }
 
-const COMPRESSION_OPTIONS = {
-  maxSizeMB: 4,
-  maxWidthOrHeight: 1920,
-  useWebWorker: true,
-  exifOrientation: -1 as const,
-  fileType: 'image/jpeg' as const,
+const MAX_INPUT_EDGE = 1920  // downscale large photos before inference for speed
+
+/**
+ * Decode an image file into a canvas, applying EXIF orientation and
+ * downscaling large photos. `createImageBitmap` decodes reliably across
+ * browsers and throws a clear error for formats the browser can't read
+ * (notably raw HEIC outside Safari).
+ */
+async function decodeToCanvas(file: File | Blob): Promise<HTMLCanvasElement> {
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    const type = (file as File).type || 'unknown format'
+    throw new Error(
+      `this browser can't decode the image (${type}) — try a JPEG or PNG`,
+    )
+  }
+  const scale = Math.min(1, MAX_INPUT_EDGE / Math.max(bitmap.width, bitmap.height))
+  const width = Math.max(1, Math.round(bitmap.width * scale))
+  const height = Math.max(1, Math.round(bitmap.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('canvas is unavailable')
+  ctx.drawImage(bitmap, 0, 0, width, height)
+  bitmap.close()
+  return canvas
 }
 
 const ALPHA_THRESHOLD = 16   // alpha at or below this counts as background
@@ -212,21 +233,20 @@ function trimToBlob(image: RawImageLike): Promise<Blob> {
 }
 
 /**
- * Compress the input, remove its background, and trim it. Returns a
+ * Decode the input, remove its background, and trim it. Returns a
  * transparent PNG ready to upload.
  *
  * The result is intentionally a PNG, not a JPEG: a cut-out car needs an
- * alpha channel, which JPEG cannot store. The compression step still runs
- * first so HEIC input is normalised and the image is downscaled for speed.
+ * alpha channel, which JPEG cannot store.
  */
 export async function removeCarBackground(file: File | Blob): Promise<Blob> {
   let stage = 'load-model'
   try {
     const segmenter = await loadPipeline()
-    stage = 'compress'
-    const normalized = await imageCompression(file as File, COMPRESSION_OPTIONS)
+    stage = 'decode'
+    const canvas = await decodeToCanvas(file)
     stage = 'remove-background'
-    const result = await segmenter(normalized)
+    const result = await segmenter(canvas)
     stage = 'trim'
     const image = Array.isArray(result) ? result[0] : result
     return await trimToBlob(image)
