@@ -37,30 +37,14 @@ export function getModelStatus(): ModelStatus { return status }
 /** Model download progress, 0–100. */
 export function getModelProgress(): number { return progress }
 
-async function supportsWebGPU(): Promise<boolean> {
-  const gpu = (navigator as { gpu?: { requestAdapter(): Promise<unknown> } }).gpu
-  if (!gpu) return false
-  try {
-    return !!(await gpu.requestAdapter())
-  } catch {
-    return false
-  }
-}
-
-// Quantized weights keep the one-time download small (a fraction of the
-// full-precision size) with no meaningful quality loss for this task.
-const PREFERRED_DTYPE: Record<'webgpu' | 'wasm', 'fp16' | 'q8'> = {
-  webgpu: 'fp16',
-  wasm: 'q8',
-}
-
-async function buildPipeline(
-  device: 'webgpu' | 'wasm',
-  dtype: 'fp16' | 'q8' | 'fp32',
-): Promise<Segmenter> {
+// BiRefNet runs on the WebAssembly backend. WebGPU is intentionally not
+// used: this model's graph needs more per-shader storage buffers than
+// common GPUs allow (Apple Silicon and most phones cap at 10), so WebGPU
+// fails at inference time. WASM is slower but runs reliably everywhere.
+async function buildPipeline(dtype: 'q8' | 'fp32'): Promise<Segmenter> {
   const { pipeline } = await import('@huggingface/transformers')
   const segmenter = await pipeline('background-removal', MODEL_ID, {
-    device,
+    device: 'wasm',
     dtype,
     progress_callback: (info: { status?: string; progress?: number }) => {
       if (info?.status === 'progress_total' && typeof info.progress === 'number') {
@@ -80,21 +64,17 @@ function loadPipeline(): Promise<Segmenter> {
 
   pipelinePromise = (async () => {
     try {
-      const device = (await supportsWebGPU()) ? 'webgpu' : 'wasm'
-      console.info(`[background-removal] device: ${device}`)
       let segmenter: Segmenter
       try {
-        segmenter = await buildPipeline(device, PREFERRED_DTYPE[device])
+        // Quantized weights — small download, fast integer inference.
+        segmenter = await buildPipeline('q8')
       } catch (quantErr) {
         // Quantized weights unavailable — fall back to full precision,
         // which every model ships.
-        console.warn(
-          `[background-removal] ${PREFERRED_DTYPE[device]} load failed on ${device}, retrying fp32:`,
-          quantErr,
-        )
+        console.warn('[background-removal] q8 load failed, retrying fp32:', quantErr)
         progress = 0
         notify()
-        segmenter = await buildPipeline(device, 'fp32')
+        segmenter = await buildPipeline('fp32')
       }
       status = 'ready'
       progress = 100
