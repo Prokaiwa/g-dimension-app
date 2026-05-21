@@ -75,59 +75,61 @@ const FIELD: React.CSSProperties = { display: 'flex', flexDirection: 'column', g
 const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9 }
 
 // ── Car stage ────────────────────────────────────────────────────────────────
-// Renders the car cutout with a shape-matched contact shadow and a connected
-// reflection. All three layers are the same transparent image and share the
-// car's exact box, so they line up for any uploaded car with no per-image
-// tuning. translateY / scaleY on the shadow and the mask on the reflection are
-// the visual knobs.
+// Renders the car cutout grounded like a studio shot:
+//  · ambient shadow — the silhouette blackened, squashed wide and very soft
+//  · contact shadow — the silhouette blackened, tight and dark at the wheels
+//  · the car, with a CSS box-reflection drawn directly beneath it
+// Every layer comes from the same cutout, so they hug the car's contour and
+// adapt to any uploaded car. translateY / scaleY / blur are the visual knobs.
 function CarStage({ src }: { src: string }) {
+  const SHADOW_BASE: React.CSSProperties = {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '100%',
+    height: '100%',
+    transformOrigin: '50% 100%',
+    zIndex: 0,
+    pointerEvents: 'none',
+  }
   return (
     <div style={{ position: 'relative', width: '88%' }}>
-      {/* Contact shadow — the silhouette blackened, squashed onto the floor */}
+      {/* Ambient shadow — wide and very soft */}
       <img
         src={src}
         alt=""
         aria-hidden
         style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: '100%',
-          height: '100%',
-          transform: 'translateY(2%) scaleY(0.4)',
-          transformOrigin: '50% 100%',
-          filter: 'brightness(0) blur(12px)',
-          opacity: 0.52,
-          zIndex: 0,
-          pointerEvents: 'none',
+          ...SHADOW_BASE,
+          transform: 'translateY(3%) scaleY(0.52)',
+          filter: 'brightness(0) blur(24px)',
+          opacity: 0.34,
         }}
       />
-      {/* Reflection — the car flipped directly below itself, faded out */}
+      {/* Contact shadow — tight and dark, hugging the wheels */}
       <img
         src={src}
         alt=""
         aria-hidden
         style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          width: '100%',
-          height: 'auto',
-          transform: 'scaleY(-1)',
-          transformOrigin: '50% 50%',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, transparent 42%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, transparent 42%)',
-          filter: 'blur(1px)',
-          opacity: 0.62,
-          zIndex: 0,
-          pointerEvents: 'none',
+          ...SHADOW_BASE,
+          transform: 'translateY(1.5%) scaleY(0.2)',
+          filter: 'brightness(0) blur(6px)',
+          opacity: 0.55,
         }}
       />
-      {/* The car */}
+      {/* The car — with a reflection drawn directly beneath it */}
       <img
         src={src}
         alt="Vehicle"
-        style={{ display: 'block', width: '100%', height: 'auto', position: 'relative', zIndex: 2 }}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'auto',
+          position: 'relative',
+          zIndex: 2,
+          WebkitBoxReflect: 'below 0px linear-gradient(transparent 44%, rgba(0,0,0,0.6))',
+        }}
       />
     </div>
   )
