@@ -99,7 +99,7 @@ function CarStage({ src }: { src: string }) {
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 0,
+          bottom: '1.5%',
           transform: 'scaleY(0.09)',
           transformOrigin: '50% 100%',
           filter: 'brightness(0) blur(7px)',
@@ -121,10 +121,10 @@ function CarStage({ src }: { src: string }) {
           top: '100%',
           transform: 'scaleY(-1)',
           transformOrigin: '50% 0%',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 52%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 52%)',
           filter: 'blur(1px)',
-          opacity: 0.45,
+          opacity: 0.6,
           zIndex: 0,
           pointerEvents: 'none',
         }}
@@ -753,7 +753,7 @@ export default function GarageCarsPage() {
                     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                       <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)' }} />
                       <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to bottom, transparent 0%, rgba(220,218,214,0.06) 65%, rgba(220,218,214,0.13) 100%)' }} />
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '8%', zIndex: 2 }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '12%', zIndex: 2 }}>
                         <CarStage src={car.garage_photo_url || garagePlaceholder} />
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>

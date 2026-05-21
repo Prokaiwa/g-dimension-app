@@ -201,6 +201,7 @@ async function decodeToCanvas(file: File | Blob): Promise<HTMLCanvasElement> {
 }
 
 const ALPHA_THRESHOLD = 16   // alpha at or below this counts as background
+const RESIDUE_ALPHA = 60     // wipe matte residue fainter than this
 const TRIM_PADDING = 0.015   // breathing room kept around the car, fraction of size
 const MAX_OUTPUT_EDGE = 1600 // cap the stored cutout's long edge
 
@@ -250,6 +251,13 @@ function trimToBlob(image: RawImageLike): Promise<Blob> {
       rgba[d] = rgba[d + 1] = rgba[d + 2] = data[s]
       rgba[d + 3] = 255
     }
+  }
+
+  // Wipe faint matte residue (a ghost of the original ground/shadow) so the
+  // cutout ends cleanly at the car. Otherwise the derived shadow layer turns
+  // that residue solid black and it reads as a blob detached below the car.
+  for (let i = 3; i < rgba.length; i += 4) {
+    if (rgba[i] < RESIDUE_ALPHA) rgba[i] = 0
   }
 
   // Bounding box of non-transparent pixels.
