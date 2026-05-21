@@ -1,17 +1,14 @@
 // Client-side car background removal.
 //
-// Runs entirely in the browser — no API, no cost, no server. Uses BiRefNet
-// (MIT licensed) via Transformers.js on the WASM backend. The model file
-// downloads once and is then cached by the browser for every future use.
-
-// BiRefNet_lite — MIT licensed, supported by the Transformers.js
-// `background-removal` pipeline. Hosted by onnx-community on the HF CDN.
-const MODEL_ID = 'onnx-community/BiRefNet_lite-ONNX'
-
-// BiRefNet at its native resolution exhausts WASM memory. We shrink the
-// processor's target size so inference runs lighter — still ample detail
-// for a car shown at carousel size.
-const PROCESS_EDGE = 512
+// Runs entirely in the browser — no API, no cost, no server. Uses RMBG-1.4
+// via Transformers.js on the WASM backend. The model file downloads once
+// and is then cached by the browser for every future use.
+//
+// RMBG-1.4 is light enough to run in a browser tab (unlike BiRefNet). It is
+// free for non-commercial use; when G-Dimension ships as a native app the
+// plan is to bundle BiRefNet (MIT) on-device instead — that swap is a
+// separate native integration, so this choice locks in nothing.
+const MODEL_ID = 'briaai/RMBG-1.4'
 
 export type ModelStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -41,29 +38,14 @@ export function getModelStatus(): ModelStatus { return status }
 /** Model download progress, 0–100. */
 export function getModelProgress(): number { return progress }
 
-// Lower the model's input resolution so a full-precision run fits in the
-// browser's WASM memory budget.
-function shrinkProcessor(segmenter: unknown): void {
-  const imageProcessor = (segmenter as {
-    processor?: { image_processor?: { size?: unknown; pad_size?: unknown } }
-  })?.processor?.image_processor
-  if (imageProcessor?.size) {
-    imageProcessor.size = { width: PROCESS_EDGE, height: PROCESS_EDGE }
-    if (imageProcessor.pad_size) {
-      imageProcessor.pad_size = { width: PROCESS_EDGE, height: PROCESS_EDGE }
-    }
-  }
-}
-
-// BiRefNet runs on the WebAssembly backend. WebGPU is intentionally not
-// used: this model's graph needs more per-shader storage buffers than
-// common GPUs allow (Apple Silicon and most phones cap at 10), so WebGPU
-// fails at inference time. WASM is slower but runs reliably everywhere.
-async function buildPipeline(): Promise<Segmenter> {
+// Runs on the WebAssembly backend. WebGPU is intentionally avoided — some
+// segmentation graphs exceed common GPUs' per-shader storage-buffer limits,
+// so WASM is the reliable choice across every device.
+async function buildPipeline(dtype: 'q8' | 'fp32'): Promise<Segmenter> {
   const { pipeline } = await import('@huggingface/transformers')
   const segmenter = await pipeline('background-removal', MODEL_ID, {
     device: 'wasm',
-    dtype: 'fp32',
+    dtype,
     progress_callback: (info: { status?: string; progress?: number }) => {
       if (info?.status === 'progress_total' && typeof info.progress === 'number') {
         progress = Math.min(99, Math.round(info.progress))
@@ -71,7 +53,6 @@ async function buildPipeline(): Promise<Segmenter> {
       }
     },
   })
-  shrinkProcessor(segmenter)
   return segmenter as unknown as Segmenter
 }
 
@@ -83,7 +64,16 @@ function loadPipeline(): Promise<Segmenter> {
 
   pipelinePromise = (async () => {
     try {
-      const segmenter = await buildPipeline()
+      let segmenter: Segmenter
+      try {
+        // Quantized weights — small download, fast inference.
+        segmenter = await buildPipeline('q8')
+      } catch (quantErr) {
+        console.warn('[background-removal] q8 load failed, retrying fp32:', quantErr)
+        progress = 0
+        notify()
+        segmenter = await buildPipeline('fp32')
+      }
       status = 'ready'
       progress = 100
       notify()
