@@ -4,11 +4,29 @@
 // via Transformers.js on the WASM backend. The model file downloads once
 // and is then cached by the browser for every future use.
 //
-// RMBG-1.4 is light enough to run in a browser tab (unlike BiRefNet). It is
-// free for non-commercial use; when G-Dimension ships as a native app the
-// plan is to bundle BiRefNet (MIT) on-device instead — that swap is a
-// separate native integration, so this choice locks in nothing.
+// RMBG-1.4 is light enough to run in a browser tab. It is free for
+// non-commercial use; when G-Dimension ships as a native app the plan is to
+// bundle BiRefNet (MIT) on-device instead — a separate native integration,
+// so this choice locks in nothing.
+//
+// RMBG-1.4 is not auto-detected by the high-level pipeline API, so it is run
+// through AutoModel/AutoProcessor with its config supplied explicitly.
+
 const MODEL_ID = 'briaai/RMBG-1.4'
+
+// RMBG-1.4 has no usable preprocessor_config.json — supply it inline.
+const PROCESSOR_CONFIG = {
+  do_normalize: true,
+  do_pad: false,
+  do_rescale: true,
+  do_resize: true,
+  image_mean: [0.5, 0.5, 0.5],
+  feature_extractor_type: 'ImageFeatureExtractor',
+  image_std: [1, 1, 1],
+  resample: 2,
+  rescale_factor: 0.00392156862745098,
+  size: { width: 1024, height: 1024 },
+}
 
 export type ModelStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -18,9 +36,11 @@ type RawImageLike = {
   height: number
   channels: number
 }
-type Segmenter = (input: Blob | HTMLCanvasElement) => Promise<RawImageLike | RawImageLike[]>
 
-let pipelinePromise: Promise<Segmenter> | null = null
+// An engine turns a decoded image canvas into a single-channel foreground mask.
+type Engine = (canvas: HTMLCanvasElement) => Promise<RawImageLike>
+
+let enginePromise: Promise<Engine> | null = null
 let status: ModelStatus = 'idle'
 let progress = 0
 const listeners = new Set<() => void>()
@@ -41,66 +61,89 @@ export function getModelProgress(): number { return progress }
 // Runs on the WebAssembly backend. WebGPU is intentionally avoided — some
 // segmentation graphs exceed common GPUs' per-shader storage-buffer limits,
 // so WASM is the reliable choice across every device.
-async function buildPipeline(dtype: 'q8' | 'fp32'): Promise<Segmenter> {
-  const { pipeline } = await import('@huggingface/transformers')
-  const segmenter = await pipeline('background-removal', MODEL_ID, {
+async function buildEngine(dtype: 'q8' | 'fp32'): Promise<Engine> {
+  // The library is typed, but the low-level AutoModel path is dynamic; `any`
+  // keeps the tensor/processor plumbing readable.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tjs: any = await import('@huggingface/transformers')
+  const { AutoModel, AutoProcessor, RawImage } = tjs
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const progress_callback = (info: any) => {
+    if (info?.status === 'progress_total' && typeof info.progress === 'number') {
+      progress = Math.min(99, Math.round(info.progress))
+      notify()
+    }
+  }
+
+  const model = await AutoModel.from_pretrained(MODEL_ID, {
+    config: { model_type: 'custom' },
     device: 'wasm',
     dtype,
-    progress_callback: (info: { status?: string; progress?: number }) => {
-      if (info?.status === 'progress_total' && typeof info.progress === 'number') {
-        progress = Math.min(99, Math.round(info.progress))
-        notify()
-      }
-    },
+    progress_callback,
   })
-  return segmenter as unknown as Segmenter
+  const processor = await AutoProcessor.from_pretrained(MODEL_ID, {
+    config: PROCESSOR_CONFIG,
+  })
+
+  return async (canvas: HTMLCanvasElement): Promise<RawImageLike> => {
+    const image = RawImage.fromCanvas(canvas)
+    const { pixel_values } = await processor(image)
+    const outputs = await model({ input: pixel_values })
+    const tensor = outputs.output ?? outputs.logits ?? Object.values(outputs)[0]
+    if (!tensor) throw new Error('the model returned no output')
+    // [1,1,H,W] (or similar) → [1,H,W] uint8 → resized single-channel mask.
+    const maskTensor = tensor.squeeze().unsqueeze(0).mul(255).to('uint8')
+    const mask = await RawImage.fromTensor(maskTensor).resize(canvas.width, canvas.height)
+    return { data: mask.data, width: mask.width, height: mask.height, channels: mask.channels }
+  }
 }
 
-function loadPipeline(): Promise<Segmenter> {
-  if (pipelinePromise) return pipelinePromise
+function loadEngine(): Promise<Engine> {
+  if (enginePromise) return enginePromise
   status = 'loading'
   progress = 0
   notify()
 
-  pipelinePromise = (async () => {
+  enginePromise = (async () => {
     try {
-      let segmenter: Segmenter
+      let engine: Engine
       try {
         // Quantized weights — small download, fast inference.
-        segmenter = await buildPipeline('q8')
+        engine = await buildEngine('q8')
       } catch (quantErr) {
         console.warn('[background-removal] q8 load failed, retrying fp32:', quantErr)
         progress = 0
         notify()
-        segmenter = await buildPipeline('fp32')
+        engine = await buildEngine('fp32')
       }
       status = 'ready'
       progress = 100
       notify()
-      return segmenter
+      return engine
     } catch (err) {
       status = 'error'
-      pipelinePromise = null // allow a fresh attempt next time
+      enginePromise = null // allow a fresh attempt next time
       notify()
       throw err
     }
   })()
 
-  return pipelinePromise
+  return enginePromise
 }
 
 /**
  * Start downloading the model in the background so it's ready before the
- * user reaches the photo upload. Safe to call repeatedly — it's a no-op
- * once a load is already underway.
+ * user reaches the photo upload. Safe to call repeatedly — a no-op once a
+ * load is already underway.
  */
 export function prewarmBackgroundRemoval(): void {
   if (status === 'idle') {
-    loadPipeline().catch(() => { /* failure is surfaced via getModelStatus() */ })
+    loadEngine().catch(() => { /* failure is surfaced via getModelStatus() */ })
   }
 }
 
-const MAX_INPUT_EDGE = 1920  // downscale large photos before inference for speed
+const MAX_INPUT_EDGE = 1920 // downscale large photos before inference for speed
 
 function isLikelyHeic(file: File | Blob): boolean {
   const type = ((file as File).type ?? '').toLowerCase()
@@ -161,6 +204,32 @@ const ALPHA_THRESHOLD = 16   // alpha at or below this counts as background
 const TRIM_PADDING = 0.015   // breathing room kept around the car, fraction of size
 const MAX_OUTPUT_EDGE = 1600 // cap the stored cutout's long edge
 
+// Apply a single-channel foreground mask as the alpha channel of the image.
+function applyMask(canvas: HTMLCanvasElement, mask: RawImageLike): RawImageLike {
+  const width = canvas.width
+  const height = canvas.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('canvas is unavailable')
+  const rgba = ctx.getImageData(0, 0, width, height)
+
+  const mc = mask.channels || 1
+  const sameSize = mask.width === width && mask.height === height
+  for (let i = 0; i < width * height; i++) {
+    let alpha: number
+    if (sameSize) {
+      alpha = mask.data[i * mc]
+    } else {
+      const x = i % width
+      const y = (i - x) / width
+      const mx = Math.min(mask.width - 1, Math.floor((x / width) * mask.width))
+      const my = Math.min(mask.height - 1, Math.floor((y / height) * mask.height))
+      alpha = mask.data[(my * mask.width + mx) * mc]
+    }
+    rgba.data[i * 4 + 3] = alpha
+  }
+  return { data: rgba.data, width, height, channels: 4 }
+}
+
 /**
  * Crop away fully-transparent margins and cap the resolution. This makes
  * every uploaded car frame consistently in the carousel regardless of how
@@ -169,7 +238,7 @@ const MAX_OUTPUT_EDGE = 1600 // cap the stored cutout's long edge
 function trimToBlob(image: RawImageLike): Promise<Blob> {
   const { data, width, height, channels } = image
 
-  // Rebuild a clean RGBA buffer (handles 1/3/4-channel pipeline output).
+  // Rebuild a clean RGBA buffer (handles 1/3/4-channel input).
   const rgba = new Uint8ClampedArray(width * height * 4)
   for (let i = 0; i < width * height; i++) {
     const s = i * channels
@@ -246,14 +315,15 @@ function trimToBlob(image: RawImageLike): Promise<Blob> {
 export async function removeCarBackground(file: File | Blob): Promise<Blob> {
   let stage = 'load-model'
   try {
-    const segmenter = await loadPipeline()
+    const engine = await loadEngine()
     stage = 'decode'
     const canvas = await decodeToCanvas(file)
     stage = 'remove-background'
-    const result = await segmenter(canvas)
+    const mask = await engine(canvas)
+    stage = 'compose'
+    const composed = applyMask(canvas, mask)
     stage = 'trim'
-    const image = Array.isArray(result) ? result[0] : result
-    return await trimToBlob(image)
+    return await trimToBlob(composed)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)
     console.error(`[background-removal] failed at stage "${stage}":`, err)
