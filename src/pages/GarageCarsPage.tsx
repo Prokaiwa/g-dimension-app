@@ -74,124 +74,64 @@ const INPUT: React.CSSProperties = {
 const FIELD: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: SPACE_XS }
 const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9 }
 
-// ── Floor-aware studio reflection ────────────────────────────────────────────
-// The floor line connects two tire contact points in image space.
-// For each output pixel we interpolate the floor height at that x, then mirror
-// the source pixel across it — giving a physically grounded reflection where
-// BOTH front and rear tires connect to the floor simultaneously.
-//
-// Tune these fractions against the actual placeholder image:
-const FL_FX = 0.13   // front-left tire contact x  (fraction of image width)
-const FL_FY = 1.1   // front-left tire contact y  (fraction of image height, near bottom)
-const FL_RX = 0.93   // rear-right  tire contact x
-const FL_RY = 0.82   // rear-right  tire contact y  (higher up = further from viewer)
-const FL_DEPTH = 0.28 // reflection extends this fraction of car height below each contact
-
-function CarReflection({ src }: { src: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const raf = requestAnimationFrame(() => {
-      const parent = canvas.parentElement
-      if (!parent) return
-      const dw = parent.offsetWidth
-      if (!dw) return
-      const dpr = window.devicePixelRatio || 1
-      const img = new Image()
-
-      img.onload = () => {
-       try {
-        const scale = dw / img.naturalWidth
-        const dh    = Math.min(img.naturalHeight * scale, 220) // respect maxHeight:220
-        const cH    = Math.round(dh * (1 + FL_DEPTH))
-
-        canvas.width        = Math.round(dw * dpr)
-        canvas.height       = Math.round(cH * dpr)
-        canvas.style.height = cH + 'px'
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-        // Render source at pixel resolution into an offscreen canvas for getImageData
-        const pW  = Math.round(dw * dpr)
-        const pH  = Math.round(dh * dpr)
-        const off = document.createElement('canvas')
-        off.width = pW; off.height = pH
-        const oCtx = off.getContext('2d')!
-        oCtx.drawImage(img, 0, 0, pW, pH)
-        const src4 = oCtx.getImageData(0, 0, pW, pH)
-
-        const outW  = Math.round(dw * dpr)
-        const outH  = Math.round(cH * dpr)
-        const pxOut = ctx.createImageData(outW, outH)
-
-        // Floor contact points in source pixel space
-        const fX = FL_FX * pW;  const fY = FL_FY * pH
-        const rX = FL_RX * pW;  const rY = FL_RY * pH
-        const maxD = FL_DEPTH * pH
-
-        // Fast-skip rows above the highest contact point
-        const minFloorY = Math.min(fY, rY)
-
-        for (let cy = Math.floor(minFloorY); cy < outH; cy++) {
-          for (let cx = 0; cx < outW; cx++) {
-            // Floor line y at this x (linear interpolation between contacts)
-            const t      = (cx - rX) / (fX - rX)
-            const floorY = rY + t * (fY - rY)
-            if (cy <= floorY) continue        // above floor: leave transparent (car on top)
-
-            const depth = cy - floorY
-            if (depth >= maxD) continue
-
-            const srcYf = floorY - depth      // mirror: same distance above floor line
-            if (srcYf < 0) continue
-
-            const si = Math.floor(srcYf) * pW * 4 + cx * 4
-            const di = cy * outW * 4 + cx * 4
-
-            const r = src4.data[si], g = src4.data[si + 1], b = src4.data[si + 2]
-            // Treat near-white pixels as background (handles white-bg PNGs)
-            const srcAlpha = (r > 235 && g > 235 && b > 235) ? 0 : src4.data[si + 3] / 255
-            if (srcAlpha === 0) continue
-
-            const alpha = 0.68 * (1 - depth / maxD)
-
-            pxOut.data[di]     = r
-            pxOut.data[di + 1] = g
-            pxOut.data[di + 2] = b
-            pxOut.data[di + 3] = Math.round(255 * alpha * srcAlpha)
-          }
-        }
-
-        ctx.putImageData(pxOut, 0, 0)
-       } catch { /* cross-origin taint or decode failure — skip the reflection */ }
-      }
-
-      // Allows getImageData on Supabase-hosted photos (public bucket sends CORS).
-      img.crossOrigin = 'anonymous'
-      img.src = src
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [src])
-
+// ── Car stage ────────────────────────────────────────────────────────────────
+// Renders the car cutout with a shape-matched contact shadow and a connected
+// reflection. All three layers are the same transparent image — the shadow is
+// it blackened, squashed flat and blurred; the reflection is it flipped and
+// faded — so they adapt to whatever car is uploaded, with no per-image tuning.
+function CarStage({ src }: { src: string }) {
+  const LAYER: React.CSSProperties = {
+    width: '100%',
+    maxHeight: 220,
+    objectFit: 'contain',
+    objectPosition: 'bottom',
+    display: 'block',
+  }
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        display: 'block',
-        pointerEvents: 'none',
-        filter: 'blur(1.5px) brightness(0.52) contrast(0.78)',
-        zIndex: 0,
-      }}
-    />
+    <div style={{ position: 'relative', width: '88%', display: 'flex', justifyContent: 'center' }}>
+      {/* Contact shadow — silhouette blackened, squashed flat, blurred */}
+      <img
+        src={src}
+        alt=""
+        aria-hidden
+        style={{
+          ...LAYER,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          transform: 'scaleY(0.09)',
+          transformOrigin: '50% 100%',
+          filter: 'brightness(0) blur(7px)',
+          opacity: 0.5,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Reflection — the car flipped below its own base, faded out */}
+      <img
+        src={src}
+        alt=""
+        aria-hidden
+        style={{
+          ...LAYER,
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: '100%',
+          transform: 'scaleY(-1)',
+          transformOrigin: '50% 0%',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 55%)',
+          filter: 'blur(1px)',
+          opacity: 0.45,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      />
+      {/* The car */}
+      <img src={src} alt="Vehicle" style={{ ...LAYER, position: 'relative', zIndex: 2 }} />
+    </div>
   )
 }
 
@@ -814,12 +754,7 @@ export default function GarageCarsPage() {
                       <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)' }} />
                       <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to bottom, transparent 0%, rgba(220,218,214,0.06) 65%, rgba(220,218,214,0.13) 100%)' }} />
                       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '8%', zIndex: 2 }}>
-                        {/* Car + ground shadow + canvas reflection */}
-                        <div style={{ position: 'relative', width: '88%', display: 'flex', justifyContent: 'center' }}>
-                          <div aria-hidden style={{ position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '90%', height: 44, background: 'radial-gradient(ellipse 85% 60% at 50% 60%, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 30%, rgba(0,0,0,0.5) 55%, transparent 72%)', filter: 'blur(5px)', zIndex: 1 }} />
-                          <img src={car.garage_photo_url || garagePlaceholder} alt="Vehicle" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', objectPosition: 'bottom', display: 'block', position: 'relative', zIndex: 2 }} />
-                          <CarReflection src={car.garage_photo_url || garagePlaceholder} />
-                        </div>
+                        <CarStage src={car.garage_photo_url || garagePlaceholder} />
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>
                         {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
