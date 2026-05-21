@@ -94,10 +94,10 @@ function CarStage({ src }: { src: string }) {
           top: 0,
           width: '100%',
           height: '100%',
-          transform: 'translateY(7%) scaleY(0.16)',
+          transform: 'translateY(2%) scaleY(0.4)',
           transformOrigin: '50% 100%',
-          filter: 'brightness(0) blur(10px)',
-          opacity: 0.5,
+          filter: 'brightness(0) blur(12px)',
+          opacity: 0.52,
           zIndex: 0,
           pointerEvents: 'none',
         }}
@@ -115,10 +115,10 @@ function CarStage({ src }: { src: string }) {
           height: 'auto',
           transform: 'scaleY(-1)',
           transformOrigin: '50% 50%',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 44%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 44%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, transparent 42%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, transparent 42%)',
           filter: 'blur(1px)',
-          opacity: 0.5,
+          opacity: 0.62,
           zIndex: 0,
           pointerEvents: 'none',
         }}
@@ -751,7 +751,7 @@ export default function GarageCarsPage() {
                     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                       <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)' }} />
                       <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to bottom, transparent 0%, rgba(220,218,214,0.06) 65%, rgba(220,218,214,0.13) 100%)' }} />
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '12%', zIndex: 2 }}>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '18%', zIndex: 2 }}>
                         <CarStage src={car.garage_photo_url || garagePlaceholder} />
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>
