@@ -76,61 +76,59 @@ const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9
 
 // ── Car stage ────────────────────────────────────────────────────────────────
 // Renders the car cutout with a shape-matched contact shadow and a connected
-// reflection. All three layers are the same transparent image — the shadow is
-// it blackened, squashed flat and blurred; the reflection is it flipped and
-// faded — so they adapt to whatever car is uploaded, with no per-image tuning.
+// reflection. All three layers are the same transparent image and share the
+// car's exact box, so they line up for any uploaded car with no per-image
+// tuning. translateY / scaleY on the shadow and the mask on the reflection are
+// the visual knobs.
 function CarStage({ src }: { src: string }) {
-  const LAYER: React.CSSProperties = {
-    width: '100%',
-    maxHeight: 220,
-    objectFit: 'contain',
-    objectPosition: 'bottom',
-    display: 'block',
-  }
   return (
-    <div style={{ position: 'relative', width: '88%', display: 'flex', justifyContent: 'center' }}>
-      {/* Contact shadow — silhouette blackened, squashed flat, blurred */}
+    <div style={{ position: 'relative', width: '88%' }}>
+      {/* Contact shadow — the silhouette blackened, squashed onto the floor */}
       <img
         src={src}
         alt=""
         aria-hidden
         style={{
-          ...LAYER,
           position: 'absolute',
           left: 0,
-          right: 0,
-          bottom: '1.5%',
-          transform: 'scaleY(0.09)',
+          top: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'translateY(7%) scaleY(0.16)',
           transformOrigin: '50% 100%',
-          filter: 'brightness(0) blur(7px)',
+          filter: 'brightness(0) blur(10px)',
           opacity: 0.5,
           zIndex: 0,
           pointerEvents: 'none',
         }}
       />
-      {/* Reflection — the car flipped below its own base, faded out */}
+      {/* Reflection — the car flipped directly below itself, faded out */}
       <img
         src={src}
         alt=""
         aria-hidden
         style={{
-          ...LAYER,
           position: 'absolute',
-          left: 0,
-          right: 0,
           top: '100%',
+          left: 0,
+          width: '100%',
+          height: 'auto',
           transform: 'scaleY(-1)',
-          transformOrigin: '50% 0%',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 52%)',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 52%)',
+          transformOrigin: '50% 50%',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 44%)',
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 44%)',
           filter: 'blur(1px)',
-          opacity: 0.6,
+          opacity: 0.5,
           zIndex: 0,
           pointerEvents: 'none',
         }}
       />
       {/* The car */}
-      <img src={src} alt="Vehicle" style={{ ...LAYER, position: 'relative', zIndex: 2 }} />
+      <img
+        src={src}
+        alt="Vehicle"
+        style={{ display: 'block', width: '100%', height: 'auto', position: 'relative', zIndex: 2 }}
+      />
     </div>
   )
 }
