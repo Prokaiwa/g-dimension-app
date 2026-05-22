@@ -117,28 +117,29 @@ function CarStage({ src }: { src: string }) {
 
         const cols = contactY.map((y, x) => ({ x, y })).filter(p => p.y >= 0)
         if (cols.length >= 10) {
-          // Find the absolute lowest pixel — this is the tire touching the ground.
           let maxY = 0
           for (const p of cols) if (p.y > maxY) maxY = p.y
 
-          // Only keep columns whose bottom is within 8 % of image height from
-          // the absolute bottom. This isolates tire/undercarriage contact areas
-          // and excludes the door sills and body panels that sit higher.
-          const threshold = maxY - ih * 0.08
-          const ground = cols.filter(p => p.y >= threshold)
+          // Per-half max: find the single lowest pixel in each half of the image.
+          // This lands on the two tire contacts regardless of body-panel heights.
+          const midX = iw / 2
+          const looseThreshold = maxY - ih * 0.15
+          const candidates = cols.filter(p => p.y >= looseThreshold)
 
-          if (ground.length >= 4) {
-            const n = ground.length
-            let sx = 0, sy = 0, sxy = 0, sx2 = 0
-            for (const p of ground) {
-              sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x
+          let leftMaxY = -1, leftMaxX = 0
+          let rightMaxY = -1, rightMaxX = 0
+          for (const p of candidates) {
+            if (p.x < midX) {
+              if (p.y > leftMaxY) { leftMaxY = p.y; leftMaxX = p.x }
+            } else {
+              if (p.y > rightMaxY) { rightMaxY = p.y; rightMaxX = p.x }
             }
-            const den = n * sx2 - sx * sx
-            if (Math.abs(den) > 1) {
-              const raw = (n * sxy - sx * sy) / den
-              slope   = Math.max(-0.27, Math.min(0.27, raw)) // clamp to ≈ ±15°
-              yAtLeft = (sy - slope * sx) / n
-            }
+          }
+
+          if (leftMaxY > 0 && rightMaxY > 0) {
+            const raw = (rightMaxY - leftMaxY) / (rightMaxX - leftMaxX)
+            slope   = Math.max(-0.27, Math.min(0.27, raw))
+            yAtLeft = leftMaxY - slope * leftMaxX
           }
         }
       } catch { /* CORS / canvas unavailable — keep flat defaults */ }
@@ -235,13 +236,12 @@ function CarStage({ src }: { src: string }) {
     ctx.drawImage(reflBuf, 0, 0)
 
     // ── Ambient shadow ───────────────────────────────────────────────────────
-    // Squash straight down to gym — no lateral shear (shear was pushing the
-    // front shadow off-screen for negative-slope 3/4-view photos).
+    // b=slope makes the shadow bottom track the exact ground line at every x.
     ctx.save()
     ctx.filter      = 'blur(20px)'
     ctx.globalAlpha = 0.27
     const asy = 0.28
-    ctx.transform(1.1, 0, 0, asy, -(0.1 * dw) / 2, gym - asy * dh)
+    ctx.transform(1.1, slope, 0, asy, -(0.1 * dw) / 2, gy0 - asy * dh)
     ctx.drawImage(blk, 0, 0, dw, dh)
     ctx.restore()
 
@@ -250,7 +250,7 @@ function CarStage({ src }: { src: string }) {
     ctx.filter      = 'blur(4px)'
     ctx.globalAlpha = 0.50
     const csy = 0.10
-    ctx.transform(1.0, 0, 0, csy, 0, gym - csy * dh)
+    ctx.transform(1.0, slope, 0, csy, 0, gy0 - csy * dh)
     ctx.drawImage(blk, 0, 0, dw, dh)
     ctx.restore()
 
