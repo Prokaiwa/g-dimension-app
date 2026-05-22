@@ -4,7 +4,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -42,6 +42,12 @@ export default function TuningPage() {
   const navigate = useNavigate()
   const [pressed, setPressed] = useState<string | null>(null)
   const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
+  const [bgLoaded, setBgLoaded] = useState(false)
+  const bgRef = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    if (bgRef.current?.complete) setBgLoaded(true)
+  }, [])
 
   useEffect(() => {
     getActiveCarId().then(carId => {
@@ -63,13 +69,17 @@ export default function TuningPage() {
 
       {/* Full-bleed workshop photo */}
       <img
+        ref={bgRef}
         src={tuningHero}
         alt=""
         aria-hidden
+        onLoad={() => setBgLoaded(true)}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center top',
+          opacity: bgLoaded ? 1 : 0,
+          transition: 'opacity 350ms ease',
         }}
       />
 
@@ -155,7 +165,7 @@ export default function TuningPage() {
       </div>
 
       {/* ── Icon tiles — asymmetric stagger, left of the lift ── */}
-      {TILES.map((tile, i) => (
+      {bgLoaded && TILES.map((tile, i) => (
         <button
           key={tile.id}
           onClick={() => navigate(tile.route)}
