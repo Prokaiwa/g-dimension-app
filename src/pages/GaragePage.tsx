@@ -4,7 +4,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import garageHero    from '../assets/backgrounds/garage_hero.png'
@@ -51,6 +51,12 @@ export default function GaragePage() {
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [hasCar, setHasCar] = useState<boolean | null>(null)
   const [pressed, setPressed] = useState<string | null>(null)
+  const [bgLoaded, setBgLoaded] = useState(false)
+  const bgRef = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    if (bgRef.current?.complete) setBgLoaded(true)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -84,13 +90,17 @@ export default function GaragePage() {
     }}>
       {/* Full-bleed garage photo */}
       <img
+        ref={bgRef}
         src={garageHero}
         alt=""
         aria-hidden
+        onLoad={() => setBgLoaded(true)}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center 20%',
+          opacity: bgLoaded ? 1 : 0,
+          transition: 'opacity 350ms ease',
         }}
       />
       {/* Dark overlay — heavier at bottom so grid is readable */}
@@ -197,7 +207,7 @@ export default function GaragePage() {
           gap: `${SPACE_LG}px ${SPACE_XS}px`,
           width: '100%',
         }}>
-          {GRID_TILES.map((tile, i) => (
+          {bgLoaded && GRID_TILES.map((tile, i) => (
             <button
               key={tile.id}
               onClick={() => navigate(tile.route)}
