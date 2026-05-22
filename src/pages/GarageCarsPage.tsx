@@ -75,24 +75,19 @@ const FIELD: React.CSSProperties = { display: 'flex', flexDirection: 'column', g
 const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9 }
 
 // ── Car stage ────────────────────────────────────────────────────────────────
-// Renders the car cutout on a canvas with a perspective-aware ground shadow
-// and reflection. Scans the bottom contour of the cutout pixel-by-pixel to
-// detect the car's ground-contact line (which tilts for a 3/4-view photo),
-// then reflects geometrically across that line rather than a flat horizontal.
-// All layers — reflection, ambient shadow, contact shadow, car — are composited
-// onto one <canvas> element so the result is portable to any background.
+// Renders the car cutout on a HiDPI canvas with a perspective-aware ground
+// shadow and reflection. Analyses the cutout's bottom contour to find the
+// actual tire contact line (not the body underside), then reflects geometrically
+// across that line.
 function CarStage({ src }: { src: string }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  // Analysis result lives in a ref so paint() always reads the latest values
-  // without requiring re-renders or effect re-runs.
   const imgStateRef = useRef<{
     img: HTMLImageElement
-    slope: number       // ground-line dy/dx in image pixel coords
-    yIntercept: number  // y of the ground line at x=0 (image pixels)
+    slope: number     // ground-line dy/dx in image pixel coords
+    yAtLeft: number   // y of the ground line at x = 0 (image pixels)
   } | null>(null)
 
-  // Load the image, analyse its bottom contour, store results, then paint.
   useEffect(() => {
     let live = true
     const img = new Image()
@@ -102,51 +97,53 @@ function CarStage({ src }: { src: string }) {
       if (!live) return
       const iw = img.naturalWidth
       const ih = img.naturalHeight
-      // Default: assume ground is near the very bottom
       let slope = 0
-      let yIntercept = ih * 0.94
+      let yAtLeft = ih * 0.93  // safe default: ground near the very bottom
 
       try {
-        // Draw the image onto an offscreen canvas to read its pixels.
-        // May throw a SecurityError if CORS headers are missing — handled below.
         const off = document.createElement('canvas')
-        off.width = iw
-        off.height = ih
+        off.width = iw; off.height = ih
         const octx = off.getContext('2d')!
         octx.drawImage(img, 0, 0)
         const { data } = octx.getImageData(0, 0, iw, ih)
 
-        // For each column find the lowest opaque pixel — that is the
-        // wheel/undercarriage contact point for that column.
-        const contactY = new Array<number>(iw).fill(-1)
+        // Lowest opaque pixel per column
+        const contactY: number[] = new Array(iw).fill(-1)
         for (let y = ih - 1; y >= 0; y--) {
           for (let x = 0; x < iw; x++) {
-            if (contactY[x] < 0 && data[(y * iw + x) * 4 + 3] > 16) {
-              contactY[x] = y
+            if (contactY[x] < 0 && data[(y * iw + x) * 4 + 3] > 16) contactY[x] = y
+          }
+        }
+
+        const cols = contactY.map((y, x) => ({ x, y })).filter(p => p.y >= 0)
+        if (cols.length >= 10) {
+          // Find the absolute lowest pixel — this is the tire touching the ground.
+          let maxY = 0
+          for (const p of cols) if (p.y > maxY) maxY = p.y
+
+          // Only keep columns whose bottom is within 8 % of image height from
+          // the absolute bottom. This isolates tire/undercarriage contact areas
+          // and excludes the door sills and body panels that sit higher.
+          const threshold = maxY - ih * 0.08
+          const ground = cols.filter(p => p.y >= threshold)
+
+          if (ground.length >= 4) {
+            const n = ground.length
+            let sx = 0, sy = 0, sxy = 0, sx2 = 0
+            for (const p of ground) {
+              sx += p.x; sy += p.y; sxy += p.x * p.y; sx2 += p.x * p.x
+            }
+            const den = n * sx2 - sx * sx
+            if (Math.abs(den) > 1) {
+              const raw = (n * sxy - sx * sy) / den
+              slope   = Math.max(-0.27, Math.min(0.27, raw)) // clamp to ≈ ±15°
+              yAtLeft = (sy - slope * sx) / n
             }
           }
         }
-        const pts = contactY
-          .map((y, x) => ({ x, y }))
-          .filter(p => p.y >= 0)
+      } catch { /* CORS / canvas unavailable — keep flat defaults */ }
 
-        if (pts.length >= 10) {
-          // Least-squares linear fit through all contact points.
-          const n = pts.length
-          let sx = 0, sy = 0, sxy = 0, sx2 = 0
-          for (const p of pts) {
-            sx += p.x; sy += p.y
-            sxy += p.x * p.y; sx2 += p.x * p.x
-          }
-          const den = n * sx2 - sx * sx
-          if (Math.abs(den) > 1) {
-            slope = (n * sxy - sx * sy) / den
-            yIntercept = (sy - slope * sx) / n
-          }
-        }
-      } catch { /* CORS or canvas unavailable — keep flat defaults */ }
-
-      imgStateRef.current = { img, slope, yIntercept }
+      imgStateRef.current = { img, slope, yAtLeft }
       paint()
     }
 
@@ -160,101 +157,100 @@ function CarStage({ src }: { src: string }) {
     const st     = imgStateRef.current
     if (!canvas || !wrap || !st) return
 
-    const dw = wrap.clientWidth
-    if (!dw) return
+    const cssW = wrap.clientWidth
+    if (!cssW) return
 
-    const { img, slope, yIntercept } = st
-    const sc      = dw / img.naturalWidth
-    const dh      = img.naturalHeight * sc
-    const REFL_H  = dh * 0.44           // reflection extends 44% below the car
-    const totalH  = dh + REFL_H
+    const { img, slope, yAtLeft } = st
+    // HiDPI: draw at physical-pixel resolution, set CSS size separately.
+    const dpr    = window.devicePixelRatio || 1
+    const sc     = cssW / img.naturalWidth
+    const cssH   = img.naturalHeight * sc
+    const REFL_H = cssH * 0.40
+    const cssT   = cssH + REFL_H
 
-    canvas.width  = dw
-    canvas.height = totalH
+    canvas.width        = Math.round(cssW * dpr)
+    canvas.height       = Math.round(cssT * dpr)
+    canvas.style.width  = cssW + 'px'
+    canvas.style.height = cssT + 'px'
 
     const ctx = canvas.getContext('2d')!
-    ctx.clearRect(0, 0, dw, totalH)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.scale(dpr, dpr)   // all subsequent draws in CSS-pixel coordinates
 
-    // Ground line in display coords. Because the scale is uniform, slope is
-    // the same ratio in both image and display coords; only the intercept scales.
-    const gy0   = yIntercept * sc           // y of ground line at x = 0
-    const gy1   = slope * dw + gy0          // y of ground line at x = dw
-    const gym   = (gy0 + gy1) / 2           // y at the horizontal midpoint
+    const dw = cssW
+    const dh = cssH
+
+    // Ground line in display coords (slope is dimensionless — same in both spaces)
+    const gy0   = yAtLeft * sc           // y at x = 0
+    const gy1   = slope * dw + gy0      // y at x = dw
+    const gym   = (gy0 + gy1) / 2       // y at horizontal centre
     const gxm   = dw / 2
-    const theta = Math.atan2(gy1 - gy0, dw) // angle of ground line (radians)
+    const theta = Math.atan2(gy1 - gy0, dw)
 
-    // Blackened silhouette — reused for both shadow layers.
-    const blk   = document.createElement('canvas')
-    blk.width   = dw
-    blk.height  = dh
-    const bctx  = blk.getContext('2d')!
+    // Blackened silhouette for both shadow layers
+    const blk  = document.createElement('canvas')
+    blk.width  = dw; blk.height = dh
+    const bctx = blk.getContext('2d')!
     bctx.drawImage(img, 0, 0, dw, dh)
     bctx.globalCompositeOperation = 'source-in'
     bctx.fillStyle = '#000'
     bctx.fillRect(0, 0, dw, dh)
 
     // ── Reflection ──────────────────────────────────────────────────────────
-    // Rendered onto a temporary canvas so its destination-out fade doesn't
-    // erase the shadow layers that are drawn after it.
+    // Geometric reflection across the ground contact line, rendered on a temp
+    // canvas so its destination-out fade doesn't erase the shadows drawn after.
     //
-    // 2-D reflection matrix through point (gxm, gym) at angle θ:
-    //   | cos2θ   sin2θ |   e = gxm·(1−cos2θ) − gym·sin2θ
-    //   | sin2θ  −cos2θ |   f = gym·(1+cos2θ) − gxm·sin2θ
+    // 2-D reflection matrix through (gxm, gym) at angle θ:
+    //   a = cos2θ  c = sin2θ  e = gxm(1−cos2θ) − gym·sin2θ
+    //   b = sin2θ  d = −cos2θ f = gym(1+cos2θ) − gxm·sin2θ
     const cos2t = Math.cos(2 * theta)
     const sin2t = Math.sin(2 * theta)
     const re    = gxm * (1 - cos2t) - gym * sin2t
     const rf    = gym * (1 + cos2t) - gxm * sin2t
 
-    const reflBuf   = document.createElement('canvas')
-    reflBuf.width   = dw
-    reflBuf.height  = totalH
-    const rctx      = reflBuf.getContext('2d')!
+    const reflBuf  = document.createElement('canvas')
+    reflBuf.width  = dw; reflBuf.height = Math.ceil(cssT)
+    const rctx     = reflBuf.getContext('2d')!
 
     rctx.save()
-    // Clip: only draw the reflected image below the ground contact line.
     rctx.beginPath()
-    rctx.moveTo(0, gy0)
-    rctx.lineTo(dw, gy1)
-    rctx.lineTo(dw, totalH)
-    rctx.lineTo(0, totalH)
-    rctx.closePath()
-    rctx.clip()
+    rctx.moveTo(0, gy0); rctx.lineTo(dw, gy1)
+    rctx.lineTo(dw, cssT); rctx.lineTo(0, cssT)
+    rctx.closePath(); rctx.clip()
     rctx.globalAlpha = 0.55
     rctx.transform(cos2t, sin2t, sin2t, -cos2t, re, rf)
     rctx.drawImage(img, 0, 0, dw, dh)
     rctx.restore()
 
-    // Fade the reflection from fully visible at the ground to invisible below.
     const fadeY = Math.min(gy0, gy1)
     const grad  = rctx.createLinearGradient(0, fadeY, 0, fadeY + REFL_H)
     grad.addColorStop(0,    'rgba(0,0,0,0)')
-    grad.addColorStop(0.18, 'rgba(0,0,0,0.20)')
-    grad.addColorStop(0.52, 'rgba(0,0,0,0.72)')
-    grad.addColorStop(0.90, 'rgba(0,0,0,1)')
+    grad.addColorStop(0.20, 'rgba(0,0,0,0.25)')
+    grad.addColorStop(0.55, 'rgba(0,0,0,0.78)')
+    grad.addColorStop(0.92, 'rgba(0,0,0,1)')
     rctx.fillStyle = grad
     rctx.globalCompositeOperation = 'destination-out'
-    rctx.fillRect(0, fadeY, dw, totalH - fadeY)
+    rctx.fillRect(0, fadeY, dw, cssT - fadeY)
 
-    ctx.drawImage(reflBuf, 0, 0)   // composite faded reflection onto main canvas
+    ctx.drawImage(reflBuf, 0, 0)
 
     // ── Ambient shadow ───────────────────────────────────────────────────────
-    // Squash the silhouette flat to the ground plane with a slight horizontal
-    // shear that follows the ground slope for perspective.
+    // Squash straight down to gym — no lateral shear (shear was pushing the
+    // front shadow off-screen for negative-slope 3/4-view photos).
     ctx.save()
-    ctx.filter    = 'blur(22px)'
-    ctx.globalAlpha = 0.26
+    ctx.filter      = 'blur(20px)'
+    ctx.globalAlpha = 0.27
     const asy = 0.28
-    // transform(a,b,c,d,e,f): keeps bottom edge at gym, squashes to 28% height
-    ctx.transform(1.1, 0, slope * 0.45, asy, -(0.1 * dw) / 2, gym - asy * dh)
+    ctx.transform(1.1, 0, 0, asy, -(0.1 * dw) / 2, gym - asy * dh)
     ctx.drawImage(blk, 0, 0, dw, dh)
     ctx.restore()
 
     // ── Contact shadow ───────────────────────────────────────────────────────
     ctx.save()
-    ctx.filter    = 'blur(4px)'
+    ctx.filter      = 'blur(4px)'
     ctx.globalAlpha = 0.50
     const csy = 0.10
-    ctx.transform(1.0, 0, slope * 0.1, csy, 0, gym - csy * dh)
+    ctx.transform(1.0, 0, 0, csy, 0, gym - csy * dh)
     ctx.drawImage(blk, 0, 0, dw, dh)
     ctx.restore()
 
@@ -262,7 +258,6 @@ function CarStage({ src }: { src: string }) {
     ctx.drawImage(img, 0, 0, dw, dh)
   }
 
-  // Re-paint whenever the container is resized (e.g. orientation change).
   useEffect(() => {
     const wrap = wrapRef.current
     if (!wrap) return
