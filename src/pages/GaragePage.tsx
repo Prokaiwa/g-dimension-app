@@ -7,6 +7,7 @@ const DAY_LABEL   = String(_now.getDate())
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getActiveCarId } from '../lib/activeCar'
 import garageHero    from '../assets/backgrounds/garage_hero.png'
 import iconMyCars    from '../assets/icons/garage/my_cars.png'
 import iconSnapshot  from '../assets/icons/garage/snapshot.png'
@@ -65,20 +66,26 @@ export default function GaragePage() {
       const name = meta?.full_name ?? meta?.name ?? email.split('@')[0] ?? ''
       setDisplayName(name.charAt(0).toUpperCase() + name.slice(1))
     })
-    supabase
-      .from('cars')
-      .select('id, year, model')
-      .is('deleted_at', null)
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          setHasCar(true)
-          const c = data[0]
-          setCarInfo([c.year, c.model].filter(Boolean).join(' '))
-        } else {
-          setHasCar(false)
-        }
-      })
+    getActiveCarId().then(carId => {
+      if (!carId) {
+        setHasCar(false)
+        return
+      }
+      supabase
+        .from('cars')
+        .select('id, year, model')
+        .eq('id', carId)
+        .is('deleted_at', null)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setHasCar(true)
+            setCarInfo([data.year, data.model].filter(Boolean).join(' '))
+          } else {
+            setHasCar(false)
+          }
+        })
+    })
   }, [])
 
   return (

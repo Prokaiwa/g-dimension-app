@@ -6,6 +6,7 @@ const DAY_LABEL   = String(_now.getDate())
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getActiveCarId } from '../lib/activeCar'
 import {
   GRADIENT_APP_BG,
   COLOR_ACCENT,
@@ -72,17 +73,18 @@ export default function HomePage() {
       const name  = meta?.full_name ?? meta?.name ?? email.split('@')[0] ?? ''
       setDisplayName(name.charAt(0).toUpperCase() + name.slice(1))
     })
-    supabase
-      .from('cars')
-      .select('year, model')
-      .is('deleted_at', null)
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          const c = data[0]
-          setCarInfo([c.year, c.model].filter(Boolean).join(' '))
-        }
-      })
+    getActiveCarId().then(carId => {
+      if (!carId) return
+      supabase
+        .from('cars')
+        .select('year, model')
+        .eq('id', carId)
+        .is('deleted_at', null)
+        .single()
+        .then(({ data }) => {
+          if (data) setCarInfo([data.year, data.model].filter(Boolean).join(' '))
+        })
+    })
   }, [])
 
   // Parallax RAF loop
