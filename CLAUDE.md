@@ -4,6 +4,14 @@ Car build journal PWA. React + Vite + Supabase. Live at gdimension.app.
 
 **Before implementing any new screen or feature, read `MASTER_ARCHITECTURE.md`.** It is the product spec, design system, and decision log in one file. It wins on every conflict.
 
+## Git Rules — NON-NEGOTIABLE
+
+- **Always commit and push directly to `main`.** Never create a feature branch. Never push to any other branch.
+- Do not open pull requests. Commit to `main` and push.
+- Vercel auto-deploys on every push to `main` — that is the deployment pipeline.
+
+---
+
 ---
 
 ## Stack
