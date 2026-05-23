@@ -76,11 +76,13 @@ const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9
 
 // ── Car stage ────────────────────────────────────────────────────────────────
 function CarStage({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState(false)
   return (
     <div style={{ position: 'relative', width: '88%' }}>
       <img
         src={src}
         alt=""
+        onLoad={() => setLoaded(true)}
         style={{
           width: '100%',
           maxHeight: 200,
@@ -90,6 +92,8 @@ function CarStage({ src }: { src: string }) {
           position: 'relative',
           zIndex: 2,
           filter: 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 180ms ease',
         }}
       />
     </div>
@@ -720,7 +724,7 @@ export default function GarageCarsPage() {
                     {/* Top bar — logo + model */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
                       <img
-                        src={`/manufacturer_logos/${(car.make ?? '').toLowerCase()}.png`}
+                        src={`/manufacturer_logos/${(car.make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
                         alt={car.make ?? ''}
                         style={{ height: 51, width: 'auto', objectFit: 'contain', mixBlendMode: 'screen' }}
                         onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
@@ -735,7 +739,7 @@ export default function GarageCarsPage() {
                       {/* Vignette — stage only, doesn't touch info strip */}
                       <div aria-hidden style={{
                         position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
-                        background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.58) 58%, rgba(0,0,0,0.92) 100%)',
+                        background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.53) 58%, rgba(0,0,0,0.87) 100%)',
                       }} />
                       {/* 2. Garage door lines — thin every 11px + single fixed seam at 38% */}
                       <div aria-hidden style={{
