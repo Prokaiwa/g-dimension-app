@@ -5,7 +5,7 @@ import iconChoose from '../assets/icons/car-carousel/choose.png'
 import iconDetails from '../assets/icons/car-carousel/details.png'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { setActiveCar } from '../lib/activeCar'
+import { setActiveCar, getActiveCarId } from '../lib/activeCar'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto } from '../lib/carPhoto'
 import CarPhotoUpload from '../components/CarPhotoUpload'
@@ -75,199 +75,23 @@ const FIELD: React.CSSProperties = { display: 'flex', flexDirection: 'column', g
 const OPT:   React.CSSProperties = { fontWeight: 400, opacity: 0.45, fontSize: 9 }
 
 // ── Car stage ────────────────────────────────────────────────────────────────
-// Renders the car cutout on a HiDPI canvas with a perspective-aware ground
-// shadow and reflection. Analyses the cutout's bottom contour to find the
-// actual tire contact line (not the body underside), then reflects geometrically
-// across that line.
 function CarStage({ src }: { src: string }) {
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const imgStateRef = useRef<{
-    img: HTMLImageElement
-    gxm: number   // midpoint x of the two tire contacts (image coords)
-    gym: number   // midpoint y of the two tire contacts (image coords)
-    slope: number // dy/dx of ground line — dimensionless
-  } | null>(null)
-
-  useEffect(() => {
-    let live = true
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-
-    img.onload = () => {
-      if (!live) return
-      const iw = img.naturalWidth
-      const ih = img.naturalHeight
-      // Defaults: flat ground at 98.5% of image height (trimmed car PNG)
-      let gxm = iw / 2, gym = ih * 0.985, slope = 0
-
-      try {
-        const off = document.createElement('canvas')
-        off.width = iw; off.height = ih
-        const octx = off.getContext('2d')!
-        octx.drawImage(img, 0, 0)
-        const { data } = octx.getImageData(0, 0, iw, ih)
-
-        // Lowest opaque pixel per column
-        const contactY: number[] = new Array(iw).fill(-1)
-        for (let y = ih - 1; y >= 0; y--)
-          for (let x = 0; x < iw; x++)
-            if (contactY[x] < 0 && data[(y * iw + x) * 4 + 3] > 16) contactY[x] = y
-
-        const cols = contactY.map((y, x) => ({ x, y })).filter(p => p.y >= 0)
-        if (cols.length >= 10) {
-          let maxY = 0
-          for (const p of cols) if (p.y > maxY) maxY = p.y
-
-          // Per-half max within a loose threshold — finds both tire contacts
-          const midX = iw / 2
-          const cands = cols.filter(p => p.y >= maxY - ih * 0.15)
-          let lY = -1, lX = iw * 0.25
-          let rY = -1, rX = iw * 0.75
-          for (const p of cands) {
-            if (p.x < midX) { if (p.y > lY) { lY = p.y; lX = p.x } }
-            else             { if (p.y > rY) { rY = p.y; rX = p.x } }
-          }
-
-          if (lY > 0 && rY > 0) {
-            // CENTERED midpoint between both tire contacts — always within the image.
-            // Previous attempts used yAtLeft (extrapolated to x=0) which exceeded dh
-            // for steep 3/4-view shots, placing shadows and reflections mid-car.
-            gxm = (lX + rX) / 2
-            gym = (lY + rY) / 2
-            const denom = rX - lX
-            if (Math.abs(denom) > iw * 0.1) {
-              const raw = (rY - lY) / denom
-              slope = Math.max(-0.22, Math.min(0.22, raw))
-            }
-          }
-        }
-      } catch { /* CORS / canvas tainted — keep defaults */ }
-
-      imgStateRef.current = { img, gxm, gym, slope }
-      paint()
-    }
-
-    img.src = src
-    return () => { live = false }
-  }, [src])
-
-  function paint() {
-    const canvas = canvasRef.current
-    const wrap   = wrapRef.current
-    const st     = imgStateRef.current
-    if (!canvas || !wrap || !st) return
-
-    const cssW = wrap.clientWidth
-    if (!cssW) return
-
-    const { img, gxm, gym, slope } = st
-    const dpr    = window.devicePixelRatio || 1
-    const sc     = cssW / img.naturalWidth
-    const cssH   = img.naturalHeight * sc
-    const REFL_H = cssH * 0.38
-    const cssT   = cssH + REFL_H
-
-    canvas.width        = Math.round(cssW * dpr)
-    canvas.height       = Math.round(cssT * dpr)
-    canvas.style.width  = cssW + 'px'
-    canvas.style.height = cssT + 'px'
-
-    const ctx = canvas.getContext('2d')!
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.scale(dpr, dpr)
-
-    const dw = cssW
-    const dh = cssH
-
-    const GXM = gxm * sc
-    // Push GYM down ~1.5% of car height to compensate for RESIDUE_ALPHA=60 in
-    // backgroundRemoval.ts which clips semi-transparent tire-edge pixels, leaving
-    // the detected contact point a few pixels above the true ground contact.
-    const GYM = Math.min(dh * 0.992, gym * sc + dh * 0.015)
-    const groundAt = (x: number) => slope * (x - GXM) + GYM
-
-    // ── Reflection ──────────────────────────────────────────────────────────
-    // Geometric reflection through (GXM, GYM) at angle atan(slope).
-    // Both tire contacts lie on this line by construction → both reflect to
-    // themselves → zero gap at both tires for any camera angle.
-    const theta = Math.atan(slope)
-    const cos2t = Math.cos(2 * theta)
-    const sin2t = Math.sin(2 * theta)
-    const re    = GXM * (1 - cos2t) - GYM * sin2t
-    const rf    = GYM * (1 + cos2t) - GXM * sin2t
-
-    const reflBuf  = document.createElement('canvas')
-    reflBuf.width  = dw; reflBuf.height = Math.ceil(cssT)
-    const rctx     = reflBuf.getContext('2d')!
-    rctx.save()
-    rctx.beginPath()
-    rctx.moveTo(0, groundAt(0)); rctx.lineTo(dw, groundAt(dw))
-    rctx.lineTo(dw, cssT); rctx.lineTo(0, cssT)
-    rctx.closePath(); rctx.clip()
-    rctx.globalAlpha = 0.50
-    rctx.transform(cos2t, sin2t, sin2t, -cos2t, re, rf)
-    rctx.drawImage(img, 0, 0, dw, dh)
-    rctx.restore()
-
-    const fadeY = Math.min(groundAt(0), groundAt(dw))
-    const grad  = rctx.createLinearGradient(0, fadeY, 0, fadeY + REFL_H)
-    grad.addColorStop(0,    'rgba(0,0,0,0)')
-    grad.addColorStop(0.22, 'rgba(0,0,0,0.28)')
-    grad.addColorStop(0.58, 'rgba(0,0,0,0.80)')
-    grad.addColorStop(0.92, 'rgba(0,0,0,1)')
-    rctx.fillStyle = grad
-    rctx.globalCompositeOperation = 'destination-out'
-    rctx.fillRect(0, fadeY, dw, cssT - fadeY)
-    ctx.drawImage(reflBuf, 0, 0)
-
-    // ── Shadow ───────────────────────────────────────────────────────────────
-    // Silhouette blackened for shadow source
-    const blk  = document.createElement('canvas')
-    blk.width  = dw; blk.height = dh
-    const bctx = blk.getContext('2d')!
-    bctx.drawImage(img, 0, 0, dw, dh)
-    bctx.globalCompositeOperation = 'source-in'
-    bctx.fillStyle = '#000'; bctx.fillRect(0, 0, dw, dh)
-
-    const shadowBuf = document.createElement('canvas')
-    shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
-    const sctx = shadowBuf.getContext('2d')!
-
-    // Slope-aware squash: setTransform(1, b, 0, scale, 0, f) where
-    //   b = (1-scale)*slope,  f = (1-scale)*(GYM - slope*GXM)
-    // Any point (x, groundAt(x)) maps to itself — both tire contacts land exactly
-    // on the shadow bottom, no floating gap regardless of camera angle.
-    sctx.filter = 'blur(20px)'
-    sctx.globalAlpha = 0.18
-    const asy = 0.08
-    sctx.setTransform(1, (1 - asy) * slope, 0, asy, 0, (1 - asy) * (GYM - slope * GXM))
-    sctx.drawImage(blk, 0, 0, dw, dh)
-
-    // Contact strip: same slope-aware formulation, razor thin
-    sctx.filter = 'blur(2px)'
-    sctx.globalAlpha = 0.22
-    const csy = 0.018
-    sctx.setTransform(1, (1 - csy) * slope, 0, csy, 0, (1 - csy) * (GYM - slope * GXM))
-    sctx.drawImage(blk, 0, 0, dw, dh)
-
-    ctx.drawImage(shadowBuf, 0, 0)
-
-    // ── Car ───────────────────────────────────────────────────────────────────
-    ctx.drawImage(img, 0, 0, dw, dh)
-  }
-
-  useEffect(() => {
-    const wrap = wrapRef.current
-    if (!wrap) return
-    const ro = new ResizeObserver(paint)
-    ro.observe(wrap)
-    return () => ro.disconnect()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
-    <div ref={wrapRef} style={{ position: 'relative', width: '88%' }}>
-      <canvas ref={canvasRef} style={{ display: 'block', width: '100%' }} />
+    <div style={{ position: 'relative', width: '88%' }}>
+      <img
+        src={src}
+        alt=""
+        style={{
+          width: '100%',
+          maxHeight: 200,
+          objectFit: 'contain',
+          objectPosition: 'bottom',
+          display: 'block',
+          position: 'relative',
+          zIndex: 2,
+          filter: 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
+        }}
+      />
     </div>
   )
 }
@@ -564,6 +388,7 @@ export default function GarageCarsPage() {
   const [showAdd, setShowAdd]                 = useState(false)
   const [showHints, setShowHints]             = useState(false)
   const [activeIdx, setActiveIdx]             = useState(0)
+  const [chosenCarId, setChosenCarId]         = useState<string | null>(null)
   const [step, setStep]                       = useState(1)
   const [form, setForm]                       = useState<FormData>(EMPTY_FORM)
   const [saving, setSaving]                   = useState(false)
@@ -598,9 +423,21 @@ export default function GarageCarsPage() {
         .select(CAR_COLUMNS)
         .is('deleted_at', null)
         .order('created_at')
-        .then(({ data }) => {
+        .then(async ({ data }) => {
           if (data) { setCars(data); if (data.length > 1) setShowHints(true) }
           setLoading(false)
+          const id = await getActiveCarId()
+          setChosenCarId(id)
+          if (id && data) {
+            const idx = data.findIndex(c => c.id === id)
+            if (idx > 0) {
+              setActiveIdx(idx)
+              setTimeout(() => {
+                const el = scrollRef.current
+                if (el) el.scrollLeft = idx * el.clientWidth
+              }, 50)
+            }
+          }
         })
     })
   }, [])
@@ -860,7 +697,7 @@ export default function GarageCarsPage() {
       `}</style>
 
       <GarageBg />
-      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && cars[activeIdx] ? [cars[activeIdx].year, cars[activeIdx].model].filter(Boolean).join(' ') : undefined} />
+      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && chosenCarId ? (() => { const c = cars.find(x => x.id === chosenCarId); return c ? [c.year, c.model].filter(Boolean).join(' ') : undefined })() : undefined} />
 
       {/* ── CAROUSEL ── */}
       {!loading && (
@@ -878,7 +715,7 @@ export default function GarageCarsPage() {
             <>
               <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
                 {cars.map((car, i) => (
-                  <div key={car.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <div key={car.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse 90% 55% at 50% 58%, #272420 0%, #141210 40%, #0d0b09 62%, #07070a 100%)' }}>
 
                     {/* Top bar — logo + model */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
@@ -893,14 +730,54 @@ export default function GarageCarsPage() {
                       </span>
                     </div>
 
-                    {/* Spotlight + car image */}
+                    {/* GT-style garage stage */}
                     <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                      <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 100% 70% at 50% 45%, #484848 0%, #282828 55%, #0d0d0f 100%)' }} />
-                      <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '42%', background: 'linear-gradient(to bottom, transparent 0%, rgba(220,218,214,0.06) 65%, rgba(220,218,214,0.13) 100%)' }} />
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '18%', zIndex: 2 }}>
+                      {/* Vignette — stage only, doesn't touch info strip */}
+                      <div aria-hidden style={{
+                        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4,
+                        background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.58) 58%, rgba(0,0,0,0.92) 100%)',
+                      }} />
+                      {/* 2. Garage door lines — thin every 11px + single fixed seam at 38% */}
+                      <div aria-hidden style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%',
+                        backgroundImage: [
+                          'linear-gradient(to bottom, transparent calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 1.5px), transparent calc(38% + 1.5px))',
+                          'repeating-linear-gradient(to bottom, transparent 0px, transparent 10px, rgba(0,0,0,0.20) 10px, rgba(0,0,0,0.20) 10.5px, rgba(255,255,255,0.035) 10.5px, rgba(255,255,255,0.035) 11px)',
+                        ].join(', '),
+                      }} />
+                      {/* 3. Vertical frame rails — beveled: dark outer edge, dim face, light inner edge */}
+                      <div aria-hidden style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%',
+                        backgroundImage: [
+                          'linear-gradient(to right, transparent calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 4px), transparent calc(14% + 4px))',
+                          'linear-gradient(to right, transparent calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 4px), transparent calc(86% + 4px))',
+                        ].join(', '),
+                      }} />
+                      {/* 4a. Top fade — dissolves the hard upper edge of the door lines */}
+                      <div aria-hidden style={{
+                        position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%',
+                        background: 'linear-gradient(to bottom, #07070a 0%, transparent 40%)',
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                      }} />
+                      {/* 4. Floor line */}
+                      <div aria-hidden style={{
+                        position: 'absolute', bottom: '46%', left: 0, right: 0,
+                        height: 1, background: 'rgba(255,255,255,0.07)',
+                      }} />
+                      {/* 5. Floor — light pool where spotlight hits ground + subtle surface gradient */}
+                      <div aria-hidden style={{
+                        position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%',
+                        background: [
+                          'radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)',
+                          'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)',
+                        ].join(', '),
+                      }} />
+                      {/* 7. Car — sits just above floor line */}
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2 }}>
                         <CarStage src={car.garage_photo_url || garagePlaceholder} />
                       </div>
-                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 3 }}>
+                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5 }}>
                         {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
                       </div>
                     </div>
@@ -935,7 +812,7 @@ export default function GarageCarsPage() {
                       {/* Actions */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
-                          { src: iconChoose, label: 'Choose', onPress: () => { setActiveCar(cars[activeIdx].id).then(() => navigate('/garage')) } },
+                          { src: iconChoose, label: 'Choose', onPress: () => { setActiveCar(cars[activeIdx].id).then(() => { setChosenCarId(cars[activeIdx].id); navigate('/garage') }) } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },
                         ] as const).map(({ src, label, onPress }) => (
                           <button key={label} onClick={onPress}
