@@ -1,57 +1,45 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-19T13:32:23.634Z",
+  "timestamp": "2026-05-23T11:41:03.479Z",
   "phase": null,
-  "phase_name": "parts-bin polish — detail, edit, spec display",
+  "phase_name": "car-carousel-garage-background",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": null,
   "task": null,
   "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Parts Bin thumbnails 60px, category only (brand removed from rows)", "status": "done", "commit": "4803318"},
-    {"id": 2, "name": "On Hand section above In Storage", "status": "done", "commit": "dec7f17"},
-    {"id": 3, "name": "Part detail edit page (TuningPartEditPage) at /tuning/parts-bin/:partId/edit", "status": "done", "commit": "a3e2e65"},
-    {"id": 4, "name": "Spec data display in both mod detail and part detail pages (job_specs + spec_templates)", "status": "done", "commit": "279b04c"},
-    {"id": 5, "name": "Parts bin edit: full spec fields (kraft aesthetic), darker placeholder, kraft toggles/checkboxes", "status": "done", "commit": "16e16e4"},
-    {"id": 6, "name": "Parts bin edit: fix photo picker only allowing 1 photo (remount via key, not value clear)", "status": "done", "commit": "5666c41"}
+    {"id": 1, "name": "QA parts-bin flows (all 4 manual tests passing)", "status": "done"},
+    {"id": 2, "name": "Replaced CarStage canvas (5-attempt failed shadow/reflection) with simple CSS contact shadow", "status": "done"},
+    {"id": 3, "name": "Dropped reflection entirely — too complex for arbitrary photo angles, no reliable approach", "status": "done"},
+    {"id": 4, "name": "Built GT-style garage background: dark base + spotlight, garage door panel lines, beveled vertical rails, floor line, floor light pool", "status": "done"},
+    {"id": 5, "name": "Iterative tuning: line density, thickness, door area height, beveled rail depth effect", "status": "done"}
   ],
   "remaining_tasks": [
     {
+      "id": 6,
+      "name": "Fine-tune garage background (user said 'still need to do some adjustments')",
+      "status": "not_started",
+      "notes": "User was happy with overall direction. May want to adjust spotlight warmth, floor line intensity, contact shadow, or line opacities."
+    },
+    {
       "id": 7,
-      "name": "Test multiple photo fix on parts bin edit page",
+      "name": "Commit and push to main when satisfied",
       "status": "not_started",
-      "notes": "User hasn't tested yet — confirm photo picker reopens after first selection on device."
-    },
-    {
-      "id": 8,
-      "name": "Test remove-mod → parts bin flow on gdimension.app",
-      "status": "not_started",
-      "notes": "Tap mod on build sheet → mod detail → REMOVE → Move to Storage. DML grants applied, should succeed."
-    },
-    {
-      "id": 9,
-      "name": "Test Add Part via FAB on parts bin page",
-      "status": "not_started",
-      "notes": "Full 3-step kraft flow. Part should appear in On Hand section."
-    },
-    {
-      "id": 10,
-      "name": "Test Put Back flow — tap Put Back on a parts bin item",
-      "status": "not_started",
-      "notes": "Should move part back to build sheet."
+      "notes": "GarageCarsPage.tsx has 258-line diff, not yet committed. Push directly to main (Vercel auto-deploys)."
     }
   ],
   "blockers": [],
   "human_actions_pending": [],
   "decisions": [
-    {"decision": "On Hand listed above In Storage", "rationale": "On Hand parts are actionable (ready to install); In Storage is archived history. Inbox before shelf."},
-    {"decision": "Brand removed from part list rows — category badge only", "rationale": "Cleaner row; brand visible on detail page"},
-    {"decision": "Part edit uses separate page /tuning/parts-bin/:partId/edit, not inline editing", "rationale": "Consistent with mod detail → mod edit pattern"},
-    {"decision": "Spec display grouped by group_label, 2-col grid in detail pages", "rationale": "Matches density of info without overwhelming the page"},
-    {"decision": "Photo input remounts via key increment instead of value clear", "rationale": "e.target.value = '' prevents iOS file picker from reopening on subsequent taps"}
+    {"decision": "Drop reflection entirely", "rationale": "5 prior attempts all failed — alpha detection unreliable for arbitrary angles, body kits, RESIDUE_ALPHA clipping. User agreed complexity not worth it.", "phase": "car-carousel-garage-background"},
+    {"decision": "Replace canvas CarStage with CSS-only contact shadow", "rationale": "Soft radial-gradient ellipse works for any car photo without photo intelligence. No canvas needed.", "phase": "car-carousel-garage-background"},
+    {"decision": "GT-style garage background with garage door panel lines", "rationale": "User referenced Gran Turismo garage screen. Paired shadow+highlight horizontal lines, beveled vertical rails, spotlight, floor line, floor light pool.", "phase": "car-carousel-garage-background"},
+    {"decision": "Single fixed thick seam line at 38% of door area (not repeating)", "rationale": "Repeating thick line every 44px would fall at random positions relative to the car body — one landed at beltline level. Fixed position avoids this.", "phase": "car-carousel-garage-background"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Test the multiple-photo fix on device. Then run the 3 manual QA flows: remove-mod, add part via FAB, put back.",
-  "context_notes": "Parts bin is now fully featured: list with thumbnails, detail page with full spec display, edit page with full spec editing in kraft aesthetic. All 6 sessions worth of work is pushed to Vercel. The only remaining work is manual QA on gdimension.app."
+  "uncommitted_files": [
+    "src/pages/GarageCarsPage.tsx"
+  ],
+  "next_action": "Ask user what adjustments they want, then commit and push to main when done.",
+  "context_notes": "Garage background is in good shape — user approved the beveled vertical rails and overall direction. Current values: door lines bottom=41%, floor line bottom=41%, thin lines every 11px, single thick seam at 38% of door area, vertical rails 8px beveled. Contact shadow is a CSS radial-gradient ellipse. The car photo (cars.garage_photo_url) is already wired up from the cloud session — falls back to garagePlaceholder. Background removal (RMBG-1.4 via @huggingface/transformers) was already built in the cloud session and works. npm install was needed locally (package was in package.json but not installed)."
 }
