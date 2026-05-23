@@ -4,180 +4,47 @@
 <meta charset="utf-8">
 <style>
   body { background: #1a1a1f; display: flex; flex-direction: column; align-items: center; padding: 20px; gap: 30px; font-family: sans-serif; color: #ccc; }
-  .row { display: flex; gap: 30px; align-items: flex-end; }
+  .row { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
   .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  label { font-size: 12px; opacity: 0.6; }
+  label { font-size: 11px; opacity: 0.6; max-width: 340px; text-align: center; line-height: 1.4; }
   canvas { border: 1px solid rgba(255,255,255,0.1); }
-  #debug { font-size: 11px; color: #888; max-width: 800px; word-break: break-all; }
+  #debug { font-size: 11px; color: #888; max-width: 800px; text-align: center; }
+  h3 { color: #c8661a; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin: 0; }
 </style>
 </head>
 <body>
 
-<div id="debug">Generating test images…</div>
+<div id="debug">Generating…</div>
 <div class="row" id="stages"></div>
 
 <script>
-// ─── Create synthetic transparent-PNG car silhouettes ─────────────────────────
-function makeSyntheticCar(W, H) {
-  const c = document.createElement('canvas')
-  c.width = W; c.height = H
+// ─── Synthetic car silhouettes ─────────────────────────────────────────────────
+function makeCar_frontRight(W, H) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
-  const frontTireX = 0.80 * W, frontTireY = 0.90 * H
-  const rearTireX  = 0.20 * W, rearTireY  = 0.78 * H
-  const frontR = 0.11 * H, rearR = 0.09 * H
+  // Front (right) is lower, rear (left) is higher — typical 3/4 front-right view
+  const ftX = 0.80*W, ftY = 0.90*H, ftR = 0.11*H  // front tire
+  const rtX = 0.20*W, rtY = 0.78*H, rtR = 0.09*H  // rear tire
   ctx.fillStyle = '#c0c0c0'
   ctx.beginPath()
-  ctx.moveTo(0.06*W, rearTireY - rearR*0.15)
-  ctx.lineTo(0.06*W, rearTireY - rearR*1.80)
-  ctx.lineTo(0.30*W, rearTireY - rearR*2.80)
-  ctx.lineTo(0.72*W, frontTireY - frontR*2.50)
-  ctx.lineTo(0.96*W, frontTireY - frontR*1.50)
-  ctx.lineTo(0.96*W, frontTireY - frontR*0.15)
-  ctx.lineTo(frontTireX + frontR*1.15, frontTireY - frontR*0.15)
-  ctx.lineTo(frontTireX + frontR*0.60, frontTireY + frontR*0.05)
-  ctx.lineTo(frontTireX - frontR*0.60, frontTireY + frontR*0.05)
-  ctx.lineTo(frontTireX - frontR*1.15, frontTireY - frontR*0.15)
-  ctx.lineTo(rearTireX  + rearR*1.15,  rearTireY  - rearR*0.05)
-  ctx.lineTo(rearTireX  + rearR*0.60,  rearTireY  + rearR*0.05)
-  ctx.lineTo(rearTireX  - rearR*0.60,  rearTireY  + rearR*0.05)
-  ctx.lineTo(rearTireX  - rearR*1.15,  rearTireY  - rearR*0.05)
+  ctx.moveTo(0.06*W, rtY-rtR*0.15); ctx.lineTo(0.06*W, rtY-rtR*1.80)
+  ctx.lineTo(0.30*W, rtY-rtR*2.80); ctx.lineTo(0.72*W, ftY-ftR*2.50)
+  ctx.lineTo(0.96*W, ftY-ftR*1.50); ctx.lineTo(0.96*W, ftY-ftR*0.15)
+  ctx.lineTo(ftX+ftR*1.15, ftY-ftR*0.15); ctx.lineTo(ftX+ftR*0.60, ftY+ftR*0.05)
+  ctx.lineTo(ftX-ftR*0.60, ftY+ftR*0.05); ctx.lineTo(ftX-ftR*1.15, ftY-ftR*0.15)
+  ctx.lineTo(rtX+rtR*1.15, rtY-rtR*0.05); ctx.lineTo(rtX+rtR*0.60, rtY+rtR*0.05)
+  ctx.lineTo(rtX-rtR*0.60, rtY+rtR*0.05); ctx.lineTo(rtX-rtR*1.15, rtY-rtR*0.05)
   ctx.closePath(); ctx.fill()
   ctx.fillStyle = '#333'
-  ctx.beginPath(); ctx.arc(frontTireX, frontTireY, frontR, 0, Math.PI*2); ctx.fill()
-  ctx.beginPath(); ctx.arc(rearTireX,  rearTireY,  rearR,  0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(ftX, ftY, ftR, 0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(rtX, rtY, rtR, 0, Math.PI*2); ctx.fill()
   ctx.fillStyle = '#888'
-  ctx.beginPath(); ctx.arc(frontTireX, frontTireY, frontR*0.6, 0, Math.PI*2); ctx.fill()
-  ctx.beginPath(); ctx.arc(rearTireX,  rearTireY,  rearR*0.6,  0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(ftX, ftY, ftR*0.6, 0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(rtX, rtY, rtR*0.6, 0, Math.PI*2); ctx.fill()
   return c
 }
 
-// ─── CarStage: reliable reflection + shadow ───────────────────────────────────
-//
-// Approach: flat vertical flip anchored at the lowest opaque pixel (= tire contact).
-// No perspective extrapolation — just the reliable geometry the image already encodes.
-//
-// Why not slope-based geometric reflection:
-//   A true perspective reflection requires knowing the camera's focal length,
-//   sensor height and horizontal field of view — which arbitrary user photos
-//   do not carry. Per-pixel slope estimation extrapolates the ground line to
-//   x=0, which is outside the image for steep 3/4-view shots, causing gy0 > dh
-//   and placing shadows mid-car. All production car sites (Carvana, Spyne,
-//   dealer marketplaces) use server-side AI or 3D rendering for this; in-browser
-//   the flat flip is the reliable ceiling.
-//
-function analyzeAndRender(img, displayW) {
-  const iw = img.naturalWidth || img.width
-  const ih = img.naturalHeight || img.height
-
-  // ── 1. Ground contact: lowest row with any opaque pixel ──────────────────
-  //    The image is already background-removed and trimmed (1.5% padding),
-  //    so the lowest opaque pixel is always the tire contact row.
-  const off = document.createElement('canvas')
-  off.width = iw; off.height = ih
-  const octx = off.getContext('2d')
-  octx.drawImage(img, 0, 0)
-  const { data } = octx.getImageData(0, 0, iw, ih)
-
-  let groundY = Math.round(ih * 0.985)  // safe default (trimmed image)
-  outer: for (let y = ih - 1; y >= 0; y--) {
-    for (let x = 0; x < iw; x++) {
-      if (data[(y * iw + x) * 4 + 3] > 16) { groundY = y; break outer }
-    }
-  }
-
-  document.getElementById('debug').textContent =
-    `groundY=${groundY} (${(groundY/ih*100).toFixed(1)}% of ih) ih=${ih} iw=${iw}`
-
-  // ── 2. Render ─────────────────────────────────────────────────────────────
-  const sc   = displayW / iw
-  const dh   = ih * sc
-  const REFL = dh * 0.38
-  const cssT = dh + REFL
-  const dw   = displayW
-  const gy   = groundY * sc   // ground contact y in display coords
-
-  const canvas = document.createElement('canvas')
-  canvas.width  = dw; canvas.height = cssT
-  canvas.style.width  = dw + 'px'
-  canvas.style.height = cssT + 'px'
-  const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, dw, cssT)
-
-  // Debug: show ground line
-  ctx.save()
-  ctx.strokeStyle = 'magenta'; ctx.lineWidth = 1; ctx.setLineDash([4, 4])
-  ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(dw, gy); ctx.stroke()
-  ctx.restore()
-
-  // ── Reflection ─────────────────────────────────────────────────────────────
-  // Simple vertical flip about gy. Always correct for any camera angle.
-  const reflBuf = document.createElement('canvas')
-  reflBuf.width = dw; reflBuf.height = Math.ceil(cssT)
-  const rctx = reflBuf.getContext('2d')
-  rctx.save()
-  rctx.beginPath()
-  rctx.rect(0, gy, dw, cssT - gy)   // clip to zone below tire contact
-  rctx.clip()
-  rctx.globalAlpha = 0.50
-  rctx.transform(1, 0, 0, -1, 0, 2 * gy)  // flip vertically about gy
-  rctx.drawImage(img, 0, 0, dw, dh)
-  rctx.restore()
-  const grad = rctx.createLinearGradient(0, gy, 0, gy + REFL)
-  grad.addColorStop(0,    'rgba(0,0,0,0)')
-  grad.addColorStop(0.22, 'rgba(0,0,0,0.28)')
-  grad.addColorStop(0.58, 'rgba(0,0,0,0.80)')
-  grad.addColorStop(0.92, 'rgba(0,0,0,1)')
-  rctx.fillStyle = grad
-  rctx.globalCompositeOperation = 'destination-out'
-  rctx.fillRect(0, gy, dw, cssT - gy)
-  ctx.drawImage(reflBuf, 0, 0)
-
-  // ── Blackened silhouette for shadows ───────────────────────────────────────
-  const blk = document.createElement('canvas')
-  blk.width = dw; blk.height = dh
-  const bctx = blk.getContext('2d')
-  bctx.drawImage(img, 0, 0, dw, dh)
-  bctx.globalCompositeOperation = 'source-in'
-  bctx.fillStyle = '#000'; bctx.fillRect(0, 0, dw, dh)
-
-  // ── Ambient shadow: vertical squash toward gy, no slope shear ─────────────
-  // Anchoring to gy (not gy0) means the shadow is always attached to the tires,
-  // not floating. No b-shear prevents shadow bleeding through transparent windows.
-  ctx.save()
-  ctx.filter = 'blur(20px)'; ctx.globalAlpha = 0.28
-  const asy = 0.22
-  ctx.transform(1.08, 0, 0, asy, -(0.04 * dw), gy - asy * dh)
-  ctx.drawImage(blk, 0, 0, dw, dh)
-  ctx.restore()
-
-  // ── Contact shadow: thin strip right at gy ─────────────────────────────────
-  ctx.save()
-  ctx.filter = 'blur(4px)'; ctx.globalAlpha = 0.55
-  const csy = 0.07
-  ctx.transform(1.0, 0, 0, csy, 0, gy - csy * dh)
-  ctx.drawImage(blk, 0, 0, dw, dh)
-  ctx.restore()
-
-  // ── Car ────────────────────────────────────────────────────────────────────
-  ctx.drawImage(img, 0, 0, dw, dh)
-
-  return { canvas, gy }
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-const DISPLAY_W = 340
-const container = document.getElementById('stages')
-
-// Test 1: 3/4 front-right
-const synth1 = makeSyntheticCar(800, 500)
-const r1 = analyzeAndRender(synth1, DISPLAY_W)
-const col1 = document.createElement('div'); col1.className = 'col'
-col1.innerHTML = '<label>3/4 front-right · gy=' + r1.gy.toFixed(0) + '</label>'
-col1.appendChild(r1.canvas); container.appendChild(col1)
-
-// Test 2: side-on (flat)
-const synth2 = (function() {
-  const W = 800, H = 500
+function makeCar_sideOn(W, H) {
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
   ctx.fillStyle = '#c0c0c0'
@@ -187,52 +54,229 @@ const synth2 = (function() {
   ctx.beginPath(); ctx.arc(0.75*W, 0.80*H, 0.12*H, 0, Math.PI*2); ctx.fill()
   ctx.beginPath(); ctx.arc(0.25*W, 0.80*H, 0.12*H, 0, Math.PI*2); ctx.fill()
   return c
-})()
-const r2 = analyzeAndRender(synth2, DISPLAY_W)
-const col2 = document.createElement('div'); col2.className = 'col'
-col2.innerHTML = '<label>Side-on · gy=' + r2.gy.toFixed(0) + '</label>'
-col2.appendChild(r2.canvas); container.appendChild(col2)
+}
 
-// Test 3: 3/4 front-left (steep negative perspective)
-const synth3 = (function() {
-  const W = 800, H = 500
+function makeCar_frontLeft(W, H) {
   const c = document.createElement('canvas'); c.width = W; c.height = H
   const ctx = c.getContext('2d')
-  const frontTireX = 0.20*W, frontTireY = 0.90*H
-  const rearTireX  = 0.80*W, rearTireY  = 0.78*H
-  const frontR = 0.11*H, rearR = 0.09*H
+  // Front (left) is lower, rear (right) is higher — 3/4 front-left
+  const ftX = 0.20*W, ftY = 0.90*H, ftR = 0.11*H
+  const rtX = 0.80*W, rtY = 0.78*H, rtR = 0.09*H
   ctx.fillStyle = '#c0c0c0'
   ctx.beginPath()
-  ctx.moveTo(0.04*W, frontTireY - frontR*0.15)
-  ctx.lineTo(0.04*W, frontTireY - frontR*1.50)
-  ctx.lineTo(0.28*W, frontTireY - frontR*2.50)
-  ctx.lineTo(0.70*W, rearTireY  - rearR*2.80)
-  ctx.lineTo(0.94*W, rearTireY  - rearR*1.80)
-  ctx.lineTo(0.94*W, rearTireY  - rearR*0.15)
-  ctx.lineTo(rearTireX  + rearR*1.15, rearTireY  - rearR*0.05)
-  ctx.lineTo(rearTireX  + rearR*0.60, rearTireY  + rearR*0.05)
-  ctx.lineTo(rearTireX  - rearR*0.60, rearTireY  + rearR*0.05)
-  ctx.lineTo(rearTireX  - rearR*1.15, rearTireY  - rearR*0.05)
-  ctx.lineTo(frontTireX + frontR*1.15, frontTireY - frontR*0.15)
-  ctx.lineTo(frontTireX + frontR*0.60, frontTireY + frontR*0.05)
-  ctx.lineTo(frontTireX - frontR*0.60, frontTireY + frontR*0.05)
-  ctx.lineTo(frontTireX - frontR*1.15, frontTireY - frontR*0.15)
+  ctx.moveTo(0.04*W, ftY-ftR*0.15); ctx.lineTo(0.04*W, ftY-ftR*1.50)
+  ctx.lineTo(0.28*W, ftY-ftR*2.50); ctx.lineTo(0.70*W, rtY-rtR*2.80)
+  ctx.lineTo(0.94*W, rtY-rtR*1.80); ctx.lineTo(0.94*W, rtY-rtR*0.15)
+  ctx.lineTo(rtX+rtR*1.15, rtY-rtR*0.05); ctx.lineTo(rtX+rtR*0.60, rtY+rtR*0.05)
+  ctx.lineTo(rtX-rtR*0.60, rtY+rtR*0.05); ctx.lineTo(rtX-rtR*1.15, rtY-rtR*0.05)
+  ctx.lineTo(ftX+ftR*1.15, ftY-ftR*0.15); ctx.lineTo(ftX+ftR*0.60, ftY+ftR*0.05)
+  ctx.lineTo(ftX-ftR*0.60, ftY+ftR*0.05); ctx.lineTo(ftX-ftR*1.15, ftY-ftR*0.15)
   ctx.closePath(); ctx.fill()
   ctx.fillStyle = '#333'
-  ctx.beginPath(); ctx.arc(frontTireX, frontTireY, frontR, 0, Math.PI*2); ctx.fill()
-  ctx.beginPath(); ctx.arc(rearTireX,  rearTireY,  rearR,  0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(ftX, ftY, ftR, 0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(rtX, rtY, rtR, 0, Math.PI*2); ctx.fill()
   ctx.fillStyle = '#888'
-  ctx.beginPath(); ctx.arc(frontTireX, frontTireY, frontR*0.6, 0, Math.PI*2); ctx.fill()
-  ctx.beginPath(); ctx.arc(rearTireX,  rearTireY,  rearR*0.6,  0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(ftX, ftY, ftR*0.6, 0, Math.PI*2); ctx.fill()
+  ctx.beginPath(); ctx.arc(rtX, rtY, rtR*0.6, 0, Math.PI*2); ctx.fill()
   return c
-})()
-const r3 = analyzeAndRender(synth3, DISPLAY_W)
-const col3 = document.createElement('div'); col3.className = 'col'
-col3.innerHTML = '<label>3/4 front-left · gy=' + r3.gy.toFixed(0) + '</label>'
-col3.appendChild(r3.canvas); container.appendChild(col3)
+}
 
-document.getElementById('debug').textContent =
-  'Done. Checks: (1) magenta line at tire bottoms, (2) reflection starts exactly there, (3) no shadow inside car body, (4) looks consistent across all three views.'
+// ─── CarStage v4: Sloped geometric reflection via centered ground midpoint ─────
+//
+// KEY FIX over previous attempts:
+//   Previous: computed yAtLeft = y-intercept at x=0 → extrapolated outside the
+//   image for steep 3/4-view shots (gy0 > dh) → reflection/shadow anchored wrong.
+//
+//   Now: anchor at GXM,GYM = midpoint of the two tire contacts → always within the
+//   image, zero extrapolation. Both tire contacts sit exactly on the ground line
+//   and reflect to themselves → zero gap at both tires.
+//
+// SHADOW FIX: single combined shadow buffer with a destination-out soft clip
+//   erasing shadow above the undercarriage line, preventing bleed through windows.
+//
+// DEPTH-ANYTHING: Gemini's suggestion won't help here. Depth-Anything needs full-
+//   scene background context; it's not trained on isolated transparent-bg cutouts.
+//   On a car PNG it would produce noisy depth. The ground plane from 3 noisy 2D
+//   samples is numerically unstable. And the sanity-check fallback would trigger
+//   for most real photos. The tire contacts in the alpha channel give us the slope
+//   for free — no extra model needed.
+
+function analyzeAndRender(img, displayW, label) {
+  const iw = img.naturalWidth || img.width
+  const ih = img.naturalHeight || img.height
+
+  // ── 1. Per-half tire contact detection ──────────────────────────────────────
+  const off = document.createElement('canvas')
+  off.width = iw; off.height = ih
+  const octx = off.getContext('2d')
+  octx.drawImage(img, 0, 0)
+  const { data } = octx.getImageData(0, 0, iw, ih)
+
+  const contactY = new Array(iw).fill(-1)
+  for (let y = ih - 1; y >= 0; y--) {
+    for (let x = 0; x < iw; x++) {
+      if (contactY[x] < 0 && data[(y * iw + x) * 4 + 3] > 16) contactY[x] = y
+    }
+  }
+  const cols = contactY.map((y, x) => ({ x, y })).filter(p => p.y >= 0)
+
+  // Defaults: flat ground at image bottom
+  let gxm = iw / 2, gym = ih * 0.985, slope = 0
+
+  if (cols.length >= 10) {
+    let maxY = 0
+    for (const p of cols) if (p.y > maxY) maxY = p.y
+
+    const midX = iw / 2
+    const threshold = maxY - ih * 0.15  // loose: include both tires
+    const cands = cols.filter(p => p.y >= threshold)
+
+    let lY = -1, lX = iw * 0.25
+    let rY = -1, rX = iw * 0.75
+    for (const p of cands) {
+      if (p.x < midX) { if (p.y > lY) { lY = p.y; lX = p.x } }
+      else             { if (p.y > rY) { rY = p.y; rX = p.x } }
+    }
+
+    if (lY > 0 && rY > 0) {
+      // CENTERED midpoint — both tire contacts guaranteed within image
+      gxm = (lX + rX) / 2
+      gym = (lY + rY) / 2
+      const denom = rX - lX
+      if (Math.abs(denom) > iw * 0.1) {
+        const raw = (rY - lY) / denom
+        slope = Math.max(-0.22, Math.min(0.22, raw))
+      }
+    }
+  }
+
+  // ── 2. Setup canvas ─────────────────────────────────────────────────────────
+  const sc    = displayW / iw
+  const dh    = ih * sc
+  const REFL  = dh * 0.38
+  const cssT  = dh + REFL
+  const dw    = displayW
+
+  // Ground midpoint in display coords (always within [0,dh])
+  const GXM = gxm * sc
+  const GYM = gym * sc
+  const groundAt = x => slope * (x - GXM) + GYM  // y at any x on ground line
+
+  const canvas = document.createElement('canvas')
+  canvas.width = dw; canvas.height = cssT
+  canvas.style.width = dw + 'px'; canvas.style.height = cssT + 'px'
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, dw, cssT)
+
+  // Debug ground line (magenta dashed)
+  ctx.save()
+  ctx.strokeStyle = 'magenta'; ctx.lineWidth = 1; ctx.setLineDash([4,4])
+  ctx.beginPath(); ctx.moveTo(0, groundAt(0)); ctx.lineTo(dw, groundAt(dw)); ctx.stroke()
+  ctx.restore()
+
+  // ── 3. Geometric reflection through centered ground midpoint ─────────────────
+  // Reflect through line passing through (GXM, GYM) at angle theta = atan(slope).
+  // Both tire contacts (lX*sc, lY*sc) and (rX*sc, rY*sc) lie on this line
+  // by construction, so BOTH reflect to themselves — no gap at either tire.
+  const theta = Math.atan(slope)
+  const cos2t = Math.cos(2 * theta)
+  const sin2t = Math.sin(2 * theta)
+  const re    = GXM * (1 - cos2t) - GYM * sin2t
+  const rf    = GYM * (1 + cos2t) - GXM * sin2t
+
+  const reflBuf = document.createElement('canvas')
+  reflBuf.width = dw; reflBuf.height = Math.ceil(cssT)
+  const rctx = reflBuf.getContext('2d')
+
+  rctx.save()
+  rctx.beginPath()
+  // Clip region: below the ground line (always a valid polygon even if groundAt(0) > cssT)
+  rctx.moveTo(0, groundAt(0)); rctx.lineTo(dw, groundAt(dw))
+  rctx.lineTo(dw, cssT); rctx.lineTo(0, cssT)
+  rctx.closePath(); rctx.clip()
+  rctx.globalAlpha = 0.50
+  rctx.transform(cos2t, sin2t, sin2t, -cos2t, re, rf)
+  rctx.drawImage(img, 0, 0, dw, dh)
+  rctx.restore()
+
+  // Fade gradient
+  const fadeY = Math.min(groundAt(0), groundAt(dw))
+  const grad  = rctx.createLinearGradient(0, fadeY, 0, fadeY + REFL)
+  grad.addColorStop(0, 'rgba(0,0,0,0)');    grad.addColorStop(0.22, 'rgba(0,0,0,0.28)')
+  grad.addColorStop(0.58, 'rgba(0,0,0,0.80)'); grad.addColorStop(0.92, 'rgba(0,0,0,1)')
+  rctx.fillStyle = grad; rctx.globalCompositeOperation = 'destination-out'
+  rctx.fillRect(0, fadeY, dw, cssT - fadeY)
+  ctx.drawImage(reflBuf, 0, 0)
+
+  // ── 4. Shadow — combined buffer, soft top clip prevents window bleed ──────────
+  const blk  = document.createElement('canvas')
+  blk.width = dw; blk.height = dh
+  const bctx = blk.getContext('2d')
+  bctx.drawImage(img, 0, 0, dw, dh)
+  bctx.globalCompositeOperation = 'source-in'
+  bctx.fillStyle = '#000'; bctx.fillRect(0, 0, dw, dh)
+
+  const shadowBuf = document.createElement('canvas')
+  shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
+  const sctx = shadowBuf.getContext('2d')
+
+  // Ambient: vertical squash toward GYM — no slope shear avoids window bleed
+  sctx.filter = 'blur(18px)'
+  sctx.globalAlpha = 0.35
+  const asy = 0.22
+  sctx.setTransform(1.06, 0, 0, asy, -(0.03 * dw), GYM - asy * dh)
+  sctx.drawImage(blk, 0, 0, dw, dh)
+
+  // Contact: thin strip right at GYM, merges with ambient on same buffer
+  sctx.filter = 'blur(3px)'
+  sctx.globalAlpha = 0.55
+  const csy = 0.065
+  sctx.setTransform(1.0, 0, 0, csy, 0, GYM - csy * dh)
+  sctx.drawImage(blk, 0, 0, dw, dh)
+
+  // Soft top clip: erase shadow above (GYM - 14% of dh) to prevent window bleed
+  // The gradient makes the erasure smooth — no hard cutoff
+  sctx.setTransform(1, 0, 0, 1, 0, 0)
+  sctx.filter = 'none'
+  const clipTop = GYM - dh * 0.14
+  const clipGrad = sctx.createLinearGradient(0, clipTop - 24, 0, clipTop)
+  clipGrad.addColorStop(0, 'rgba(0,0,0,1)')   // fully erase above
+  clipGrad.addColorStop(1, 'rgba(0,0,0,0)')   // keep below
+  sctx.globalCompositeOperation = 'destination-out'
+  sctx.fillStyle = clipGrad
+  sctx.fillRect(0, 0, dw, Math.max(0, clipTop))
+  ctx.drawImage(shadowBuf, 0, 0)
+
+  // ── 5. Car ───────────────────────────────────────────────────────────────────
+  ctx.drawImage(img, 0, 0, dw, dh)
+
+  const dbg = `gxm=${gxm.toFixed(0)} gym=${gym.toFixed(0)} slope=${slope.toFixed(3)}`
+  return { canvas, GYM, slope, dbg }
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+const DW = 340
+const container = document.getElementById('stages')
+const debugEl = document.getElementById('debug')
+
+const tests = [
+  { fn: makeCar_frontRight, label: '3/4 front-RIGHT\nFront on right (lower). Rear on left (higher).' },
+  { fn: makeCar_sideOn,     label: 'Side-on (slope ≈ 0)\nBoth tires at same height.' },
+  { fn: makeCar_frontLeft,  label: '3/4 front-LEFT\nFront on left (lower). Rear on right (higher).' },
+]
+
+const msgs = []
+tests.forEach(({ fn, label }) => {
+  const car = fn(800, 500)
+  const r   = analyzeAndRender(car, DW, label)
+  const col = document.createElement('div'); col.className = 'col'
+  col.innerHTML = `<label>${label.replace('\n','<br>')}<br><small style="opacity:.5">${r.dbg}</small></label>`
+  col.appendChild(r.canvas)
+  container.appendChild(col)
+  msgs.push(r.dbg)
+})
+
+debugEl.textContent = 'Checks: (1) magenta line touches both tires, (2) BOTH tires connect to reflection with no gap, (3) one cohesive shadow under car, (4) no shadow inside car windows'
 </script>
 </body>
 </html>

@@ -84,7 +84,9 @@ function CarStage({ src }: { src: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const imgStateRef = useRef<{
     img: HTMLImageElement
-    groundY: number   // y of the lowest opaque row in image coords (= tire contact)
+    gxm: number   // midpoint x of the two tire contacts (image coords)
+    gym: number   // midpoint y of the two tire contacts (image coords)
+    slope: number // dy/dx of ground line — dimensionless
   } | null>(null)
 
   useEffect(() => {
@@ -96,8 +98,8 @@ function CarStage({ src }: { src: string }) {
       if (!live) return
       const iw = img.naturalWidth
       const ih = img.naturalHeight
-      // Default: near the bottom of a trimmed image (backgroundRemoval.ts pads 1.5%)
-      let groundY = Math.round(ih * 0.985)
+      // Defaults: flat ground at 98.5% of image height (trimmed car PNG)
+      let gxm = iw / 2, gym = ih * 0.985, slope = 0
 
       try {
         const off = document.createElement('canvas')
@@ -106,16 +108,43 @@ function CarStage({ src }: { src: string }) {
         octx.drawImage(img, 0, 0)
         const { data } = octx.getImageData(0, 0, iw, ih)
 
-        // Find the lowest row that has any opaque pixel — that row IS the tire contact.
-        // The image is already background-removed and trimmed, so this is reliable.
-        outer: for (let y = ih - 1; y >= 0; y--) {
-          for (let x = 0; x < iw; x++) {
-            if (data[(y * iw + x) * 4 + 3] > 16) { groundY = y; break outer }
+        // Lowest opaque pixel per column
+        const contactY: number[] = new Array(iw).fill(-1)
+        for (let y = ih - 1; y >= 0; y--)
+          for (let x = 0; x < iw; x++)
+            if (contactY[x] < 0 && data[(y * iw + x) * 4 + 3] > 16) contactY[x] = y
+
+        const cols = contactY.map((y, x) => ({ x, y })).filter(p => p.y >= 0)
+        if (cols.length >= 10) {
+          let maxY = 0
+          for (const p of cols) if (p.y > maxY) maxY = p.y
+
+          // Per-half max within a loose threshold — finds both tire contacts
+          const midX = iw / 2
+          const cands = cols.filter(p => p.y >= maxY - ih * 0.15)
+          let lY = -1, lX = iw * 0.25
+          let rY = -1, rX = iw * 0.75
+          for (const p of cands) {
+            if (p.x < midX) { if (p.y > lY) { lY = p.y; lX = p.x } }
+            else             { if (p.y > rY) { rY = p.y; rX = p.x } }
+          }
+
+          if (lY > 0 && rY > 0) {
+            // CENTERED midpoint between both tire contacts — always within the image.
+            // Previous attempts used yAtLeft (extrapolated to x=0) which exceeded dh
+            // for steep 3/4-view shots, placing shadows and reflections mid-car.
+            gxm = (lX + rX) / 2
+            gym = (lY + rY) / 2
+            const denom = rX - lX
+            if (Math.abs(denom) > iw * 0.1) {
+              const raw = (rY - lY) / denom
+              slope = Math.max(-0.22, Math.min(0.22, raw))
+            }
           }
         }
-      } catch { /* CORS / canvas tainted — keep default */ }
+      } catch { /* CORS / canvas tainted — keep defaults */ }
 
-      imgStateRef.current = { img, groundY }
+      imgStateRef.current = { img, gxm, gym, slope }
       paint()
     }
 
@@ -132,8 +161,7 @@ function CarStage({ src }: { src: string }) {
     const cssW = wrap.clientWidth
     if (!cssW) return
 
-    const { img, groundY } = st
-    // HiDPI: draw at physical-pixel resolution, set CSS size separately.
+    const { img, gxm, gym, slope } = st
     const dpr    = window.devicePixelRatio || 1
     const sc     = cssW / img.naturalWidth
     const cssH   = img.naturalHeight * sc
@@ -151,68 +179,88 @@ function CarStage({ src }: { src: string }) {
 
     const dw = cssW
     const dh = cssH
-    // Ground contact y in display coords — always within image, always at tire bottom.
-    const gy = groundY * sc
+
+    // Ground midpoint in display coords — always within [0, dh], zero extrapolation
+    const GXM = gxm * sc
+    const GYM = gym * sc
+    const groundAt = (x: number) => slope * (x - GXM) + GYM
 
     // ── Reflection ──────────────────────────────────────────────────────────
-    // Flat vertical flip about gy. No perspective extrapolation — the geometry
-    // the image already encodes (tire heights, car angle) is preserved in the flip.
-    // True perspective reflection requires known camera intrinsics (focal length,
-    // sensor height) which arbitrary user photos don't carry, making slope-based
-    // approaches unreliable across different shooting angles.
+    // Geometric reflection through (GXM, GYM) at angle atan(slope).
+    // Both tire contacts lie on this line by construction → both reflect to
+    // themselves → zero gap at both tires for any camera angle.
+    const theta = Math.atan(slope)
+    const cos2t = Math.cos(2 * theta)
+    const sin2t = Math.sin(2 * theta)
+    const re    = GXM * (1 - cos2t) - GYM * sin2t
+    const rf    = GYM * (1 + cos2t) - GXM * sin2t
+
     const reflBuf  = document.createElement('canvas')
     reflBuf.width  = dw; reflBuf.height = Math.ceil(cssT)
     const rctx     = reflBuf.getContext('2d')!
-
     rctx.save()
     rctx.beginPath()
-    rctx.rect(0, gy, dw, cssT - gy)   // clip to below tire contact
-    rctx.clip()
+    rctx.moveTo(0, groundAt(0)); rctx.lineTo(dw, groundAt(dw))
+    rctx.lineTo(dw, cssT); rctx.lineTo(0, cssT)
+    rctx.closePath(); rctx.clip()
     rctx.globalAlpha = 0.50
-    rctx.transform(1, 0, 0, -1, 0, 2 * gy)   // vertical flip about gy
+    rctx.transform(cos2t, sin2t, sin2t, -cos2t, re, rf)
     rctx.drawImage(img, 0, 0, dw, dh)
     rctx.restore()
 
-    const grad = rctx.createLinearGradient(0, gy, 0, gy + REFL_H)
+    const fadeY = Math.min(groundAt(0), groundAt(dw))
+    const grad  = rctx.createLinearGradient(0, fadeY, 0, fadeY + REFL_H)
     grad.addColorStop(0,    'rgba(0,0,0,0)')
     grad.addColorStop(0.22, 'rgba(0,0,0,0.28)')
     grad.addColorStop(0.58, 'rgba(0,0,0,0.80)')
     grad.addColorStop(0.92, 'rgba(0,0,0,1)')
     rctx.fillStyle = grad
     rctx.globalCompositeOperation = 'destination-out'
-    rctx.fillRect(0, gy, dw, cssT - gy)
-
+    rctx.fillRect(0, fadeY, dw, cssT - fadeY)
     ctx.drawImage(reflBuf, 0, 0)
 
-    // ── Blackened silhouette for shadows ─────────────────────────────────────
+    // ── Shadow ───────────────────────────────────────────────────────────────
+    // Both layers on a single buffer so they merge into one shadow.
+    // A destination-out soft gradient erases any shadow that reached the
+    // car windows (upper body), preventing the "shadow inside car" artifact.
     const blk  = document.createElement('canvas')
     blk.width  = dw; blk.height = dh
     const bctx = blk.getContext('2d')!
     bctx.drawImage(img, 0, 0, dw, dh)
     bctx.globalCompositeOperation = 'source-in'
-    bctx.fillStyle = '#000'
-    bctx.fillRect(0, 0, dw, dh)
+    bctx.fillStyle = '#000'; bctx.fillRect(0, 0, dw, dh)
 
-    // ── Ambient shadow ───────────────────────────────────────────────────────
-    // Vertical squash toward gy, no shear — avoids bleeding through car windows.
-    ctx.save()
-    ctx.filter      = 'blur(20px)'
-    ctx.globalAlpha = 0.28
+    const shadowBuf = document.createElement('canvas')
+    shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
+    const sctx = shadowBuf.getContext('2d')!
+
+    // Ambient layer
+    sctx.filter = 'blur(18px)'
+    sctx.globalAlpha = 0.35
     const asy = 0.22
-    ctx.transform(1.08, 0, 0, asy, -(0.04 * dw), gy - asy * dh)
-    ctx.drawImage(blk, 0, 0, dw, dh)
-    ctx.restore()
+    sctx.setTransform(1.06, 0, 0, asy, -(0.03 * dw), GYM - asy * dh)
+    sctx.drawImage(blk, 0, 0, dw, dh)
 
-    // ── Contact shadow ───────────────────────────────────────────────────────
-    ctx.save()
-    ctx.filter      = 'blur(4px)'
-    ctx.globalAlpha = 0.55
-    const csy = 0.07
-    ctx.transform(1.0, 0, 0, csy, 0, gy - csy * dh)
-    ctx.drawImage(blk, 0, 0, dw, dh)
-    ctx.restore()
+    // Contact layer — merges with ambient on same buffer
+    sctx.filter = 'blur(3px)'
+    sctx.globalAlpha = 0.55
+    const csy = 0.065
+    sctx.setTransform(1.0, 0, 0, csy, 0, GYM - csy * dh)
+    sctx.drawImage(blk, 0, 0, dw, dh)
 
-    // ── Car cutout ───────────────────────────────────────────────────────────
+    // Soft erase above (GYM - 14% of dh) — keeps undercarriage shadow, kills window bleed
+    sctx.setTransform(1, 0, 0, 1, 0, 0)
+    sctx.filter = 'none'
+    const clipTop = GYM - dh * 0.14
+    const clipGrad = sctx.createLinearGradient(0, clipTop - 24, 0, clipTop)
+    clipGrad.addColorStop(0, 'rgba(0,0,0,1)')
+    clipGrad.addColorStop(1, 'rgba(0,0,0,0)')
+    sctx.globalCompositeOperation = 'destination-out'
+    sctx.fillStyle = clipGrad
+    sctx.fillRect(0, 0, dw, Math.max(0, clipTop))
+    ctx.drawImage(shadowBuf, 0, 0)
+
+    // ── Car ───────────────────────────────────────────────────────────────────
     ctx.drawImage(img, 0, 0, dw, dh)
   }
 
