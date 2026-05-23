@@ -180,9 +180,11 @@ function CarStage({ src }: { src: string }) {
     const dw = cssW
     const dh = cssH
 
-    // Ground midpoint in display coords — always within [0, dh], zero extrapolation
     const GXM = gxm * sc
-    const GYM = gym * sc
+    // Push GYM down ~1.5% of car height to compensate for RESIDUE_ALPHA=60 in
+    // backgroundRemoval.ts which clips semi-transparent tire-edge pixels, leaving
+    // the detected contact point a few pixels above the true ground contact.
+    const GYM = Math.min(dh * 0.992, gym * sc + dh * 0.015)
     const groundAt = (x: number) => slope * (x - GXM) + GYM
 
     // ── Reflection ──────────────────────────────────────────────────────────
@@ -232,20 +234,21 @@ function CarStage({ src }: { src: string }) {
     shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
     const sctx = shadowBuf.getContext('2d')!
 
-    // Ambient: squash silhouette to 8% of height then blur heavily.
-    // Very flat squash + large blur = natural soft ellipse, not a platform.
-    // At this opacity any bleed through windows is imperceptible — no clip needed.
+    // Slope-aware squash: setTransform(1, b, 0, scale, 0, f) where
+    //   b = (1-scale)*slope,  f = (1-scale)*(GYM - slope*GXM)
+    // Any point (x, groundAt(x)) maps to itself — both tire contacts land exactly
+    // on the shadow bottom, no floating gap regardless of camera angle.
     sctx.filter = 'blur(20px)'
     sctx.globalAlpha = 0.18
     const asy = 0.08
-    sctx.setTransform(1.02, 0, 0, asy, -(0.01 * dw), GYM - asy * dh)
+    sctx.setTransform(1, (1 - asy) * slope, 0, asy, 0, (1 - asy) * (GYM - slope * GXM))
     sctx.drawImage(blk, 0, 0, dw, dh)
 
-    // Contact strip: razor-thin pinned to GYM — dark line that grounds the car
+    // Contact strip: same slope-aware formulation, razor thin
     sctx.filter = 'blur(2px)'
     sctx.globalAlpha = 0.22
     const csy = 0.018
-    sctx.setTransform(1.0, 0, 0, csy, 0, GYM - csy * dh)
+    sctx.setTransform(1, (1 - csy) * slope, 0, csy, 0, (1 - csy) * (GYM - slope * GXM))
     sctx.drawImage(blk, 0, 0, dw, dh)
 
     ctx.drawImage(shadowBuf, 0, 0)

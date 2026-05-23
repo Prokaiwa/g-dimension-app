@@ -203,7 +203,7 @@ function analyzeAndRender(img, displayW, label) {
   rctx.fillRect(0, fadeY, dw, cssT - fadeY)
   ctx.drawImage(reflBuf, 0, 0)
 
-  // ── 4. Shadow — single soft ambient layer ────────────────────────────────────
+  // ── 4. Shadow — slope-aware squash, two layers ────────────────────────────
   const blk  = document.createElement('canvas')
   blk.width = dw; blk.height = dh
   const bctx = blk.getContext('2d')
@@ -215,20 +215,22 @@ function analyzeAndRender(img, displayW, label) {
   shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
   const sctx = shadowBuf.getContext('2d')
 
-  // Single ambient layer: squash silhouette to 8% of height → heavy blur spreads
-  // it into a natural soft ellipse. No clip needed — at this opacity any tiny
-  // bleed through windows is imperceptible. No second layer → no opacity compounding.
+  // Slope-aware squash: setTransform(1, b, 0, asy, 0, f) where
+  //   b = (1-asy)*slope  →  y shifts with x following the ground line slope
+  //   f = (1-asy)*(GYM - slope*GXM)
+  // Any point (x, groundAt(x)) on the ground line maps to itself. Both tire
+  // contacts land exactly on the shadow bottom regardless of camera angle.
   sctx.filter = 'blur(20px)'
   sctx.globalAlpha = 0.18
   const asy = 0.08
-  sctx.setTransform(1.02, 0, 0, asy, -(0.01 * dw), GYM - asy * dh)
+  sctx.setTransform(1, (1 - asy) * slope, 0, asy, 0, (1 - asy) * (GYM - slope * GXM))
   sctx.drawImage(blk, 0, 0, dw, dh)
 
-  // Contact strip: razor-thin pinned to GYM — the dark line that grounds the car
+  // Contact strip: razor-thin, same slope-aware formulation
   sctx.filter = 'blur(2px)'
   sctx.globalAlpha = 0.22
   const csy = 0.018
-  sctx.setTransform(1.0, 0, 0, csy, 0, GYM - csy * dh)
+  sctx.setTransform(1, (1 - csy) * slope, 0, csy, 0, (1 - csy) * (GYM - slope * GXM))
   sctx.drawImage(blk, 0, 0, dw, dh)
 
   ctx.drawImage(shadowBuf, 0, 0)
