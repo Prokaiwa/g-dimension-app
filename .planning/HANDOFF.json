@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-23T11:41:03.479Z",
+  "timestamp": "2026-05-23T13:04:34.559Z",
   "phase": null,
   "phase_name": "car-carousel-garage-background",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
@@ -9,37 +9,43 @@
   "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "QA parts-bin flows (all 4 manual tests passing)", "status": "done"},
-    {"id": 2, "name": "Replaced CarStage canvas (5-attempt failed shadow/reflection) with simple CSS contact shadow", "status": "done"},
-    {"id": 3, "name": "Dropped reflection entirely — too complex for arbitrary photo angles, no reliable approach", "status": "done"},
-    {"id": 4, "name": "Built GT-style garage background: dark base + spotlight, garage door panel lines, beveled vertical rails, floor line, floor light pool", "status": "done"},
-    {"id": 5, "name": "Iterative tuning: line density, thickness, door area height, beveled rail depth effect", "status": "done"}
+    {"id": 1, "name": "Spotlight moved lower (55% Y) and dimmed — GT-style focal point", "status": "done"},
+    {"id": 2, "name": "Garage door lines, rails, floor line all dimmed 30%", "status": "done"},
+    {"id": 3, "name": "Top fade dissolves hard upper edge of door lines", "status": "done"},
+    {"id": 4, "name": "Base gradient moved to full car item div — fixes GarageBg warm glow bleeding into model section", "status": "done"},
+    {"id": 5, "name": "Floor ground line raised to 46% from bottom", "status": "done"},
+    {"id": 6, "name": "Floor light pool: widened to 140%, brightened, 75% vertical, positioned at front of floor", "status": "done"},
+    {"id": 7, "name": "Vignette overlay added to stage only (not info strip) — catalog/magazine focal point", "status": "done"},
+    {"id": 8, "name": "Contact shadow replaced with CSS drop-shadow on img — alpha-traced, no rectangle artifacts", "status": "done"},
+    {"id": 9, "name": "Carousel scrolls to chosen car on page load", "status": "done"},
+    {"id": 10, "name": "Header shows chosen/active car name (getActiveCarId) not currently swiped car", "status": "done"},
+    {"id": 11, "name": "Committed and pushed to main — live on gdimension.app", "status": "done"}
   ],
   "remaining_tasks": [
     {
-      "id": 6,
-      "name": "Fine-tune garage background (user said 'still need to do some adjustments')",
+      "id": 12,
+      "name": "Pull manufacturer logos from GitHub repo (backgrounds already removed) into /public/manufacturer_logos/",
       "status": "not_started",
-      "notes": "User was happy with overall direction. May want to adjust spotlight warmth, floor line intensity, contact shadow, or line opacities."
-    },
-    {
-      "id": 7,
-      "name": "Commit and push to main when satisfied",
-      "status": "not_started",
-      "notes": "GarageCarsPage.tsx has 258-line diff, not yet committed. Push directly to main (Vercel auto-deploys)."
+      "notes": "User has a GitHub repo with pre-removed-background car logos. Need URL from user. Logos must be named {make-lowercase}.png — already wired up in GarageCarsPage.tsx img src with onError hiding if missing."
     }
   ],
   "blockers": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {
+      "action": "Provide GitHub repo URL for manufacturer logos with removed backgrounds",
+      "context": "Logos already wired in GarageCarsPage.tsx — /public/manufacturer_logos/{make-lowercase}.png. Just need to populate the folder.",
+      "blocking": false
+    }
+  ],
   "decisions": [
-    {"decision": "Drop reflection entirely", "rationale": "5 prior attempts all failed — alpha detection unreliable for arbitrary angles, body kits, RESIDUE_ALPHA clipping. User agreed complexity not worth it.", "phase": "car-carousel-garage-background"},
-    {"decision": "Replace canvas CarStage with CSS-only contact shadow", "rationale": "Soft radial-gradient ellipse works for any car photo without photo intelligence. No canvas needed.", "phase": "car-carousel-garage-background"},
-    {"decision": "GT-style garage background with garage door panel lines", "rationale": "User referenced Gran Turismo garage screen. Paired shadow+highlight horizontal lines, beveled vertical rails, spotlight, floor line, floor light pool.", "phase": "car-carousel-garage-background"},
-    {"decision": "Single fixed thick seam line at 38% of door area (not repeating)", "rationale": "Repeating thick line every 44px would fall at random positions relative to the car body — one landed at beltline level. Fixed position avoids this.", "phase": "car-carousel-garage-background"}
+    {"decision": "CSS drop-shadow on img instead of gradient blob for contact shadow", "rationale": "Reads PNG alpha channel, auto-traces car silhouette for any car at any angle. No rectangle artifacts, no manual tweaking.", "phase": "car-carousel-garage-background"},
+    {"decision": "Vignette scoped to stage div only", "rationale": "Info strip (year/trim/mileage/buttons) must not be darkened — vignette is purely background framing", "phase": "car-carousel-garage-background"},
+    {"decision": "Base gradient on car item div (not stage div)", "rationale": "Top bar had no background, GarageBg warm glow bled through — moving to car item covers full panel uniformly", "phase": "car-carousel-garage-background"},
+    {"decision": "Header shows getActiveCarId car, not carousel scroll index", "rationale": "User wants header to reflect car they are 'in', static until they tap Choose", "phase": "car-carousel-garage-background"},
+    {"decision": "Carousel opens at chosen car index on page load", "rationale": "User wants chosen car always first visible — scrolls via setTimeout after load", "phase": "car-carousel-garage-background"},
+    {"decision": "Drop reflection entirely", "rationale": "5 prior attempts all failed — alpha detection unreliable for arbitrary angles. User agreed.", "phase": "car-carousel-garage-background"}
   ],
-  "uncommitted_files": [
-    "src/pages/GarageCarsPage.tsx"
-  ],
-  "next_action": "Ask user what adjustments they want, then commit and push to main when done.",
-  "context_notes": "Garage background is in good shape — user approved the beveled vertical rails and overall direction. Current values: door lines bottom=41%, floor line bottom=41%, thin lines every 11px, single thick seam at 38% of door area, vertical rails 8px beveled. Contact shadow is a CSS radial-gradient ellipse. The car photo (cars.garage_photo_url) is already wired up from the cloud session — falls back to garagePlaceholder. Background removal (RMBG-1.4 via @huggingface/transformers) was already built in the cloud session and works. npm install was needed locally (package was in package.json but not installed)."
+  "uncommitted_files": [],
+  "next_action": "Get GitHub repo URL for manufacturer logos from user. Download PNGs, rename to {make-lowercase}.png, copy to /public/manufacturer_logos/, commit and push.",
+  "context_notes": "Garage carousel is complete and live. GT-style look: dark vignette edges, wide warm floor light pool, contact shadow via drop-shadow tracing car silhouette, door panel lines, beveled rails. All committed and pushed. Next session is the logo pull — quick task, just need the repo URL."
 }
