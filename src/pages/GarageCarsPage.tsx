@@ -220,9 +220,7 @@ function CarStage({ src }: { src: string }) {
     ctx.drawImage(reflBuf, 0, 0)
 
     // ── Shadow ───────────────────────────────────────────────────────────────
-    // Both layers on a single buffer so they merge into one shadow.
-    // A destination-out soft gradient erases any shadow that reached the
-    // car windows (upper body), preventing the "shadow inside car" artifact.
+    // Silhouette blackened for shadow source
     const blk  = document.createElement('canvas')
     blk.width  = dw; blk.height = dh
     const bctx = blk.getContext('2d')!
@@ -234,30 +232,22 @@ function CarStage({ src }: { src: string }) {
     shadowBuf.width = dw; shadowBuf.height = Math.ceil(cssT)
     const sctx = shadowBuf.getContext('2d')!
 
-    // Ambient layer
-    sctx.filter = 'blur(18px)'
-    sctx.globalAlpha = 0.35
-    const asy = 0.22
-    sctx.setTransform(1.06, 0, 0, asy, -(0.03 * dw), GYM - asy * dh)
+    // Ambient: squash silhouette to 8% of height then blur heavily.
+    // Very flat squash + large blur = natural soft ellipse, not a platform.
+    // At this opacity any bleed through windows is imperceptible — no clip needed.
+    sctx.filter = 'blur(20px)'
+    sctx.globalAlpha = 0.18
+    const asy = 0.08
+    sctx.setTransform(1.02, 0, 0, asy, -(0.01 * dw), GYM - asy * dh)
     sctx.drawImage(blk, 0, 0, dw, dh)
 
-    // Contact layer — merges with ambient on same buffer
-    sctx.filter = 'blur(3px)'
-    sctx.globalAlpha = 0.55
-    const csy = 0.065
+    // Contact strip: razor-thin pinned to GYM — dark line that grounds the car
+    sctx.filter = 'blur(2px)'
+    sctx.globalAlpha = 0.22
+    const csy = 0.018
     sctx.setTransform(1.0, 0, 0, csy, 0, GYM - csy * dh)
     sctx.drawImage(blk, 0, 0, dw, dh)
 
-    // Soft erase above (GYM - 14% of dh) — keeps undercarriage shadow, kills window bleed
-    sctx.setTransform(1, 0, 0, 1, 0, 0)
-    sctx.filter = 'none'
-    const clipTop = GYM - dh * 0.14
-    const clipGrad = sctx.createLinearGradient(0, clipTop - 24, 0, clipTop)
-    clipGrad.addColorStop(0, 'rgba(0,0,0,1)')
-    clipGrad.addColorStop(1, 'rgba(0,0,0,0)')
-    sctx.globalCompositeOperation = 'destination-out'
-    sctx.fillStyle = clipGrad
-    sctx.fillRect(0, 0, dw, Math.max(0, clipTop))
     ctx.drawImage(shadowBuf, 0, 0)
 
     // ── Car ───────────────────────────────────────────────────────────────────
