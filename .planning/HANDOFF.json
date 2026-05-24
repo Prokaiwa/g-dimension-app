@@ -1,51 +1,44 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-23T13:04:34.559Z",
+  "timestamp": "2026-05-24T23:14:11.695Z",
   "phase": null,
-  "phase_name": "car-carousel-garage-background",
+  "phase_name": "manufacturer-logos",
   "phase_dir": "/Users/davidscantee/Desktop/g-dimension",
   "plan": null,
   "task": null,
   "total_tasks": null,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Spotlight moved lower (55% Y) and dimmed — GT-style focal point", "status": "done"},
-    {"id": 2, "name": "Garage door lines, rails, floor line all dimmed 30%", "status": "done"},
-    {"id": 3, "name": "Top fade dissolves hard upper edge of door lines", "status": "done"},
-    {"id": 4, "name": "Base gradient moved to full car item div — fixes GarageBg warm glow bleeding into model section", "status": "done"},
-    {"id": 5, "name": "Floor ground line raised to 46% from bottom", "status": "done"},
-    {"id": 6, "name": "Floor light pool: widened to 140%, brightened, 75% vertical, positioned at front of floor", "status": "done"},
-    {"id": 7, "name": "Vignette overlay added to stage only (not info strip) — catalog/magazine focal point", "status": "done"},
-    {"id": 8, "name": "Contact shadow replaced with CSS drop-shadow on img — alpha-traced, no rectangle artifacts", "status": "done"},
-    {"id": 9, "name": "Carousel scrolls to chosen car on page load", "status": "done"},
-    {"id": 10, "name": "Header shows chosen/active car name (getActiveCarId) not currently swiped car", "status": "done"},
-    {"id": 11, "name": "Committed and pushed to main — live on gdimension.app", "status": "done"}
+    {"id": 1, "name": "Lower vignette overlay by 5% (0.92→0.87, 0.58→0.53)", "status": "done", "commit": "1ab2471"},
+    {"id": 2, "name": "Fix drop-shadow rectangulation: hide img until onLoad, then fade in", "status": "done", "commit": "1ab2471"},
+    {"id": 3, "name": "Normalize logo path: spaces→hyphens (Land Rover→land-rover.png)", "status": "done", "commit": "1ab2471"},
+    {"id": 4, "name": "Download 354 manufacturer logos from filippofilip95/car-logos-dataset", "status": "done", "commit": "1ab2471"},
+    {"id": 5, "name": "Restore original chrome 3D Nissan logo (user preferred over flat black from dataset)", "status": "done", "commit": "da2e457"},
+    {"id": 6, "name": "Replace Toyota logo with chrome 3D badge + red TOYOTA wordmark (transparent bg)", "status": "done", "commit": "40742ae"}
   ],
   "remaining_tasks": [
     {
-      "id": 12,
-      "name": "Pull manufacturer logos from GitHub repo (backgrounds already removed) into /public/manufacturer_logos/",
+      "id": 7,
+      "name": "Fix remaining dark/invisible logos manually — user will do these one at a time",
       "status": "not_started",
-      "notes": "User has a GitHub repo with pre-removed-background car logos. Need URL from user. Logos must be named {make-lowercase}.png — already wired up in GarageCarsPage.tsx img src with onError hiding if missing."
+      "notes": "Attempted bulk algorithmic fix (per-pixel dark→white conversion) but results were poor. Logos like Acura had chrome badge disappear, text became invisible. User prefers manual approach: provide custom logo files or describe fix per make."
     }
   ],
   "blockers": [],
   "human_actions_pending": [
     {
-      "action": "Provide GitHub repo URL for manufacturer logos with removed backgrounds",
-      "context": "Logos already wired in GarageCarsPage.tsx — /public/manufacturer_logos/{make-lowercase}.png. Just need to populate the folder.",
+      "action": "Fix remaining dark logos manually, one at a time",
+      "context": "Algorithmic bulk processing (dark pixel→white) did not work well. Chrome/metallic badges lost detail. Best results came from sourcing proper transparent-background logos (like Nissan chrome, Toyota chrome). User will drive which makes need fixing and may provide their own logo files.",
       "blocking": false
     }
   ],
   "decisions": [
-    {"decision": "CSS drop-shadow on img instead of gradient blob for contact shadow", "rationale": "Reads PNG alpha channel, auto-traces car silhouette for any car at any angle. No rectangle artifacts, no manual tweaking.", "phase": "car-carousel-garage-background"},
-    {"decision": "Vignette scoped to stage div only", "rationale": "Info strip (year/trim/mileage/buttons) must not be darkened — vignette is purely background framing", "phase": "car-carousel-garage-background"},
-    {"decision": "Base gradient on car item div (not stage div)", "rationale": "Top bar had no background, GarageBg warm glow bled through — moving to car item covers full panel uniformly", "phase": "car-carousel-garage-background"},
-    {"decision": "Header shows getActiveCarId car, not carousel scroll index", "rationale": "User wants header to reflect car they are 'in', static until they tap Choose", "phase": "car-carousel-garage-background"},
-    {"decision": "Carousel opens at chosen car index on page load", "rationale": "User wants chosen car always first visible — scrolls via setTimeout after load", "phase": "car-carousel-garage-background"},
-    {"decision": "Drop reflection entirely", "rationale": "5 prior attempts all failed — alpha detection unreliable for arbitrary angles. User agreed.", "phase": "car-carousel-garage-background"}
+    {"decision": "Use chrome 3D Nissan logo (pre-existing in repo) over flat black from dataset", "rationale": "User strongly preferred the chrome version — looks far better on dark carousel with screen blend mode", "phase": "manufacturer-logos"},
+    {"decision": "Use user-provided Toyota logo (chrome badge + red wordmark, transparent bg)", "rationale": "Better visual quality than dataset flat logo; already had transparent background", "phase": "manufacturer-logos"},
+    {"decision": "Logo path uses .replace(/\\s+/g, '-') to normalize make names", "rationale": "Dataset uses hyphens (land-rover.png) but DB stores make as 'Land Rover' with spaces", "phase": "manufacturer-logos"},
+    {"decision": "Abandon bulk algorithmic logo processing", "rationale": "Per-pixel dark→white conversion destroyed chrome badge detail. Acura lost its silver badge, text became invisible. Manual fixes per logo is the right approach.", "phase": "manufacturer-logos"}
   ],
   "uncommitted_files": [],
-  "next_action": "Get GitHub repo URL for manufacturer logos from user. Download PNGs, rename to {make-lowercase}.png, copy to /public/manufacturer_logos/, commit and push.",
-  "context_notes": "Garage carousel is complete and live. GT-style look: dark vignette edges, wide warm floor light pool, contact shadow via drop-shadow tracing car silhouette, door panel lines, beveled rails. All committed and pushed. Next session is the logo pull — quick task, just need the repo URL."
+  "next_action": "Ask user which make logo they want to fix next. Best approach: user sources a transparent-bg PNG (like they did for Toyota) or describes specific color change needed. Avoid bulk algorithmic processing.",
+  "context_notes": "Garage carousel is complete and live at gdimension.app. All code changes (vignette, drop-shadow fix, logo path) are committed. 354 logos are deployed. Nissan and Toyota look great with chrome 3D logos. Remaining makes with dark/invisible logos (Audi, VW, Mercedes, etc.) need manual fixes — user will tackle these at their own pace."
 }
