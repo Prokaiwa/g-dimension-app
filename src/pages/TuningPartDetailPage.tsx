@@ -80,9 +80,10 @@ export default function TuningPartDetailPage() {
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
 
-  const touchStartX      = useRef<number>(0)
+  const touchStartX       = useRef<number>(0)
   const viewerTouchStartY = useRef<number>(0)
   const viewerTouchStartX = useRef<number>(0)
+  const viewerDragLock    = useRef<'h' | 'v' | null>(null)
 
   const now        = new Date()
   const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -200,21 +201,33 @@ export default function TuningPartDetailPage() {
   const onViewerTouchStart = (e: React.TouchEvent) => {
     viewerTouchStartY.current = e.touches[0].clientY
     viewerTouchStartX.current = e.touches[0].clientX
+    viewerDragLock.current = null
     setViewerDragging(true)
   }
 
   const onViewerTouchMove = (e: React.TouchEvent) => {
     const dy = e.touches[0].clientY - viewerTouchStartY.current
-    setViewerDragY(dy)
+    const dx = e.touches[0].clientX - viewerTouchStartX.current
+
+    // Lock direction once the gesture is unambiguous (10px threshold)
+    if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
+    }
+
+    // Only move the photo vertically when locked vertical; ignore horizontal wobble
+    if (viewerDragLock.current === 'v') setViewerDragY(dy)
   }
 
   const onViewerTouchEnd = (e: React.TouchEvent) => {
     setViewerDragging(false)
     const dy = e.changedTouches[0].clientY - viewerTouchStartY.current
     const dx = e.changedTouches[0].clientX - viewerTouchStartX.current
-    if (Math.abs(dy) > 90) {
+    const lock = viewerDragLock.current
+    viewerDragLock.current = null
+
+    if (lock === 'v' && Math.abs(dy) > 90) {
       closeViewer()
-    } else if (Math.abs(dx) > 50 && Math.abs(dy) < 35) {
+    } else if (lock === 'h' && Math.abs(dx) > 50) {
       if (dx < 0) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
       else        setViewerIdx(i => Math.max(i - 1, 0))
       setViewerDragY(0)
