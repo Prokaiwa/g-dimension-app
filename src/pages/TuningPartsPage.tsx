@@ -1,10 +1,10 @@
 // Route: /tuning/parts-bin — Owned, not installed
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import {
-  FONT_HANDWRITTEN, FONT_STAMP, FONT_UI,
+  FONT_HANDWRITTEN, FONT_STAMP,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
 } from '../tokens'
 
@@ -31,6 +31,19 @@ type Car = { year: number | null; make: string | null; model: string | null }
 // ── Kraft paper grain ─────────────────────────────────────────────────────
 
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
+
+// ── Seeded pseudo-random ──────────────────────────────────────────────────
+// Derives a stable 0–1 value from a part's UUID so offsets stay
+// consistent across re-renders without useRef/useState.
+
+function seededVal(seed: string, salt = ''): number {
+  const s = seed + salt
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(31, h) + s.charCodeAt(i) | 0
+  }
+  return ((h >>> 0) % 1000) / 1000
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -104,8 +117,12 @@ export default function TuningPartsPage() {
       minHeight: '100dvh',
       background: COLOR_CARDBOARD_BG,
       backgroundImage: [
+        // Horizontal corrugation — primary structure
         `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
-        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
+        // Vertical cross-layer — very faint, suggests cardboard internal structure
+        `repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(100,60,20,0.028) 18px, rgba(100,60,20,0.028) 19px)`,
+        // Edge vignette
+        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.28) 100%)`,
       ].join(', '),
       position: 'relative',
     }}>
@@ -143,11 +160,62 @@ export default function TuningPartsPage() {
         </div>
 
         {/* ── Stamp header ── */}
-        <div style={{ padding: '10px 24px 0', textAlign: 'center' }}>
-          <p style={{ fontFamily: FONT_STAMP, fontSize: 38, color: COLOR_CARDBOARD_INK, opacity: 0.82, margin: 0, transform: 'rotate(-1.5deg)', lineHeight: 1 }}>
-            Parts
-          </p>
-          <div style={{ width: 80, height: 3, background: COLOR_CARDBOARD_INK, opacity: 0.15, margin: '8px auto 0' }} />
+        <div style={{ padding: '14px 24px 0', textAlign: 'center' }}>
+          <div style={{ position: 'relative', display: 'inline-block', transform: 'rotate(-1.5deg)' }}>
+            {/* Oval stamp frame — double ring to mimic rubber stamp border */}
+            <svg
+              viewBox="0 0 140 72"
+              preserveAspectRatio="none"
+              style={{
+                position: 'absolute',
+                inset: '-10px -24px',
+                width: 'calc(100% + 48px)',
+                height: 'calc(100% + 20px)',
+                overflow: 'visible',
+                pointerEvents: 'none',
+              }}
+            >
+              <ellipse cx="70" cy="36" rx="67" ry="32"
+                fill="none"
+                stroke={COLOR_CARDBOARD_STAMP}
+                strokeWidth="2.5"
+                opacity="0.52"
+              />
+              <ellipse cx="70" cy="36" rx="61" ry="26"
+                fill="none"
+                stroke={COLOR_CARDBOARD_STAMP}
+                strokeWidth="1"
+                opacity="0.22"
+              />
+            </svg>
+
+            {/* "Parts" in stamp ink */}
+            <p style={{
+              fontFamily: FONT_STAMP,
+              fontSize: 38,
+              color: COLOR_CARDBOARD_STAMP,
+              opacity: 0.85,
+              margin: '0 0 2px',
+              lineHeight: 1,
+              // Ink bleed / spread — tiny offset shadow same hue
+              textShadow: `1px 1px 0 rgba(139,58,10,0.22), -0.5px -0.5px 0 rgba(139,58,10,0.14)`,
+            }}>
+              Parts
+            </p>
+
+            {/* Sub-label */}
+            <p style={{
+              fontFamily: FONT_HANDWRITTEN,
+              fontSize: 11,
+              color: COLOR_CARDBOARD_STAMP,
+              opacity: 0.4,
+              margin: 0,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+            }}>
+              — inventory —
+            </p>
+          </div>
         </div>
 
         {/* Loading */}
@@ -169,7 +237,7 @@ export default function TuningPartsPage() {
 
         {/* On Hand */}
         {onHand.length > 0 && (
-          <Section label="On hand" style={{ marginTop: 28 }}>
+          <Section label="On hand" tapeAngle={-1.5} style={{ marginTop: 32 }}>
             {onHand.map((part, i) => (
               <PartRow
                 key={part.id} part={part}
@@ -183,7 +251,7 @@ export default function TuningPartsPage() {
 
         {/* In Storage */}
         {pulled.length > 0 && (
-          <Section label="In storage" style={{ marginTop: onHand.length > 0 ? 32 : 28 }}>
+          <Section label="In storage" tapeAngle={1.2} style={{ marginTop: onHand.length > 0 ? 36 : 32 }}>
             {pulled.map((part, i) => (
               <PartRow
                 key={part.id} part={part}
@@ -197,16 +265,31 @@ export default function TuningPartsPage() {
 
         {/* Sold / Scrapped */}
         {soldScrapped.length > 0 && (
-          <div style={{ padding: '0 20px', marginTop: (pulled.length > 0 || onHand.length > 0) ? 32 : 28 }}>
+          <div style={{ padding: '0 20px', marginTop: (pulled.length > 0 || onHand.length > 0) ? 36 : 32 }}>
             <button
               onClick={() => setSoldExpanded(v => !v)}
               style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.1 }} />
-                <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.4, letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
-                  Sold / Scrapped ({soldScrapped.length}) {soldExpanded ? '▴' : '▾'}
-                </p>
+                {/* Label with hand-drawn diagonal marker strikethrough */}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.35, letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
+                    Sold / Scrapped ({soldScrapped.length})
+                  </p>
+                  {/* Diagonal marker line across label */}
+                  <svg style={{ position: 'absolute', inset: '-1px -2px', width: 'calc(100% + 4px)', height: 'calc(100% + 2px)', overflow: 'visible', pointerEvents: 'none' }}>
+                    <line x1="0" y1="65%" x2="100%" y2="35%"
+                      stroke={COLOR_CARDBOARD_STAMP}
+                      strokeWidth="1.5"
+                      opacity="0.38"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+                <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: COLOR_CARDBOARD_INK2, opacity: 0.3 }}>
+                  {soldExpanded ? '▴' : '▾'}
+                </span>
                 <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.1 }} />
               </div>
             </button>
@@ -268,17 +351,40 @@ export default function TuningPartsPage() {
 
 // ── Section ───────────────────────────────────────────────────────────────
 
-import React from 'react'
-
-function Section({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
+function Section({ label, children, style, tapeAngle = -1 }: {
+  label: string; children: React.ReactNode; style?: React.CSSProperties; tapeAngle?: number
+}) {
   return (
     <div style={{ padding: '0 20px', ...style }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-        <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.15 }} />
-        <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.6, letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
-          {label}
-        </p>
-        <div style={{ flex: 1, height: 1, background: COLOR_CARDBOARD_INK, opacity: 0.15 }} />
+      {/* Masking tape label strip */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <div style={{
+          transform: `rotate(${tapeAngle}deg)`,
+          // Tape strip with soft torn-edge fade on left and right
+          background: `linear-gradient(90deg,
+            transparent,
+            rgba(210,178,112,0.78) 9%,
+            rgba(218,186,120,0.82) 50%,
+            rgba(210,178,112,0.78) 91%,
+            transparent
+          )`,
+          padding: '5px 36px',
+          // Top/bottom inner shadow for tape thickness feel
+          boxShadow: 'inset 0 1px 0 rgba(255,240,200,0.28), inset 0 -1px 0 rgba(100,60,20,0.14)',
+        }}>
+          <p style={{
+            fontFamily: FONT_HANDWRITTEN,
+            fontWeight: 700,
+            fontSize: 14,
+            color: COLOR_CARDBOARD_INK,
+            opacity: 0.7,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            margin: 0,
+          }}>
+            {label}
+          </p>
+        </div>
       </div>
       {children}
     </div>
@@ -292,6 +398,12 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
   isLast: boolean; dimmed?: boolean; onClick: () => void
 }) {
   const thumb = firstPhoto(part.job_photos)
+
+  // Derive stable per-part offsets from the UUID.
+  // Each salt produces an independent hash so values are uncorrelated.
+  const polaroidRot = (seededVal(part.id, 'r') - 0.5) * 6.5   // –3.25 … +3.25 deg
+  const nudgeX      = (seededVal(part.id, 'x') - 0.5) * 11    // –5.5 … +5.5 px
+
   return (
     <button
       onClick={onClick}
@@ -299,27 +411,60 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
         width: '100%', background: 'none', border: 'none', padding: 0,
         cursor: 'pointer', WebkitTapHighlightColor: 'transparent', textAlign: 'left',
         paddingTop: 14, paddingBottom: 14,
-        borderBottom: isLast ? 'none' : `1px solid rgba(100,60,20,0.18)`,
-        display: 'flex', alignItems: 'center', gap: 12,
+        borderBottom: isLast ? 'none' : `1.5px solid rgba(100,60,20,0.14)`,
+        display: 'flex', alignItems: 'center', gap: 14,
         opacity: dimmed ? 0.45 : 1,
       }}
     >
-      {/* Thumbnail */}
-      {thumb && (
-        <img
-          src={thumb} alt=""
-          style={{ width: 60, height: 60, objectFit: 'cover', flexShrink: 0, display: 'block' }}
-        />
+      {/* Polaroid photo frame */}
+      {thumb ? (
+        <div style={{
+          flexShrink: 0,
+          background: '#f5eed8',   // aged warm white
+          padding: '3px 3px 13px 3px',
+          boxShadow: '1px 2px 6px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(100,60,20,0.1)',
+          transform: `rotate(${polaroidRot}deg)`,
+          lineHeight: 0,
+        }}>
+          <img
+            src={thumb} alt=""
+            style={{ width: 56, height: 56, objectFit: 'cover', display: 'block' }}
+          />
+        </div>
+      ) : (
+        // Empty polaroid placeholder when no photo
+        <div style={{
+          flexShrink: 0,
+          background: '#f5eed8',
+          width: 62, height: 72,
+          boxShadow: '1px 2px 5px rgba(0,0,0,0.16)',
+          transform: `rotate(${polaroidRot}deg)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          paddingBottom: 10,
+        }}>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 22, color: COLOR_CARDBOARD_INK, opacity: 0.1 }}>?</span>
+        </div>
       )}
 
-      {/* Text */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      {/* Text block — shifted by per-part horizontal nudge */}
+      <div style={{ flex: 1, minWidth: 0, transform: `translateX(${nudgeX}px)` }}>
         <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 20, color: COLOR_CARDBOARD_INK, margin: 0, lineHeight: 1.1 }}>
           {part.title}
         </p>
-        <div style={{ display: 'flex', gap: 8, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
           {part.category && (
-            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_CARDBOARD_STAMP, border: `1px solid ${COLOR_CARDBOARD_STAMP}`, padding: '2px 5px', opacity: 0.65 }}>
+            // Handwritten category badge — feels stamped, not digital
+            <span style={{
+              fontFamily: FONT_HANDWRITTEN,
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: COLOR_CARDBOARD_STAMP,
+              border: `1px solid ${COLOR_CARDBOARD_STAMP}`,
+              padding: '1px 6px',
+              opacity: 0.58,
+            }}>
               {part.category}
             </span>
           )}
