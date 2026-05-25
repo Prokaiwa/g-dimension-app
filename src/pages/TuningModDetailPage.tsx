@@ -315,7 +315,7 @@ export default function TuningModDetailPage() {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100, position: 'relative', zIndex: 6 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48, position: 'relative', zIndex: 6 }}>
 
         {/* ── Photo carousel ── */}
         {photos.length > 0 && (
@@ -455,6 +455,45 @@ export default function TuningModDetailPage() {
           </div>
         )}
 
+        {/* ── Actions ── */}
+        <div style={{ padding: '28px 20px 0', display: 'flex', gap: 10, borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 28 }}>
+          <button
+            onClick={() => setRemoveSheet(true)}
+            style={{
+              flex: 1, padding: '14px',
+              background: 'rgba(245,240,228,0.04)',
+              border: '1.5px solid rgba(245,240,228,0.18)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+            }}
+          >
+            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(245,240,228,0.4)' }}>
+              REMOVE
+            </span>
+          </button>
+          <button
+            onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
+            onPointerDown={() => setEditPressed(true)}
+            onPointerUp={() => setEditPressed(false)}
+            onPointerLeave={() => setEditPressed(false)}
+            onPointerCancel={() => setEditPressed(false)}
+            style={{
+              flex: 2, padding: '14px',
+              background: 'rgba(200,102,26,0.12)',
+              border: '1.5px solid rgba(200,102,26,0.55)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+              boxShadow: '0 0 18px rgba(200,102,26,0.2)',
+              transform: editPressed ? 'scale(0.97)' : 'scale(1)',
+              transition: editPressed ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+            }}
+          >
+            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
+              EDIT MOD
+            </span>
+          </button>
+        </div>
+
       </div>
 
       {/* ── Fullscreen photo viewer ── */}
@@ -561,45 +600,6 @@ export default function TuningModDetailPage() {
           </div>
         )
       })()}
-
-      {/* ── FAB row: Remove + Edit ── */}
-      <div style={{ position: 'fixed', right: 20, bottom: 30, zIndex: 20, display: 'flex', gap: 10 }}>
-        <button
-          onClick={() => setRemoveSheet(true)}
-          style={{
-            padding: '12px 18px',
-            background: 'rgba(245,240,228,0.04)',
-            border: '1.5px solid rgba(245,240,228,0.18)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-          }}
-        >
-          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(245,240,228,0.4)' }}>
-            REMOVE
-          </span>
-        </button>
-        <button
-          onClick={() => navigate(`/tuning/mods/${modId}/edit`)}
-          onPointerDown={() => setEditPressed(true)}
-          onPointerUp={() => setEditPressed(false)}
-          onPointerLeave={() => setEditPressed(false)}
-          onPointerCancel={() => setEditPressed(false)}
-          style={{
-            padding: '12px 22px',
-            background: 'rgba(200,102,26,0.12)',
-            border: '1.5px solid rgba(200,102,26,0.55)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
-            boxShadow: '0 0 18px rgba(200,102,26,0.2)',
-            transform: editPressed ? 'scale(0.92)' : 'scale(1)',
-            transition: editPressed ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
-          }}
-        >
-          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
-            EDIT MOD
-          </span>
-        </button>
-      </div>
 
       {/* ── Remove bottom sheet ── */}
       {removeSheet && (
