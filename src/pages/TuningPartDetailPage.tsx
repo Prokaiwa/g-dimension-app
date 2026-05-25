@@ -69,12 +69,20 @@ export default function TuningPartDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [photoIndex,  setPhotoIndex]  = useState(0)
 
+  // Full-screen viewer
+  const [viewerOpen,    setViewerOpen]    = useState(false)
+  const [viewerIdx,     setViewerIdx]     = useState(0)
+  const [viewerDragY,   setViewerDragY]   = useState(0)
+  const [viewerDragging,setViewerDragging]= useState(false)
+
   // Sell/Scrap sub-flow
   const [sellScrapOpen, setSellScrapOpen] = useState(false)
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
 
-  const touchStartX = useRef<number>(0)
+  const touchStartX      = useRef<number>(0)
+  const viewerTouchStartY = useRef<number>(0)
+  const viewerTouchStartX = useRef<number>(0)
 
   const now        = new Date()
   const MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -175,6 +183,46 @@ export default function TuningPartDetailPage() {
     else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
   }
 
+  // ── Fullscreen viewer handlers ────────────────────────────────────────────
+
+  const openViewer = (idx: number) => {
+    setViewerIdx(idx)
+    setViewerDragY(0)
+    setViewerOpen(true)
+  }
+
+  const closeViewer = () => {
+    setPhotoIndex(viewerIdx) // sync carousel to where viewer left off
+    setViewerOpen(false)
+    setViewerDragY(0)
+  }
+
+  const onViewerTouchStart = (e: React.TouchEvent) => {
+    viewerTouchStartY.current = e.touches[0].clientY
+    viewerTouchStartX.current = e.touches[0].clientX
+    setViewerDragging(true)
+  }
+
+  const onViewerTouchMove = (e: React.TouchEvent) => {
+    const dy = e.touches[0].clientY - viewerTouchStartY.current
+    setViewerDragY(dy)
+  }
+
+  const onViewerTouchEnd = (e: React.TouchEvent) => {
+    setViewerDragging(false)
+    const dy = e.changedTouches[0].clientY - viewerTouchStartY.current
+    const dx = e.changedTouches[0].clientX - viewerTouchStartX.current
+    if (Math.abs(dy) > 90) {
+      closeViewer()
+    } else if (Math.abs(dx) > 50 && Math.abs(dy) < 35) {
+      if (dx < 0) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
+      else        setViewerIdx(i => Math.max(i - 1, 0))
+      setViewerDragY(0)
+    } else {
+      setViewerDragY(0)
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ height: '100dvh', background: COLOR_CARDBOARD_BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -248,9 +296,10 @@ export default function TuningPartDetailPage() {
           <div style={{ marginTop: 16 }}>
             {/* Slider */}
             <div
-              style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y' }}
+              style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
+              onClick={() => openViewer(photoIndex)}
             >
               <div style={{
                 display: 'flex', height: '100%',
@@ -493,6 +542,83 @@ export default function TuningPartDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ── Fullscreen photo viewer ── */}
+      {viewerOpen && (() => {
+        const backdropAlpha = Math.max(0, 1 - Math.abs(viewerDragY) / 260)
+        const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: `rgba(0,0,0,${backdropAlpha})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              touchAction: 'none',
+            }}
+            onClick={closeViewer}
+          >
+            {/* Photo — draggable */}
+            <div
+              style={{
+                width: '100%',
+                transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
+                transition: viewerDragging ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform',
+              }}
+              onTouchStart={onViewerTouchStart}
+              onTouchMove={onViewerTouchMove}
+              onTouchEnd={onViewerTouchEnd}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <img
+                src={photos[viewerIdx]?.photo_url}
+                alt=""
+                draggable={false}
+                style={{
+                  width: '100%',
+                  maxHeight: '90dvh',
+                  objectFit: 'contain',
+                  display: 'block',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
+                }}
+              />
+            </div>
+
+            {/* Close × */}
+            <button
+              onClick={closeViewer}
+              style={{
+                position: 'absolute', top: 16, right: 16,
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'rgba(26,16,8,0.55)',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                WebkitTapHighlightColor: 'transparent',
+                opacity: backdropAlpha,
+                transition: viewerDragging ? 'none' : 'opacity 200ms ease',
+              }}
+            >
+              <span style={{ color: '#f5eed8', fontSize: 20, lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Swipe-to-dismiss hint */}
+            <p style={{
+              position: 'absolute', bottom: 20,
+              fontFamily: FONT_HANDWRITTEN, fontSize: 13,
+              color: 'rgba(245,238,216,0.45)',
+              opacity: backdropAlpha,
+              transition: viewerDragging ? 'none' : 'opacity 200ms ease',
+              margin: 0,
+              pointerEvents: 'none',
+            }}>
+              {photos.length > 1
+                ? `${viewerIdx + 1} / ${photos.length}  ·  swipe down to close`
+                : 'swipe down to close'}
+            </p>
+          </div>
+        )
+      })()}
 
     </div>
   )
