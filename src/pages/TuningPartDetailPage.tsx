@@ -70,9 +70,10 @@ export default function TuningPartDetailPage() {
   const [photoIndex,  setPhotoIndex]  = useState(0)
 
   // Full-screen viewer
-  const [viewerOpen,    setViewerOpen]    = useState(false)
-  const [viewerIdx,     setViewerIdx]     = useState(0)
-  const [viewerDragY,   setViewerDragY]   = useState(0)
+  const [viewerOpen,     setViewerOpen]     = useState(false)
+  const [viewerIdx,      setViewerIdx]      = useState(0)
+  const [viewerDragY,    setViewerDragY]    = useState(0)
+  const [viewerDragX,    setViewerDragX]    = useState(0)
   const [viewerDragging,setViewerDragging]= useState(false)
 
   // Sell/Scrap sub-flow
@@ -193,9 +194,10 @@ export default function TuningPartDetailPage() {
   }
 
   const closeViewer = () => {
-    setPhotoIndex(viewerIdx) // sync carousel to where viewer left off
+    setPhotoIndex(viewerIdx)
     setViewerOpen(false)
     setViewerDragY(0)
+    setViewerDragX(0)
   }
 
   const onViewerTouchStart = (e: React.TouchEvent) => {
@@ -209,13 +211,12 @@ export default function TuningPartDetailPage() {
     const dy = e.touches[0].clientY - viewerTouchStartY.current
     const dx = e.touches[0].clientX - viewerTouchStartX.current
 
-    // Lock direction once the gesture is unambiguous (10px threshold)
     if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
       viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
     }
 
-    // Only move the photo vertically when locked vertical; ignore horizontal wobble
     if (viewerDragLock.current === 'v') setViewerDragY(dy)
+    else if (viewerDragLock.current === 'h') setViewerDragX(dx)
   }
 
   const onViewerTouchEnd = (e: React.TouchEvent) => {
@@ -227,10 +228,10 @@ export default function TuningPartDetailPage() {
 
     if (lock === 'v' && Math.abs(dy) > 90) {
       closeViewer()
-    } else if (lock === 'h' && Math.abs(dx) > 50) {
-      if (dx < 0) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
-      else        setViewerIdx(i => Math.max(i - 1, 0))
-      setViewerDragY(0)
+    } else if (lock === 'h') {
+      if (dx < -50) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
+      else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
+      setViewerDragX(0)
     } else {
       setViewerDragY(0)
     }
@@ -560,6 +561,8 @@ export default function TuningPartDetailPage() {
       {viewerOpen && (() => {
         const backdropAlpha = Math.max(0, 1 - Math.abs(viewerDragY) / 260)
         const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
+        const isVDrag       = viewerDragging && viewerDragLock.current === 'v'
+        const isHDrag       = viewerDragging && viewerDragLock.current === 'h'
         return (
           <div
             style={{
@@ -567,15 +570,16 @@ export default function TuningPartDetailPage() {
               background: `rgba(0,0,0,${backdropAlpha})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               touchAction: 'none',
+              overflow: 'hidden',
             }}
             onClick={closeViewer}
           >
-            {/* Photo — draggable */}
+            {/* Outer — handles vertical dismiss drag + scale */}
             <div
               style={{
                 width: '100%',
                 transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
-                transition: viewerDragging ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
+                transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
                 willChange: 'transform',
               }}
               onTouchStart={onViewerTouchStart}
@@ -583,19 +587,31 @@ export default function TuningPartDetailPage() {
               onTouchEnd={onViewerTouchEnd}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
-              <img
-                src={photos[viewerIdx]?.photo_url}
-                alt=""
-                draggable={false}
-                style={{
-                  width: '100%',
-                  maxHeight: '90dvh',
-                  objectFit: 'contain',
-                  display: 'block',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
-                }}
-              />
+              {/* Inner strip — slides horizontally between photos */}
+              <div style={{
+                display: 'flex',
+                transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
+                transition: isHDrag ? 'none' : 'transform 300ms cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform',
+              }}>
+                {photos.map(photo => (
+                  <div key={photo.id} style={{ width: '100%', flexShrink: 0 }}>
+                    <img
+                      src={photo.photo_url}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: '100%',
+                        maxHeight: '90dvh',
+                        objectFit: 'contain',
+                        display: 'block',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Close × */}
@@ -609,19 +625,19 @@ export default function TuningPartDetailPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 WebkitTapHighlightColor: 'transparent',
                 opacity: backdropAlpha,
-                transition: viewerDragging ? 'none' : 'opacity 200ms ease',
+                transition: isVDrag ? 'none' : 'opacity 200ms ease',
               }}
             >
               <span style={{ color: '#f5eed8', fontSize: 20, lineHeight: 1 }}>×</span>
             </button>
 
-            {/* Swipe-to-dismiss hint */}
+            {/* Hint */}
             <p style={{
               position: 'absolute', bottom: 20,
               fontFamily: FONT_HANDWRITTEN, fontSize: 13,
               color: 'rgba(245,238,216,0.45)',
               opacity: backdropAlpha,
-              transition: viewerDragging ? 'none' : 'opacity 200ms ease',
+              transition: isVDrag ? 'none' : 'opacity 200ms ease',
               margin: 0,
               pointerEvents: 'none',
             }}>
