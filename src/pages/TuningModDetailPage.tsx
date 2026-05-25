@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export default function TuningModDetailPage() {
   const [sellScrapStep, setSellScrapStep] = useState(false)
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
+  const [links,         setLinks]         = useState<JobLink[]>([])
 
   // Carousel + fullscreen viewer
   const [photoIndex,      setPhotoIndex]      = useState(0)
@@ -97,7 +99,7 @@ export default function TuningModDetailPage() {
   useEffect(() => {
     if (!modId) return
     async function load() {
-      const [{ data: jobData }, { data: photoData }, { data: specsData }] = await Promise.all([
+      const [{ data: jobData }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('id, title, brand, category, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
@@ -112,6 +114,11 @@ export default function TuningModDetailPage() {
           .from('job_specs')
           .select('spec_key, spec_value, spec_unit')
           .eq('job_id', modId),
+        supabase
+          .from('job_links')
+          .select('id, url, label, display_order')
+          .eq('job_id', modId)
+          .order('display_order'),
       ])
       if (jobData) {
         setJob(jobData as unknown as Job)
@@ -132,6 +139,7 @@ export default function TuningModDetailPage() {
         }
       }
       setPhotos((photoData ?? []) as Photo[])
+      setLinks((linksData ?? []) as JobLink[])
       setLoading(false)
     }
     load()
@@ -452,6 +460,71 @@ export default function TuningModDetailPage() {
                 </div>
               ))
             })()}
+          </div>
+        )}
+
+        {/* Links */}
+        {links.length > 0 && (
+          <div style={{ padding: '20px 20px 0' }}>
+            <p style={LABEL}>Links</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+              {links.map(link => {
+                const ytId = getYouTubeId(link.url)
+                if (ytId) {
+                  return (
+                    <button
+                      key={link.id}
+                      onClick={() => window.open(link.url, '_blank')}
+                      style={{
+                        display: 'flex', alignItems: 'center',
+                        padding: 0, background: 'rgba(245,240,228,0.03)',
+                        border: '1px solid rgba(245,240,228,0.08)',
+                        cursor: 'pointer', textAlign: 'left',
+                        width: '100%', overflow: 'hidden',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <div style={{ width: 96, height: 54, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
+                        <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.22)' }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(230,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#fff', fontSize: 9, marginLeft: 2 }}>▶</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, padding: '0 12px', minWidth: 0 }}>
+                        <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.78)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {link.label || 'Watch on YouTube'}
+                        </p>
+                        <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10, color: 'rgba(245,240,228,0.28)', margin: '3px 0 0', letterSpacing: '0.04em' }}>
+                          YouTube
+                        </p>
+                      </div>
+                    </button>
+                  )
+                }
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => window.open(link.url, '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '11px 14px',
+                      background: 'rgba(245,240,228,0.03)',
+                      border: '1px solid rgba(245,240,228,0.08)',
+                      cursor: 'pointer', textAlign: 'left',
+                      width: '100%', boxSizing: 'border-box',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <span style={{ color: COLOR_ACCENT, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↗</span>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.7)', flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {link.label || link.url}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 

@@ -8,6 +8,7 @@ import {
   FONT_HANDWRITTEN, FONT_UI,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
 } from '../tokens'
+import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,13 @@ export default function TuningPartEditPage() {
   const [newPreviews,     setNewPreviews]     = useState<string[]>([])
   const [photoInputKey,   setPhotoInputKey]   = useState(0)
 
+  // Links
+  const [existingLinks,   setExistingLinks]   = useState<JobLink[]>([])
+  const [removedLinkIds,  setRemovedLinkIds]  = useState<string[]>([])
+  const [newLinks,        setNewLinks]        = useState<{ url: string; label: string }[]>([])
+  const [newLinkUrl,      setNewLinkUrl]      = useState('')
+  const [newLinkLabel,    setNewLinkLabel]    = useState('')
+
   const [carId,   setCarId]   = useState<string | null>(null)
   const [userId,  setUserId]  = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -121,7 +129,7 @@ export default function TuningPartEditPage() {
       const { data: { session } } = await supabase.auth.getSession()
       setUserId(session?.user?.id ?? null)
 
-      const [{ data: job }, { data: photoData }, { data: specsData }] = await Promise.all([
+      const [{ data: job }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('title, brand, category, date_removed, date_installed, parts_cost, notes, status, car_id, part_type_id')
@@ -136,6 +144,7 @@ export default function TuningPartEditPage() {
           .from('job_specs')
           .select('spec_key, spec_value, spec_unit')
           .eq('job_id', partId),
+        supabase.from('job_links').select('id, url, label, display_order').eq('job_id', partId).order('display_order'),
       ])
 
       if (!job) { setLoading(false); return }
@@ -150,6 +159,7 @@ export default function TuningPartEditPage() {
       setDate(part.status === 'removed' ? (part.date_removed ?? '') : (part.date_installed ?? ''))
       setNotes(part.notes ?? '')
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
+      setExistingLinks((linksData ?? []) as JobLink[])
 
       if (part.part_type_id) {
         const { data: templates } = await supabase
@@ -357,6 +367,21 @@ export default function TuningPartEditPage() {
       }
     }
 
+    // Save links
+    if (removedLinkIds.length > 0) {
+      await supabase.from('job_links').delete().in('id', removedLinkIds)
+    }
+    if (newLinks.length > 0 && userId) {
+      const linkRows = newLinks.map((l, i) => ({
+        job_id: partId!,
+        user_id: userId,
+        url: l.url,
+        label: l.label || null,
+        display_order: existingLinks.length + i,
+      }))
+      await supabase.from('job_links').insert(linkRows)
+    }
+
     navigate(`/tuning/parts-bin/${partId}`)
   }
 
@@ -456,6 +481,95 @@ export default function TuningPartEditPage() {
               style={{ ...INPUT, resize: 'none', lineHeight: 1.55, borderBottom: 'none', border: `1px solid rgba(26,16,8,0.18)`, padding: '10px 12px' }} />
           </div>
 
+        </div>
+
+        {/* ── Links ── */}
+        <div style={{ padding: '28px 20px 0' }}>
+          <label style={LABEL}>Links</label>
+
+          {/* Existing + queued links */}
+          {[...existingLinks, ...newLinks.map((l, i) => ({ id: `new-${i}`, url: l.url, label: l.label || null, display_order: 0, _isNew: true, _idx: i }))].map(entry => {
+            const isNew = '_isNew' in entry
+            const ytId  = getYouTubeId(entry.url)
+            return (
+              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                {ytId ? (
+                  <div style={{ width: 64, height: 36, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                    <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,16,8,0.2)' }}>
+                      <span style={{ color: '#fff', fontSize: 8 }}>▶</span>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}>↗</span>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14, color: COLOR_CARDBOARD_INK, opacity: 0.78, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {entry.label || entry.url}
+                  </p>
+                  {entry.label && (
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 400, fontSize: 10, color: COLOR_CARDBOARD_INK2, opacity: 0.4, margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {entry.url}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    if (isNew) {
+                      setNewLinks(prev => prev.filter((_, i2) => i2 !== (entry as { _idx: number })._idx))
+                    } else {
+                      setRemovedLinkIds(prev => [...prev, entry.id])
+                      setExistingLinks(prev => prev.filter(l => l.id !== entry.id))
+                    }
+                  }}
+                  style={{ flexShrink: 0, width: 28, height: 28, borderRadius: '50%', background: 'rgba(26,16,8,0.08)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span style={{ color: COLOR_CARDBOARD_INK2, opacity: 0.4, fontSize: 14, lineHeight: 1 }}>×</span>
+                </button>
+              </div>
+            )
+          })}
+
+          {/* Add new link */}
+          <div style={{ marginTop: 6 }}>
+            <input
+              value={newLinkUrl}
+              onChange={e => setNewLinkUrl(e.target.value)}
+              placeholder="https://"
+              className="kraft-input"
+              style={{ ...INPUT, marginBottom: 10 }}
+            />
+            <input
+              value={newLinkLabel}
+              onChange={e => setNewLinkLabel(e.target.value)}
+              placeholder="Label (optional)"
+              className="kraft-input"
+              style={{ ...INPUT, marginBottom: 12 }}
+            />
+            <button
+              onClick={() => {
+                const url = newLinkUrl.trim()
+                if (!url) return
+                setNewLinks(prev => [...prev, { url, label: newLinkLabel.trim() }])
+                setNewLinkUrl('')
+                setNewLinkLabel('')
+              }}
+              disabled={!newLinkUrl.trim()}
+              style={{
+                padding: '10px 18px',
+                background: newLinkUrl.trim() ? 'rgba(139,58,10,0.12)' : 'transparent',
+                border: newLinkUrl.trim() ? `1px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.15)`,
+                cursor: newLinkUrl.trim() ? 'pointer' : 'default',
+                fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+                color: newLinkUrl.trim() ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2,
+                opacity: newLinkUrl.trim() ? 1 : 0.35,
+                WebkitTapHighlightColor: 'transparent',
+                transition: 'all 150ms ease',
+              }}
+            >
+              + Add Link
+            </button>
+          </div>
         </div>
 
         {/* ── Spec fields ── */}

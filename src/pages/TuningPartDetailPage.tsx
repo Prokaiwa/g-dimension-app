@@ -7,6 +7,7 @@ import {
   FONT_HANDWRITTEN, FONT_STAMP, FONT_UI,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
 } from '../tokens'
+import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ export default function TuningPartDetailPage() {
   const [actioning,   setActioning]   = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [photoIndex,  setPhotoIndex]  = useState(0)
+  const [links,       setLinks]       = useState<JobLink[]>([])
 
   // Full-screen viewer
   const [viewerOpen,     setViewerOpen]     = useState(false)
@@ -95,7 +97,7 @@ export default function TuningPartDetailPage() {
     if (!partId) return
     async function load() {
       const carId = await getActiveCarId()
-      const [{ data: partData }, { data: photoData }, { data: carData }, { data: specsData }] = await Promise.all([
+      const [{ data: partData }, { data: photoData }, { data: carData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('id, title, brand, category, date_removed, date_installed, parts_cost, notes, status, still_owned, sale_price, sale_date, part_type_id')
@@ -113,6 +115,11 @@ export default function TuningPartDetailPage() {
           .from('job_specs')
           .select('spec_key, spec_value, spec_unit')
           .eq('job_id', partId),
+        supabase
+          .from('job_links')
+          .select('id, url, label, display_order')
+          .eq('job_id', partId)
+          .order('display_order'),
       ])
       if (partData) {
         setPart(partData as unknown as Part)
@@ -134,6 +141,7 @@ export default function TuningPartDetailPage() {
         }
       }
       setPhotos((photoData ?? []) as Photo[])
+      setLinks((linksData ?? []) as JobLink[])
       if (carData) setCar(carData as Car)
       setLoading(false)
     }
@@ -457,6 +465,72 @@ export default function TuningPartDetailPage() {
             <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.75, lineHeight: 1.55, marginTop: 6 }}>
               {part.notes}
             </p>
+          </div>
+        )}
+
+        {/* Links */}
+        {links.length > 0 && (
+          <div style={{ padding: '20px 20px 0' }}>
+            <p style={LABEL}>Links</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+              {links.map(link => {
+                const ytId = getYouTubeId(link.url)
+                if (ytId) {
+                  return (
+                    <button
+                      key={link.id}
+                      onClick={() => window.open(link.url, '_blank')}
+                      style={{
+                        display: 'flex', alignItems: 'center',
+                        padding: 0,
+                        background: 'rgba(26,16,8,0.05)',
+                        border: `1px solid rgba(26,16,8,0.14)`,
+                        cursor: 'pointer', textAlign: 'left',
+                        width: '100%', overflow: 'hidden',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <div style={{ width: 96, height: 54, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
+                        <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,16,8,0.2)' }}>
+                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(230,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#fff', fontSize: 9, marginLeft: 2 }}>▶</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, padding: '0 12px', minWidth: 0 }}>
+                        <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14, color: COLOR_CARDBOARD_INK, opacity: 0.82, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {link.label || 'Watch on YouTube'}
+                        </p>
+                        <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 9, color: COLOR_CARDBOARD_INK2, opacity: 0.4, margin: '3px 0 0', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                          YouTube
+                        </p>
+                      </div>
+                    </button>
+                  )
+                }
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => window.open(link.url, '_blank')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '11px 14px',
+                      background: 'rgba(26,16,8,0.04)',
+                      border: `1px solid rgba(26,16,8,0.12)`,
+                      cursor: 'pointer', textAlign: 'left',
+                      width: '100%', boxSizing: 'border-box',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 14, lineHeight: 1, flexShrink: 0, opacity: 0.75 }}>↗</span>
+                    <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15, color: COLOR_CARDBOARD_INK, opacity: 0.78, flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {link.label || link.url}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 

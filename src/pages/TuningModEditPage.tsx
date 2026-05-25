@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,13 @@ export default function TuningModEditPage() {
   const [newPhotos,       setNewPhotos]       = useState<File[]>([])
   const [newPreviews,     setNewPreviews]     = useState<string[]>([])
 
+  // Links
+  const [existingLinks,   setExistingLinks]   = useState<JobLink[]>([])
+  const [removedLinkIds,  setRemovedLinkIds]  = useState<string[]>([])
+  const [newLinks,        setNewLinks]        = useState<{ url: string; label: string }[]>([])
+  const [newLinkUrl,      setNewLinkUrl]      = useState('')
+  const [newLinkLabel,    setNewLinkLabel]    = useState('')
+
   // UI
   const [partTypeName, setPartTypeName] = useState('')
   const [carId,        setCarId]        = useState<string | null>(null)
@@ -107,7 +115,7 @@ export default function TuningModEditPage() {
       const { data: { session } } = await supabase.auth.getSession()
       setUserId(session?.user?.id ?? null)
 
-      const [{ data: job }, { data: existingSpecs }, { data: photoData }] = await Promise.all([
+      const [{ data: job }, { data: existingSpecs }, { data: photoData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
           .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id')
@@ -115,6 +123,7 @@ export default function TuningModEditPage() {
           .single(),
         supabase.from('job_specs').select('spec_key, spec_value, spec_unit').eq('job_id', modId),
         supabase.from('job_photos').select('id, photo_url').eq('job_id', modId).order('display_order'),
+        supabase.from('job_links').select('id, url, label, display_order').eq('job_id', modId).order('display_order'),
       ])
 
       if (!job) { setLoading(false); return }
@@ -129,6 +138,7 @@ export default function TuningModEditPage() {
       setNotes(job.notes ?? '')
       setCarId(job.car_id ?? null)
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
+      setExistingLinks((linksData ?? []) as JobLink[])
 
       if (job.part_type_id) {
         const [{ data: pt }, { data: templates }] = await Promise.all([
@@ -364,6 +374,21 @@ export default function TuningModEditPage() {
       }
     }
 
+    // Save links
+    if (removedLinkIds.length > 0) {
+      await supabase.from('job_links').delete().in('id', removedLinkIds)
+    }
+    if (newLinks.length > 0 && userId) {
+      const linkRows = newLinks.map((l, i) => ({
+        job_id: modId!,
+        user_id: userId,
+        url: l.url,
+        label: l.label || null,
+        display_order: existingLinks.length + i,
+      }))
+      await supabase.from('job_links').insert(linkRows)
+    }
+
     navigate(`/tuning/mods/${modId}`)
   }
 
@@ -484,6 +509,93 @@ export default function TuningModEditPage() {
               style={{ ...INPUT, resize: 'none', lineHeight: 1.5, caretColor: '#39ff14' } as React.CSSProperties} />
           </div>
 
+        </div>
+
+        {/* ── Links ── */}
+        <div style={{ padding: '24px 20px 0' }}>
+          <label style={LABEL}>Links</label>
+
+          {/* Existing + queued links */}
+          {[...existingLinks, ...newLinks.map((l, i) => ({ id: `new-${i}`, url: l.url, label: l.label || null, display_order: 0, _isNew: true, _idx: i }))].map(entry => {
+            const isNew = '_isNew' in entry
+            const ytId  = getYouTubeId(entry.url)
+            return (
+              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                {ytId ? (
+                  <div style={{ width: 64, height: 36, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                    <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.22)' }}>
+                      <span style={{ color: '#fff', fontSize: 8 }}>▶</span>
+                    </div>
+                  </div>
+                ) : (
+                  <span style={{ color: COLOR_ACCENT, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center' }}>↗</span>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.75)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {entry.label || entry.url}
+                  </p>
+                  {entry.label && (
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 400, fontSize: 10, color: 'rgba(245,240,228,0.28)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {entry.url}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    if (isNew) {
+                      setNewLinks(prev => prev.filter((_, i2) => i2 !== (entry as { _idx: number })._idx))
+                    } else {
+                      setRemovedLinkIds(prev => [...prev, entry.id])
+                      setExistingLinks(prev => prev.filter(l => l.id !== entry.id))
+                    }
+                  }}
+                  style={{ flexShrink: 0, width: 28, height: 28, borderRadius: '50%', background: 'rgba(245,240,228,0.06)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span style={{ color: 'rgba(245,240,228,0.35)', fontSize: 14, lineHeight: 1 }}>×</span>
+                </button>
+              </div>
+            )
+          })}
+
+          {/* Add new link */}
+          <div style={{ marginTop: 6 }}>
+            <input
+              value={newLinkUrl}
+              onChange={e => setNewLinkUrl(e.target.value)}
+              placeholder="https://"
+              style={{ ...INPUT, marginBottom: 10, caretColor: '#39ff14' }}
+            />
+            <input
+              value={newLinkLabel}
+              onChange={e => setNewLinkLabel(e.target.value)}
+              placeholder="Label (optional)"
+              style={{ ...INPUT, marginBottom: 12, caretColor: '#39ff14' }}
+            />
+            <button
+              onClick={() => {
+                const url = newLinkUrl.trim()
+                if (!url) return
+                setNewLinks(prev => [...prev, { url, label: newLinkLabel.trim() }])
+                setNewLinkUrl('')
+                setNewLinkLabel('')
+              }}
+              disabled={!newLinkUrl.trim()}
+              style={{
+                padding: '10px 18px',
+                background: newLinkUrl.trim() ? 'rgba(200,102,26,0.1)' : 'transparent',
+                border: `1px solid ${newLinkUrl.trim() ? 'rgba(200,102,26,0.4)' : 'rgba(245,240,228,0.1)'}`,
+                cursor: newLinkUrl.trim() ? 'pointer' : 'default',
+                fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                letterSpacing: '0.14em', textTransform: 'uppercase',
+                color: newLinkUrl.trim() ? COLOR_ACCENT : 'rgba(245,240,228,0.2)',
+                WebkitTapHighlightColor: 'transparent',
+                transition: 'all 150ms ease',
+              }}
+            >
+              + Add Link
+            </button>
+          </div>
         </div>
 
         {/* ── Photos ── */}
