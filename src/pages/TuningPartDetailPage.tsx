@@ -216,7 +216,12 @@ export default function TuningPartDetailPage() {
     }
 
     if (viewerDragLock.current === 'v') setViewerDragY(dy)
-    else if (viewerDragLock.current === 'h') setViewerDragX(dx)
+    else if (viewerDragLock.current === 'h') {
+      // Rubber-band resistance at edges — 25% drag rate past first/last photo
+      const atStart = viewerIdx === 0 && dx > 0
+      const atEnd   = viewerIdx === photos.length - 1 && dx < 0
+      setViewerDragX(atStart || atEnd ? dx * 0.25 : dx)
+    }
   }
 
   const onViewerTouchEnd = (e: React.TouchEvent) => {
@@ -591,7 +596,7 @@ export default function TuningPartDetailPage() {
               <div style={{
                 display: 'flex',
                 transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
-                transition: isHDrag ? 'none' : 'transform 300ms cubic-bezier(0.22,1,0.36,1)',
+                transition: isHDrag ? 'none' : 'transform 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 willChange: 'transform',
               }}>
                 {photos.map(photo => (
