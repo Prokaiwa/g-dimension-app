@@ -1,5 +1,5 @@
 // Route: /tuning/mods/:modId — Mod detail with section photo setter
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -80,6 +80,19 @@ export default function TuningModDetailPage() {
   const [sellScrapStep, setSellScrapStep] = useState(false)
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
+
+  // Carousel + fullscreen viewer
+  const [photoIndex,      setPhotoIndex]      = useState(0)
+  const [viewerOpen,      setViewerOpen]      = useState(false)
+  const [viewerIdx,       setViewerIdx]       = useState(0)
+  const [viewerDragY,     setViewerDragY]     = useState(0)
+  const [viewerDragX,     setViewerDragX]     = useState(0)
+  const [viewerDragging,  setViewerDragging]  = useState(false)
+
+  const touchStartX       = useRef<number>(0)
+  const viewerTouchStartY = useRef<number>(0)
+  const viewerTouchStartX = useRef<number>(0)
+  const viewerDragLock    = useRef<'h' | 'v' | null>(null)
 
   useEffect(() => {
     if (!modId) return
@@ -186,6 +199,65 @@ export default function TuningModDetailPage() {
     return `${months[(m ?? mo) - 1]} ${y}`
   }
 
+  // ── Carousel handlers ────────────────────────────────────────────────────
+
+  const onCarouselTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
+  const onCarouselTouchEnd   = (e: React.TouchEvent) => {
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (diff > 40)       setPhotoIndex(i => Math.min(i + 1, photos.length - 1))
+    else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
+  }
+
+  // ── Fullscreen viewer handlers ────────────────────────────────────────────
+
+  const openViewer = (idx: number) => { setViewerIdx(idx); setViewerDragY(0); setViewerDragX(0); setViewerOpen(true) }
+
+  const closeViewer = () => {
+    setPhotoIndex(viewerIdx)
+    setViewerOpen(false)
+    setViewerDragY(0)
+    setViewerDragX(0)
+  }
+
+  const onViewerTouchStart = (e: React.TouchEvent) => {
+    viewerTouchStartY.current = e.touches[0].clientY
+    viewerTouchStartX.current = e.touches[0].clientX
+    viewerDragLock.current = null
+    setViewerDragging(true)
+  }
+
+  const onViewerTouchMove = (e: React.TouchEvent) => {
+    const dy = e.touches[0].clientY - viewerTouchStartY.current
+    const dx = e.touches[0].clientX - viewerTouchStartX.current
+    if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
+    }
+    if (viewerDragLock.current === 'v') setViewerDragY(dy)
+    else if (viewerDragLock.current === 'h') {
+      const atStart = viewerIdx === 0 && dx > 0
+      const atEnd   = viewerIdx === photos.length - 1 && dx < 0
+      setViewerDragX(atStart || atEnd ? dx * 0.25 : dx)
+    }
+  }
+
+  const onViewerTouchEnd = (e: React.TouchEvent) => {
+    setViewerDragging(false)
+    const dy = e.changedTouches[0].clientY - viewerTouchStartY.current
+    const dx = e.changedTouches[0].clientX - viewerTouchStartX.current
+    const lock = viewerDragLock.current
+    viewerDragLock.current = null
+    if (lock === 'v' && Math.abs(dy) > 90) {
+      closeViewer()
+    } else if (lock === 'h') {
+      if (dx < -50) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
+      else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
+      setViewerDragX(0)
+    } else {
+      setViewerDragY(0)
+      setViewerDragX(0)
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ height: '100dvh', background: '#0d0d0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -244,6 +316,44 @@ export default function TuningModDetailPage() {
 
       {/* ── Body ── */}
       <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100, position: 'relative', zIndex: 6 }}>
+
+        {/* ── Photo carousel ── */}
+        {photos.length > 0 && (
+          <div>
+            <div
+              style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
+              onTouchStart={onCarouselTouchStart}
+              onTouchEnd={onCarouselTouchEnd}
+              onClick={() => openViewer(photoIndex)}
+            >
+              <div style={{
+                display: 'flex', height: '100%',
+                transform: `translateX(-${photoIndex * 100}%)`,
+                transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
+              }}>
+                {photos.map(photo => (
+                  <img
+                    key={photo.id}
+                    src={photo.photo_url}
+                    alt=""
+                    style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }}
+                  />
+                ))}
+              </div>
+            </div>
+            {photos.length > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, paddingTop: 10 }}>
+                {photos.map((_, i) => (
+                  <div key={i} style={{
+                    width: i === photoIndex ? 18 : 6, height: 6, borderRadius: 3,
+                    background: i === photoIndex ? 'rgba(200,102,26,0.85)' : 'rgba(245,240,228,0.18)',
+                    transition: 'width 200ms ease, background 200ms ease',
+                  }} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Title block */}
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -345,42 +455,112 @@ export default function TuningModDetailPage() {
           </div>
         )}
 
-        {/* Photos */}
-        {photos.length > 0 && (
-          <div style={{ padding: '24px 20px 0' }}>
-            <p style={{ ...LABEL, marginBottom: 12 }}>Photos</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
-              {photos.map(photo => (
-                <div key={photo.id} style={{ position: 'relative' }}>
-                  <img
-                    src={photo.photo_url}
-                    alt=""
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                  />
-                  {groupLabel && (
-                    <button
-                      onClick={() => handleSetSectionPhoto(photo.photo_url)}
-                      style={{
-                        position: 'absolute', bottom: 6, right: 6,
-                        background: 'rgba(0,0,0,0.75)',
-                        border: '1px solid rgba(245,240,228,0.18)',
-                        padding: '5px 8px',
-                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 8,
-                        letterSpacing: '0.12em', textTransform: 'uppercase',
-                        color: 'rgba(245,240,228,0.6)',
-                      }}
-                    >
-                      Set {groupLabel}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
       </div>
+
+      {/* ── Fullscreen photo viewer ── */}
+      {viewerOpen && (() => {
+        const backdropAlpha = Math.max(0, 1 - Math.abs(viewerDragY) / 260)
+        const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
+        const isVDrag       = viewerDragging && viewerDragLock.current === 'v'
+        const isHDrag       = viewerDragging && viewerDragLock.current === 'h'
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: `rgba(0,0,0,${backdropAlpha})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              touchAction: 'none', overflow: 'hidden',
+            }}
+            onClick={closeViewer}
+          >
+            {/* Outer — vertical dismiss */}
+            <div
+              style={{
+                width: '100%',
+                transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
+                transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform',
+              }}
+              onTouchStart={onViewerTouchStart}
+              onTouchMove={onViewerTouchMove}
+              onTouchEnd={onViewerTouchEnd}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              {/* Inner strip — horizontal navigation */}
+              <div style={{
+                display: 'flex',
+                transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
+                transition: isHDrag ? 'none' : 'transform 400ms cubic-bezier(0.25,0.46,0.45,0.94)',
+                willChange: 'transform',
+              }}>
+                {photos.map(photo => (
+                  <div key={photo.id} style={{ width: '100%', flexShrink: 0 }}>
+                    <img
+                      src={photo.photo_url}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: '100%', maxHeight: '90dvh',
+                        objectFit: 'contain', display: 'block',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Close × */}
+            <button
+              onClick={closeViewer}
+              style={{
+                position: 'absolute', top: 16, right: 16,
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                WebkitTapHighlightColor: 'transparent',
+                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+              }}
+            >
+              <span style={{ color: 'rgba(245,240,228,0.85)', fontSize: 20, lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Set section photo — only when category maps to a group */}
+            {groupLabel && (
+              <button
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleSetSectionPhoto(photos[viewerIdx].photo_url) }}
+                style={{
+                  position: 'absolute', bottom: 52,
+                  background: 'rgba(0,0,0,0.72)',
+                  border: `1px solid rgba(200,102,26,0.45)`,
+                  padding: '8px 18px', cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                  opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+                }}
+              >
+                <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_ACCENT }}>
+                  Set as {groupLabel} Photo
+                </span>
+              </button>
+            )}
+
+            {/* Counter + hint */}
+            <p style={{
+              position: 'absolute', bottom: 20,
+              fontFamily: FONT_UI, fontSize: 11,
+              letterSpacing: '0.08em',
+              color: 'rgba(245,240,228,0.35)',
+              opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+              margin: 0, pointerEvents: 'none',
+            }}>
+              {photos.length > 1
+                ? `${viewerIdx + 1} / ${photos.length}  ·  swipe down to close`
+                : 'swipe down to close'}
+            </p>
+          </div>
+        )
+      })()}
 
       {/* ── FAB row: Remove + Edit ── */}
       <div style={{ position: 'fixed', right: 20, bottom: 30, zIndex: 20, display: 'flex', gap: 10 }}>
