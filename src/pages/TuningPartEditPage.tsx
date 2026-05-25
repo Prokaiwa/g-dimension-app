@@ -516,7 +516,7 @@ export default function TuningPartEditPage() {
                 <button
                   onClick={() => {
                     if (isNew) {
-                      setNewLinks(prev => prev.filter((_, i2) => i2 !== (entry as { _idx: number })._idx))
+                      setNewLinks(prev => prev.filter((_, i2) => i2 !== (entry as unknown as { _idx: number })._idx))
                     } else {
                       setRemovedLinkIds(prev => [...prev, entry.id])
                       setExistingLinks(prev => prev.filter(l => l.id !== entry.id))
