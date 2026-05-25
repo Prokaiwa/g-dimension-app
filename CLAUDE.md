@@ -160,7 +160,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `029_build_sheet_photos.sql` — run in order.
+`supabase/migrations/001_users.sql` → `031_job_links.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -171,6 +171,8 @@ const carId = await getActiveCarId()
 | `026_part_spec_domain*.sql` | Domain validation on spec fields |
 | `027_active_car.sql` | `users.active_car_id` column |
 | `029_build_sheet_photos.sql` | `cars.build_sheet_power_photo`, `cars.build_sheet_chassis_photo`, `cars.build_sheet_exterior_photo`, `cars.build_sheet_interior_photo` |
+| `030_sale_tracking.sql` | `jobs.sale_price` (decimal), `jobs.sale_date` (date) — populated when status=`sold` |
+| `031_job_links.sql` | `job_links` table — multiple URLs per job, RLS + grants |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -226,16 +228,19 @@ All user tables have Row-Level Security enabled. Reference tables (`vehicle_make
 src/tokens/index.ts                 — ALL design tokens (colors, fonts, spacing, animation)
 src/lib/supabase.ts                 — Supabase client (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 src/lib/activeCar.ts                — Active car get/set/sync helpers
+src/lib/links.ts                    — getYouTubeId, getYouTubeThumbnail, JobLink type
 src/App.tsx                         — Route tree + ProtectedRoute + auth sync on sign-in
 src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by 4 other pages)
 src/pages/TuningAddPage.tsx         — 3-step add mod flow (category → part type → form)
-src/pages/TuningModDetailPage.tsx   — Mod detail + section photo setter + Remove from Car sheet
-src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + photos)
+src/pages/TuningModDetailPage.tsx   — Mod detail + carousel/viewer + links display + Remove from Car sheet
+src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + photos + links)
 src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic, In Storage + On Hand)
 src/pages/TuningPartsAddPage.tsx    — Add Part directly to Parts Bin (purchased status)
+src/pages/TuningPartDetailPage.tsx  — Part detail (kraft paper, carousel/viewer, links, Install/Sell actions)
+src/pages/TuningPartEditPage.tsx    — Part edit form (kraft paper, fields + specs + photos + links)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–029
+supabase/migrations/                — Numbered SQL files 001–031
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
@@ -248,7 +253,7 @@ All primary routes are implemented:
 - Auth: Landing, Login, Signup
 - Hub: Home map
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
-- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (3-step), Mod Detail (with Set section photo + Remove from Car), Mod Edit (full form)
+- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (3-step), Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
 - Maintenance: overview, session detail, detail log, add detail session
 - Timeline: scroll, entry detail
 - Photos: masonry gallery
@@ -259,8 +264,10 @@ All primary routes are implemented:
 - Build sheet shows section photos as tappable placeholders → inline modal picker
 
 **Parts Bin** (cardboard / kraft paper aesthetic — Caveat + Permanent Marker fonts only):
-- `/tuning/parts-bin` — lists parts in "In Storage" (status=`removed`, still_owned=true) and "On Hand" (status=`purchased`) sections
+- `/tuning/parts-bin` — lists parts in "In Storage" (status=`removed`, still_owned=true) and "On Hand" (status=`purchased`) sections. Items have seeded random Polaroid-style offsets (±3.25° rotation, ±5.5px nudge) — stable per UUID, never re-randomizes.
 - `/tuning/parts-bin/add` — form to add a part directly (inserts as status=`purchased`, still_owned=true). Fields: name, brand, category, cost, date acquired, notes
+- `/tuning/parts-bin/:partId` — Part detail page (kraft paper): photo carousel + fullscreen viewer, specs, notes, links. Actions: Install →, Sell / Scrap.
+- `/tuning/parts-bin/:partId/edit` — Part edit: all fields + specs + photos + links management
 - "Put Back" button on each part → sets status=`installed`, clears `date_removed`, returns to Build Sheet
 - Parts page header: `‹ Tuning` left, `[year model] [Month Day box]` right — same inline pattern as Garage
 - Hand-drawn SVG ellipse FAB navigates to `/tuning/parts-bin/add`
@@ -269,6 +276,21 @@ All primary routes are implemented:
 **Remove from Car flow** (TuningModDetailPage bottom sheet):
 - "Move to Storage" → status=`removed`, still_owned=true, date_removed=today → navigates to `/tuning/build-sheet`
 - "Sold / Scrapped" → status=`removed`, still_owned=false, date_removed=today → navigates to `/tuning/build-sheet`
+
+**Photo carousel + fullscreen viewer** (TuningModDetailPage + TuningPartDetailPage):
+- Carousel at top of detail page; swipe left/right to navigate; tap to open fullscreen
+- Fullscreen viewer: swipe down to dismiss (spring-back if <90px, close if >90px); swipe left/right to navigate between photos with edge rubber-band resistance (25% drag rate past first/last)
+- Direction-locked: first 10px determines axis, locks for the gesture
+- Snap easing: `cubic-bezier(0.25, 0.46, 0.45, 0.94)` at 400ms; dismiss spring: `cubic-bezier(0.22, 1, 0.36, 1)` at 340ms
+- Mod detail viewer also has "Set as [Group] Photo" button
+
+**Job links system** (migration 031, `src/lib/links.ts`):
+- `job_links` table: `id, job_id, user_id, url, label, display_order` — one table for all link types
+- YouTube vs regular detected at display time via `getYouTubeId()` — not stored as a type column
+- YouTube thumbnail URL built from video ID — no API key needed (`img.youtube.com/vi/{id}/hqdefault.jpg`)
+- Detail pages show YouTube links as thumbnail cards (96×54 with red play overlay) and regular links as `↗` rows; tap opens `window.open`
+- Edit pages: URL + label inputs, + Add Link button, × to remove; queued add/delete saved with the form
+- When the app becomes native (Capacitor), swap `window.open` for in-app `<iframe>` — no schema changes needed
 
 **Spec system** (migrations 024–026):
 - Multiselect spec values must be stored as JSON arrays (e.g. `["Option A","Option B"]`), not comma-joined strings. The DB trigger `job_specs_validate_value` enforces this.
@@ -322,17 +344,20 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 - **TUNING_CATEGORIES** is exported from `TuningBuildSheetPage.tsx` and imported by `TuningBlueprintPage`, `TuningPartsPage`, `TuningPartsAddPage`, and `TuningAddPage`. Category `id` values must match `part_categories.name` in Supabase (FK constraint from migration 025).
 - **`formatDate` in `TuningModDetailPage`** — destructures split as `[y, m, mo]` which is redundant. The month index is `(m ?? mo) - 1`. Leave it as-is unless specifically fixing it.
 - **TypeScript:** `spec_templates` query requires `as unknown as SpecTemplate[]` cast — this is intentional, not a mistake.
+- **TypeScript:** link entry union type in edit pages requires `as unknown as { _idx: number }` double-cast when removing a queued new link — this is intentional, strict mode doesn't accept a single cast from `JobLink & Record<"_isNew", unknown>` to `{ _idx: number }`.
 - **No 028 migration** — skip that number.
 - **TuningModDetailPage title:** `fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28` — Hanken Grotesk bold italic, NOT Cormorant. Tuning never uses Cormorant.
 - **Parts Bin aesthetic is intentionally different** from the rest of the app — kraft paper, corrugation lines, grain overlay, Caveat + Permanent Marker fonts. Do not apply this aesthetic outside `/tuning/parts-bin*` routes.
 - **Magazine sheen overlay** on TuningModDetailPage and TuningModEditPage: two `position: fixed` divs (radial gradients) + SVG fractal noise grain at `opacity: 0.028, mixBlendMode: 'screen'`. This is intentional and should stay.
 - **hotfixes.sql** — `durometer` spec_template has `unit='A'` and `placeholder=null` (changed from 'Shore' and '75' respectively). Applied directly to live DB.
+- **job_links display order** — existing links keep their `display_order`; new links added in an edit session get `display_order = existingLinks.length + i`. No reordering UI yet.
 
 ---
 
 ## What's Next (not yet built)
 
 - **Blueprint page** — currently a stub. Should show planned/purchased mods not yet installed. Blueprint items are status=`planned` or status=`purchased` jobs. The page exists at `/tuning/blueprint` but has no real content.
-- **Parts Bin tappable rows** — currently no detail view for a part. Tapping a part in the bin could open a simple detail/edit sheet.
-- **Mod lifecycle completeness** — parts can be "Put Back" (→ installed) or "Move to Storage" / "Sold". No flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
+- **Mod lifecycle completeness** — no flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
+- **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
+- **YouTube in-app playback** — currently `window.open`. When the PWA becomes a native Capacitor app, replace with `<iframe>` embed or a native video player. The DB schema supports this with no changes.
 - **Unit conversion display** — `users.distance_unit`, `power_unit`, `torque_unit` columns exist but display conversion is not wired up on all screens.
