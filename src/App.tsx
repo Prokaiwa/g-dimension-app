@@ -33,6 +33,8 @@ import TuningPartEditPage from './pages/TuningPartEditPage'
 
 // Maintenance
 import MaintenancePage from './pages/MaintenancePage'
+import MaintenanceServiceNewPage from './pages/MaintenanceServiceNewPage'
+import MaintenanceServiceEditPage from './pages/MaintenanceServiceEditPage'
 import MaintenanceSessionDetailPage from './pages/MaintenanceSessionDetailPage'
 import MaintenanceDetailPage from './pages/MaintenanceDetailPage'
 import MaintenanceDetailNewPage from './pages/MaintenanceDetailNewPage'
@@ -112,9 +114,11 @@ export default function App() {
       <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
 
       <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
-      <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
+      <Route path="/maintenance/service/new" element={<ProtectedRoute><MaintenanceServiceNewPage /></ProtectedRoute>} />
+      <Route path="/maintenance/service/edit/:sessionId" element={<ProtectedRoute><MaintenanceServiceEditPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail/new" element={<ProtectedRoute><MaintenanceDetailNewPage /></ProtectedRoute>} />
+      <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
 
       <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />
       <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
