@@ -176,6 +176,8 @@ const carId = await getActiveCarId()
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–031` → new range) and add the new migration to the table above.
+
 ### Extra Columns on `jobs` (not in architecture doc)
 
 The `jobs` table has these columns beyond what MASTER_ARCHITECTURE.md shows:
