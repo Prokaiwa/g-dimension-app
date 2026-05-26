@@ -268,8 +268,43 @@ export default function TuningModDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ height: '100dvh', background: '#0d0d0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.2)', letterSpacing: '0.12em' }}>LOADING</span>
+      <div style={{ height: '100dvh', background: '#0d0d0f', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <style>{`
+          @keyframes shimmerPulse {
+            0%, 100% { opacity: 0.06; }
+            50%       { opacity: 0.15; }
+          }
+          @keyframes contentIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+        {/* Magazine sheen */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', background: ['radial-gradient(ellipse 70% 48% at 90% 94%, rgba(245,232,195,0.065) 0%, rgba(245,232,195,0.025) 48%, transparent 72%)', 'radial-gradient(ellipse 55% 30% at 10% 6%, rgba(175,195,215,0.04) 0%, transparent 60%)'].join(', ') }} />
+        <div style={{ position: 'fixed', inset: 0, zIndex: 4, pointerEvents: 'none', backgroundImage: NOISE_SVG, backgroundSize: '220px 220px', opacity: 0.028, mixBlendMode: 'screen' }} />
+        {/* Functional header — back button works during load */}
+        <div style={{ height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 16, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
+          <button onClick={() => navigate('/tuning/build-sheet')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent' }}>
+            <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)' }}>Build Sheet</span>
+          </button>
+        </div>
+        {/* Skeleton body */}
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48, position: 'relative', zIndex: 6 }}>
+          {/* Carousel area */}
+          <div style={{ width: '100%', aspectRatio: '4/3', background: 'rgba(245,240,228,1)', animation: 'shimmerPulse 2.4s ease-in-out 0ms infinite' }} />
+          {/* Title block */}
+          <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ height: 32, width: '82%', background: 'rgba(245,240,228,1)', animation: 'shimmerPulse 2.4s ease-in-out 100ms infinite' }} />
+            <div style={{ height: 10, width: '32%', background: 'rgba(245,240,228,0.6)', animation: 'shimmerPulse 2.4s ease-in-out 180ms infinite' }} />
+          </div>
+          {/* Spec rows */}
+          <div style={{ paddingTop: 4 }}>
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} style={{ height: 44, background: 'rgba(245,240,228,0.6)', borderBottom: '1px solid rgba(255,255,255,0.04)', animation: `shimmerPulse 2.4s ease-in-out ${i * 90}ms infinite` }} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -287,6 +322,12 @@ export default function TuningModDetailPage() {
 
   return (
     <div style={{ height: '100dvh', background: '#0d0d0f', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <style>{`
+        @keyframes contentIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* ── Magazine sheen + grain overlays ── */}
       <div style={{
@@ -323,7 +364,7 @@ export default function TuningModDetailPage() {
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48, position: 'relative', zIndex: 6 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48, position: 'relative', zIndex: 6, animation: 'contentIn 400ms cubic-bezier(0.22,1,0.36,1) both' }}>
 
         {/* ── Photo carousel ── */}
         {photos.length > 0 && (

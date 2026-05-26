@@ -359,6 +359,10 @@ export default function TuningBuildSheetPage() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes shimmerPulse {
+          0%, 100% { opacity: 0.06; }
+          50%       { opacity: 0.14; }
+        }
       `}</style>
 
       {/* ── Magazine sheen + grain overlays (pointer-events: none) ── */}
@@ -422,8 +426,29 @@ export default function TuningBuildSheetPage() {
 
       {/* ── Body ── */}
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 6 }}>
-          <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.2)', letterSpacing: '0.12em' }}>LOADING</span>
+        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96, position: 'relative', zIndex: 6 }}>
+          {/* Hero skeleton */}
+          <div style={{ padding: '24px 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 14 }}>
+            <div style={{ flexShrink: 0, width: 185, height: 138, background: 'rgba(245,240,228,1)', animation: 'shimmerPulse 2.4s ease-in-out 0ms infinite' }} />
+            <div style={{ flex: 1, paddingTop: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ height: 26, width: '78%', background: 'rgba(245,240,228,1)', animation: 'shimmerPulse 2.4s ease-in-out 80ms infinite' }} />
+              <div style={{ height: 9, width: '38%', background: 'rgba(245,240,228,0.6)', animation: 'shimmerPulse 2.4s ease-in-out 160ms infinite' }} />
+              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ height: 13, width: '30%', background: 'rgba(245,240,228,0.6)', animation: 'shimmerPulse 2.4s ease-in-out 240ms infinite' }} />
+                <div style={{ height: 13, width: '26%', background: 'rgba(245,240,228,0.6)', animation: 'shimmerPulse 2.4s ease-in-out 310ms infinite' }} />
+              </div>
+            </div>
+          </div>
+          {/* Section skeletons */}
+          {[0, 1].map(i => (
+            <div key={i} style={{ padding: '22px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ height: 9, width: 52, background: 'rgba(245,240,228,1)', marginBottom: 14, animation: `shimmerPulse 2.4s ease-in-out ${i * 160}ms infinite` }} />
+              <div style={{ height: 70, background: 'rgba(245,240,228,0.5)', marginBottom: 14, animation: `shimmerPulse 2.4s ease-in-out ${i * 160 + 80}ms infinite` }} />
+              {[68, 55, 42].map((w, j) => (
+                <div key={j} style={{ height: 13, width: `${w}%`, background: 'rgba(245,240,228,0.6)', marginBottom: 10, animation: `shimmerPulse 2.4s ease-in-out ${i * 160 + (j + 2) * 70}ms infinite` }} />
+              ))}
+            </div>
+          ))}
         </div>
       ) : (
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 96, position: 'relative', zIndex: 6 }}>
