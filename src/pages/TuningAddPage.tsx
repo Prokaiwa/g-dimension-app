@@ -183,6 +183,7 @@ export default function TuningAddPage() {
   const [multiValues, setMultiValues]     = useState<Record<string, string[]>>({})
   const [photos, setPhotos]               = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [wishlistMode, setWishlistMode]   = useState(false)
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
@@ -455,8 +456,8 @@ export default function TuningAddPage() {
         labor_cost:     form.laborCost  ? parseFloat(form.laborCost)  : null,
         installed_by:   form.installedBy        || null,
         notes:          form.notes.trim()       || null,
-        status:         partsBinMode ? 'purchased' : 'installed',
-        still_owned:    partsBinMode ? true : undefined,
+        status:         partsBinMode ? (wishlistMode ? 'planned' : 'purchased') : 'installed',
+        still_owned:    partsBinMode ? !wishlistMode : undefined,
       })
       .select('id')
       .single()
@@ -801,6 +802,37 @@ export default function TuningAddPage() {
         <div style={{ width: '33.333%', height: '100%', overflowY: 'auto', flexShrink: 0 }}>
           <div className={partsBinMode ? 'pb-form' : undefined} style={{ paddingTop: 60, paddingBottom: 72 }}>
 
+            {/* Have it / Want it toggle — parts-bin mode only */}
+            {partsBinMode && (
+              <div style={{ padding: '4px 22px 20px' }}>
+                <label style={{ ...lbl, marginBottom: 10 }}>Status</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([false, true] as const).map((isWish) => {
+                    const sel = wishlistMode === isWish
+                    return (
+                      <button
+                        key={String(isWish)}
+                        onClick={() => setWishlistMode(isWish)}
+                        style={{
+                          flex: 1, padding: '11px 0',
+                          background: sel ? 'rgba(26,16,8,0.09)' : 'transparent',
+                          border: `1.5px solid ${sel ? 'rgba(26,16,8,0.45)' : 'rgba(26,16,8,0.14)'}`,
+                          cursor: 'pointer',
+                          fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+                          color: sel ? COLOR_CARDBOARD_INK : COLOR_CARDBOARD_INK2,
+                          opacity: sel ? 0.85 : 0.45,
+                          transition: 'all 200ms ease',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        {isWish ? 'I want it' : 'I have it'}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Title */}
             <div style={{ padding: '4px 22px 0' }}>
               <label style={lbl}>Title *</label>
@@ -868,7 +900,7 @@ export default function TuningAddPage() {
             {/* Costs — Labor hidden when self-installed or parts-bin mode */}
             <div style={{ padding: '20px 22px 0', display: 'flex', gap: 20 }}>
               <div style={{ flex: 1 }}>
-                <label style={lbl}>Parts Cost</label>
+                <label style={lbl}>{partsBinMode && wishlistMode ? 'Target Price' : 'Parts Cost'}</label>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={{ fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 700, fontSize: 14, color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.38)', marginRight: 4, paddingBottom: 1 }}>$</span>
                   <input

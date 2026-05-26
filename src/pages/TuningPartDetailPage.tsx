@@ -179,6 +179,20 @@ export default function TuningPartDetailPage() {
     navigate('/tuning/parts-bin')
   }
 
+  const handleMarkPurchased = async () => {
+    if (!partId) return
+    setActioning(true)
+    await supabase.from('jobs').update({ status: 'purchased', still_owned: true }).eq('id', partId)
+    navigate('/tuning/parts-bin')
+  }
+
+  const handleRemoveFromWishlist = async () => {
+    if (!partId) return
+    setActioning(true)
+    await supabase.from('jobs').delete().eq('id', partId)
+    navigate('/tuning/parts-bin')
+  }
+
   const closeSellScrap = () => {
     setSellScrapOpen(false)
     setDisposeType(null)
@@ -297,7 +311,7 @@ export default function TuningPartDetailPage() {
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>Parts</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {active && (
+            {(active || part.status === 'planned') && (
               <button
                 onClick={() => navigate(`/tuning/parts-bin/${partId}/edit`)}
                 style={{ background: 'none', border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
@@ -536,7 +550,26 @@ export default function TuningPartDetailPage() {
 
       {/* ── Actions ── */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
-        {active ? (
+        {part.status === 'planned' ? (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={handleMarkPurchased} disabled={actioning}
+              style={{ flex: 1, padding: '15px', background: 'rgba(139,58,10,0.15)', border: `1.5px solid ${COLOR_CARDBOARD_STAMP}`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP }}>
+                {actioning ? 'Saving…' : 'I got it! →'}
+              </span>
+            </button>
+            <button
+              onClick={handleRemoveFromWishlist} disabled={actioning}
+              style={{ flex: 1, padding: '15px', background: 'transparent', border: `1px solid rgba(26,16,8,0.25)`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>
+                Remove
+              </span>
+            </button>
+          </div>
+        ) : active ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               onClick={handleInstall} disabled={actioning}

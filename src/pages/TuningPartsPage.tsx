@@ -64,6 +64,7 @@ function firstPhoto(photos: JobPhoto[]): string | null {
 export default function TuningPartsPage() {
   const navigate = useNavigate()
 
+  const [wishlist,     setWishlist]     = useState<Part[]>([])
   const [pulled,       setPulled]       = useState<Part[]>([])
   const [onHand,       setOnHand]       = useState<Part[]>([])
   const [soldScrapped, setSoldScrapped] = useState<Part[]>([])
@@ -81,7 +82,7 @@ export default function TuningPartsPage() {
     const carId = await getActiveCarId()
     if (!carId) { setLoading(false); return }
 
-    const [{ data: carData }, { data: active }, { data: history }] = await Promise.all([
+    const [{ data: carData }, { data: active }, { data: history }, { data: planned }] = await Promise.all([
       supabase.from('cars').select('year, make, model').eq('id', carId).single(),
       supabase
         .from('jobs')
@@ -98,6 +99,13 @@ export default function TuningPartsPage() {
         .eq('type', 'modification')
         .in('status', ['sold', 'scrapped'])
         .order('sale_date', { ascending: false, nullsFirst: false }),
+      supabase
+        .from('jobs')
+        .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date, job_photos(photo_url, display_order)')
+        .eq('car_id', carId)
+        .eq('type', 'modification')
+        .eq('status', 'planned')
+        .order('created_at', { ascending: false }),
     ])
 
     if (carData) setCar(carData as Car)
@@ -105,12 +113,13 @@ export default function TuningPartsPage() {
     setPulled(all.filter(p => p.status === 'removed'))
     setOnHand(all.filter(p => p.status === 'purchased'))
     setSoldScrapped((history ?? []) as Part[])
+    setWishlist((planned ?? []) as Part[])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
-  const isEmpty = pulled.length === 0 && onHand.length === 0
+  const isEmpty = wishlist.length === 0 && pulled.length === 0 && onHand.length === 0
 
   return (
     <div style={{
@@ -230,14 +239,28 @@ export default function TuningPartsPage() {
           <div style={{ textAlign: 'center', marginTop: 60, padding: '0 40px' }}>
             <p style={{ fontFamily: FONT_STAMP, fontSize: 22, color: COLOR_CARDBOARD_INK, opacity: 0.35, margin: 0 }}>Empty</p>
             <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 17, color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginTop: 10, lineHeight: 1.5 }}>
-              Parts removed from the car but kept will show up here
+              Parts you want, have on hand, or pulled from the car will show up here
             </p>
           </div>
         )}
 
+        {/* Wishlist */}
+        {wishlist.length > 0 && (
+          <Section label="Wishlist" style={{ marginTop: 32 }}>
+            {wishlist.map((part, i) => (
+              <PartRow
+                key={part.id} part={part}
+                dateLabel={null} dateLine=""
+                isLast={i === wishlist.length - 1}
+                onClick={() => navigate(`/tuning/parts-bin/${part.id}`)}
+              />
+            ))}
+          </Section>
+        )}
+
         {/* On Hand */}
         {onHand.length > 0 && (
-          <Section label="On hand" tapeAngle={-1.5} style={{ marginTop: 32 }}>
+          <Section label="On hand" style={{ marginTop: wishlist.length > 0 ? 36 : 32 }}>
             {onHand.map((part, i) => (
               <PartRow
                 key={part.id} part={part}
@@ -251,7 +274,7 @@ export default function TuningPartsPage() {
 
         {/* In Storage */}
         {pulled.length > 0 && (
-          <Section label="In storage" tapeAngle={1.2} style={{ marginTop: onHand.length > 0 ? 36 : 32 }}>
+          <Section label="In storage" style={{ marginTop: (wishlist.length > 0 || onHand.length > 0) ? 36 : 32 }}>
             {pulled.map((part, i) => (
               <PartRow
                 key={part.id} part={part}

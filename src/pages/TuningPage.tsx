@@ -10,7 +10,6 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import tuningHero     from '../assets/backgrounds/tuning_hero.png'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
-import iconBlueprint  from '../assets/icons/tuning-dashboard/tuning_blueprint.png'
 import iconPartsBin   from '../assets/icons/tuning-dashboard/tuning_partsbin.png'
 import {
   COLOR_HEADER_BLACK,
@@ -29,13 +28,9 @@ import {
   EASING_SETTLE,
 } from '../tokens'
 
-// L-shape: Blueprint is the vertical stem (upper-left),
-// Build Sheet + Parts Bin form the horizontal bar (bottom).
-// Parts Bin sits below the lift on the right.
 const TILES = [
-  { id: 'blueprint',   label: 'Blueprint',   route: '/tuning/blueprint',   src: iconBlueprint,  left: 16,  bottom: 190, labelMargin: -6 },
-  { id: 'build-sheet', label: 'Build Sheet', route: '/tuning/build-sheet', src: iconBuildSheet, left: 58,  bottom: 54,  labelMargin: -6 },
-  { id: 'parts-bin',   label: 'Parts Bin',   route: '/tuning/parts-bin',   src: iconPartsBin,   left: 222, bottom: 88,  labelMargin: 6 },
+  { id: 'build-sheet', label: 'Build Sheet', route: '/tuning/build-sheet', src: iconBuildSheet, left: 58,  bottom: 54, labelMargin: -6 },
+  { id: 'parts-bin',   label: 'Parts Bin',   route: '/tuning/parts-bin',   src: iconPartsBin,   left: 222, bottom: 88, labelMargin: 6 },
 ]
 
 export default function TuningPage() {

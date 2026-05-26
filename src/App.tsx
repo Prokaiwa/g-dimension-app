@@ -24,7 +24,6 @@ import GaragePdfPage from './pages/GaragePdfPage'
 // Tuning
 import TuningPage from './pages/TuningPage'
 import TuningBuildSheetPage from './pages/TuningBuildSheetPage'
-import TuningBlueprintPage from './pages/TuningBlueprintPage'
 import TuningPartsPage from './pages/TuningPartsPage'
 import TuningAddPage from './pages/TuningAddPage'
 import TuningModDetailPage from './pages/TuningModDetailPage'
@@ -105,7 +104,6 @@ export default function App() {
 
       <Route path="/tuning" element={<ProtectedRoute><TuningPage /></ProtectedRoute>} />
       <Route path="/tuning/build-sheet" element={<ProtectedRoute><TuningBuildSheetPage /></ProtectedRoute>} />
-      <Route path="/tuning/blueprint" element={<ProtectedRoute><TuningBlueprintPage /></ProtectedRoute>} />
       <Route path="/tuning/parts-bin" element={<ProtectedRoute><TuningPartsPage /></ProtectedRoute>} />
       <Route path="/tuning/parts-bin/:partId" element={<ProtectedRoute><TuningPartDetailPage /></ProtectedRoute>} />
       <Route path="/tuning/parts-bin/:partId/edit" element={<ProtectedRoute><TuningPartEditPage /></ProtectedRoute>} />
