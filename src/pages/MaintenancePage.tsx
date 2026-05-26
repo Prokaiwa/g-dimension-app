@@ -67,8 +67,8 @@ export default function MaintenancePage() {
         .mnt-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
-      {/* Dark base — warm amber-brown on the left like GT Auto */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #2a1e08 0%, #1c1408 45%, #0e0b06 100%)' }} />
+      {/* Dark-amber base — left side golden like GT Auto */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #8a6a1c 0%, #5c4210 45%, #2a1c08 100%)' }} />
       {/* Amber diagonal — GT Auto right panel */}
       <div style={{
         position: 'absolute', inset: 0,
