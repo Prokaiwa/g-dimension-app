@@ -28,6 +28,7 @@ import iconInterior         from '../assets/icons/tuning/tuning_interior.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
+  EASING_SETTLE,
 } from '../tokens'
 
 // Exported so TuningBlueprintPage, TuningPartsPage, TuningAddPage can import
@@ -116,7 +117,10 @@ function SectionHeroPhoto({ url, onTap }: { url: string; onTap: () => void }) {
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center',
           display: 'block',
+          opacity: 0,
+          transition: 'opacity 350ms ease',
         }}
+        onLoad={e => { e.currentTarget.style.opacity = '1' }}
       />
       {/* Bottom fade to ground the list below */}
       <div style={{
@@ -350,6 +354,12 @@ export default function TuningBuildSheetPage() {
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0d0d0f', overflow: 'hidden', position: 'relative' }}>
+      <style>{`
+        @keyframes sectionIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* ── Magazine sheen + grain overlays (pointer-events: none) ── */}
       {/* Fixed so the light source stays in place as you scroll — like a physical magazine */}
@@ -423,6 +433,7 @@ export default function TuningBuildSheetPage() {
             padding: '24px 16px 20px',
             borderBottom: '1px solid rgba(255,255,255,0.07)',
             display: 'flex', alignItems: 'flex-start', gap: 14,
+            animation: `sectionIn 480ms ${EASING_SETTLE} 40ms both`,
           }}>
             <div style={{
               flexShrink: 0, width: 185, height: 138,
@@ -474,7 +485,7 @@ export default function TuningBuildSheetPage() {
           </div>
 
           {/* ── Mod sections — vertical hero layout ── */}
-          {activeGroups.map(group => {
+          {activeGroups.map((group, idx) => {
             const photoUrl     = photoMap[group.id] ?? null
             const hasPhotoCol  = !!GROUP_PHOTO_COL[group.id]
             const isExpanded   = expandedGroups.has(group.id)
@@ -483,6 +494,7 @@ export default function TuningBuildSheetPage() {
               <div key={group.id} style={{
                 padding: '22px 16px 8px',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
+                animation: `sectionIn 480ms ${EASING_SETTLE} ${120 + idx * 90}ms both`,
               }}>
 
                 {/* Section header — editorial label */}

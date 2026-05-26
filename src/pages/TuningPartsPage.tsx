@@ -436,7 +436,7 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
         paddingTop: 14, paddingBottom: 14,
         borderBottom: isLast ? 'none' : `1.5px solid rgba(100,60,20,0.14)`,
         display: 'flex', alignItems: 'center', gap: 14,
-        opacity: dimmed ? 0.45 : 1,
+        opacity: dimmed ? 0.45 : part.status === 'planned' ? 0.78 : 1,
       }}
     >
       {/* Polaroid photo frame */}
@@ -493,6 +493,19 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
             }}>
               {part.category}
             </span>
+          )}
+          {part.status === 'planned' && (
+            <span style={{
+              fontFamily: FONT_STAMP,
+              fontSize: 10,
+              color: '#6b4882',
+              border: '1.5px solid #6b4882',
+              padding: '1px 6px',
+              transform: 'rotate(-2.5deg)',
+              display: 'inline-block',
+              opacity: 0.72,
+              letterSpacing: '0.05em',
+            }}>WANTED</span>
           )}
         </div>
         {dateLabel && (
