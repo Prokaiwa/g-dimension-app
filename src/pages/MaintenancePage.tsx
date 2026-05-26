@@ -26,7 +26,7 @@ type RecentSession = {
 }
 
 const TILES = [
-  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 14, labelOffset: 4  },
+  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: 4  },
   { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20 },
 ]
 
@@ -73,7 +73,7 @@ export default function MaintenancePage() {
       <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
         <defs>
           <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
-            <path d="M 0.66,0 C 0.54,0.32 0.32,0.66 0.20,1 L 1,1 L 1,0 Z" />
+            <path d="M 0.66,0 C 0.88,0.28 0.16,0.72 0.18,1 L 1,1 L 1,0 Z" />
           </clipPath>
         </defs>
       </svg>
