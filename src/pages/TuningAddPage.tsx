@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { TUNING_CATEGORIES } from './TuningBuildSheetPage'
 import {
   FONT_UI, EASING_SETTLE,
@@ -184,6 +185,9 @@ export default function TuningAddPage() {
   const [photos, setPhotos]               = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [wishlistMode, setWishlistMode]   = useState(false)
+  const [newLinkUrl,   setNewLinkUrl]     = useState('')
+  const [newLinkLabel, setNewLinkLabel]   = useState('')
+  const [newLinks,     setNewLinks]       = useState<{ url: string; label: string }[]>([])
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
@@ -513,6 +517,13 @@ export default function TuningAddPage() {
       } catch (_) {
         // Photo upload failure is non-fatal — the job record is already saved
       }
+    }
+
+    // 4. INSERT job_links
+    if (newLinks.length > 0) {
+      await supabase.from('job_links').insert(
+        newLinks.map((l, i) => ({ job_id: jobId, user_id: userId, url: l.url, label: l.label || null, display_order: i }))
+      )
     }
 
     setSaving(false)
@@ -991,6 +1002,83 @@ export default function TuningAddPage() {
                   style={{ display: 'none' }}
                 />
               </label>
+            </div>
+
+            {/* Links */}
+            <div style={{ padding: '24px 22px 0' }}>
+              <label style={lbl}>Links</label>
+
+              {newLinks.map((link, i) => {
+                const ytId = getYouTubeId(link.url)
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, marginBottom: 2 }}>
+                    {ytId ? (
+                      <div style={{ width: 64, height: 36, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                        <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.82 }} />
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.28)' }}>
+                          <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M0 0L10 6L0 12V0Z" fill={partsBinMode ? '#f5f0e4' : '#f5f5f5'} fillOpacity="0.6"/></svg>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: partsBinMode ? COLOR_CARDBOARD_STAMP : 'rgba(245,240,228,0.5)', fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}>↗</span>
+                    )}
+                    <p style={{ flex: 1, fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 700, fontSize: partsBinMode ? 14 : 13, color: partsBinMode ? COLOR_CARDBOARD_INK : 'rgba(245,240,228,0.75)', opacity: 0.82, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {link.label || link.url}
+                    </p>
+                    <button
+                      onClick={() => setNewLinks(prev => prev.filter((_, j) => j !== i))}
+                      style={{ flexShrink: 0, width: 28, height: 28, borderRadius: '50%', background: partsBinMode ? 'rgba(26,16,8,0.08)' : 'rgba(245,240,228,0.08)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <span style={{ color: partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.5)', fontSize: 14, lineHeight: 1 }}>×</span>
+                    </button>
+                  </div>
+                )
+              })}
+
+              <div style={{ marginTop: newLinks.length > 0 ? 14 : 10 }}>
+                <input
+                  value={newLinkUrl}
+                  onChange={e => setNewLinkUrl(e.target.value)}
+                  placeholder="https://"
+                  style={{ ...inp, marginBottom: 10, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
+                />
+                <input
+                  value={newLinkLabel}
+                  onChange={e => setNewLinkLabel(e.target.value)}
+                  placeholder="Label (optional)"
+                  style={{ ...inp, marginBottom: 12, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
+                />
+                <button
+                  onClick={() => {
+                    const url = newLinkUrl.trim()
+                    if (!url) return
+                    setNewLinks(prev => [...prev, { url, label: newLinkLabel.trim() }])
+                    setNewLinkUrl('')
+                    setNewLinkLabel('')
+                  }}
+                  disabled={!newLinkUrl.trim()}
+                  style={partsBinMode ? {
+                    padding: '10px 18px',
+                    background: newLinkUrl.trim() ? 'rgba(139,58,10,0.12)' : 'transparent',
+                    border: newLinkUrl.trim() ? `1px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.15)`,
+                    cursor: newLinkUrl.trim() ? 'pointer' : 'default',
+                    fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15,
+                    color: newLinkUrl.trim() ? COLOR_CARDBOARD_STAMP : 'rgba(26,16,8,0.25)',
+                    WebkitTapHighlightColor: 'transparent',
+                  } : {
+                    padding: '10px 18px',
+                    background: newLinkUrl.trim() ? 'rgba(105,12,22,0.12)' : 'transparent',
+                    border: newLinkUrl.trim() ? '1px solid rgba(105,12,22,0.75)' : '1px solid rgba(245,240,228,0.11)',
+                    cursor: newLinkUrl.trim() ? 'pointer' : 'default',
+                    fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                    letterSpacing: '0.14em', textTransform: 'uppercase' as const,
+                    color: newLinkUrl.trim() ? '#c0303a' : 'rgba(245,240,228,0.22)',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  + Add Link
+                </button>
+              </div>
             </div>
 
             {/* Full Specs toggle — always shown (Part Number lives here) */}
