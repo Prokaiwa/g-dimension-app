@@ -443,15 +443,18 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
       {thumb ? (
         <div style={{
           flexShrink: 0,
-          background: '#f5eed8',   // aged warm white
+          background: '#f5eed8',
           padding: '3px 3px 13px 3px',
           boxShadow: '1px 2px 6px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(100,60,20,0.1)',
           transform: `rotate(${polaroidRot}deg)`,
           lineHeight: 0,
+          opacity: 0,
+          transition: 'opacity 180ms ease',
         }}>
           <img
             src={thumb} alt=""
             style={{ width: 56, height: 56, objectFit: 'cover', display: 'block' }}
+            onLoad={e => { (e.currentTarget.parentElement as HTMLElement).style.opacity = '1' }}
           />
         </div>
       ) : (
