@@ -26,8 +26,8 @@ type RecentSession = {
 }
 
 const TILES = [
-  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 48,  bottom: 60 },
-  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 218, bottom: 102 },
+  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 14, labelOffset: 4  },
+  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -6 },
 ]
 
 export default function MaintenancePage() {
@@ -67,8 +67,8 @@ export default function MaintenancePage() {
         .mnt-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
-      {/* Dark base */}
-      <div style={{ position: 'absolute', inset: 0, background: '#0e0b07' }} />
+      {/* Dark base — warm amber-brown on the left like GT Auto */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #2a1e08 0%, #1c1408 45%, #0e0b06 100%)' }} />
       {/* Amber diagonal — GT Auto right panel */}
       <div style={{
         position: 'absolute', inset: 0,
@@ -102,7 +102,7 @@ export default function MaintenancePage() {
         </svg>
         <button onClick={() => navigate('/home')} style={{ position: 'absolute', left: 10, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>‹</span>
-          <span style={{ color: COLOR_HEADER_TITLE, fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 24, letterSpacing: '-0.1em' }}>The Shop</span>
+          <span style={{ color: COLOR_HEADER_TITLE, fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em' }}>Maintenance &amp; Service</span>
         </button>
         <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0 }}>
           {car && <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>{[car.year, car.model].filter(Boolean).join(' ')}</span>}
@@ -140,9 +140,9 @@ export default function MaintenancePage() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
               <div style={{ position: 'absolute', top: 90, left: 63, width: 66, height: 60, transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: CAST_SHADOW_OPACITY, filter: 'blur(5px)' }} />
-              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 126, height: 126, objectFit: 'contain', pointerEvents: 'none' }} />
+              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none' }} />
             </div>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -6 }}>{tile.label}</span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: tile.labelOffset }}>{tile.label}</span>
           </div>
         </button>
       ))}
