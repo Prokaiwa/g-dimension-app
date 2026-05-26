@@ -130,12 +130,13 @@ export default function TuningPage() {
         {/* Year/model + Date chips */}
         <div style={{
           position: 'absolute', right: 0, top: 0, height: '100%',
-          display: 'flex', alignItems: 'center', paddingRight: 14, gap: 8,
+          display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
         }}>
           {car && (
             <span style={{
               fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
               color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75,
+              paddingRight: 10,
             }}>
               {[car.year, car.model].filter(Boolean).join(' ')}
             </span>
