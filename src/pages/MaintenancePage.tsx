@@ -27,7 +27,7 @@ type RecentSession = {
 
 const TILES = [
   { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 14, labelOffset: 4  },
-  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -6 },
+  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20 },
 ]
 
 export default function MaintenancePage() {
@@ -67,13 +67,21 @@ export default function MaintenancePage() {
         .mnt-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
-      {/* Dark-amber base — left side golden like GT Auto */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #8a6a1c 0%, #5c4210 45%, #2a1c08 100%)' }} />
-      {/* Amber diagonal — GT Auto right panel */}
+      {/* Left panel — dark golden-yellow like GT Auto */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #d4a80e 0%, #946a12 50%, #301e08 100%)' }} />
+      {/* SVG clip-path for curved divider */}
+      <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
+        <defs>
+          <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
+            <path d="M 0.66,0 C 0.54,0.32 0.32,0.66 0.20,1 L 1,1 L 1,0 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+      {/* Amber right panel with curved edge */}
       <div style={{
         position: 'absolute', inset: 0,
         background: 'linear-gradient(155deg, #c47818 0%, #d48828 40%, #b86818 75%, #9a5812 100%)',
-        clipPath: 'polygon(54% 0%, 100% 0%, 100% 100%, 18% 100%)',
+        clipPath: 'url(#mntAmberPanel)',
       }} />
       {/* Grain overlay */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.035, mixBlendMode: 'overlay' }} aria-hidden>
@@ -139,7 +147,7 @@ export default function MaintenancePage() {
           style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
-              <div style={{ position: 'absolute', top: 90, left: 63, width: 66, height: 60, transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: CAST_SHADOW_OPACITY, filter: 'blur(5px)' }} />
+              <div style={{ position: 'absolute', top: 110, left: 63, width: 58, height: 18, transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: CAST_SHADOW_OPACITY, filter: 'blur(6px)' }} />
               <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none' }} />
             </div>
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: tile.labelOffset }}>{tile.label}</span>
