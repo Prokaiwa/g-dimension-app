@@ -3,6 +3,10 @@
 -- =============================================================================
 -- Track SQL fixes applied directly to the live DB outside the migration
 -- sequence. Run each block once in the Supabase SQL Editor.
+--
+-- LIVE DB STATE
+-- Last migration applied : 031_job_links.sql (2026-05-26)
+-- All migrations 001–031 confirmed applied to production.
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)

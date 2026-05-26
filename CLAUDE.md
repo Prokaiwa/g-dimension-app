@@ -288,7 +288,7 @@ All primary routes are implemented:
 - `job_links` table: `id, job_id, user_id, url, label, display_order` — one table for all link types
 - YouTube vs regular detected at display time via `getYouTubeId()` — not stored as a type column
 - YouTube thumbnail URL built from video ID — no API key needed (`img.youtube.com/vi/{id}/hqdefault.jpg`)
-- Detail pages show YouTube links as thumbnail cards (96×54 with red play overlay) and regular links as `↗` rows; tap opens `window.open`
+- Detail pages show YouTube links as thumbnail cards (96×54 with SVG play triangle overlay) and regular links as `↗` rows; tap opens `window.open`
 - Edit pages: URL + label inputs, + Add Link button, × to remove; queued add/delete saved with the form
 - When the app becomes native (Capacitor), swap `window.open` for in-app `<iframe>` — no schema changes needed
 
