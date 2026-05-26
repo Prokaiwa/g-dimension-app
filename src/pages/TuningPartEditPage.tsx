@@ -506,8 +506,8 @@ export default function TuningPartEditPage() {
                 {ytId ? (
                   <div style={{ width: 64, height: 36, flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
                     <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,16,8,0.2)' }}>
-                      <span style={{ color: '#fff', fontSize: 8 }}>▶</span>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,16,8,0.28)' }}>
+                      <svg width="10" height="12" viewBox="0 0 10 12" fill="none"><path d="M0 0L10 6L0 12V0Z" fill="white" fillOpacity="0.85"/></svg>
                     </div>
                   </div>
                 ) : (

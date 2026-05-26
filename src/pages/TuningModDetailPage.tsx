@@ -486,10 +486,8 @@ export default function TuningModDetailPage() {
                     >
                       <div style={{ width: 96, height: 54, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
                         <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.22)' }}>
-                          <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(230,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ color: '#fff', fontSize: 9, marginLeft: 2 }}>▶</span>
-                          </div>
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.28)' }}>
+                          <svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0L14 8L0 16V0Z" fill="white" fillOpacity="0.92"/></svg>
                         </div>
                       </div>
                       <div style={{ flex: 1, padding: '0 12px', minWidth: 0 }}>
