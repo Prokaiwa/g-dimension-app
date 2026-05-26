@@ -240,6 +240,14 @@ src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic, In 
 src/pages/TuningPartsAddPage.tsx    — Add Part directly to Parts Bin (purchased status)
 src/pages/TuningPartDetailPage.tsx  — Part detail (kraft paper, carousel/viewer, links, Install/Sell actions)
 src/pages/TuningPartEditPage.tsx    — Part edit form (kraft paper, fields + specs + photos + links)
+src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diagonal, service history strip)
+src/pages/MaintenanceServiceNewPage.tsx   — Add Service Session form (invoice/Courier aesthetic)
+src/pages/MaintenanceServiceEditPage.tsx  — Edit Service Session (STUB — not yet built)
+src/pages/MaintenanceSessionDetailPage.tsx — Session detail view (shared by maintenance + detail types)
+src/pages/MaintenanceDetailPage.tsx       — Detailing log list (aesthetic TBD — watery feel pending)
+src/pages/MaintenanceDetailNewPage.tsx    — Log a Detail Session form
+src/assets/icons/maintenance/service.png       — Service tile icon
+src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
 supabase/migrations/                — Numbered SQL files 001–031
@@ -256,7 +264,7 @@ All primary routes are implemented:
 - Hub: Home map
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
 - Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (3-step), Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
-- Maintenance: overview, session detail, detail log, add detail session
+- Maintenance: landing (GT Auto diagonal), service form, session detail, detailing log, add detail session
 - Timeline: scroll, entry detail
 - Photos: masonry gallery
 - Profile, Settings, Settings/Archived, Public Profile (`/builds/:username`)
@@ -297,6 +305,60 @@ All primary routes are implemented:
 **Spec system** (migrations 024–026):
 - Multiselect spec values must be stored as JSON arrays (e.g. `["Option A","Option B"]`), not comma-joined strings. The DB trigger `job_specs_validate_value` enforces this.
 - All 168 part type specs verified passing via `/spec-test` dev page and `scripts/test-specs.mjs`
+
+**Maintenance section** (built May 2026):
+
+*Routes:*
+```
+/maintenance                        → MaintenancePage (landing)
+/maintenance/service/new            → MaintenanceServiceNewPage
+/maintenance/service/edit/:id       → MaintenanceServiceEditPage (STUB)
+/maintenance/:sessionId             → MaintenanceSessionDetailPage (handles both types)
+/maintenance/detail                 → MaintenanceDetailPage
+/maintenance/detail/new             → MaintenanceDetailNewPage
+```
+All static routes are declared **above** the dynamic `/:sessionId` route in App.tsx — do not reorder.
+
+*Design identity — non-negotiable:*
+- `COLOR_TIMELINE_SERVICE` (`#d4b86a`) is the **only** accent color in this section. Never use `COLOR_ACCENT` (orange) or any burgundy tokens here.
+- `FONT_UI` (Hanken Grotesk) for all UI. No Cormorant anywhere in Maintenance.
+- Sub-page headers: flat `COLOR_HEADER_BLACK`, no burgundy wedge. Day chip uses `COLOR_TIMELINE_SERVICE` amber (not `COLOR_BURGUNDY_M`) to identify the section.
+- Landing page (`MaintenancePage`) gets the full burgundy wedge header to match The Shop / Garage / Home.
+
+*Landing page background:*
+- Two CSS layers: dark golden-amber base gradient + amber right panel with SVG bezier clip-path.
+- Clip-path defined via `<clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">` inline SVG. Do not switch to a polygon — the curve is intentional.
+- Current curve path: `M 0.66,0 C 0.88,0.28 0.16,0.72 0.18,1 L 1,1 L 1,0 Z`
+
+*Service form / session detail aesthetic ("dealership invoice"):*
+- `'Courier New', Courier, monospace` for all form content and data fields. This is intentional and section-specific — do not replace with `FONT_UI`.
+- Input fields: transparent background, bottom-border only (`1px solid rgba(212,184,106,0.18)`).
+- Section dividers: `1px dashed rgba(212,184,106,0.10)`.
+- Faint `G` watermark on session detail: `position: fixed`, `rgba(212,184,106,0.06)`, `fontSize: 340`, `fontFamily: MONO`, behind content at `zIndex: 0`.
+
+*Data model:*
+- Session: insert into `sessions` table with `type = 'maintenance'` or `type = 'detail'`.
+- Line items: insert into `jobs` table with `type = 'maintenance'`, `session_id`, `category`, `title`, `cost`. No status lifecycle for maintenance jobs — they are historical records. `status = 'installed'` default is fine.
+- `add_to_timeline` defaults: **false** for maintenance sessions, **true** for detail sessions.
+- DB trigger auto-creates `timeline_entries` row when `add_to_timeline = true` — no app code needed.
+- `sessions` cascade-deletes `jobs` on delete — deleting a session removes all its line items automatically.
+- `MaintenanceSessionDetailPage` is shared by both `type = 'maintenance'` and `type = 'detail'` sessions. Always check `session.type` to conditionally render job line items and adjust back navigation.
+
+*Back navigation on session detail (type-aware):*
+- `type = 'maintenance'` → `‹ Service` → `/maintenance`
+- `type = 'detail'` → `‹ Detailing` → `/maintenance/detail`
+
+*Detailing aesthetic — NOT YET DESIGNED:*
+- `MaintenanceDetailPage` and `MaintenanceDetailNewPage` are functional but visually minimal.
+- Planned aesthetic: "watery feel" — distinct from the invoice style. Specific palette and layout TBD with the owner before building.
+- Do not apply the Courier/invoice styling to these pages.
+
+*Tile config in MaintenancePage (do not reorder — left=Detailing, right=Service):*
+```ts
+{ id: 'detail',  left: 48,  bottom: 60,  imgPad: 20, labelOffset: 4  }
+{ id: 'service', left: 218, bottom: 102, imgPad: 0,  labelOffset: -20 }
+```
+`imgPad` shrinks the image within the 126×126 wrapper. `labelOffset` is `marginTop` on the label span.
 
 ---
 
