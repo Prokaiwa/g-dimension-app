@@ -493,7 +493,7 @@ export default function TuningPartDetailPage() {
                       <div style={{ width: 96, height: 54, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
                         <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.82 }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(26,16,8,0.28)' }}>
-                          <svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0L14 8L0 16V0Z" fill="white" fillOpacity="0.88"/></svg>
+                          <svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M0 0L14 8L0 16V0Z" fill="#f5f0e4" fillOpacity="0.6"/></svg>
                         </div>
                       </div>
                       <div style={{ flex: 1, padding: '0 12px', minWidth: 0 }}>
