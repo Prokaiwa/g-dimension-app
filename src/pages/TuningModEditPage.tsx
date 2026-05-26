@@ -378,15 +378,20 @@ export default function TuningModEditPage() {
     if (removedLinkIds.length > 0) {
       await supabase.from('job_links').delete().in('id', removedLinkIds)
     }
-    if (newLinks.length > 0 && userId) {
-      const linkRows = newLinks.map((l, i) => ({
-        job_id: modId!,
-        user_id: userId,
-        url: l.url,
-        label: l.label || null,
-        display_order: existingLinks.length + i,
-      }))
-      await supabase.from('job_links').insert(linkRows)
+    if (newLinks.length > 0) {
+      const { data: { session: saveSession } } = await supabase.auth.getSession()
+      const uid = saveSession?.user?.id
+      if (uid) {
+        const linkRows = newLinks.map((l, i) => ({
+          job_id: modId!,
+          user_id: uid,
+          url: l.url,
+          label: l.label || null,
+          display_order: existingLinks.length + i,
+        }))
+        const { error: linkErr } = await supabase.from('job_links').insert(linkRows)
+        if (linkErr) { setSaveErr(linkErr.message); setSaving(false); return }
+      }
     }
 
     navigate(`/tuning/mods/${modId}`)
