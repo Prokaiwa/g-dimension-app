@@ -367,15 +367,20 @@ export default function TuningPartEditPage() {
       }
     }
 
-    // Save links
+    // Save links — include any URL still sitting in the input field (didn't click + Add Link)
+    const pendingUrl = newLinkUrl.trim()
+    const allNewLinks = pendingUrl
+      ? [...newLinks, { url: pendingUrl, label: newLinkLabel.trim() }]
+      : newLinks
+
     if (removedLinkIds.length > 0) {
       await supabase.from('job_links').delete().in('id', removedLinkIds)
     }
-    if (newLinks.length > 0) {
+    if (allNewLinks.length > 0) {
       const { data: { session: saveSession } } = await supabase.auth.getSession()
       const uid = saveSession?.user?.id
       if (uid) {
-        const linkRows = newLinks.map((l, i) => ({
+        const linkRows = allNewLinks.map((l, i) => ({
           job_id: partId!,
           user_id: uid,
           url: l.url,
