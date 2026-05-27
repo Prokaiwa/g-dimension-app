@@ -69,7 +69,7 @@ export default function MaintenanceServiceNewPage() {
   const [mileage,       setMileage]       = useState('')
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop'>('self')
   const [shopName,      setShopName]      = useState('')
-  const [jobs,          setJobs]          = useState<JobRow[]>([{ _id: uid(), category: 'Oil Change', description: '', cost: '' }])
+  const [jobs,          setJobs]          = useState<JobRow[]>([])
   const [totalCost,     setTotalCost]     = useState('')
   const [totalEdited,   setTotalEdited]   = useState(false)
   const [timeTaken,     setTimeTaken]     = useState('')
@@ -120,15 +120,15 @@ export default function MaintenanceServiceNewPage() {
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
     }).select('id').single()
     if (error || !session) { setSaving(false); return }
-    const validJobs = jobs.filter(j => j.description.trim() || j.cost)
-    if (validJobs.length > 0) {
-      await supabase.from('jobs').insert(validJobs.map(j => ({
+    if (jobs.length > 0) {
+      const { error: jobsError } = await supabase.from('jobs').insert(jobs.map(j => ({
         car_id: carId, session_id: session.id, type: 'maintenance',
         category: j.category,
         title: j.description.trim() || j.category,
         cost: j.cost ? parseFloat(j.cost) : null,
         status: 'installed',
       })))
+      if (jobsError) { console.error('Jobs insert error:', jobsError); setSaving(false); return }
     }
     navigate(`/maintenance/${session.id}`)
   }
@@ -253,6 +253,11 @@ export default function MaintenanceServiceNewPage() {
 
         {/* Services Performed */}
         <XPGroupBox label="Services Performed">
+          {jobs.length === 0 && (
+            <div style={{ fontFamily: XP_FONT, fontSize: 11, color: '#999', textAlign: 'center', padding: '6px 0 2px', fontStyle: 'italic' }}>
+              No line items — tap + Add Line to itemise services
+            </div>
+          )}
           {jobs.map((job, idx) => (
             <div key={job._id} style={{
               marginBottom: idx < jobs.length - 1 ? 10 : 0,
@@ -274,10 +279,8 @@ export default function MaintenanceServiceNewPage() {
                     placeholder="0.00" min="0" step="0.01"
                     className="xp-input" style={{ ...xpInput, width: 80 }} />
                 </div>
-                {jobs.length > 1 && (
-                  <button onClick={() => removeJob(job._id)} className="xp-btn"
-                    style={{ ...xpBtn, minWidth: 'auto', padding: '3px 8px', fontSize: 14, lineHeight: 1 }}>×</button>
-                )}
+                <button onClick={() => removeJob(job._id)} className="xp-btn"
+                  style={{ ...xpBtn, minWidth: 'auto', padding: '3px 8px', fontSize: 14, lineHeight: 1 }}>×</button>
               </div>
               {/* Description */}
               <div style={{ paddingLeft: 28 }}>
@@ -287,7 +290,7 @@ export default function MaintenanceServiceNewPage() {
               </div>
             </div>
           ))}
-          <div style={{ marginTop: 8, textAlign: 'right' }}>
+          <div style={{ marginTop: jobs.length === 0 ? 8 : 10, textAlign: 'right' }}>
             <button onClick={addJob} className="xp-btn" style={xpBtn}>+ Add Line</button>
           </div>
         </XPGroupBox>
