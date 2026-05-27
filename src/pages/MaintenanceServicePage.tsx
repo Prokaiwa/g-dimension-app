@@ -7,23 +7,24 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import detailHero from '../assets/backgrounds/detail_hero.png'
+import serviceHero from '../assets/backgrounds/service_hero.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
-  COLOR_TIMELINE_DETAIL,
+  COLOR_TIMELINE_SERVICE,
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
-type DetailSession = {
+type ServiceSession = {
   id: string
   date_performed: string
-  time_taken: string | null
+  mileage: number | null
   total_cost: number | null
+  jobs: { category: string | null }[]
 }
 
-export default function MaintenanceDetailPage() {
+export default function MaintenanceServicePage() {
   const navigate  = useNavigate()
-  const [sessions, setSessions] = useState<DetailSession[]>([])
+  const [sessions, setSessions] = useState<ServiceSession[]>([])
   const [loading,  setLoading]  = useState(true)
   const [bgLoaded, setBgLoaded] = useState(false)
 
@@ -32,12 +33,12 @@ export default function MaintenanceDetailPage() {
       if (!carId) { setLoading(false); return }
       supabase
         .from('sessions')
-        .select('id, date_performed, time_taken, total_cost')
+        .select('id, date_performed, mileage, total_cost, jobs(category)')
         .eq('car_id', carId)
-        .eq('type', 'detail')
+        .eq('type', 'maintenance')
         .order('date_performed', { ascending: false })
         .then(({ data }) => {
-          if (data) setSessions(data as DetailSession[])
+          if (data) setSessions(data as unknown as ServiceSession[])
           setLoading(false)
         })
     })
@@ -52,15 +53,15 @@ export default function MaintenanceDetailPage() {
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden', fontFamily: FONT_UI }}>
 
       {/* ── Background layers ── */}
-      <div style={{ position: 'absolute', inset: 0, background: '#06101a' }} />
+      <div style={{ position: 'absolute', inset: 0, background: '#0e1218' }} />
 
       {/* SVG clip-paths */}
       <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
         <defs>
-          <clipPath id="dtlLeftPanel" clipPathUnits="objectBoundingBox">
+          <clipPath id="svcLeftPanel" clipPathUnits="objectBoundingBox">
             <path d="M 0,0 L 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 Z" />
           </clipPath>
-          <clipPath id="dtlRightPanel" clipPathUnits="objectBoundingBox">
+          <clipPath id="svcRightPanel" clipPathUnits="objectBoundingBox">
             <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
           </clipPath>
         </defs>
@@ -68,39 +69,39 @@ export default function MaintenanceDetailPage() {
 
       {/* Hero photo — left panel only */}
       <img
-        src={detailHero}
+        src={serviceHero}
         alt="" aria-hidden
         onLoad={() => setBgLoaded(true)}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
-          objectFit: 'cover', objectPosition: 'center 40%',
-          clipPath: 'url(#dtlLeftPanel)',
+          objectFit: 'cover', objectPosition: 'center 35%',
+          clipPath: 'url(#svcLeftPanel)',
           opacity: bgLoaded ? 0.55 : 0,
           transition: 'opacity 400ms ease',
         }}
       />
-      {/* Left blue-water tint */}
+      {/* Left cool-grey tint */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(18,72,140,0.78) 0%, rgba(10,45,90,0.68) 50%, rgba(0,0,0,0) 100%)',
-        clipPath: 'url(#dtlLeftPanel)',
+        background: 'linear-gradient(160deg, rgba(75,90,110,0.78) 0%, rgba(45,58,72,0.68) 50%, rgba(0,0,0,0) 100%)',
+        clipPath: 'url(#svcLeftPanel)',
         pointerEvents: 'none',
       }} />
-      {/* Right panel — deep navy */}
+      {/* Right panel — slate grey */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(155deg, #1a3050 0%, #0e2040 40%, #081428 75%, #040c1a 100%)',
-        clipPath: 'url(#dtlRightPanel)',
+        background: 'linear-gradient(155deg, #3a4455 0%, #28323f 40%, #1a2230 75%, #0e1520 100%)',
+        clipPath: 'url(#svcRightPanel)',
         pointerEvents: 'none',
       }} />
       {/* Grain */}
       <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.04, mixBlendMode: 'overlay' }} aria-hidden>
-        <filter id="dtlGrain">
+        <filter id="svcGrain">
           <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
           <feColorMatrix type="saturate" values="0" />
         </filter>
-        <rect width="100%" height="100%" filter="url(#dtlGrain)" />
+        <rect width="100%" height="100%" filter="url(#svcGrain)" />
       </svg>
       {/* Bottom vignette */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.10) 30%, transparent 55%)', pointerEvents: 'none' }} />
@@ -113,52 +114,59 @@ export default function MaintenanceDetailPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'stretch' }}>
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
-          <div style={{ background: COLOR_TIMELINE_DETAIL, color: '#0d0d0d', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
+          <div style={{ background: COLOR_TIMELINE_SERVICE, color: '#0d0d0d', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
 
       {/* ── Section label ── */}
-      <div style={{ position: 'relative', zIndex: 5, padding: '14px 16px 6px', borderBottom: '1px solid rgba(138,176,200,0.12)' }}>
-        <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_DETAIL, opacity: 0.75 }}>Detail Log</div>
+      <div style={{ position: 'relative', zIndex: 5, padding: '14px 16px 6px', borderBottom: '1px solid rgba(212,184,106,0.10)' }}>
+        <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_SERVICE, opacity: 0.75 }}>Service History</div>
       </div>
 
       {/* ── Session list ── */}
-      <div style={{ position: 'relative', zIndex: 5, flex: 1, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)` }}>
+      <div style={{ position: 'relative', zIndex: 5, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)` }}>
         {!loading && sessions.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 13, color: 'rgba(138,176,200,0.35)', letterSpacing: '0.06em' }}>No detail sessions yet</div>
+          <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 13, color: 'rgba(212,184,106,0.30)', letterSpacing: '0.06em' }}>No service records yet</div>
         )}
         {!loading && sessions.map((s, i) => (
           <button key={s.id} onClick={() => navigate(`/maintenance/${s.id}`)} style={{
             width: '100%', display: 'flex', alignItems: 'center',
-            background: i === 0 ? 'rgba(138,176,200,0.08)' : 'rgba(6,16,26,0.60)',
-            border: 'none', borderBottom: '1px solid rgba(138,176,200,0.08)',
-            padding: '14px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            background: i === 0 ? 'rgba(212,184,106,0.07)' : 'rgba(14,18,24,0.62)',
+            border: 'none', borderBottom: '1px solid rgba(212,184,106,0.08)',
+            padding: '13px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
           }}>
-            <div style={{ flex: 1, textAlign: 'left' }}>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, color: 'rgba(245,245,245,0.88)' }}>{fmtDate(s.date_performed)}</div>
-              {s.time_taken && <div style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,245,245,0.38)', marginTop: 2 }}>{s.time_taken}</div>}
-            </div>
-            {s.total_cost != null && (
-              <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: COLOR_TIMELINE_DETAIL, paddingRight: 10 }}>
-                ${Number(s.total_cost).toFixed(2)}
+            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_SERVICE, minWidth: 72 }}>
+              {fmtDate(s.date_performed)}
+            </span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.50)', flex: 1, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 10 }}>
+              {s.jobs?.[0]?.category ?? 'Service'}
+            </span>
+            {s.mileage != null && (
+              <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: 'rgba(245,245,245,0.30)', paddingRight: 10 }}>
+                {s.mileage.toLocaleString()} mi
               </span>
             )}
-            <span style={{ color: 'rgba(138,176,200,0.35)', fontSize: 14 }}>›</span>
+            {s.total_cost != null && (
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: 'rgba(245,245,245,0.70)', paddingRight: 6 }}>
+                ${Number(s.total_cost).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            )}
+            <span style={{ color: 'rgba(212,184,106,0.35)', fontSize: 14 }}>›</span>
           </button>
         ))}
       </div>
 
-      {/* ── FAB ── */}
+      {/* ── FAB — Add Service ── */}
       <button
-        onClick={() => navigate('/maintenance/detail/new')}
+        onClick={() => navigate('/maintenance/service/new')}
         style={{
           position: 'fixed', right: 20, bottom: 28,
           width: 52, height: 52,
-          background: COLOR_TIMELINE_DETAIL, border: 'none', borderRadius: '50%',
-          color: '#060e18', fontSize: 28, lineHeight: 1,
+          background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: '50%',
+          color: '#0a0a0a', fontSize: 28, lineHeight: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', zIndex: 20,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.60)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.55)',
           WebkitTapHighlightColor: 'transparent',
         }}
       >+</button>

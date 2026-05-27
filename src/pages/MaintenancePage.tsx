@@ -28,7 +28,7 @@ type RecentSession = {
 
 const TILES = [
   { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: -10, labelNudgeX: 10 },
-  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20, labelNudgeX: 0  },
+  { id: 'service', label: 'Service',   route: '/maintenance/service',     src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20, labelNudgeX: 0  },
 ]
 
 export default function MaintenancePage() {

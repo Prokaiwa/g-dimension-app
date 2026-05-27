@@ -33,6 +33,7 @@ import TuningPartEditPage from './pages/TuningPartEditPage'
 
 // Maintenance
 import MaintenancePage from './pages/MaintenancePage'
+import MaintenanceServicePage from './pages/MaintenanceServicePage'
 import MaintenanceServiceNewPage from './pages/MaintenanceServiceNewPage'
 import MaintenanceServiceEditPage from './pages/MaintenanceServiceEditPage'
 import MaintenanceSessionDetailPage from './pages/MaintenanceSessionDetailPage'
@@ -114,6 +115,7 @@ export default function App() {
       <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
 
       <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
+      <Route path="/maintenance/service" element={<ProtectedRoute><MaintenanceServicePage /></ProtectedRoute>} />
       <Route path="/maintenance/service/new" element={<ProtectedRoute><MaintenanceServiceNewPage /></ProtectedRoute>} />
       <Route path="/maintenance/service/edit/:sessionId" element={<ProtectedRoute><MaintenanceServiceEditPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
