@@ -153,15 +153,19 @@ export default function MaintenanceDetailPage() {
         onClick={() => navigate('/maintenance/detail/new')}
         style={{
           position: 'fixed', right: 20, bottom: 28,
-          width: 52, height: 52,
-          background: COLOR_TIMELINE_DETAIL, border: 'none', borderRadius: '50%',
-          color: '#060e18', fontSize: 28, lineHeight: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: 44, paddingLeft: 20, paddingRight: 20,
+          background: COLOR_TIMELINE_DETAIL, border: 'none', borderRadius: 10,
+          color: '#060e18', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           cursor: 'pointer', zIndex: 20,
           boxShadow: '0 4px 16px rgba(0,0,0,0.60)',
           WebkitTapHighlightColor: 'transparent',
         }}
-      >+</button>
+      >
+        <span style={{ fontSize: 18, fontWeight: 300, lineHeight: 1, marginTop: -1 }}>+</span>
+        Add Detail
+      </button>
     </div>
   )
 }

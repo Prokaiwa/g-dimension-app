@@ -161,8 +161,8 @@ export default function MaintenanceServicePage() {
         onClick={() => navigate('/maintenance/service/new')}
         style={{
           position: 'fixed', right: 20, bottom: 28,
-          height: 44, paddingLeft: 18, paddingRight: 18,
-          background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: 9999,
+          height: 44, paddingLeft: 20, paddingRight: 20,
+          background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: 10,
           color: '#0a0a0a', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
           letterSpacing: '0.06em', textTransform: 'uppercase',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
