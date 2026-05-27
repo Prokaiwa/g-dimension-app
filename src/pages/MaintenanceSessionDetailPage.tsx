@@ -251,7 +251,7 @@ export default function MaintenanceSessionDetailPage() {
           {session.total_cost != null && (
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}`, background: '#fafaf8' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total Due</span>
+                <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
                 <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
               </div>
             </div>

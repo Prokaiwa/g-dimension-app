@@ -69,7 +69,7 @@ export default function MaintenanceServiceNewPage() {
   const [mileage,       setMileage]       = useState('')
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop'>('self')
   const [shopName,      setShopName]      = useState('')
-  const [jobs,          setJobs]          = useState<JobRow[]>([])
+  const [jobs,          setJobs]          = useState<JobRow[]>([{ _id: uid(), category: 'Oil Change', description: '', cost: '' }])
   const [totalCost,     setTotalCost]     = useState('')
   const [totalEdited,   setTotalEdited]   = useState(false)
   const [timeTaken,     setTimeTaken]     = useState('')
@@ -299,7 +299,7 @@ export default function MaintenanceServiceNewPage() {
         {/* Total */}
         <XPGroupBox label="Total" style={{ padding: '10px 10px 8px', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-            <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700, color: XP_TEXT }}>Total Due:</span>
+            <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700, color: XP_TEXT }}>Total:</span>
             <span style={{ fontFamily: XP_FONT, fontSize: 13, color: XP_TEXT }}>$</span>
             <input type="number" value={totalCost}
               onChange={e => { setTotalEdited(true); setTotalCost(e.target.value) }}
