@@ -72,6 +72,7 @@ export default function MaintenanceServiceNewPage() {
   const [jobs,          setJobs]          = useState<JobRow[]>([{ _id: uid(), category: 'Oil Change', description: '', cost: '' }])
   const [totalCost,     setTotalCost]     = useState('')
   const [totalEdited,   setTotalEdited]   = useState(false)
+  const [timeTaken,     setTimeTaken]     = useState('')
   const [notes,         setNotes]         = useState('')
   const [addToTimeline, setAddToTimeline] = useState(false)
   const [saving,        setSaving]        = useState(false)
@@ -115,6 +116,7 @@ export default function MaintenanceServiceNewPage() {
       shop_name: performedBy === 'shop' && shopName.trim() ? shopName.trim() : null,
       mileage: mileage ? parseInt(mileage, 10) : null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
+      time_taken: timeTaken.trim() || null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
     }).select('id').single()
     if (error || !session) { setSaving(false); return }
@@ -236,12 +238,17 @@ export default function MaintenanceServiceNewPage() {
           </div>
 
           {performedBy === 'shop' && (
-            <div>
+            <div style={{ marginBottom: 10 }}>
               <label style={xpLabel}>Shop / Dealer Name:</label>
               <input type="text" value={shopName} onChange={e => setShopName(e.target.value)}
                 placeholder="Enter name…" className="xp-input" style={xpInput} />
             </div>
           )}
+          <div>
+            <label style={xpLabel}>Time Taken:</label>
+            <input type="text" value={timeTaken} onChange={e => setTimeTaken(e.target.value)}
+              placeholder="e.g. 1.5 hours, 45 min…" className="xp-input" style={{ ...xpInput, width: 220 }} />
+          </div>
         </XPGroupBox>
 
         {/* Services Performed */}
