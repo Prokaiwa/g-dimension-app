@@ -73,7 +73,7 @@ export default function MaintenancePage() {
       <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
         <defs>
           <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
-            <path d="M 0.66,0 C 0.88,0.28 0.16,0.72 0.18,1 L 1,1 L 1,0 Z" />
+            <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
           </clipPath>
         </defs>
       </svg>
