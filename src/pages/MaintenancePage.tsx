@@ -13,18 +13,9 @@ import maintenanceHero from '../assets/backgrounds/maintenance_hero.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,
-  COLOR_TIMELINE_SERVICE,
   FONT_UI, HEADER_HEIGHT, HEADER_WEDGE_LEFT, HEADER_WEDGE_RIGHT,
   CAST_SHADOW_OPACITY, STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
 } from '../tokens'
-
-type RecentSession = {
-  id: string
-  date_performed: string
-  mileage: number | null
-  total_cost: number | null
-  jobs: { category: string | null }[]
-}
 
 const TILES = [
   { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: -10, labelNudgeX: 10 },
@@ -36,28 +27,14 @@ export default function MaintenancePage() {
   const [pressed, setPressed] = useState<string | null>(null)
   const [bgLoaded, setBgLoaded] = useState(false)
   const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
-  const [recent, setRecent] = useState<RecentSession[]>([])
 
   useEffect(() => {
     getActiveCarId().then(carId => {
       if (!carId) return
       supabase.from('cars').select('year, model').eq('id', carId).single()
         .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null }) })
-      supabase
-        .from('sessions')
-        .select('id, date_performed, mileage, total_cost, jobs(category)')
-        .eq('car_id', carId)
-        .eq('type', 'maintenance')
-        .order('date_performed', { ascending: false })
-        .limit(3)
-        .then(({ data }) => { if (data) setRecent(data as unknown as RecentSession[]) })
     })
   }, [])
-
-  function fmtDate(d: string) {
-    const [, m, day] = d.split('-').map(Number)
-    return `${MONTHS[m - 1]} ${day}`
-  }
 
   return (
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden', fontFamily: FONT_UI }}>
@@ -151,26 +128,6 @@ export default function MaintenancePage() {
           <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
-
-      {/* ── Service history strip ── */}
-      {recent.length > 0 && (
-        <div style={{ position: 'relative', zIndex: 5 }}>
-          {recent.map((s, i) => (
-            <button key={s.id} onClick={() => navigate(`/maintenance/${s.id}`)} style={{
-              width: '100%', display: 'flex', alignItems: 'center',
-              background: i === 0 ? 'rgba(212,184,106,0.07)' : 'rgba(10,9,6,0.52)',
-              border: 'none', borderBottom: '1px solid rgba(212,184,106,0.10)',
-              padding: '10px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}>
-              <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_SERVICE, minWidth: 58 }}>{fmtDate(s.date_performed)}</span>
-              <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.55)', flex: 1, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 10 }}>{s.jobs?.[0]?.category ?? 'Service'}</span>
-              {s.mileage != null && <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: 'rgba(245,245,245,0.35)', paddingRight: 10 }}>{s.mileage.toLocaleString()} mi</span>}
-              {s.total_cost != null && <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: 'rgba(245,245,245,0.70)', paddingRight: 6 }}>${Number(s.total_cost).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>}
-              <span style={{ color: 'rgba(212,184,106,0.45)', fontSize: 14 }}>›</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* ── Icon tiles ── */}
       {TILES.map((tile, i) => (
