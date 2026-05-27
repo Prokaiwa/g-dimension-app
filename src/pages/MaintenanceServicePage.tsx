@@ -161,15 +161,19 @@ export default function MaintenanceServicePage() {
         onClick={() => navigate('/maintenance/service/new')}
         style={{
           position: 'fixed', right: 20, bottom: 28,
-          width: 52, height: 52,
-          background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: '50%',
-          color: '#0a0a0a', fontSize: 28, lineHeight: 1,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: 44, paddingLeft: 18, paddingRight: 18,
+          background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: 9999,
+          color: '#0a0a0a', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           cursor: 'pointer', zIndex: 20,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.55)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.55)',
           WebkitTapHighlightColor: 'transparent',
         }}
-      >+</button>
+      >
+        <span style={{ fontSize: 18, fontWeight: 300, lineHeight: 1, marginTop: -1 }}>+</span>
+        Add Service
+      </button>
     </div>
   )
 }
