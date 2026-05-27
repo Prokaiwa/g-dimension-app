@@ -59,10 +59,10 @@ export default function MaintenanceServicePage() {
       <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
         <defs>
           <clipPath id="svcLeftPanel" clipPathUnits="objectBoundingBox">
-            <path d="M 0,0 L 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 Z" />
+            <path d="M 0,0 L 0.74,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 Z" />
           </clipPath>
           <clipPath id="svcRightPanel" clipPathUnits="objectBoundingBox">
-            <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
+            <path d="M 0.74,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
           </clipPath>
         </defs>
       </svg>
@@ -75,7 +75,7 @@ export default function MaintenanceServicePage() {
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
-          objectFit: 'cover', objectPosition: '0% 0%',
+          objectFit: 'cover', objectPosition: '8% 0%',
           clipPath: 'url(#svcLeftPanel)',
           opacity: bgLoaded ? 0.72 : 0,
           transition: 'opacity 400ms ease',
@@ -84,7 +84,7 @@ export default function MaintenanceServicePage() {
       {/* Left cool-grey tint */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(85,100,118,0.78) 0%, rgba(55,68,82,0.62) 50%, rgba(0,0,0,0) 100%)',
+        background: 'linear-gradient(160deg, rgba(90,105,115,0.48) 0%, rgba(60,72,82,0.32) 50%, rgba(0,0,0,0) 100%)',
         clipPath: 'url(#svcLeftPanel)',
         pointerEvents: 'none',
       }} />
