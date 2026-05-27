@@ -139,6 +139,9 @@ export default function MaintenanceServiceNewPage() {
         .xp-btn:active { box-shadow: inset 1px 1px 0 rgba(0,0,0,0.15) !important; }
         select option  { background: #fff; color: #000; }
         input[type="radio"], input[type="checkbox"] { accent-color: #316ac5; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
       `}</style>
 
       {/* ── Windows XP Title Bar ── */}
@@ -222,7 +225,7 @@ export default function MaintenanceServiceNewPage() {
             <span style={{ ...xpLabel, marginBottom: 5 }}>Performed by:</span>
             <div style={{ display: 'flex', gap: 20 }}>
               {(['self', 'shop'] as const).map(v => (
-                <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: XP_FONT, fontSize: 12, cursor: 'pointer' }}>
+                <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: XP_FONT, fontSize: 12, cursor: 'pointer', color: XP_TEXT }}>
                   <input type="radio" name="performedBy" checked={performedBy === v} onChange={() => setPerformedBy(v)} />
                   {v === 'self' ? 'Self' : 'Shop / Dealer'}
                 </label>
@@ -283,8 +286,8 @@ export default function MaintenanceServiceNewPage() {
         {/* Total */}
         <XPGroupBox label="Total">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-            <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700 }}>Total Due:</span>
-            <span style={{ fontFamily: XP_FONT, fontSize: 13 }}>$</span>
+            <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700, color: XP_TEXT }}>Total Due:</span>
+            <span style={{ fontFamily: XP_FONT, fontSize: 13, color: XP_TEXT }}>$</span>
             <input type="number" value={totalCost}
               onChange={e => { setTotalEdited(true); setTotalCost(e.target.value) }}
               placeholder="0.00" min="0" step="0.01"
