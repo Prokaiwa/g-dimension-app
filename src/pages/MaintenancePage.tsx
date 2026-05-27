@@ -98,14 +98,14 @@ export default function MaintenancePage() {
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center 30%',
           clipPath: 'url(#mntLeftPanel)',
-          opacity: bgLoaded ? 1 : 0,
+          opacity: bgLoaded ? 0.55 : 0,
           transition: 'opacity 400ms ease',
         }}
       />
       {/* 3. Left golden-amber tint over the photo */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(200,140,8,0.68) 0%, rgba(130,75,10,0.55) 50%, rgba(0,0,0,0) 100%)',
+        background: 'linear-gradient(160deg, rgba(200,140,8,0.82) 0%, rgba(130,75,10,0.70) 50%, rgba(0,0,0,0) 100%)',
         clipPath: 'url(#mntLeftPanel)',
         pointerEvents: 'none',
       }} />
