@@ -26,6 +26,7 @@ const xpInput: React.CSSProperties = {
   borderRadius: 0, padding: '4px 5px',
   outline: 'none', width: '100%',
   boxSizing: 'border-box',
+  height: 30,
 }
 
 const xpLabel: React.CSSProperties = {
@@ -142,8 +143,7 @@ export default function MaintenanceServiceNewPage() {
         input[type="number"] { -moz-appearance: textfield; }
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        input.xp-input { height: 44px; box-sizing: border-box; }
-        textarea.xp-input { height: auto; }
+
       `}</style>
 
       {/* ── Windows XP Title Bar ── */}
