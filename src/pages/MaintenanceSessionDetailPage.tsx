@@ -237,9 +237,6 @@ export default function MaintenanceSessionDetailPage() {
                   background: i % 2 === 0 ? '#ffffff' : '#fdfcfb',
                 }}>
                   <div style={{ flex: 1, paddingRight: 16 }}>
-                    {job.category && (
-                      <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: COLOR_TIMELINE_SERVICE, marginRight: 8 }}>{job.category} · </span>
-                    )}
                     <span style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{job.title}</span>
                   </div>
                   <span style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT, whiteSpace: 'nowrap' }}>

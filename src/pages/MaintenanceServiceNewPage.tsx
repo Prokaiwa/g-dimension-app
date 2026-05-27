@@ -123,8 +123,9 @@ export default function MaintenanceServiceNewPage() {
     if (jobs.length > 0) {
       const { error: jobsError } = await supabase.from('jobs').insert(jobs.map(j => ({
         car_id: carId, session_id: session.id, type: 'maintenance',
-        category: j.category,
-        title: j.description.trim() || j.category,
+        // category is a FK → part_categories (tuning only); maintenance uses null
+        // instead, we fold the service type into the title
+        title: j.description.trim() ? `${j.category}: ${j.description.trim()}` : j.category,
         cost: j.cost ? parseFloat(j.cost) : null,
         status: 'installed',
       })))
