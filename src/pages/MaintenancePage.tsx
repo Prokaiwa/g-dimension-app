@@ -70,9 +70,24 @@ export default function MaintenancePage() {
       `}</style>
 
       {/* ── Background layers ── */}
-      {/* 1. Dark base so tiles are visible before image loads */}
+      {/* 1. Dark base */}
       <div style={{ position: 'absolute', inset: 0, background: '#1a1005' }} />
-      {/* 2. Hero photo — full bleed, fade in on load */}
+
+      {/* SVG clip-path defs — left panel + right panel */}
+      <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
+        <defs>
+          {/* Left panel: everything left of / above the S-curve */}
+          <clipPath id="mntLeftPanel" clipPathUnits="objectBoundingBox">
+            <path d="M 0,0 L 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 Z" />
+          </clipPath>
+          {/* Right panel: everything right of the S-curve */}
+          <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
+            <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
+          </clipPath>
+        </defs>
+      </svg>
+
+      {/* 2. Hero photo — clipped to the LEFT panel only, fade in on load */}
       <img
         src={maintenanceHero}
         alt=""
@@ -82,39 +97,35 @@ export default function MaintenancePage() {
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center 30%',
+          clipPath: 'url(#mntLeftPanel)',
           opacity: bgLoaded ? 1 : 0,
           transition: 'opacity 400ms ease',
         }}
       />
-      {/* 3. Overall darkening so tints read correctly */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,5,2,0.48)', pointerEvents: 'none' }} />
-      {/* 4. Left panel — golden-amber tint (photo bleeds through) */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, rgba(200,140,8,0.72) 0%, rgba(130,75,10,0.60) 50%, rgba(0,0,0,0) 100%)', pointerEvents: 'none' }} />
-      {/* 5. SVG clip-path for curved S-curve divider */}
-      <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
-        <defs>
-          <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
-            <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
-          </clipPath>
-        </defs>
-      </svg>
-      {/* 6. Right amber panel tint — clipped to the S-curve shape */}
+      {/* 3. Left golden-amber tint over the photo */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(155deg, rgba(180,100,12,0.62) 0%, rgba(200,120,20,0.55) 40%, rgba(160,85,14,0.60) 75%, rgba(130,65,10,0.68) 100%)',
+        background: 'linear-gradient(160deg, rgba(200,140,8,0.68) 0%, rgba(130,75,10,0.55) 50%, rgba(0,0,0,0) 100%)',
+        clipPath: 'url(#mntLeftPanel)',
+        pointerEvents: 'none',
+      }} />
+      {/* 4. Right amber panel — solid, original colors restored */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(155deg, #c47818 0%, #d48828 40%, #b86818 75%, #9a5812 100%)',
         clipPath: 'url(#mntAmberPanel)',
         pointerEvents: 'none',
       }} />
-      {/* 7. Grain overlay */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.045, mixBlendMode: 'overlay' }} aria-hidden>
+      {/* 5. Grain overlay */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.035, mixBlendMode: 'overlay' }} aria-hidden>
         <filter id="mntGrain">
           <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
           <feColorMatrix type="saturate" values="0" />
         </filter>
         <rect width="100%" height="100%" filter="url(#mntGrain)" />
       </svg>
-      {/* 8. Bottom vignette — heavier now so icons/labels pop */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.22) 32%, transparent 55%)', pointerEvents: 'none' }} />
+      {/* 6. Bottom vignette for label readability */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.10) 28%, transparent 50%)', pointerEvents: 'none' }} />
 
       {/* ── Header ── */}
       <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, zIndex: 10 }}>
