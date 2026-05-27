@@ -75,16 +75,16 @@ export default function MaintenanceServicePage() {
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
-          objectFit: 'cover', objectPosition: '18% 0%',
+          objectFit: 'cover', objectPosition: '22% 0%',
           clipPath: 'url(#svcLeftPanel)',
-          opacity: bgLoaded ? 0.72 : 0,
+          opacity: bgLoaded ? 0.55 : 0,
           transition: 'opacity 400ms ease',
         }}
       />
       {/* Left cool-grey tint */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(85,100,118,0.72) 0%, rgba(55,68,82,0.58) 50%, rgba(0,0,0,0) 100%)',
+        background: 'linear-gradient(160deg, rgba(85,100,118,0.82) 0%, rgba(55,68,82,0.70) 50%, rgba(0,0,0,0) 100%)',
         clipPath: 'url(#svcLeftPanel)',
         pointerEvents: 'none',
       }} />
