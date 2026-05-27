@@ -134,7 +134,7 @@ export default function MaintenancePage() {
         <button key={tile.id} onClick={() => navigate(tile.route)} className="mnt-tile"
           onPointerDown={() => setPressed(tile.id)} onPointerUp={() => setPressed(null)}
           onPointerLeave={() => setPressed(null)} onPointerCancel={() => setPressed(null)}
-          style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
+          style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, willChange: 'opacity, transform', WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
               {/* Cast shadow — matches Tuning page exactly */}

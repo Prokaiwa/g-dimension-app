@@ -177,6 +177,7 @@ export default function TuningPage() {
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             background: 'none', border: 'none', cursor: 'pointer', padding: 0,
             animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`,
+            willChange: 'opacity, transform',
             WebkitTapHighlightColor: 'transparent',
           }}
         >

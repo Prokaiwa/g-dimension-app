@@ -84,7 +84,7 @@ export default function MaintenanceServicePage() {
       {/* Left cool-grey tint */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(200,210,220,0.82) 0%, rgba(160,175,190,0.70) 50%, rgba(0,0,0,0) 100%)',
+        background: 'linear-gradient(160deg, rgba(165,180,195,0.82) 0%, rgba(125,142,158,0.70) 50%, rgba(0,0,0,0) 100%)',
         clipPath: 'url(#svcLeftPanel)',
         pointerEvents: 'none',
       }} />
