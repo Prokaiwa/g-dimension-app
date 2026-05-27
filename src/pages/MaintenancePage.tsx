@@ -15,7 +15,7 @@ import {
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,
   COLOR_TIMELINE_SERVICE,
   FONT_UI, HEADER_HEIGHT, HEADER_WEDGE_LEFT, HEADER_WEDGE_RIGHT,
-  STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
+  CAST_SHADOW_OPACITY, STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
 } from '../tokens'
 
 type RecentSession = {
@@ -27,8 +27,8 @@ type RecentSession = {
 }
 
 const TILES = [
-  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: -16 },
-  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20 },
+  { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: -10, labelNudgeX: 10 },
+  { id: 'service', label: 'Service',   route: '/maintenance/service/new', src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20, labelNudgeX: 0  },
 ]
 
 export default function MaintenancePage() {
@@ -180,9 +180,18 @@ export default function MaintenancePage() {
           style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
-              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0px 6px 8px rgba(0,0,0,0.65))' }} />
+              {/* Cast shadow — matches Tuning page exactly */}
+              <div style={{
+                position: 'absolute', top: 90, left: 63,
+                width: 66, height: 60,
+                transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
+                background: 'rgba(0,0,0,1)',
+                opacity: CAST_SHADOW_OPACITY,
+                filter: 'blur(5px)',
+              }} />
+              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none' }} />
             </div>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: tile.labelOffset }}>{tile.label}</span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: tile.labelOffset, marginLeft: tile.labelNudgeX, position: 'relative', zIndex: 1 }}>{tile.label}</span>
           </div>
         </button>
       ))}
