@@ -7,8 +7,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import iconService from '../assets/icons/maintenance/service.png'
-import iconDetail  from '../assets/icons/maintenance/maintenance_detail.png'
+import iconService    from '../assets/icons/maintenance/service.png'
+import iconDetail     from '../assets/icons/maintenance/maintenance_detail.png'
+import maintenanceHero from '../assets/backgrounds/maintenance_hero.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,
@@ -33,6 +34,7 @@ const TILES = [
 export default function MaintenancePage() {
   const navigate = useNavigate()
   const [pressed, setPressed] = useState<string | null>(null)
+  const [bgLoaded, setBgLoaded] = useState(false)
   const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
   const [recent, setRecent] = useState<RecentSession[]>([])
 
@@ -67,9 +69,28 @@ export default function MaintenancePage() {
         .mnt-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
 
-      {/* Left panel — dark golden-yellow like GT Auto */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, #d4a80e 0%, #946a12 50%, #301e08 100%)' }} />
-      {/* SVG clip-path for curved divider */}
+      {/* ── Background layers ── */}
+      {/* 1. Dark base so tiles are visible before image loads */}
+      <div style={{ position: 'absolute', inset: 0, background: '#1a1005' }} />
+      {/* 2. Hero photo — full bleed, fade in on load */}
+      <img
+        src={maintenanceHero}
+        alt=""
+        aria-hidden
+        onLoad={() => setBgLoaded(true)}
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          objectFit: 'cover', objectPosition: 'center 30%',
+          opacity: bgLoaded ? 1 : 0,
+          transition: 'opacity 400ms ease',
+        }}
+      />
+      {/* 3. Overall darkening so tints read correctly */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,5,2,0.48)', pointerEvents: 'none' }} />
+      {/* 4. Left panel — golden-amber tint (photo bleeds through) */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, rgba(200,140,8,0.72) 0%, rgba(130,75,10,0.60) 50%, rgba(0,0,0,0) 100%)', pointerEvents: 'none' }} />
+      {/* 5. SVG clip-path for curved S-curve divider */}
       <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
         <defs>
           <clipPath id="mntAmberPanel" clipPathUnits="objectBoundingBox">
@@ -77,22 +98,23 @@ export default function MaintenancePage() {
           </clipPath>
         </defs>
       </svg>
-      {/* Amber right panel with curved edge */}
+      {/* 6. Right amber panel tint — clipped to the S-curve shape */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(155deg, #c47818 0%, #d48828 40%, #b86818 75%, #9a5812 100%)',
+        background: 'linear-gradient(155deg, rgba(180,100,12,0.62) 0%, rgba(200,120,20,0.55) 40%, rgba(160,85,14,0.60) 75%, rgba(130,65,10,0.68) 100%)',
         clipPath: 'url(#mntAmberPanel)',
+        pointerEvents: 'none',
       }} />
-      {/* Grain overlay */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.035, mixBlendMode: 'overlay' }} aria-hidden>
+      {/* 7. Grain overlay */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.045, mixBlendMode: 'overlay' }} aria-hidden>
         <filter id="mntGrain">
           <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
           <feColorMatrix type="saturate" values="0" />
         </filter>
         <rect width="100%" height="100%" filter="url(#mntGrain)" />
       </svg>
-      {/* Bottom vignette for label readability */}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.10) 28%, transparent 50%)', pointerEvents: 'none' }} />
+      {/* 8. Bottom vignette — heavier now so icons/labels pop */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.22) 32%, transparent 55%)', pointerEvents: 'none' }} />
 
       {/* ── Header ── */}
       <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, zIndex: 10 }}>
