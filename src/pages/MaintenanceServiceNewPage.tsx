@@ -202,23 +202,25 @@ export default function MaintenanceServiceNewPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px 10px 4px', background: XP_WHITE }}>
 
         {/* Vehicle */}
-        <XPGroupBox label="Vehicle">
-          <div style={{ fontFamily: XP_FONT, fontSize: 13, color: carInfo ? XP_TEXT : '#808080', padding: '2px 0' }}>
+        <XPGroupBox label="Vehicle" style={{ padding: '10px 10px 6px', marginBottom: 8 }}>
+          <div style={{ fontFamily: XP_FONT, fontSize: 13, color: carInfo ? XP_TEXT : '#808080' }}>
             {carInfo || 'Loading vehicle info…'}
           </div>
         </XPGroupBox>
 
         {/* Service Details */}
         <XPGroupBox label="Service Details">
-          <div style={{ marginBottom: 10 }}>
-            <label style={xpLabel}>Date of Service:</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              className="xp-date xp-input" style={{ ...xpInput, colorScheme: 'light' }} />
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <label style={xpLabel}>Odometer (mi):</label>
-            <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
-              placeholder="0" className="xp-input" style={xpInput} />
+          <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+            <div>
+              <label style={xpLabel}>Date of Service:</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                className="xp-date xp-input" style={{ ...xpInput, width: 170, colorScheme: 'light' }} />
+            </div>
+            <div>
+              <label style={xpLabel}>Odometer (mi):</label>
+              <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
+                placeholder="0" className="xp-input" style={{ ...xpInput, width: 120 }} />
+            </div>
           </div>
 
           <div style={{ marginBottom: performedBy === 'shop' ? 10 : 0 }}>
@@ -284,7 +286,7 @@ export default function MaintenanceServiceNewPage() {
         </XPGroupBox>
 
         {/* Total */}
-        <XPGroupBox label="Total">
+        <XPGroupBox label="Total" style={{ padding: '10px 10px 8px', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
             <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700, color: XP_TEXT }}>Total Due:</span>
             <span style={{ fontFamily: XP_FONT, fontSize: 13, color: XP_TEXT }}>$</span>
