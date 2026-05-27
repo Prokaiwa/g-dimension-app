@@ -76,14 +76,14 @@ export default function MaintenanceDetailPage() {
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center 40%',
           clipPath: 'url(#dtlLeftPanel)',
-          opacity: bgLoaded ? 0.72 : 0,
+          opacity: bgLoaded ? 0.55 : 0,
           transition: 'opacity 400ms ease',
         }}
       />
       {/* Left blue-water tint */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(160deg, rgba(18,72,140,0.52) 0%, rgba(10,45,90,0.40) 50%, rgba(0,0,0,0) 100%)',
+        background: 'linear-gradient(160deg, rgba(18,72,140,0.82) 0%, rgba(10,45,90,0.70) 50%, rgba(0,0,0,0) 100%)',
         clipPath: 'url(#dtlLeftPanel)',
         pointerEvents: 'none',
       }} />
