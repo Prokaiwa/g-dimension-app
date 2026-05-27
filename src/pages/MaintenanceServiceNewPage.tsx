@@ -210,17 +210,15 @@ export default function MaintenanceServiceNewPage() {
 
         {/* Service Details */}
         <XPGroupBox label="Service Details">
-          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-            <div style={{ flex: 1 }}>
-              <label style={xpLabel}>Date of Service:</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="xp-date xp-input" style={{ ...xpInput, colorScheme: 'light' }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={xpLabel}>Odometer (mi):</label>
-              <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
-                placeholder="0" className="xp-input" style={xpInput} />
-            </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={xpLabel}>Date of Service:</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              className="xp-date xp-input" style={{ ...xpInput, colorScheme: 'light' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={xpLabel}>Odometer (mi):</label>
+            <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
+              placeholder="0" className="xp-input" style={xpInput} />
           </div>
 
           <div style={{ marginBottom: performedBy === 'shop' ? 10 : 0 }}>
