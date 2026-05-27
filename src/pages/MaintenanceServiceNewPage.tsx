@@ -123,7 +123,7 @@ export default function MaintenanceServiceNewPage() {
     const validJobs = jobs.filter(j => j.description.trim() || j.cost)
     if (validJobs.length > 0) {
       await supabase.from('jobs').insert(validJobs.map(j => ({
-        session_id: session.id, type: 'maintenance',
+        car_id: carId, session_id: session.id, type: 'maintenance',
         category: j.category,
         title: j.description.trim() || j.category,
         cost: j.cost ? parseFloat(j.cost) : null,

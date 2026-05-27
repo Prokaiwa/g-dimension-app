@@ -127,28 +127,28 @@ export default function MaintenanceSessionDetailPage() {
       {/* ── Invoice body ── */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
 
-        {/* Faint G logo watermark */}
-        <img
-          src={gLogo}
-          aria-hidden
-          style={{
-            position: 'fixed',
-            top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 320, height: 320,
-            objectFit: 'contain',
-            opacity: 0.045,
-            pointerEvents: 'none',
-            zIndex: 0,
-            userSelect: 'none',
-          }}
-        />
-
         {/* Paper invoice */}
-        <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}>
+        <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
+
+          {/* Faint G logo watermark — inside paper so white bg doesn't hide it */}
+          <img
+            src={gLogo}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 300, height: 300,
+              objectFit: 'contain',
+              opacity: 0.05,
+              pointerEvents: 'none',
+              zIndex: 0,
+              userSelect: 'none',
+            }}
+          />
 
           {/* ── Invoice header ── */}
-          <div style={{ padding: '20px 20px 16px', borderBottom: `2px solid ${INV_DIVIDER}` }}>
+          <div style={{ padding: '20px 20px 16px', borderBottom: `2px solid ${INV_DIVIDER}`, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               {/* G logo + brand */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
