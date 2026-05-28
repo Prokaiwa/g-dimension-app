@@ -10,15 +10,26 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
-  COLOR_TIMELINE_SERVICE,
+  COLOR_BURGUNDY_L, COLOR_TIMELINE_DETAIL,
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
-// Light design tokens for the detailing aesthetic
-const BG       = '#f8f7f4'
-const INK      = '#1a1a1a'
-const INK_DIM  = 'rgba(0,0,0,0.42)'
-const RULE     = 'rgba(0,0,0,0.10)'
+const BLUE    = COLOR_TIMELINE_DETAIL  // '#8ab0c8' — muted cool blue, designed for detailing
+const BG      = '#f4f8fb'
+const INK     = '#111827'
+const INK_DIM = 'rgba(0,0,0,0.40)'
+const RULE    = 'rgba(0,0,0,0.07)'
+
+const EXTERIOR_PRESETS = [
+  'Hand Wash', 'Clay Bar', 'Paint Polish', 'Wax / Sealant',
+  'Ceramic Coating', 'Wheel Cleaning', 'Tire Dressing',
+  'Glass Treatment', 'Trim Restoration', 'Bug & Tar Removal',
+]
+
+const INTERIOR_PRESETS = [
+  'Vacuum', 'Wipe Down', 'Leather Conditioning', 'Carpet Shampoo',
+  'Fabric Protection', 'Odor Elimination', 'Dashboard Dressing', 'Window Cleaning',
+]
 
 const fieldLabel: React.CSSProperties = {
   fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
@@ -34,22 +45,144 @@ const fieldInput: React.CSSProperties = {
   padding: '6px 0', outline: 'none', width: '100%',
 }
 
+function ChipSection({
+  label, presets, selected, onToggle,
+  customInput, setCustomInput, showInput, setShowInput, onAddCustom,
+}: {
+  label: string
+  presets: string[]
+  selected: string[]
+  onToggle: (item: string) => void
+  customInput: string
+  setCustomInput: (v: string) => void
+  showInput: boolean
+  setShowInput: (v: boolean) => void
+  onAddCustom: () => void
+}) {
+  const customItems = selected.filter(s => !presets.includes(s))
+  return (
+    <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
+      <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.20em', textTransform: 'uppercase', color: BLUE, marginBottom: 12 }}>
+        {label}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+        {presets.map(p => {
+          const active = selected.includes(p)
+          return (
+            <button
+              key={p}
+              onClick={() => onToggle(p)}
+              style={{
+                padding: '6px 12px', borderRadius: 9999,
+                border: `1.5px solid ${active ? BLUE : 'rgba(0,0,0,0.14)'}`,
+                background: active ? 'rgba(138,176,200,0.14)' : 'rgba(0,0,0,0.03)',
+                color: active ? INK : INK_DIM,
+                fontFamily: FONT_UI, fontWeight: active ? 700 : 500, fontSize: 12,
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                transition: 'background 120ms ease, border-color 120ms ease',
+              }}
+            >
+              {p}
+            </button>
+          )
+        })}
+        {customItems.map(custom => (
+          <button
+            key={custom}
+            onClick={() => onToggle(custom)}
+            style={{
+              padding: '6px 12px', borderRadius: 9999,
+              border: `1.5px solid ${BLUE}`,
+              background: 'rgba(138,176,200,0.14)',
+              color: INK, fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            {custom}
+            <span style={{ fontSize: 11, opacity: 0.5, lineHeight: 1 }}>×</span>
+          </button>
+        ))}
+        {!showInput && (
+          <button
+            onClick={() => setShowInput(true)}
+            style={{
+              padding: '6px 12px', borderRadius: 9999,
+              border: '1.5px dashed rgba(0,0,0,0.18)',
+              background: 'transparent', color: INK_DIM,
+              fontFamily: FONT_UI, fontWeight: 500, fontSize: 12,
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            + Other
+          </button>
+        )}
+      </div>
+      {showInput && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+          <input
+            autoFocus
+            type="text"
+            value={customInput}
+            onChange={e => setCustomInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') onAddCustom() }}
+            placeholder="Custom service…"
+            style={{ ...fieldInput, flex: 1, fontSize: 13 }}
+          />
+          <button onClick={onAddCustom} style={{ padding: '5px 14px', background: BLUE, border: 'none', borderRadius: 9999, color: '#fff', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, cursor: 'pointer', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
+            Add
+          </button>
+          <button onClick={() => { setShowInput(false); setCustomInput('') }} style={{ padding: '5px 8px', background: 'none', border: 'none', color: INK_DIM, fontFamily: FONT_UI, fontSize: 12, cursor: 'pointer', WebkitTapHighlightColor: 'transparent', flexShrink: 0 }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function MaintenanceDetailNewPage() {
   const navigate = useNavigate()
-  const [carId, setCarId] = useState<string | null>(null)
-  const [date, setDate] = useState(TODAY)
-  const [mileage, setMileage] = useState('')
+  const [carId, setCarId]             = useState<string | null>(null)
+  const [date, setDate]               = useState(TODAY)
+  const [mileage, setMileage]         = useState('')
   const [performedBy, setPerformedBy] = useState<'self' | 'shop'>('self')
-  const [shopName, setShopName] = useState('')
-  const [timeTaken, setTimeTaken] = useState('')
-  const [totalCost, setTotalCost] = useState('')
-  const [notes, setNotes] = useState('')
-  const [addToTimeline, setAddToTimeline] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [shopName, setShopName]       = useState('')
+  const [timeTaken, setTimeTaken]     = useState('')
+  const [totalCost, setTotalCost]     = useState('')
+  const [notes, setNotes]             = useState('')
+  const [addToTimeline, setAddToTimeline] = useState(false)
+  const [saving, setSaving]           = useState(false)
+
+  const [exteriorSel, setExteriorSel]     = useState<string[]>([])
+  const [exteriorInput, setExteriorInput] = useState('')
+  const [showExtInput, setShowExtInput]   = useState(false)
+
+  const [interiorSel, setInteriorSel]     = useState<string[]>([])
+  const [interiorInput, setInteriorInput] = useState('')
+  const [showIntInput, setShowIntInput]   = useState(false)
 
   useEffect(() => {
     getActiveCarId().then(id => { if (id) setCarId(id) })
   }, [])
+
+  const toggleExt = (item: string) =>
+    setExteriorSel(prev => prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item])
+
+  const toggleInt = (item: string) =>
+    setInteriorSel(prev => prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item])
+
+  const addExtCustom = () => {
+    const val = exteriorInput.trim()
+    if (val) setExteriorSel(prev => [...prev, val])
+    setExteriorInput(''); setShowExtInput(false)
+  }
+
+  const addIntCustom = () => {
+    const val = interiorInput.trim()
+    if (val) setInteriorSel(prev => [...prev, val])
+    setInteriorInput(''); setShowIntInput(false)
+  }
 
   async function handleSave() {
     if (saving || !carId) return
@@ -69,18 +202,26 @@ export default function MaintenanceDetailNewPage() {
     }).select('id').single()
 
     if (error || !session) { setSaving(false); return }
+
+    const sid = (session as { id: string }).id
+    const jobRows = [
+      ...exteriorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'exterior', title, status: 'installed' })),
+      ...interiorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'interior', title, status: 'installed' })),
+    ]
+    if (jobRows.length > 0) await supabase.from('jobs').insert(jobRows)
+
     navigate('/maintenance/detail')
   }
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
-        input[type=date]::-webkit-calendar-picker-indicator { opacity: 0.35; cursor: pointer; }
-        .dtl-input:focus { border-bottom-color: ${COLOR_TIMELINE_SERVICE} !important; outline: none; }
+        input[type=date]::-webkit-calendar-picker-indicator { opacity: 0.30; cursor: pointer; }
+        .cw-input:focus { border-bottom-color: ${BLUE} !important; outline: none; }
         input[type="number"] { -moz-appearance: textfield; }
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        textarea.dtl-input:focus { border-color: rgba(212,184,106,0.45) !important; outline: none; }
+        textarea.cw-input:focus { border-color: rgba(138,176,200,0.55) !important; outline: none; }
       `}</style>
 
       {/* ── Header ── */}
@@ -91,113 +232,154 @@ export default function MaintenanceDetailNewPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'stretch' }}>
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
-          <div style={{ background: COLOR_TIMELINE_SERVICE, color: '#0d0d0d', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
+          <div style={{ background: COLOR_BURGUNDY_L, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
 
-      {/* ── Form ── */}
+      {/* ── Scroll body ── */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
-        <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${RULE}` }}>
-          <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: INK_DIM }}>Detail Session</div>
+        {/* Title */}
+        <div style={{ textAlign: 'center', padding: '28px 20px 22px', borderBottom: `1px solid ${RULE}` }}>
+          <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 38, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            Car Wash
+          </div>
+          <div style={{ fontFamily: FONT_UI, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: INK_DIM, marginTop: 8 }}>
+            session log
+          </div>
         </div>
 
+        {/* Date + Mileage */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
-          <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 20 }}>
             <div style={{ flex: 1 }}>
               <div style={fieldLabel}>Date</div>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="dtl-input" style={{ ...fieldInput, colorScheme: 'light' }} />
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="cw-input" style={{ ...fieldInput, colorScheme: 'light' }} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={fieldLabel}>Mileage</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                <input type="number" value={mileage} onChange={e => setMileage(e.target.value)} placeholder="—" className="dtl-input" style={{ ...fieldInput, flex: 1 }} />
+                <input type="number" value={mileage} onChange={e => setMileage(e.target.value)} placeholder="—" className="cw-input" style={{ ...fieldInput, flex: 1 }} />
                 <span style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM }}>mi</span>
               </div>
             </div>
           </div>
+        </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <div style={fieldLabel}>Performed By</div>
-            <div style={{ display: 'flex', gap: 0, marginTop: 6 }}>
-              {(['self', 'shop'] as const).map(v => (
-                <button key={v} onClick={() => setPerformedBy(v)} style={{
-                  flex: 1, padding: '8px 0',
-                  background: performedBy === v ? COLOR_TIMELINE_SERVICE : 'rgba(0,0,0,0.05)',
-                  border: `1px solid ${performedBy === v ? COLOR_TIMELINE_SERVICE : RULE}`,
-                  color: performedBy === v ? '#0d0d0d' : INK_DIM,
-                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-                  letterSpacing: '0.10em', textTransform: 'uppercase',
-                  cursor: 'pointer', borderRadius: 0,
-                  WebkitTapHighlightColor: 'transparent',
-                }}>{v === 'self' ? 'Self' : 'Shop'}</button>
-              ))}
-            </div>
+        {/* Performed By */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
+          <div style={fieldLabel}>Performed By</div>
+          <div style={{ display: 'flex', gap: 0, marginTop: 6 }}>
+            {(['self', 'shop'] as const).map(v => (
+              <button key={v} onClick={() => setPerformedBy(v)} style={{
+                flex: 1, padding: '8px 0',
+                background: performedBy === v ? BLUE : 'rgba(0,0,0,0.04)',
+                border: `1px solid ${performedBy === v ? BLUE : RULE}`,
+                color: performedBy === v ? '#fff' : INK_DIM,
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                letterSpacing: '0.10em', textTransform: 'uppercase',
+                cursor: 'pointer', borderRadius: 0, WebkitTapHighlightColor: 'transparent',
+              }}>
+                {v === 'self' ? 'Self' : 'Shop'}
+              </button>
+            ))}
           </div>
-
           {performedBy === 'shop' && (
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginTop: 16 }}>
               <div style={fieldLabel}>Shop Name</div>
-              <input type="text" value={shopName} onChange={e => setShopName(e.target.value)} placeholder="—" className="dtl-input" style={fieldInput} />
+              <input type="text" value={shopName} onChange={e => setShopName(e.target.value)} placeholder="—" className="cw-input" style={fieldInput} />
             </div>
           )}
+        </div>
 
+        {/* Exterior Services */}
+        <ChipSection
+          label="Exterior"
+          presets={EXTERIOR_PRESETS}
+          selected={exteriorSel}
+          onToggle={toggleExt}
+          customInput={exteriorInput}
+          setCustomInput={setExteriorInput}
+          showInput={showExtInput}
+          setShowInput={setShowExtInput}
+          onAddCustom={addExtCustom}
+        />
+
+        {/* Interior Services */}
+        <ChipSection
+          label="Interior"
+          presets={INTERIOR_PRESETS}
+          selected={interiorSel}
+          onToggle={toggleInt}
+          customInput={interiorInput}
+          setCustomInput={setInteriorInput}
+          showInput={showIntInput}
+          setShowInput={setShowIntInput}
+          onAddCustom={addIntCustom}
+        />
+
+        {/* Time Taken + Total Cost */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
           <div style={{ display: 'flex', gap: 20 }}>
             <div style={{ flex: 1 }}>
               <div style={fieldLabel}>Time Taken</div>
-              <input type="text" value={timeTaken} onChange={e => setTimeTaken(e.target.value)} placeholder="e.g. 3 hours, full day" className="dtl-input" style={fieldInput} />
+              <input type="text" value={timeTaken} onChange={e => setTimeTaken(e.target.value)} placeholder="e.g. 3 hours, full day" className="cw-input" style={fieldInput} />
             </div>
             <div style={{ width: 100 }}>
               <div style={fieldLabel}>Total Cost</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
                 <span style={{ fontFamily: FONT_UI, fontSize: 13, fontWeight: 600, color: INK_DIM }}>$</span>
-                <input type="number" value={totalCost} onChange={e => setTotalCost(e.target.value)} placeholder="0.00" min="0" step="0.01" className="dtl-input" style={fieldInput} />
+                <input type="number" value={totalCost} onChange={e => setTotalCost(e.target.value)} placeholder="0.00" min="0" step="0.01" className="cw-input" style={fieldInput} />
               </div>
             </div>
           </div>
         </div>
 
+        {/* Notes */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
           <div style={fieldLabel}>Notes</div>
           <textarea
             value={notes} onChange={e => setNotes(e.target.value)}
             placeholder="Products used, condition notes…"
             rows={3}
-            className="dtl-input"
+            className="cw-input"
             style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
           />
         </div>
 
+        {/* Add to Timeline — default off for car washes */}
         <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
           <button onClick={() => setAddToTimeline(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: 18, height: 18, flexShrink: 0, border: `1.5px solid ${addToTimeline ? COLOR_TIMELINE_SERVICE : RULE}`, background: addToTimeline ? COLOR_TIMELINE_SERVICE : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {addToTimeline && <span style={{ color: '#0d0d0d', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+            <div style={{ width: 18, height: 18, flexShrink: 0, border: `1.5px solid ${addToTimeline ? BLUE : 'rgba(0,0,0,0.18)'}`, background: addToTimeline ? BLUE : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {addToTimeline && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>✓</span>}
             </div>
             <div>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: addToTimeline ? '#a07828' : INK_DIM }}>Add to Timeline</div>
-              <div style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM, marginTop: 2 }}>Detail sessions are proud moments — default on</div>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: addToTimeline ? INK : INK_DIM }}>Add to Timeline</div>
+              <div style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM, marginTop: 2 }}>Log this wash as a chapter in your build story</div>
             </div>
           </button>
         </div>
 
+        {/* Save */}
         <div style={{ padding: '24px 20px 48px' }}>
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
               width: '100%', padding: '14px 0',
-              background: saving ? 'rgba(212,184,106,0.35)' : COLOR_TIMELINE_SERVICE,
+              background: saving ? 'rgba(138,176,200,0.35)' : BLUE,
               border: 'none', borderRadius: 0,
-              color: saving ? 'rgba(0,0,0,0.35)' : '#0a0a0a',
+              color: saving ? 'rgba(0,0,0,0.35)' : '#fff',
               fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
               letterSpacing: '0.18em', textTransform: 'uppercase',
               cursor: saving ? 'default' : 'pointer',
               WebkitTapHighlightColor: 'transparent',
             }}
           >
-            {saving ? 'Saving…' : 'Log Detail Session'}
+            {saving ? 'Saving…' : 'Log Car Wash'}
           </button>
         </div>
+
       </div>
     </div>
   )

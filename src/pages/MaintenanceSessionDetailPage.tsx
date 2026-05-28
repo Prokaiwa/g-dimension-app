@@ -126,7 +126,7 @@ export default function MaintenanceSessionDetailPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'stretch' }}>
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
-          <div style={{ background: isDetail ? DETAIL_AMBER : COLOR_BURGUNDY_L, color: isDetail ? '#0d0d0d' : '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
+          <div style={{ background: COLOR_BURGUNDY_L, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
 
@@ -225,10 +225,42 @@ export default function MaintenanceSessionDetailPage() {
             </div>
           )}
 
-          {/* ── Services Performed (maintenance only) ── */}
-          {!isDetail && (
+          {/* ── Services / Line items ── */}
+          {isDetail ? (
+            /* Car wash: show selected services as grouped chips */
+            jobs.length > 0 && (() => {
+              const extJobs = jobs.filter(j => j.category === 'exterior')
+              const intJobs = jobs.filter(j => j.category === 'interior')
+              const ungrouped = jobs.filter(j => j.category !== 'exterior' && j.category !== 'interior')
+              return (
+                <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+                  {extJobs.length > 0 && (
+                    <div style={{ marginBottom: intJobs.length > 0 || ungrouped.length > 0 ? 12 : 0 }}>
+                      <div style={{ fontFamily: FONT_UI, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 8 }}>Exterior</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {extJobs.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  {intJobs.length > 0 && (
+                    <div style={{ marginBottom: ungrouped.length > 0 ? 12 : 0 }}>
+                      <div style={{ fontFamily: FONT_UI, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 8 }}>Interior</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                        {intJobs.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
+                      </div>
+                    </div>
+                  )}
+                  {ungrouped.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                      {ungrouped.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()
+          ) : (
+            /* Service: invoice-style line items with amounts */
             <div style={{ borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              {/* Column headers */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 20px 6px', background: '#f9f7f4', borderBottom: `1px solid ${INV_DIVIDER}` }}>
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Description</span>
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Amount</span>
