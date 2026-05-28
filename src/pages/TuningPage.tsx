@@ -22,7 +22,6 @@ import {
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
-  CAST_SHADOW_OPACITY,
   STAGGER_BASE_MS,
   STAGGER_STEP_MS,
   EASING_SETTLE,
@@ -161,7 +160,7 @@ export default function TuningPage() {
       </div>
 
       {/* ── Icon tiles — asymmetric stagger, left of the lift ── */}
-      {bgLoaded && TILES.map((tile, i) => (
+      {TILES.map((tile, i) => (
         <button
           key={tile.id}
           onClick={() => navigate(tile.route)}
@@ -176,9 +175,10 @@ export default function TuningPage() {
             bottom: tile.bottom,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-            animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`,
-            willChange: 'opacity, transform',
             WebkitTapHighlightColor: 'transparent',
+            ...(bgLoaded
+              ? { animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both` }
+              : { opacity: 0, pointerEvents: 'none' as const }),
           }}
         >
           {/* Inner wrapper owns the press transform, separate from the fade-in animation on the button */}
@@ -188,16 +188,8 @@ export default function TuningPage() {
             transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
           }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
-              {/* Angled cast shadow — matches Garage dashboard exactly */}
-              <div style={{
-                position: 'absolute',
-                top: 90, left: 63,
-                width: 66, height: 60,
-                transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
-                background: 'rgba(0,0,0,1)',
-                opacity: CAST_SHADOW_OPACITY,
-                filter: 'blur(5px)',
-              }} />
+              {/* No separate cast shadow — Garage grid only per design rules.
+                  drop-shadow filter keeps shadow in sync with the icon at all times. */}
               <img
                 src={tile.src}
                 alt={tile.label}
@@ -207,6 +199,7 @@ export default function TuningPage() {
                   width: 126, height: 126,
                   objectFit: 'contain',
                   pointerEvents: 'none',
+                  filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.65))',
                 }}
               />
             </div>

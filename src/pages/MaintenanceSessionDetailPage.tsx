@@ -13,6 +13,9 @@ import {
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
+// Light token for the detail session card
+const DETAIL_AMBER = COLOR_TIMELINE_SERVICE
+
 type Session = {
   id: string
   type: 'maintenance' | 'detail' | 'modification'
@@ -89,12 +92,13 @@ export default function MaintenanceSessionDetailPage() {
     if (deleting || !sessionId) return
     setDeleting(true)
     await supabase.from('sessions').delete().eq('id', sessionId)
-    navigate(session?.type === 'detail' ? '/maintenance/detail' : '/maintenance/service')
+    navigate(session?.type === 'detail' ? '/maintenance/detail' : '/maintenance')
   }
 
   const isDetail  = session?.type === 'detail'
-  const backRoute = isDetail ? '/maintenance/detail' : '/maintenance/service'
+  const backRoute = isDetail ? '/maintenance/detail' : '/maintenance'
   const backLabel = isDetail ? 'Detailing' : 'Service'
+  const CONTENT_FONT = isDetail ? FONT_UI : MONO
 
   if (loading) return (
     <div style={{ height: '100dvh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
@@ -122,7 +126,7 @@ export default function MaintenanceSessionDetailPage() {
         </button>
         <div style={{ display: 'flex', alignItems: 'stretch' }}>
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
-          <div style={{ background: COLOR_BURGUNDY_L, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
+          <div style={{ background: isDetail ? DETAIL_AMBER : COLOR_BURGUNDY_L, color: isDetail ? '#0d0d0d' : '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
 
@@ -130,7 +134,7 @@ export default function MaintenanceSessionDetailPage() {
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
 
         {/* Paper invoice */}
-        <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', overflow: 'hidden', borderTop: isDetail ? `3px solid ${DETAIL_AMBER}` : 'none' }}>
 
           {/* Faint G logo watermark — inside paper so white bg doesn't hide it */}
           <img
@@ -157,15 +161,15 @@ export default function MaintenanceSessionDetailPage() {
                 <img src={gLogo} alt="G-Dimension" style={{ width: 36, height: 36, objectFit: 'contain' }} />
                 <div>
                   <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: INV_TEXT, letterSpacing: '0.04em' }}>G-DIMENSION</div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: INV_MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>gdimension.app</div>
+                  <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, color: INV_MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>gdimension.app</div>
                 </div>
               </div>
               {/* Invoice type + number */}
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: INV_TEXT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  {isDetail ? 'Detail Invoice' : 'Service Invoice'}
+                <div style={{ fontFamily: CONTENT_FONT, fontWeight: 700, fontSize: 15, color: INV_TEXT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  {isDetail ? 'Detail Record' : 'Service Invoice'}
                 </div>
-                <div style={{ fontFamily: MONO, fontSize: 10, color: INV_MUTED, marginTop: 2 }}>#{invoiceNum}</div>
+                <div style={{ fontFamily: CONTENT_FONT, fontSize: 10, color: INV_MUTED, marginTop: 2 }}>#{invoiceNum}</div>
               </div>
             </div>
           </div>
@@ -174,19 +178,19 @@ export default function MaintenanceSessionDetailPage() {
           <div style={{ display: 'flex', borderBottom: `1px solid ${INV_DIVIDER}` }}>
             {/* Date */}
             <div style={{ flex: 1, padding: '14px 20px', borderRight: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Date of Service</div>
-              <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{dateStr}</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>{isDetail ? 'Date' : 'Date of Service'}</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{dateStr}</div>
             </div>
             {/* Mileage */}
             {session.mileage != null ? (
               <div style={{ flex: 1, padding: '14px 20px' }}>
-                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Odometer</div>
-                <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>mi</span></div>
+                <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Odometer</div>
+                <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>mi</span></div>
               </div>
             ) : car ? (
               <div style={{ flex: 1, padding: '14px 20px' }}>
-                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Vehicle</div>
-                <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+                <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Vehicle</div>
+                <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
               </div>
             ) : <div style={{ flex: 1 }} />}
           </div>
@@ -194,8 +198,8 @@ export default function MaintenanceSessionDetailPage() {
           {/* ── Vehicle (if we have mileage AND car, show vehicle here) ── */}
           {car && session.mileage != null && (
             <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Vehicle</div>
-              <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Vehicle</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
             </div>
           )}
 
@@ -205,16 +209,16 @@ export default function MaintenanceSessionDetailPage() {
               <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
                 {session.performed_by && (
                   <div>
-                    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Performed By</div>
-                    <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT, textTransform: 'uppercase' }}>
+                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Performed By</div>
+                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT, textTransform: 'uppercase' }}>
                       {session.performed_by === 'shop' ? (session.shop_name || 'Shop / Dealer') : 'Self'}
                     </div>
                   </div>
                 )}
                 {session.time_taken && (
                   <div>
-                    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Time Taken</div>
-                    <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{session.time_taken}</div>
+                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Time Taken</div>
+                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT }}>{session.time_taken}</div>
                   </div>
                 )}
               </div>
@@ -255,8 +259,8 @@ export default function MaintenanceSessionDetailPage() {
             const fmt = (n: number) => `$${n.toFixed(2)}`
             const breakdownRow = (label: string, value: string, muted = true) => (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
-                <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>{label}</span>
-                <span style={{ fontFamily: MONO, fontSize: 13, color: muted ? '#555' : INV_TEXT }}>{value}</span>
+                <span style={{ fontFamily: CONTENT_FONT, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>{label}</span>
+                <span style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: muted ? '#555' : INV_TEXT }}>{value}</span>
               </div>
             )
             const hasBreakdown = partsSum > 0 || session.labor_cost != null || session.tax_amount != null
@@ -268,8 +272,8 @@ export default function MaintenanceSessionDetailPage() {
                 {hasBreakdown && <div style={{ borderTop: `1px dashed ${INV_DIVIDER}`, margin: '6px 20px 0' }} />}
                 {session.total_cost != null && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '8px 20px 2px' }}>
-                    <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
-                    <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
+                    <span style={{ fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
+                    <span style={{ fontFamily: CONTENT_FONT, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
                   </div>
                 )}
               </div>
@@ -279,15 +283,15 @@ export default function MaintenanceSessionDetailPage() {
           {/* ── Notes ── */}
           {session.notes && (
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 6 }}>Notes</div>
-              <div style={{ fontFamily: MONO, fontSize: 12, color: '#3a3a3a', lineHeight: 1.65 }}>{session.notes}</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 6 }}>Notes</div>
+              <div style={{ fontFamily: CONTENT_FONT, fontSize: isDetail ? 14 : 12, color: '#3a3a3a', lineHeight: 1.65 }}>{session.notes}</div>
             </div>
           )}
 
           {/* ── Timeline badge ── */}
           <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
             <span style={{
-              fontFamily: MONO, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
+              fontFamily: CONTENT_FONT, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
               padding: '3px 8px',
               border: `1px solid ${session.add_to_timeline ? 'rgba(180,145,70,0.55)' : '#d8d8d8'}`,
               color: session.add_to_timeline ? '#a07828' : INV_MUTED,
@@ -320,12 +324,12 @@ export default function MaintenanceSessionDetailPage() {
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
           <div style={{ width: '100%', background: '#ffffff', padding: '28px 24px 40px', borderTop: `2px solid ${INV_DIVIDER}` }}>
-            <div style={{ fontFamily: MONO, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', color: INV_TEXT, marginBottom: 8 }}>Delete this record?</div>
-            <div style={{ fontFamily: MONO, fontSize: 12, color: INV_MUTED, marginBottom: 24, lineHeight: 1.6 }}>This will permanently remove the service record and all line items. This cannot be undone.</div>
+            <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', color: INV_TEXT, marginBottom: 8 }}>Delete this record?</div>
+            <div style={{ fontFamily: CONTENT_FONT, fontSize: 12, color: INV_MUTED, marginBottom: 24, lineHeight: 1.6 }}>This will permanently remove this record and all associated data. This cannot be undone.</div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '12px 0', background: '#f4f4f4', border: `1px solid ${INV_DIVIDER}`, borderRadius: 0, color: '#555', fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Cancel</button>
-              <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '12px 0', background: deleting ? '#fdf0f0' : '#fce8e8', border: '1px solid #e0b0b0', borderRadius: 0, color: deleting ? '#c09090' : '#b04040', fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: deleting ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}>
-                {deleting ? 'Deleting...' : 'Delete Record'}
+              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '12px 0', background: '#f4f4f4', border: `1px solid ${INV_DIVIDER}`, borderRadius: 0, color: '#555', fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '12px 0', background: deleting ? '#fdf0f0' : '#fce8e8', border: '1px solid #e0b0b0', borderRadius: 0, color: deleting ? '#c09090' : '#b04040', fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: deleting ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                {deleting ? 'Deleting…' : 'Delete Record'}
               </button>
             </div>
           </div>
