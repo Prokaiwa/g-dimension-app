@@ -14,19 +14,24 @@ import {
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
-const MONO = "'Courier New', Courier, monospace"
+// Light design tokens for the detailing aesthetic
+const BG       = '#f8f7f4'
+const INK      = '#1a1a1a'
+const INK_DIM  = 'rgba(0,0,0,0.42)'
+const RULE     = 'rgba(0,0,0,0.10)'
 
 const fieldLabel: React.CSSProperties = {
-  fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em',
-  textTransform: 'uppercase', color: 'rgba(212,184,106,0.55)',
-  marginBottom: 3,
+  fontFamily: FONT_UI, fontWeight: 700, fontSize: 10,
+  letterSpacing: '0.14em', textTransform: 'uppercase',
+  color: INK_DIM, marginBottom: 5,
 }
 
 const fieldInput: React.CSSProperties = {
   background: 'transparent', border: 'none',
-  borderBottom: '1px solid rgba(212,184,106,0.18)',
-  color: 'rgba(245,245,245,0.90)', fontFamily: MONO,
-  fontSize: 14, padding: '4px 0', outline: 'none', width: '100%',
+  borderBottom: `1px solid ${RULE}`,
+  color: INK, fontFamily: FONT_UI,
+  fontWeight: 600, fontSize: 15,
+  padding: '6px 0', outline: 'none', width: '100%',
 }
 
 export default function MaintenanceDetailNewPage() {
@@ -68,10 +73,14 @@ export default function MaintenanceDetailNewPage() {
   }
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0a0908', fontFamily: FONT_UI, overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
-        input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.6) sepia(1) hue-rotate(5deg) saturate(0.6); opacity: 0.5; cursor: pointer; }
-        .dtl-input:focus { border-bottom-color: rgba(212,184,106,0.55) !important; }
+        input[type=date]::-webkit-calendar-picker-indicator { opacity: 0.35; cursor: pointer; }
+        .dtl-input:focus { border-bottom-color: ${COLOR_TIMELINE_SERVICE} !important; outline: none; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        textarea.dtl-input:focus { border-color: rgba(212,184,106,0.45) !important; outline: none; }
       `}</style>
 
       {/* ── Header ── */}
@@ -89,44 +98,45 @@ export default function MaintenanceDetailNewPage() {
       {/* ── Form ── */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(212,184,106,0.12)' }}>
-          <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'rgba(212,184,106,0.45)' }}>Detail Session Log</div>
+        <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${RULE}` }}>
+          <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.24em', textTransform: 'uppercase', color: INK_DIM }}>Detail Session</div>
         </div>
 
-        <div style={{ padding: '16px 20px', borderBottom: '1px dashed rgba(212,184,106,0.10)' }}>
-          <div style={{ display: 'flex', gap: 20, marginBottom: 18 }}>
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
+          <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
             <div style={{ flex: 1 }}>
               <div style={fieldLabel}>Date</div>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="dtl-input" style={{ ...fieldInput, colorScheme: 'dark' }} />
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className="dtl-input" style={{ ...fieldInput, colorScheme: 'light' }} />
             </div>
             <div style={{ flex: 1 }}>
               <div style={fieldLabel}>Mileage</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                 <input type="number" value={mileage} onChange={e => setMileage(e.target.value)} placeholder="—" className="dtl-input" style={{ ...fieldInput, flex: 1 }} />
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'rgba(212,184,106,0.40)' }}>mi</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM }}>mi</span>
               </div>
             </div>
           </div>
 
-          <div style={{ marginBottom: 18 }}>
+          <div style={{ marginBottom: 20 }}>
             <div style={fieldLabel}>Performed By</div>
             <div style={{ display: 'flex', gap: 0, marginTop: 6 }}>
               {(['self', 'shop'] as const).map(v => (
                 <button key={v} onClick={() => setPerformedBy(v)} style={{
-                  flex: 1, padding: '7px 0',
-                  background: performedBy === v ? COLOR_TIMELINE_SERVICE : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${performedBy === v ? COLOR_TIMELINE_SERVICE : 'rgba(212,184,106,0.18)'}`,
-                  color: performedBy === v ? '#0d0d0d' : 'rgba(245,245,245,0.55)',
-                  fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em',
-                  textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0,
+                  flex: 1, padding: '8px 0',
+                  background: performedBy === v ? COLOR_TIMELINE_SERVICE : 'rgba(0,0,0,0.05)',
+                  border: `1px solid ${performedBy === v ? COLOR_TIMELINE_SERVICE : RULE}`,
+                  color: performedBy === v ? '#0d0d0d' : INK_DIM,
+                  fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                  letterSpacing: '0.10em', textTransform: 'uppercase',
+                  cursor: 'pointer', borderRadius: 0,
                   WebkitTapHighlightColor: 'transparent',
-                }}>{v === 'self' ? 'SELF' : 'SHOP'}</button>
+                }}>{v === 'self' ? 'Self' : 'Shop'}</button>
               ))}
             </div>
           </div>
 
           {performedBy === 'shop' && (
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 20 }}>
               <div style={fieldLabel}>Shop Name</div>
               <input type="text" value={shopName} onChange={e => setShopName(e.target.value)} placeholder="—" className="dtl-input" style={fieldInput} />
             </div>
@@ -137,34 +147,35 @@ export default function MaintenanceDetailNewPage() {
               <div style={fieldLabel}>Time Taken</div>
               <input type="text" value={timeTaken} onChange={e => setTimeTaken(e.target.value)} placeholder="e.g. 3 hours, full day" className="dtl-input" style={fieldInput} />
             </div>
-            <div style={{ width: 90 }}>
+            <div style={{ width: 100 }}>
               <div style={fieldLabel}>Total Cost</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
-                <span style={{ fontFamily: MONO, fontSize: 12, color: 'rgba(212,184,106,0.45)' }}>$</span>
-                <input type="number" value={totalCost} onChange={e => setTotalCost(e.target.value)} placeholder="0.00" min="0" step="0.01" className="dtl-input" style={{ ...fieldInput }} />
+                <span style={{ fontFamily: FONT_UI, fontSize: 13, fontWeight: 600, color: INK_DIM }}>$</span>
+                <input type="number" value={totalCost} onChange={e => setTotalCost(e.target.value)} placeholder="0.00" min="0" step="0.01" className="dtl-input" style={fieldInput} />
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{ padding: '16px 20px', borderBottom: '1px dashed rgba(212,184,106,0.10)' }}>
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
           <div style={fieldLabel}>Notes</div>
           <textarea
             value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="Products used, condition notes..."
+            placeholder="Products used, condition notes…"
             rows={3}
-            style={{ ...fieldInput, resize: 'none', lineHeight: 1.5, border: '1px solid rgba(212,184,106,0.15)', padding: '8px' }}
+            className="dtl-input"
+            style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
           />
         </div>
 
-        <div style={{ padding: '16px 20px', borderBottom: '1px dashed rgba(212,184,106,0.10)' }}>
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
           <button onClick={() => setAddToTimeline(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}>
-            <div style={{ width: 18, height: 18, border: `1px solid ${addToTimeline ? COLOR_TIMELINE_SERVICE : 'rgba(212,184,106,0.30)'}`, background: addToTimeline ? COLOR_TIMELINE_SERVICE : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 18, height: 18, flexShrink: 0, border: `1.5px solid ${addToTimeline ? COLOR_TIMELINE_SERVICE : RULE}`, background: addToTimeline ? COLOR_TIMELINE_SERVICE : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {addToTimeline && <span style={{ color: '#0d0d0d', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>✓</span>}
             </div>
             <div>
-              <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: addToTimeline ? COLOR_TIMELINE_SERVICE : 'rgba(245,245,245,0.45)' }}>Add to Timeline</div>
-              <div style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(245,245,245,0.25)', marginTop: 2 }}>Default on — details are proud moments</div>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: addToTimeline ? '#a07828' : INK_DIM }}>Add to Timeline</div>
+              <div style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM, marginTop: 2 }}>Detail sessions are proud moments — default on</div>
             </div>
           </button>
         </div>
@@ -175,16 +186,16 @@ export default function MaintenanceDetailNewPage() {
             disabled={saving}
             style={{
               width: '100%', padding: '14px 0',
-              background: saving ? 'rgba(212,184,106,0.15)' : COLOR_TIMELINE_SERVICE,
+              background: saving ? 'rgba(212,184,106,0.35)' : COLOR_TIMELINE_SERVICE,
               border: 'none', borderRadius: 0,
-              color: saving ? 'rgba(212,184,106,0.50)' : '#0a0a0a',
-              fontFamily: MONO, fontSize: 12, letterSpacing: '0.18em',
-              textTransform: 'uppercase', fontWeight: 700,
+              color: saving ? 'rgba(0,0,0,0.35)' : '#0a0a0a',
+              fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
+              letterSpacing: '0.18em', textTransform: 'uppercase',
               cursor: saving ? 'default' : 'pointer',
               WebkitTapHighlightColor: 'transparent',
             }}
           >
-            {saving ? 'Saving...' : 'Log Detail Session'}
+            {saving ? 'Saving…' : 'Log Detail Session'}
           </button>
         </div>
       </div>

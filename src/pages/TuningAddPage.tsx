@@ -188,6 +188,7 @@ export default function TuningAddPage() {
   const [newLinkUrl,   setNewLinkUrl]     = useState('')
   const [newLinkLabel, setNewLinkLabel]   = useState('')
   const [newLinks,     setNewLinks]       = useState<{ url: string; label: string }[]>([])
+  const [addToTimeline, setAddToTimeline]  = useState(true)
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
@@ -444,10 +445,28 @@ export default function TuningAddPage() {
     const userId = session?.user?.id
     if (!userId) { setSaving(false); return }
 
-    // 1. INSERT job
+    // 1. Optionally create a modification session for timeline entry
+    let sessionId: string | null = null
+    if (!partsBinMode && addToTimeline) {
+      const today = new Date().toISOString().split('T')[0]
+      const { data: sData } = await supabase
+        .from('sessions')
+        .insert({
+          car_id:          carId,
+          type:            'modification',
+          date_performed:  form.dateInstalled || today,
+          add_to_timeline: true,
+        })
+        .select('id')
+        .single()
+      if (sData) sessionId = (sData as { id: string }).id
+    }
+
+    // 2. INSERT job
     const { data: jobData, error: jobErr } = await supabase
       .from('jobs')
       .insert({
+        ...(sessionId ? { session_id: sessionId } : {}),
         car_id:         carId,
         type:           'modification',
         category:       selectedCategory,
@@ -474,7 +493,7 @@ export default function TuningAddPage() {
 
     const jobId = jobData.id as string
 
-    // 2. INSERT job_specs for all non-empty spec fields
+    // 3. INSERT job_specs for all non-empty spec fields
     type SpecRow = { job_id: string; spec_key: string; spec_value: string; spec_unit: string | null }
     const specRows: SpecRow[] = []
 
@@ -497,7 +516,7 @@ export default function TuningAddPage() {
       await supabase.from('job_specs').insert(specRows)
     }
 
-    // 3. Compress (EXIF strip) + upload photos, then INSERT job_photos
+    // 4. Compress (EXIF strip) + upload photos, then INSERT job_photos
     for (const photo of photos) {
       try {
         const compressed = await imageCompression(photo, COMPRESSION_OPTIONS)
@@ -519,7 +538,7 @@ export default function TuningAddPage() {
       }
     }
 
-    // 4. INSERT job_links
+    // 5. INSERT job_links
     if (newLinks.length > 0) {
       await supabase.from('job_links').insert(
         newLinks.map((l, i) => ({ job_id: jobId, user_id: userId, url: l.url, label: l.label || null, display_order: i }))
@@ -1080,6 +1099,34 @@ export default function TuningAddPage() {
                 </button>
               </div>
             </div>
+
+            {/* Add to Timeline — build-sheet mode only */}
+            {!partsBinMode && (
+              <div style={{ padding: '24px 22px 0' }}>
+                <button
+                  onClick={() => setAddToTimeline(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div style={{
+                    width: 18, height: 18, flexShrink: 0,
+                    border: `1.5px solid ${addToTimeline ? 'rgba(200,102,26,0.8)' : 'rgba(245,240,228,0.2)'}`,
+                    background: addToTimeline ? 'rgba(200,102,26,0.15)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 150ms ease',
+                  }}>
+                    {addToTimeline && <span style={{ color: '#c8661a', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase' as const, color: addToTimeline ? 'rgba(200,102,26,0.85)' : 'rgba(245,240,228,0.45)' }}>
+                      Add to Timeline
+                    </div>
+                    <div style={{ fontFamily: FONT_UI, fontSize: 10, color: 'rgba(245,240,228,0.28)', marginTop: 2 }}>
+                      Log this mod as a chapter in your build story
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
 
             {/* Full Specs toggle — always shown (Part Number lives here) */}
             <div style={{ padding: '24px 22px 0' }}>

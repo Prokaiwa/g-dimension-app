@@ -214,7 +214,7 @@ export default function GaragePage() {
           gap: `${SPACE_LG}px ${SPACE_XS}px`,
           width: '100%',
         }}>
-          {bgLoaded && GRID_TILES.map((tile, i) => (
+          {GRID_TILES.map((tile, i) => (
             <button
               key={tile.id}
               onClick={() => navigate(tile.route)}
@@ -226,8 +226,10 @@ export default function GaragePage() {
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`,
                 WebkitTapHighlightColor: 'transparent',
+                ...(bgLoaded
+                  ? { animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both` }
+                  : { opacity: 0, pointerEvents: 'none' as const }),
               }}
             >
               {/* Inner wrapper owns the press transform, separate from the fade-in animation */}
@@ -257,6 +259,7 @@ export default function GaragePage() {
                       width: 126, height: 126,
                       objectFit: 'contain',
                       pointerEvents: 'none',
+                      willChange: 'transform',
                     }}
                     draggable={false} />
                 </div>

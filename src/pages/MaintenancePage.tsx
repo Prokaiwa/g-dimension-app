@@ -14,7 +14,7 @@ import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,
   FONT_UI, HEADER_HEIGHT, HEADER_WEDGE_LEFT, HEADER_WEDGE_RIGHT,
-  CAST_SHADOW_OPACITY, STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
+  STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
 } from '../tokens'
 
 const TILES = [
@@ -137,16 +137,9 @@ export default function MaintenancePage() {
           style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, willChange: 'opacity, transform', WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>
             <div style={{ position: 'relative', width: 126, height: 126 }}>
-              {/* Cast shadow — matches Tuning page exactly */}
-              <div style={{
-                position: 'absolute', top: 90, left: 63,
-                width: 66, height: 60,
-                transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
-                background: 'rgba(0,0,0,1)',
-                opacity: CAST_SHADOW_OPACITY,
-                filter: 'blur(5px)',
-              }} />
-              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none' }} />
+              {/* No separate cast shadow — Garage grid only per design rules.
+                  drop-shadow filter keeps shadow in sync with the icon at all times. */}
+              <img src={tile.src} alt={tile.label} draggable={false} style={{ position: 'absolute', top: tile.imgPad, left: tile.imgPad, width: 126 - tile.imgPad * 2, height: 126 - tile.imgPad * 2, objectFit: 'contain', pointerEvents: 'none', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.65))' }} />
             </div>
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.88)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: tile.labelOffset, marginLeft: tile.labelNudgeX, position: 'relative', zIndex: 1 }}>{tile.label}</span>
           </div>
