@@ -77,3 +77,7 @@ create policy "vehicle_makes_select_public"           on public.vehicle_makes   
 create policy "vehicle_models_select_public"          on public.vehicle_models          for select using (true);
 create policy "vehicle_variants_select_public"        on public.vehicle_variants        for select using (true);
 create policy "vehicle_search_aliases_select_public"  on public.vehicle_search_aliases  for select using (true);
+
+-- part_categories had no explicit SELECT grant (the others have grants in their
+-- original migration files). Add it explicitly so it doesn't rely on legacy auto-grant.
+grant select on public.part_categories to anon, authenticated;
