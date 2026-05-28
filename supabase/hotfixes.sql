@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 031_job_links.sql (2026-05-26)
--- All migrations 001–031 confirmed applied to production.
+-- Last migration applied : 032_session_cost_breakdown.sql (2026-05-28)
+-- All migrations 001–032 confirmed applied to production.
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)
@@ -55,3 +55,25 @@ $$;
 
 delete from public.job_specs where job_id = '25961923-8b73-4978-9153-a7e8996ba292';
 delete from public.jobs      where id     = '25961923-8b73-4978-9153-a7e8996ba292';
+
+-- Migration 032: session cost breakdown columns (2026-05-28)
+-- Run this in the Supabase SQL Editor after applying 032_session_cost_breakdown.sql.
+-- Adds labor_cost and tax_amount to sessions for shop invoice breakdown.
+-- (No additional grants needed — sessions was already granted in the block above.)
+-- ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS labor_cost DECIMAL(10,2), ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2);
+
+-- Fix RLS security vulnerability on reference tables (2026-05-28)
+-- Supabase flagged 5 tables as publicly accessible (RLS disabled).
+-- Without RLS, any anon-key request can INSERT/UPDATE/DELETE these tables.
+-- These are lookup/reference tables — SELECT public, no writes allowed.
+alter table public.part_categories         enable row level security;
+alter table public.vehicle_makes           enable row level security;
+alter table public.vehicle_models          enable row level security;
+alter table public.vehicle_variants        enable row level security;
+alter table public.vehicle_search_aliases  enable row level security;
+
+create policy "part_categories_select_public"        on public.part_categories        for select using (true);
+create policy "vehicle_makes_select_public"           on public.vehicle_makes           for select using (true);
+create policy "vehicle_models_select_public"          on public.vehicle_models          for select using (true);
+create policy "vehicle_variants_select_public"        on public.vehicle_variants        for select using (true);
+create policy "vehicle_search_aliases_select_public"  on public.vehicle_search_aliases  for select using (true);
