@@ -73,7 +73,7 @@ function ChipSection({
               key={p}
               onClick={() => onToggle(p)}
               style={{
-                padding: '6px 12px', borderRadius: 9999,
+                padding: '6px 12px', borderRadius: 6,
                 border: `1.5px solid ${active ? BLUE : 'rgba(0,0,0,0.14)'}`,
                 background: active ? 'rgba(138,176,200,0.14)' : 'rgba(0,0,0,0.03)',
                 color: active ? INK : INK_DIM,
@@ -91,7 +91,7 @@ function ChipSection({
             key={custom}
             onClick={() => onToggle(custom)}
             style={{
-              padding: '6px 12px', borderRadius: 9999,
+              padding: '6px 12px', borderRadius: 6,
               border: `1.5px solid ${BLUE}`,
               background: 'rgba(138,176,200,0.14)',
               color: INK, fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
@@ -107,7 +107,7 @@ function ChipSection({
           <button
             onClick={() => setShowInput(true)}
             style={{
-              padding: '6px 12px', borderRadius: 9999,
+              padding: '6px 12px', borderRadius: 6,
               border: '1.5px dashed rgba(0,0,0,0.18)',
               background: 'transparent', color: INK_DIM,
               fontFamily: FONT_UI, fontWeight: 500, fontSize: 12,
@@ -240,12 +240,11 @@ export default function MaintenanceDetailNewPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
         {/* Title */}
-        <div style={{ textAlign: 'center', padding: '28px 20px 22px', borderBottom: `1px solid ${RULE}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '26px 20px 22px', borderBottom: `1px solid ${RULE}` }}>
+          {/* Swap src below once image is added to src/assets/icons/maintenance/carwash_icon.png */}
+          {/* <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} /> */}
           <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 38, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>
             Car Wash
-          </div>
-          <div style={{ fontFamily: FONT_UI, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: INK_DIM, marginTop: 8 }}>
-            session log
           </div>
         </div>
 
