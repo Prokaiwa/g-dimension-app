@@ -70,6 +70,8 @@ export default function MaintenanceServiceNewPage() {
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop'>('self')
   const [shopName,      setShopName]      = useState('')
   const [jobs,          setJobs]          = useState<JobRow[]>([{ _id: uid(), category: 'Oil Change', description: '', cost: '' }])
+  const [laborCost,     setLaborCost]     = useState('')
+  const [taxAmount,     setTaxAmount]     = useState('')
   const [totalCost,     setTotalCost]     = useState('')
   const [totalEdited,   setTotalEdited]   = useState(false)
   const [timeTaken,     setTimeTaken]     = useState('')
@@ -93,9 +95,12 @@ export default function MaintenanceServiceNewPage() {
 
   useEffect(() => {
     if (totalEdited) return
-    const sum = jobs.reduce((acc, j) => acc + (parseFloat(j.cost) || 0), 0)
+    const parts  = jobs.reduce((acc, j) => acc + (parseFloat(j.cost) || 0), 0)
+    const labor  = parseFloat(laborCost) || 0
+    const tax    = parseFloat(taxAmount) || 0
+    const sum    = parts + labor + tax
     setTotalCost(sum > 0 ? sum.toFixed(2) : '')
-  }, [jobs, totalEdited])
+  }, [jobs, laborCost, taxAmount, totalEdited])
 
   function addJob() {
     setJobs(prev => [...prev, { _id: uid(), category: 'Oil Change', description: '', cost: '' }])
@@ -115,6 +120,8 @@ export default function MaintenanceServiceNewPage() {
       date_performed: date, performed_by: performedBy,
       shop_name: performedBy === 'shop' && shopName.trim() ? shopName.trim() : null,
       mileage: mileage ? parseInt(mileage, 10) : null,
+      labor_cost: laborCost ? parseFloat(laborCost) : null,
+      tax_amount: taxAmount ? parseFloat(taxAmount) : null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
       time_taken: timeTaken.trim() || null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
@@ -296,17 +303,33 @@ export default function MaintenanceServiceNewPage() {
           </div>
         </XPGroupBox>
 
-        {/* Total */}
+        {/* Total breakdown */}
         <XPGroupBox label="Total" style={{ padding: '10px 10px 8px', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-            <span style={{ fontFamily: XP_FONT, fontSize: 12, fontWeight: 700, color: XP_TEXT }}>Total:</span>
-            <span style={{ fontFamily: XP_FONT, fontSize: 13, color: XP_TEXT }}>$</span>
-            <input type="number" value={totalCost}
-              onChange={e => { setTotalEdited(true); setTotalCost(e.target.value) }}
-              placeholder="0.00" min="0" step="0.01"
-              className="xp-input"
-              style={{ ...xpInput, width: 110, textAlign: 'right', fontWeight: 700, fontSize: 14 }} />
-          </div>
+          {(() => {
+            const partsSum = jobs.reduce((acc, j) => acc + (parseFloat(j.cost) || 0), 0)
+            const row = (label: string, val: string, setter: (v: string) => void, readOnly = false, bold = false) => (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 5 }}>
+                <span style={{ fontFamily: XP_FONT, fontSize: 11, color: bold ? XP_TEXT : '#666', fontWeight: bold ? 700 : 400, minWidth: 56, textAlign: 'right' }}>{label}</span>
+                <span style={{ fontFamily: XP_FONT, fontSize: 12, color: '#555' }}>$</span>
+                <input type="number" value={val}
+                  readOnly={readOnly}
+                  onChange={readOnly ? undefined : e => { setter(e.target.value); if (label === 'Total:') setTotalEdited(true) }}
+                  placeholder="0.00" min="0" step="0.01"
+                  className={readOnly ? '' : 'xp-input'}
+                  style={{ ...xpInput, width: 90, textAlign: 'right', fontWeight: bold ? 700 : 400, fontSize: bold ? 14 : 12, background: readOnly ? 'transparent' : '#fff', border: readOnly ? 'none' : undefined, color: readOnly ? '#555' : XP_TEXT }} />
+              </div>
+            )
+            return (
+              <>
+                {partsSum > 0 && row('Parts:', partsSum.toFixed(2), () => {}, true)}
+                {performedBy === 'shop' && row('Labor:', laborCost, setLaborCost)}
+                {row('Tax:', taxAmount, setTaxAmount)}
+                <div style={{ borderTop: `1px solid ${XP_BORDER}`, marginTop: 4, paddingTop: 6 }}>
+                  {row('Total:', totalCost, v => { setTotalEdited(true); setTotalCost(v) }, false, true)}
+                </div>
+              </>
+            )
+          })()}
         </XPGroupBox>
 
         {/* Notes */}

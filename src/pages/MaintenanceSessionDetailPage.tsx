@@ -21,6 +21,8 @@ type Session = {
   shop_name: string | null
   mileage: number | null
   total_cost: number | null
+  labor_cost: number | null
+  tax_amount: number | null
   time_taken: string | null
   notes: string | null
   add_to_timeline: boolean
@@ -59,7 +61,7 @@ export default function MaintenanceSessionDetailPage() {
     if (!sessionId) return
     Promise.all([
       supabase.from('sessions')
-        .select('id,type,date_performed,performed_by,shop_name,mileage,total_cost,time_taken,notes,add_to_timeline,car_id')
+        .select('id,type,date_performed,performed_by,shop_name,mileage,total_cost,labor_cost,tax_amount,time_taken,notes,add_to_timeline,car_id')
         .eq('id', sessionId).single(),
       supabase.from('jobs')
         .select('id,category,title,cost')
@@ -247,15 +249,32 @@ export default function MaintenanceSessionDetailPage() {
             </div>
           )}
 
-          {/* ── Total ── */}
-          {session.total_cost != null && (
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}`, background: '#fafaf8' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
-                <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
+          {/* ── Cost breakdown ── */}
+          {(session.total_cost != null || session.labor_cost != null || session.tax_amount != null) && (() => {
+            const partsSum = jobs.reduce((acc, j) => acc + (j.cost != null ? Number(j.cost) : 0), 0)
+            const fmt = (n: number) => `$${n.toFixed(2)}`
+            const breakdownRow = (label: string, value: string, muted = true) => (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
+                <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>{label}</span>
+                <span style={{ fontFamily: MONO, fontSize: 13, color: muted ? '#555' : INV_TEXT }}>{value}</span>
               </div>
-            </div>
-          )}
+            )
+            const hasBreakdown = partsSum > 0 || session.labor_cost != null || session.tax_amount != null
+            return (
+              <div style={{ borderBottom: `1px solid ${INV_DIVIDER}`, background: '#fafaf8', paddingTop: 8, paddingBottom: 8 }}>
+                {hasBreakdown && partsSum > 0 && breakdownRow('Parts', fmt(partsSum))}
+                {session.labor_cost != null && breakdownRow('Labor', fmt(Number(session.labor_cost)))}
+                {session.tax_amount != null && breakdownRow('Tax', fmt(Number(session.tax_amount)))}
+                {hasBreakdown && <div style={{ borderTop: `1px dashed ${INV_DIVIDER}`, margin: '6px 20px 0' }} />}
+                {session.total_cost != null && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '8px 20px 2px' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
+                    <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* ── Notes ── */}
           {session.notes && (
