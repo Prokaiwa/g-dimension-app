@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import gIcon from '../assets/logo/gdimensionG.png'
+import imageCompression from 'browser-image-compression'
 
 const JOB_CATS = ['Oil Change', 'Tires', 'Brakes', 'Fluids', 'Filters', 'Battery', 'Inspection', 'Custom']
 type JobRow = { _id: string; category: string; description: string; cost: string }
@@ -45,6 +46,8 @@ const xpBtn: React.CSSProperties = {
   WebkitTapHighlightColor: 'transparent',
 }
 
+type PendingReceipt = { file: File; preview: string | null; name: string }
+
 // Group box — the classic Windows bordered panel with label on top border
 function XPGroupBox({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -76,8 +79,9 @@ export default function MaintenanceServiceNewPage() {
   const [totalEdited,   setTotalEdited]   = useState(false)
   const [timeTaken,     setTimeTaken]     = useState('')
   const [notes,         setNotes]         = useState('')
-  const [addToTimeline, setAddToTimeline] = useState(false)
-  const [saving,        setSaving]        = useState(false)
+  const [addToTimeline,    setAddToTimeline]    = useState(false)
+  const [pendingReceipts,  setPendingReceipts]  = useState<PendingReceipt[]>([])
+  const [saving,           setSaving]           = useState(false)
 
   useEffect(() => {
     getActiveCarId().then(id => {
@@ -138,7 +142,26 @@ export default function MaintenanceServiceNewPage() {
       })))
       if (jobsError) { console.error('Jobs insert error:', jobsError); setSaving(false); return }
     }
-    navigate(`/maintenance/${session.id}`)
+    if (pendingReceipts.length > 0) {
+      const { data: authData } = await supabase.auth.getUser()
+      const userId = authData?.user?.id
+      if (userId) {
+        const sid = (session as { id: string }).id
+        await Promise.all(pendingReceipts.map(async r => {
+          const isImg = r.file.type.startsWith('image/')
+          const ext   = isImg ? 'jpg' : 'pdf'
+          const path  = `${userId}/${carId}/${sid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+          let upload: File | Blob = r.file
+          if (isImg) {
+            try { upload = await imageCompression(r.file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg' }) } catch { /* use original */ }
+          }
+          const { error: upErr } = await supabase.storage.from('receipts').upload(path, upload)
+          if (upErr) return
+          await supabase.from('receipts').insert({ session_id: sid, file_url: path, file_type: isImg ? 'image' : 'pdf', file_name: r.name })
+        }))
+      }
+    }
+    navigate(`/maintenance/${(session as { id: string }).id}`)
   }
 
   return (
@@ -340,6 +363,36 @@ export default function MaintenanceServiceNewPage() {
             className="xp-input"
             style={{ ...xpInput, resize: 'none', lineHeight: 1.5, padding: '5px', height: 64 }} />
         </div>
+
+        {/* Receipts */}
+        <XPGroupBox label="Receipts">
+          {pendingReceipts.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              {pendingReceipts.map((r, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '3px 4px', background: '#f9f9f9', border: `1px solid ${XP_BORDER}` }}>
+                  {r.preview
+                    ? <img src={r.preview} style={{ width: 28, height: 28, objectFit: 'cover', flexShrink: 0 }} />
+                    : <div style={{ width: 28, height: 28, background: '#e8e8e8', border: `1px solid ${XP_BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ fontFamily: XP_FONT, fontSize: 8, fontWeight: 700, color: '#666' }}>PDF</span></div>
+                  }
+                  <span style={{ flex: 1, fontFamily: XP_FONT, fontSize: 11, color: XP_TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                  <button onClick={() => setPendingReceipts(prev => prev.filter((_, idx) => idx !== i))} className="xp-btn" style={{ ...xpBtn, minWidth: 'auto', padding: '1px 7px', fontSize: 13, lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label style={{ cursor: 'pointer' }}>
+              <input type="file" accept="image/*,application/pdf" multiple style={{ display: 'none' }}
+                onChange={e => {
+                  const files = Array.from(e.target.files ?? [])
+                  setPendingReceipts(prev => [...prev, ...files.map(f => ({ file: f, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name }))])
+                  e.target.value = ''
+                }} />
+              <span className="xp-btn" style={{ ...xpBtn, display: 'inline-block' }}>Attach Receipt</span>
+            </label>
+            {pendingReceipts.length === 0 && <span style={{ fontFamily: XP_FONT, fontSize: 11, color: '#888', fontStyle: 'italic' }}>No receipts attached</span>}
+          </div>
+        </XPGroupBox>
 
         {/* Timeline checkbox */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: XP_FONT, fontSize: 12, cursor: 'pointer', marginBottom: 12, color: XP_TEXT }}>

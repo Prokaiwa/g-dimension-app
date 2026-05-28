@@ -5,9 +5,11 @@ const DAY_LABEL   = String(_now.getDate())
 const TODAY       = _now.toISOString().split('T')[0]
 
 import { useState, useEffect } from 'react'
+import imageCompression from 'browser-image-compression'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import carwashIcon from '../assets/icons/maintenance/carwash_icon.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_TIMELINE_DETAIL,
@@ -152,6 +154,7 @@ export default function MaintenanceDetailNewPage() {
   const [totalCost, setTotalCost]     = useState('')
   const [notes, setNotes]             = useState('')
   const [addToTimeline, setAddToTimeline] = useState(false)
+  const [pendingReceipts, setPendingReceipts] = useState<{ file: File; preview: string | null; name: string }[]>([])
   const [saving, setSaving]           = useState(false)
 
   const [exteriorSel, setExteriorSel]     = useState<string[]>([])
@@ -210,6 +213,25 @@ export default function MaintenanceDetailNewPage() {
     ]
     if (jobRows.length > 0) await supabase.from('jobs').insert(jobRows)
 
+    if (pendingReceipts.length > 0) {
+      const { data: authData } = await supabase.auth.getUser()
+      const userId = authData?.user?.id
+      if (userId) {
+        await Promise.all(pendingReceipts.map(async r => {
+          const isImg = r.file.type.startsWith('image/')
+          const ext   = isImg ? 'jpg' : 'pdf'
+          const path  = `${userId}/${carId}/${sid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+          let upload: File | Blob = r.file
+          if (isImg) {
+            try { upload = await imageCompression(r.file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg' }) } catch { /* use original */ }
+          }
+          const { error: upErr } = await supabase.storage.from('receipts').upload(path, upload)
+          if (upErr) return
+          await supabase.from('receipts').insert({ session_id: sid, file_url: path, file_type: isImg ? 'image' : 'pdf', file_name: r.name })
+        }))
+      }
+    }
+
     navigate('/maintenance/detail')
   }
 
@@ -241,8 +263,7 @@ export default function MaintenanceDetailNewPage() {
 
         {/* Title */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '26px 20px 22px', borderBottom: `1px solid ${RULE}` }}>
-          {/* Swap src below once image is added to src/assets/icons/maintenance/carwash_icon.png */}
-          {/* <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} /> */}
+          <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} />
           <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 38, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>
             Car Wash
           </div>
@@ -344,6 +365,38 @@ export default function MaintenanceDetailNewPage() {
             className="cw-input"
             style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
           />
+        </div>
+
+        {/* Attach Receipt */}
+        <div style={{ padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
+          <div style={fieldLabel}>Attach Receipt</div>
+          {pendingReceipts.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginBottom: 10 }}>
+              {pendingReceipts.map((r, i) => (
+                <div key={i} style={{ position: 'relative', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 3 }}>
+                  {r.preview
+                    ? <img src={r.preview} style={{ width: 56, height: 56, objectFit: 'cover', border: `1px solid ${RULE}` }} />
+                    : <div style={{ width: 56, height: 56, background: 'rgba(0,0,0,0.04)', border: `1px solid ${RULE}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 700, color: INK_DIM }}>PDF</span></div>
+                  }
+                  <span style={{ fontFamily: FONT_UI, fontSize: 9, color: INK_DIM, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.name}</span>
+                  <button onClick={() => setPendingReceipts(prev => prev.filter((_, idx) => idx !== i))}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: INK, border: 'none', color: '#fff', fontSize: 10, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <input type="file" accept="image/*,application/pdf" multiple style={{ display: 'none' }}
+              onChange={e => {
+                const files = Array.from(e.target.files ?? [])
+                setPendingReceipts(prev => [...prev, ...files.map(f => ({ file: f, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name }))])
+                e.target.value = ''
+              }} />
+            <div style={{ padding: '7px 14px', border: `1.5px dashed ${BLUE}`, background: 'rgba(138,176,200,0.06)', color: BLUE, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 6 }}>
+              + Attach Receipt
+            </div>
+          </label>
+          <div style={{ fontFamily: FONT_UI, fontSize: 10, color: INK_DIM, marginTop: 6 }}>Image or PDF • uploads on save</div>
         </div>
 
         {/* Add to Timeline — default off for car washes */}

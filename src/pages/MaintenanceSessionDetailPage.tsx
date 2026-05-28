@@ -39,6 +39,13 @@ type Job = {
   cost: number | null
 }
 
+type ReceiptRow = {
+  id: string
+  file_url: string
+  file_type: 'image' | 'pdf'
+  file_name: string | null
+}
+
 type Car = {
   year: number | null
   make: string | null
@@ -57,8 +64,11 @@ export default function MaintenanceSessionDetailPage() {
   const [jobs,          setJobs]          = useState<Job[]>([])
   const [car,           setCar]           = useState<Car | null>(null)
   const [loading,       setLoading]       = useState(true)
-  const [deleting,      setDeleting]      = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting,          setDeleting]          = useState(false)
+  const [confirmDelete,     setConfirmDelete]     = useState(false)
+  const [receipts,          setReceipts]          = useState<ReceiptRow[]>([])
+  const [receiptUrls,       setReceiptUrls]       = useState<Record<string, string>>({})
+  const [receiptsExpanded,  setReceiptsExpanded]  = useState(false)
 
   useEffect(() => {
     if (!sessionId) return
@@ -70,7 +80,11 @@ export default function MaintenanceSessionDetailPage() {
         .select('id,category,title,cost')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true }),
-    ]).then(async ([{ data: s }, { data: j }]) => {
+      supabase.from('receipts')
+        .select('id,file_url,file_type,file_name')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: true }),
+    ]).then(async ([{ data: s }, { data: j }, { data: r }]) => {
       if (s) {
         setSession(s as Session)
         if (s.car_id) {
@@ -79,6 +93,7 @@ export default function MaintenanceSessionDetailPage() {
         }
       }
       if (j) setJobs(j as Job[])
+      if (r) setReceipts(r as ReceiptRow[])
       setLoading(false)
     })
   }, [sessionId])
@@ -86,6 +101,15 @@ export default function MaintenanceSessionDetailPage() {
   function fmtDate(d: string) {
     const [y, m, day] = d.split('-').map(Number)
     return { month: MONTHS[m - 1].toUpperCase(), day, year: y, full: `${MONTHS[m-1]} ${day}, ${y}` }
+  }
+
+  async function loadReceiptUrls(rcpts: ReceiptRow[]) {
+    const urls: Record<string, string> = {}
+    await Promise.all(rcpts.map(async r => {
+      const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url, 300)
+      if (data?.signedUrl) urls[r.id] = data.signedUrl
+    }))
+    setReceiptUrls(urls)
   }
 
   async function handleDelete() {
@@ -317,6 +341,47 @@ export default function MaintenanceSessionDetailPage() {
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
               <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 6 }}>Notes</div>
               <div style={{ fontFamily: CONTENT_FONT, fontSize: isDetail ? 14 : 12, color: '#3a3a3a', lineHeight: 1.65 }}>{session.notes}</div>
+            </div>
+          )}
+
+          {/* ── Receipts ── */}
+          {receipts.length > 0 && (
+            <div style={{ borderBottom: `1px solid ${INV_DIVIDER}` }}>
+              <button
+                onClick={() => {
+                  const next = !receiptsExpanded
+                  setReceiptsExpanded(next)
+                  if (next && Object.keys(receiptUrls).length === 0) loadReceiptUrls(receipts)
+                }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <span style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Receipts</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: 10, color: '#bbb', marginLeft: 6 }}>({receipts.length})</span>
+                <span style={{ marginLeft: 'auto', color: INV_MUTED, fontSize: 11 }}>{receiptsExpanded ? '▴' : '▾'}</span>
+              </button>
+              {receiptsExpanded && (
+                <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+                  {receipts.map(r => {
+                    const url = receiptUrls[r.id]
+                    return (
+                      <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
+                        style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${INV_DIVIDER}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 0 }}>
+                        {r.file_type === 'image' ? (
+                          url
+                            ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover' }} />
+                            : <div style={{ width: 76, height: 76, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: MONO, fontSize: 9, color: '#bbb' }}>Loading…</span></div>
+                        ) : (
+                          <div style={{ width: 76, height: 76, background: '#f5f5f5', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: '#888' }}>PDF</span>
+                            <span style={{ fontFamily: MONO, fontSize: 8, color: '#bbb' }}>tap to open</span>
+                          </div>
+                        )}
+                        {r.file_name && <span style={{ fontFamily: MONO, fontSize: 8, color: INV_MUTED, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
