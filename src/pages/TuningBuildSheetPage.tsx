@@ -89,6 +89,16 @@ type Mod = {
   title: string
   brand: string | null
   category: string | null
+  session_id: string | null
+}
+
+type ModGroup = {
+  id: string
+  title: string
+  category: string
+  date_performed: string | null
+  total_cost: number | null
+  componentCount: number
 }
 
 const COLLAPSE_AT = 5
@@ -253,10 +263,11 @@ function ModList({
 
 export default function TuningBuildSheetPage() {
   const navigate = useNavigate()
-  const [car, setCar]         = useState<Car | null>(null)
-  const [mods, setMods]       = useState<Mod[]>([])
-  const [loading, setLoading] = useState(true)
-  const [pressed, setPressed] = useState(false)
+  const [car, setCar]           = useState<Car | null>(null)
+  const [mods, setMods]         = useState<Mod[]>([])
+  const [modGroups, setModGroups] = useState<ModGroup[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [pressed, setPressed]   = useState(false)
 
   // Expand/collapse per group
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -319,7 +330,7 @@ export default function TuningBuildSheetPage() {
       const carId = await getActiveCarId()
       if (!carId) { setLoading(false); return }
 
-      const [{ data: carData }, { data: modsData }] = await Promise.all([
+      const [{ data: carData }, { data: modsData }, { data: sessData }] = await Promise.all([
         supabase
           .from('cars')
           .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo')
@@ -327,15 +338,36 @@ export default function TuningBuildSheetPage() {
           .single(),
         supabase
           .from('jobs')
-          .select('id, title, brand, category')
+          .select('id, title, brand, category, session_id')
           .eq('car_id', carId)
           .eq('status', 'installed')
           .eq('type', 'modification')
           .order('date_installed', { ascending: false, nullsFirst: false }),
+        supabase
+          .from('sessions')
+          .select('id, title, category, date_performed, total_cost, jobs(id)')
+          .eq('car_id', carId)
+          .eq('type', 'modification')
+          .not('title', 'is', null)
+          .order('date_performed', { ascending: false, nullsFirst: false }),
       ])
 
       if (carData) setCar(carData as unknown as Car)
       setMods(modsData ?? [])
+
+      // Build ModGroup list from titled sessions
+      const groups: ModGroup[] = ((sessData ?? []) as Array<{
+        id: string; title: string; category: string; date_performed: string | null;
+        total_cost: number | null; jobs: { id: string }[]
+      }>).map(s => ({
+        id: s.id,
+        title: s.title,
+        category: s.category ?? 'other',
+        date_performed: s.date_performed,
+        total_cost: s.total_cost,
+        componentCount: (s.jobs ?? []).length,
+      }))
+      setModGroups(groups)
       setLoading(false)
     }
     load()
@@ -348,9 +380,21 @@ export default function TuningBuildSheetPage() {
     interior: car.build_sheet_interior_photo,
   } : {}
 
+  // Job IDs that belong to a titled session (shown as a group card, not solo)
+  const groupedJobSessionIds = new Set(modGroups.map(g => g.id))
+
   const activeGroups = MOD_GROUPS
-    .map(g => ({ ...g, mods: mods.filter(m => g.categories.includes(m.category ?? '')) }))
-    .filter(g => g.mods.length > 0)
+    .map(g => {
+      // Solo mods: installed jobs not belonging to a titled session
+      const soloMods = mods.filter(m =>
+        g.categories.includes(m.category ?? '') &&
+        !groupedJobSessionIds.has(m.session_id ?? '')
+      )
+      // Group entries: titled sessions whose category maps to this group
+      const groups = modGroups.filter(mg => mg.category === g.id)
+      return { ...g, mods: soloMods, groups }
+    })
+    .filter(g => g.mods.length > 0 || g.groups.length > 0)
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0d0d0f', overflow: 'hidden', position: 'relative' }}>
@@ -523,7 +567,42 @@ export default function TuningBuildSheetPage() {
                   )
                 )}
 
-                {/* Mod list */}
+                {/* Group cards (titled sessions) */}
+                {group.groups.map(mg => (
+                  <div
+                    key={mg.id}
+                    onClick={() => navigate(`/tuning/mod-group/${mg.id}`)}
+                    style={{
+                      padding: '11px 10px 11px 12px',
+                      marginBottom: 6,
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      borderLeft: `2px solid rgba(200,102,26,0.55)`,
+                      cursor: 'pointer',
+                      WebkitTapHighlightColor: 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: FONT_UI, fontWeight: 700, fontSize: 14,
+                        color: 'rgba(200,102,26,0.9)', lineHeight: 1.3,
+                      }}>
+                        {mg.title}
+                      </div>
+                      <div style={{
+                        fontFamily: FONT_UI, fontSize: 10, fontWeight: 600,
+                        letterSpacing: '0.08em', color: 'rgba(245,240,228,0.28)',
+                        marginTop: 3,
+                      }}>
+                        {mg.componentCount} component{mg.componentCount !== 1 ? 's' : ''}
+                        {mg.total_cost != null ? ` · $${Number(mg.total_cost).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''}
+                      </div>
+                    </div>
+                    <span style={{ color: 'rgba(200,102,26,0.45)', fontSize: 14, marginLeft: 8, flexShrink: 0 }}>›</span>
+                  </div>
+                ))}
+
+                {/* Solo mod list */}
                 <ModList
                   mods={group.mods}
                   navigate={navigate}
@@ -670,7 +749,7 @@ export default function TuningBuildSheetPage() {
       {/* ── Add Mods FAB ── */}
       {!loading && (
         <button
-          onClick={() => navigate('/tuning/add')}
+          onClick={() => navigate('/tuning/mod/add')}
           onPointerDown={() => setPressed(true)}
           onPointerUp={() => setPressed(false)}
           onPointerLeave={() => setPressed(false)}
