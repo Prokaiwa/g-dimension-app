@@ -757,7 +757,7 @@ export default function TuningBuildSheetPage() {
       {/* ── Add Mods FAB ── */}
       {!loading && (
         <button
-          onClick={() => navigate('/tuning/mod/add')}
+          onClick={() => navigate('/tuning/add')}
           onPointerDown={() => setPressed(true)}
           onPointerUp={() => setPressed(false)}
           onPointerLeave={() => setPressed(false)}

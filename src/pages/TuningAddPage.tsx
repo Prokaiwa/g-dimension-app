@@ -1,7 +1,7 @@
 // Route: /tuning/add — 3-step animated Add Modification flow
 // Step 1: Category picker → Step 2: Part type picker → Step 3: Form + Specs
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -155,8 +155,14 @@ function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
 export default function TuningAddPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const partsBinMode = searchParams.get('dest') === 'parts-bin'
   const returnPath = partsBinMode ? '/tuning/parts-bin' : '/tuning/build-sheet'
+
+  // When navigating here from a group detail page, these are set in router state
+  const locState = location.state as { sessionId?: string; groupTitle?: string } | null
+  const existingSessionId  = locState?.sessionId  ?? null
+  const existingGroupTitle = locState?.groupTitle ?? null
 
   // step state — drives the sliding strip
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -189,6 +195,7 @@ export default function TuningAddPage() {
   const [newLinkLabel, setNewLinkLabel]   = useState('')
   const [newLinks,     setNewLinks]       = useState<{ url: string; label: string }[]>([])
   const [addToTimeline, setAddToTimeline]  = useState(true)
+  const [groupName,     setGroupName]      = useState('')
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
@@ -445,21 +452,40 @@ export default function TuningAddPage() {
     const userId = session?.user?.id
     if (!userId) { setSaving(false); return }
 
-    // 1. Optionally create a modification session for timeline entry
-    let sessionId: string | null = null
-    if (!partsBinMode && addToTimeline) {
-      const today = new Date().toISOString().split('T')[0]
-      const { data: sData } = await supabase
-        .from('sessions')
-        .insert({
-          car_id:          carId,
-          type:            'modification',
-          date_performed:  form.dateInstalled || today,
-          add_to_timeline: true,
-        })
-        .select('id')
-        .single()
-      if (sData) sessionId = (sData as { id: string }).id
+    const today = new Date().toISOString().split('T')[0]
+
+    // 1. Determine which session to attach this job to
+    let sessionId: string | null = existingSessionId
+
+    if (!partsBinMode && !sessionId) {
+      if (groupName.trim()) {
+        // New named group session — job becomes first component
+        const { data: sData } = await supabase
+          .from('sessions')
+          .insert({
+            car_id:          carId,
+            type:            'modification',
+            title:           groupName.trim(),
+            date_performed:  form.dateInstalled || today,
+            add_to_timeline: addToTimeline,
+          })
+          .select('id')
+          .single()
+        if (sData) sessionId = (sData as { id: string }).id
+      } else if (addToTimeline) {
+        // Anonymous session for timeline only (solo mod, existing behaviour)
+        const { data: sData } = await supabase
+          .from('sessions')
+          .insert({
+            car_id:          carId,
+            type:            'modification',
+            date_performed:  form.dateInstalled || today,
+            add_to_timeline: true,
+          })
+          .select('id')
+          .single()
+        if (sData) sessionId = (sData as { id: string }).id
+      }
     }
 
     // 2. INSERT job
@@ -546,7 +572,11 @@ export default function TuningAddPage() {
     }
 
     setSaving(false)
-    navigate(returnPath)
+    if (!partsBinMode && sessionId && (groupName.trim() || existingSessionId)) {
+      navigate(`/tuning/mod-group/${sessionId}`)
+    } else {
+      navigate(returnPath)
+    }
   }
 
   // ── Derived spec groups ─────────────────────────────────────────────────
@@ -1100,8 +1130,8 @@ export default function TuningAddPage() {
               </div>
             </div>
 
-            {/* Add to Timeline — build-sheet mode only */}
-            {!partsBinMode && (
+            {/* Add to Timeline — build-sheet mode only, hidden when adding to an existing group */}
+            {!partsBinMode && !existingSessionId && (
               <div style={{ padding: '24px 22px 0' }}>
                 <button
                   onClick={() => setAddToTimeline(v => !v)}
@@ -1125,6 +1155,27 @@ export default function TuningAddPage() {
                     </div>
                   </div>
                 </button>
+              </div>
+            )}
+
+            {/* Existing group context banner — shown when adding to a group */}
+            {!partsBinMode && existingSessionId && existingGroupTitle && (
+              <div style={{ padding: '24px 22px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontFamily: FONT_UI, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.28)' }}>Adding to</span>
+                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.65)', fontStyle: 'italic' }}>{existingGroupTitle}</span>
+              </div>
+            )}
+
+            {/* Optional group name — solo mods only (hidden when adding to existing group) */}
+            {!partsBinMode && !existingSessionId && (
+              <div style={{ padding: '24px 22px 0' }}>
+                <label style={lbl}>Part of a bigger install? <span style={{ opacity: 0.5, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span></label>
+                <input
+                  value={groupName}
+                  onChange={e => setGroupName(e.target.value)}
+                  placeholder="e.g. Built Block, Big Turbo Kit…"
+                  style={{ ...inp, caretColor: '#39ff14' }}
+                />
               </div>
             )}
 

@@ -328,6 +328,28 @@ export default function TuningModGroupPage() {
         </div>
       )}
 
+      {/* ── Add Component FAB ── */}
+      {!loading && session && !deleteSheet && (
+        <button
+          onClick={() => navigate('/tuning/add', { state: { sessionId: session.id, groupTitle: session.title } })}
+          style={{
+            position: 'fixed', right: 20, bottom: 28, zIndex: 20,
+            height: 44, paddingLeft: 20, paddingRight: 20,
+            background: 'rgba(200,102,26,0.12)',
+            border: '1.5px solid rgba(200,102,26,0.55)',
+            cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: COLOR_ACCENT,
+            display: 'flex', alignItems: 'center', gap: 7,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.50)',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ fontSize: 18, fontWeight: 300, lineHeight: 1, marginTop: -1 }}>+</span>
+          Add Component
+        </button>
+      )}
+
       {/* ── Delete confirmation overlay ── */}
       {deleteSheet && (
         <div
