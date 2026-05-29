@@ -19,7 +19,7 @@ type ServiceSession = {
   date_performed: string
   mileage: number | null
   total_cost: number | null
-  jobs: { category: string | null }[]
+  jobs: { title: string }[]
 }
 
 export default function MaintenanceServicePage() {
@@ -33,7 +33,7 @@ export default function MaintenanceServicePage() {
       if (!carId) { setLoading(false); return }
       supabase
         .from('sessions')
-        .select('id, date_performed, mileage, total_cost, jobs(category)')
+        .select('id, date_performed, mileage, total_cost, jobs(title)')
         .eq('car_id', carId)
         .eq('type', 'maintenance')
         .order('date_performed', { ascending: false })
@@ -131,15 +131,17 @@ export default function MaintenanceServicePage() {
         {!loading && sessions.map((s, i) => (
           <button key={s.id} onClick={() => navigate(`/maintenance/${s.id}`)} style={{
             width: '100%', display: 'flex', alignItems: 'center',
-            background: i % 2 === 0 ? 'rgba(212,184,106,0.09)' : 'rgba(14,18,24,0.28)',
+            background: i % 2 === 0 ? 'rgba(212,184,106,0.09)' : 'rgba(14,18,24,0.16)',
             border: 'none', borderBottom: '1px solid rgba(212,184,106,0.08)',
             padding: '13px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
           }}>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_SERVICE, minWidth: 72 }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_SERVICE, minWidth: 72, flexShrink: 0 }}>
               {fmtDate(s.date_performed)}
             </span>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.50)', flex: 1, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 10 }}>
-              {s.jobs?.[0]?.category ?? 'Service'}
+            <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.48)', flex: 1, textAlign: 'left', paddingLeft: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {s.jobs?.length > 0
+                ? s.jobs.slice(0, 2).map(j => j.title).join(', ') + (s.jobs.length > 2 ? '…' : '')
+                : '—'}
             </span>
             {s.mileage != null && (
               <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: 'rgba(245,245,245,0.30)', paddingRight: 10 }}>
