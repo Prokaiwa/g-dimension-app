@@ -132,18 +132,18 @@ export default function MaintenanceDetailPage() {
             width: '100%', display: 'flex', alignItems: 'center',
             background: i % 2 === 0 ? 'rgba(138,176,200,0.10)' : 'rgba(6,16,26,0.16)',
             border: 'none', borderBottom: '1px solid rgba(138,176,200,0.08)',
-            padding: '14px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            padding: '13px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
           }}>
-            <div style={{ flex: 1, textAlign: 'left' }}>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, color: 'rgba(245,245,245,0.88)' }}>{fmtDate(s.date_performed)}</div>
-              {s.jobs?.length > 0 && (
-                <div style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,245,245,0.40)', marginTop: 2 }}>
-                  {s.jobs.slice(0, 2).map(j => j.title).join(', ')}{s.jobs.length > 2 ? '…' : ''}
-                </div>
-              )}
-            </div>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_DETAIL, minWidth: 72, flexShrink: 0 }}>
+              {fmtDate(s.date_performed)}
+            </span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.48)', flex: 1, textAlign: 'left', paddingLeft: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {s.jobs?.length > 0
+                ? s.jobs.slice(0, 2).map(j => j.title).join(', ') + (s.jobs.length > 2 ? '…' : '')
+                : '—'}
+            </span>
             {s.total_cost != null && (
-              <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,245,245,0.88)', paddingRight: 10 }}>
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: 'rgba(245,245,245,0.88)', paddingRight: 6 }}>
                 ${Number(s.total_cost).toFixed(2)}
               </span>
             )}
