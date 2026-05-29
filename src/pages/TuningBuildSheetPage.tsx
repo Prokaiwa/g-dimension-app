@@ -95,7 +95,7 @@ type Mod = {
 type ModGroup = {
   id: string
   title: string
-  category: string
+  groupId: string
   date_performed: string | null
   total_cost: number | null
   componentCount: number
@@ -345,7 +345,7 @@ export default function TuningBuildSheetPage() {
           .order('date_installed', { ascending: false, nullsFirst: false }),
         supabase
           .from('sessions')
-          .select('id, title, category, date_performed, total_cost, jobs(id)')
+          .select('id, title, date_performed, total_cost, jobs(id, category)')
           .eq('car_id', carId)
           .eq('type', 'modification')
           .not('title', 'is', null)
@@ -355,14 +355,24 @@ export default function TuningBuildSheetPage() {
       if (carData) setCar(carData as unknown as Car)
       setMods(modsData ?? [])
 
+      // Derive which MOD_GROUP section a session belongs to from its jobs' categories
+      function sessionGroupId(jobs: { category: string | null }[]): string {
+        for (const j of jobs) {
+          for (const g of MOD_GROUPS) {
+            if (g.categories.includes(j.category ?? '')) return g.id
+          }
+        }
+        return 'other'
+      }
+
       // Build ModGroup list from titled sessions
       const groups: ModGroup[] = ((sessData ?? []) as Array<{
-        id: string; title: string; category: string; date_performed: string | null;
-        total_cost: number | null; jobs: { id: string }[]
+        id: string; title: string; date_performed: string | null;
+        total_cost: number | null; jobs: { id: string; category: string | null }[]
       }>).map(s => ({
         id: s.id,
         title: s.title,
-        category: s.category ?? 'other',
+        groupId: sessionGroupId(s.jobs ?? []),
         date_performed: s.date_performed,
         total_cost: s.total_cost,
         componentCount: (s.jobs ?? []).length,
@@ -390,8 +400,8 @@ export default function TuningBuildSheetPage() {
         g.categories.includes(m.category ?? '') &&
         !groupedJobSessionIds.has(m.session_id ?? '')
       )
-      // Group entries: titled sessions whose category maps to this group
-      const groups = modGroups.filter(mg => mg.category === g.id)
+      // Group entries: titled sessions whose derived section matches this group
+      const groups = modGroups.filter(mg => mg.groupId === g.id)
       return { ...g, mods: soloMods, groups }
     })
     .filter(g => g.mods.length > 0 || g.groups.length > 0)
@@ -573,32 +583,30 @@ export default function TuningBuildSheetPage() {
                     key={mg.id}
                     onClick={() => navigate(`/tuning/mod-group/${mg.id}`)}
                     style={{
-                      padding: '11px 10px 11px 12px',
-                      marginBottom: 6,
+                      padding: '10px 0 10px 8px',
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: `2px solid rgba(200,102,26,0.55)`,
+                      borderLeft: '2px solid transparent',
                       cursor: 'pointer',
                       WebkitTapHighlightColor: 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      display: 'flex', alignItems: 'center',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
-                        fontFamily: FONT_UI, fontWeight: 700, fontSize: 14,
-                        color: 'rgba(200,102,26,0.9)', lineHeight: 1.3,
+                        fontFamily: FONT_UI, fontWeight: 600, fontSize: 14,
+                        color: 'rgba(180,192,205,0.88)', lineHeight: 1.3,
                       }}>
                         {mg.title}
                       </div>
                       <div style={{
-                        fontFamily: FONT_UI, fontSize: 10, fontWeight: 600,
-                        letterSpacing: '0.08em', color: 'rgba(245,240,228,0.28)',
-                        marginTop: 3,
+                        fontFamily: FONT_UI, fontSize: 11,
+                        color: 'rgba(245,240,228,0.28)', marginTop: 2,
                       }}>
                         {mg.componentCount} component{mg.componentCount !== 1 ? 's' : ''}
                         {mg.total_cost != null ? ` · $${Number(mg.total_cost).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ''}
                       </div>
                     </div>
-                    <span style={{ color: 'rgba(200,102,26,0.45)', fontSize: 14, marginLeft: 8, flexShrink: 0 }}>›</span>
+                    <span style={{ color: 'rgba(245,240,228,0.2)', fontSize: 14, flexShrink: 0 }}>›</span>
                   </div>
                 ))}
 

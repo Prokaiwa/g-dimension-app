@@ -67,15 +67,6 @@ const INP: React.CSSProperties = {
 
 const TILE_SHADOW = '-5px 0 7px -1px rgba(105,12,22,0.65), 0 5px 7px -1px rgba(18,55,190,0.5)'
 
-// Build Sheet sections (the 4 broad groups + Other)
-const BS_GROUPS = [
-  { id: 'power',    label: 'Power'    },
-  { id: 'chassis',  label: 'Chassis'  },
-  { id: 'exterior', label: 'Exterior' },
-  { id: 'interior', label: 'Interior' },
-  { id: 'other',    label: 'Other'    },
-]
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function parseOpts(raw: string | null): string[] {
@@ -101,7 +92,6 @@ export default function TuningModAddPage() {
 
   // ── Header form state ──
   const [modTitle,      setModTitle]      = useState('')
-  const [bsGroup,       setBsGroup]       = useState('')
   const [date,          setDate]          = useState(_today)
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop' | null>(null)
   const [shopName,      setShopName]      = useState('')
@@ -233,7 +223,6 @@ export default function TuningModAddPage() {
       car_id: carId,
       type: 'modification',
       title: modTitle.trim(),
-      category: bsGroup,
       date_performed: date,
       performed_by: performedBy || null,
       shop_name: performedBy === 'shop' ? shopName.trim() || null : null,
@@ -353,7 +342,7 @@ export default function TuningModAddPage() {
   const basicGroups   = groupBy(basicSpecs, t => t.group_label ?? '')
   const advancedGroups = groupBy(advancedSpecs, t => t.group_label ?? '')
 
-  const canSave = modTitle.trim().length > 0 && bsGroup !== '' && components.length > 0 && !saving
+  const canSave = modTitle.trim().length > 0 && components.length > 0 && !saving
   const canCommitComp = compTitle.trim().length > 0 && !!selectedCat && !!selectedPT
 
   const backLabel =
@@ -411,32 +400,6 @@ export default function TuningModAddPage() {
               placeholder="e.g. Built Block, Big Turbo Kit…"
               style={{ ...INP, fontSize: 18, caretColor: '#39ff14' }}
             />
-          </div>
-
-          {/* Build Sheet Section */}
-          <div style={{ padding: '24px 22px 0' }}>
-            <label style={LBL}>Build Sheet Section *</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 4 }}>
-              {BS_GROUPS.map(g => {
-                const active = bsGroup === g.id
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => setBsGroup(g.id)}
-                    style={{
-                      padding: '7px 14px',
-                      background: active ? 'rgba(105,12,22,0.22)' : 'transparent',
-                      border: `1.5px solid ${active ? 'rgba(105,12,22,0.75)' : 'rgba(245,240,228,0.11)'}`,
-                      cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
-                      letterSpacing: '0.14em', textTransform: 'uppercase',
-                      color: active ? '#c0303a' : 'rgba(245,240,228,0.38)',
-                      transition: 'all 200ms ease',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >{g.label}</button>
-                )
-              })}
-            </div>
           </div>
 
           {/* Date + Performed By */}
@@ -534,7 +497,7 @@ export default function TuningModAddPage() {
             </button>
             {!canSave && !saving && (
               <p style={{ fontFamily: FONT_UI, fontSize: 10, color: 'rgba(245,240,228,0.22)', marginTop: 8, textAlign: 'center', lineHeight: 1.5, letterSpacing: '0.06em' }}>
-                {!modTitle.trim() ? 'Add a build sheet name' : !bsGroup ? 'Pick a section' : 'Add at least one component'}
+                {!modTitle.trim() ? 'Add a build sheet name' : 'Add at least one component'}
               </p>
             )}
           </div>

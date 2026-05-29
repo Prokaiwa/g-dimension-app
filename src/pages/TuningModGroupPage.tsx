@@ -31,7 +31,6 @@ const VALUE_STYLE: React.CSSProperties = {
 type ModSession = {
   id: string
   title: string | null
-  category: string | null
   date_performed: string | null
   performed_by: 'self' | 'shop' | null
   shop_name: string | null
@@ -70,7 +69,7 @@ export default function TuningModGroupPage() {
       const [{ data: sess }, { data: jobs }] = await Promise.all([
         supabase
           .from('sessions')
-          .select('id, title, category, date_performed, performed_by, shop_name, total_cost, notes, add_to_timeline')
+          .select('id, title, date_performed, performed_by, shop_name, total_cost, notes, add_to_timeline')
           .eq('id', sessionId)
           .single(),
         supabase
@@ -171,15 +170,6 @@ export default function TuningModGroupPage() {
             }}>
               {session.title || 'Untitled Build'}
             </p>
-            {session.category && (
-              <p style={{
-                fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
-                letterSpacing: '0.18em', textTransform: 'uppercase',
-                color: 'rgba(245,240,228,0.28)', margin: '6px 0 0',
-              }}>
-                {session.category.charAt(0).toUpperCase() + session.category.slice(1)}
-              </p>
-            )}
           </div>
 
           {/* ── Info rows ── */}
