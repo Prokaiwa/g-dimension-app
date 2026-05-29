@@ -160,7 +160,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `032_session_cost_breakdown.sql` — run in order.
+`supabase/migrations/001_users.sql` → `033_session_mod_groups.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -174,6 +174,7 @@ const carId = await getActiveCarId()
 | `030_sale_tracking.sql` | `jobs.sale_price` (decimal), `jobs.sale_date` (date) — populated when status=`sold` |
 | `031_job_links.sql` | `job_links` table — multiple URLs per job, RLS + grants |
 | `032_session_cost_breakdown.sql` | `sessions.labor_cost` (decimal), `sessions.tax_amount` (decimal) — shop invoice cost breakdown |
+| `033_session_mod_groups.sql` | `sessions.title text` — display name for grouped mod entries on the Build Sheet (nullable; only set on `type='modification'` sessions created via the grouped install flow) |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -190,6 +191,12 @@ The `jobs` table has these columns beyond what MASTER_ARCHITECTURE.md shows:
 - `installed_by` — `'self' | 'shop'`
 
 **Labor cost rule:** Only show/insert `labor_cost` when `installed_by === 'shop'`. Never show it when self-installed or unset.
+
+### Extra Columns on `sessions` (not in architecture doc)
+
+- `title text` (nullable) — Build Sheet display name for grouped mod installs (e.g. "Built Block"). Only populated on `type='modification'` sessions created via the grouped install flow. Sessions without a title are anonymous (timeline-only envelopes for solo mods, or maintenance/detail sessions).
+- `labor_cost decimal` (nullable) — shop labor portion of a maintenance session invoice (migration 032)
+- `tax_amount decimal` (nullable) — tax on a maintenance session invoice (migration 032)
 
 ### Build Sheet Groups
 
@@ -236,7 +243,8 @@ src/lib/activeCar.ts                — Active car get/set/sync helpers
 src/lib/links.ts                    — getYouTubeId, getYouTubeThumbnail, JobLink type
 src/App.tsx                         — Route tree + ProtectedRoute + auth sync on sign-in
 src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by 4 other pages)
-src/pages/TuningAddPage.tsx         — 3-step add mod flow (category → part type → form)
+src/pages/TuningAddPage.tsx         — Add mod flow (category → part type → form); optional group name field at bottom creates a named session for batch installs
+src/pages/TuningModGroupPage.tsx    — Group detail page (/tuning/mod-group/:sessionId): shows session title, components list, notes; + Add Component FAB loops back to TuningAddPage with sessionId in router state
 src/pages/TuningModDetailPage.tsx   — Mod detail + carousel/viewer + links display + Remove from Car sheet
 src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + photos + links)
 src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic, In Storage + On Hand)
@@ -253,7 +261,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–031
+supabase/migrations/                — Numbered SQL files 001–033
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
@@ -266,11 +274,21 @@ All primary routes are implemented:
 - Auth: Landing, Login, Signup
 - Hub: Home map
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
-- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (3-step), Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
+- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (category → part type → form, with optional group field for batch installs), Mod Group detail, Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
 - Maintenance: landing (GT Auto diagonal), service form, session detail, detailing log, add detail session
 - Timeline: scroll, entry detail
 - Photos: masonry gallery
 - Profile, Settings, Settings/Archived, Public Profile (`/builds/:username`)
+
+**Grouped mod installs** (migration 033, built May 2026):
+
+*Data model:* A "group" is a `sessions` row with `type='modification'` and `title` set. Its components are `jobs` rows with `session_id` pointing to that session. Solo mods (existing behaviour) are bare jobs with no session, or jobs linked to an anonymous session (no title) created only for timeline purposes.
+
+*Add flow:* `/tuning/add` — same 3-step category → part type → form flow as before. An optional "Part of a bigger install?" field at the bottom of Step 3 accepts a group name. If filled, a named session is created and the user lands on the group detail page. If blank, saves as a solo job (unchanged behaviour).
+
+*Group detail page:* `/tuning/mod-group/:sessionId` — shows the session title, date, performed by, total cost, component list (each tappable → `/tuning/mods/:id`), notes, delete. "+ Add Component" FAB navigates to `/tuning/add` with `{ sessionId, groupTitle }` in React Router state, which links the new job to the existing session.
+
+*Build Sheet display:* Group cards appear in the relevant section (derived from component jobs' categories via `MOD_GROUPS`). Each group card shows title + component count + cost. Solo mods whose `session_id` belongs to a titled session are hidden from the solo list to avoid double-display. Group cards use the same color as solo mod rows.
 
 **Section photo system** (added in `186b2d0`):
 - Mod photos have a "Set [Group]" button → writes to `cars.build_sheet_*_photo`
@@ -418,6 +436,8 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 - **Magazine sheen overlay** on TuningModDetailPage and TuningModEditPage: two `position: fixed` divs (radial gradients) + SVG fractal noise grain at `opacity: 0.028, mixBlendMode: 'screen'`. This is intentional and should stay.
 - **hotfixes.sql** — `durometer` spec_template has `unit='A'` and `placeholder=null` (changed from 'Shore' and '75' respectively). Applied directly to live DB.
 - **job_links display order** — existing links keep their `display_order`; new links added in an edit session get `display_order = existingLinks.length + i`. No reordering UI yet.
+- **Grouped mod sessions** — `sessions.title IS NOT NULL` is the signal that a session is a named group. When querying the Build Sheet, the code fetches titled sessions separately and derives their section from `jobs.category` via `MOD_GROUPS`. Never hard-code a `category` column on sessions for this purpose — section placement is always derived.
+- **TuningAddPage router state** — when navigating to `/tuning/add` from a group detail page, pass `{ sessionId, groupTitle }` in React Router `state`. The page reads this via `useLocation().state` and skips session creation, attaching the new job directly to the existing session. After save it navigates to `/tuning/mod-group/:sessionId`.
 
 ---
 
