@@ -211,7 +211,7 @@ export default function TuningModAddPage() {
   // ── Save ────────────────────────────────────────────────────────────────
 
   async function handleSave() {
-    if (!modTitle.trim() || !bsGroup || components.length === 0 || saving) return
+    if (!modTitle.trim() || components.length === 0 || saving) return
     setSaving(true)
     const carId = await getActiveCarId()
     const { data: { session: auth } } = await supabase.auth.getSession()
@@ -460,7 +460,7 @@ export default function TuningModAddPage() {
               </div>
             ) : (
               <div>
-                {components.map((comp, i) => (
+                {components.map((comp) => (
                   <div key={comp._id} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(245,240,228,0.06)' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, color: 'rgba(245,240,228,0.85)' }}>{comp.title}</div>
