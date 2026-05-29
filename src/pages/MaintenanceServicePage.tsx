@@ -131,7 +131,7 @@ export default function MaintenanceServicePage() {
         {!loading && sessions.map((s, i) => (
           <button key={s.id} onClick={() => navigate(`/maintenance/${s.id}`)} style={{
             width: '100%', display: 'flex', alignItems: 'center',
-            background: i === 0 ? 'rgba(212,184,106,0.07)' : 'rgba(14,18,24,0.62)',
+            background: i % 2 === 0 ? 'rgba(212,184,106,0.09)' : 'rgba(14,18,24,0.28)',
             border: 'none', borderBottom: '1px solid rgba(212,184,106,0.08)',
             padding: '13px 16px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
           }}>
