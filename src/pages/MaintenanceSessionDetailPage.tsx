@@ -7,14 +7,18 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import gLogo from '../assets/logo/gdimensionG.png'
+import carwashIcon from '../assets/icons/maintenance/carwash_icon.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
-  COLOR_TIMELINE_SERVICE, COLOR_BURGUNDY_L,
+  COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_BURGUNDY_L,
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
-// Light token for the detail session card
-const DETAIL_AMBER = COLOR_TIMELINE_SERVICE
+const CW_BG     = '#f4f8fb'
+const CW_BLUE   = COLOR_TIMELINE_DETAIL   // '#8ab0c8'
+const CW_INK    = '#111827'
+const CW_DIM    = 'rgba(0,0,0,0.40)'
+const CW_RULE   = 'rgba(0,0,0,0.07)'
 
 type Session = {
   id: string
@@ -122,7 +126,6 @@ export default function MaintenanceSessionDetailPage() {
   const isDetail  = session?.type === 'detail'
   const backRoute = isDetail ? '/maintenance/detail' : '/maintenance'
   const backLabel = isDetail ? 'Detailing' : 'Service'
-  const CONTENT_FONT = isDetail ? FONT_UI : MONO
 
   if (loading) return (
     <div style={{ height: '100dvh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
@@ -140,7 +143,7 @@ export default function MaintenanceSessionDetailPage() {
   const invoiceNum = session.id.replace(/-/g, '').slice(-8).toUpperCase()
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: '#f0eeeb', fontFamily: FONT_UI, overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: isDetail ? CW_BG : '#f0eeeb', fontFamily: FONT_UI, overflow: 'hidden' }}>
 
       {/* ── Header ── */}
       <div style={{ height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
@@ -154,136 +157,243 @@ export default function MaintenanceSessionDetailPage() {
         </div>
       </div>
 
-      {/* ── Invoice body ── */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
 
-        {/* Paper invoice */}
-        <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', overflow: 'hidden', borderTop: isDetail ? `3px solid ${DETAIL_AMBER}` : 'none' }}>
+        {isDetail ? (
+          /* ══ CAR WASH VIEW ══ */
+          <div style={{ position: 'relative', minHeight: '100%' }}>
 
-          {/* Faint G logo watermark — inside paper so white bg doesn't hide it */}
-          <img
-            src={gLogo}
-            aria-hidden
-            style={{
-              position: 'absolute',
-              top: '50%', left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 300, height: 300,
-              objectFit: 'contain',
-              opacity: 0.05,
-              pointerEvents: 'none',
-              zIndex: 0,
-              userSelect: 'none',
-            }}
-          />
+            {/* Faint G watermark */}
+            <img src={gLogo} aria-hidden style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 320, height: 320, objectFit: 'contain', opacity: 0.05, pointerEvents: 'none', zIndex: 0, userSelect: 'none' }} />
 
-          {/* ── Invoice header ── */}
-          <div style={{ padding: '20px 20px 16px', borderBottom: `2px solid ${INV_DIVIDER}`, position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              {/* G logo + brand */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <img src={gLogo} alt="G-Dimension" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-                <div>
-                  <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: INV_TEXT, letterSpacing: '0.04em' }}>G-DIMENSION</div>
-                  <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, color: INV_MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>gdimension.app</div>
-                </div>
+            <div style={{ position: 'relative', zIndex: 1, padding: '0 0 80px' }}>
+
+              {/* Icon + Title */}
+              <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${CW_RULE}` }}>
+                <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 80, height: 80, objectFit: 'contain', display: 'block', marginBottom: 10 }} />
+                <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 40, color: CW_BLUE, lineHeight: 1, letterSpacing: '-0.02em', textAlign: 'center' }}>Car Wash</div>
               </div>
-              {/* Invoice type + number */}
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: CONTENT_FONT, fontWeight: 700, fontSize: 15, color: INV_TEXT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                  {isDetail ? 'Detail Record' : 'Service Invoice'}
-                </div>
-                <div style={{ fontFamily: CONTENT_FONT, fontSize: 10, color: INV_MUTED, marginTop: 2 }}>#{invoiceNum}</div>
-              </div>
-            </div>
-          </div>
 
-          {/* ── Date / Vehicle row ── */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-            {/* Date */}
-            <div style={{ flex: 1, padding: '14px 20px', borderRight: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>{isDetail ? 'Date' : 'Date of Service'}</div>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{dateStr}</div>
-            </div>
-            {/* Mileage */}
-            {session.mileage != null ? (
-              <div style={{ flex: 1, padding: '14px 20px' }}>
-                <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Odometer</div>
-                <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>mi</span></div>
-              </div>
-            ) : car ? (
-              <div style={{ flex: 1, padding: '14px 20px' }}>
-                <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Vehicle</div>
-                <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
-              </div>
-            ) : <div style={{ flex: 1 }} />}
-          </div>
-
-          {/* ── Vehicle (if we have mileage AND car, show vehicle here) ── */}
-          {car && session.mileage != null && (
-            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Vehicle</div>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
-            </div>
-          )}
-
-          {/* ── Performed By ── */}
-          {(session.performed_by || session.shop_name || session.time_taken) && (
-            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-                {session.performed_by && (
+              {/* Date + Mileage */}
+              <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' as const }}>
                   <div>
-                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Performed By</div>
-                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT, textTransform: 'uppercase' }}>
-                      {session.performed_by === 'shop' ? (session.shop_name || 'Shop / Dealer') : 'Self'}
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Date</div>
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>{dateStr}</div>
+                  </div>
+                  {session.mileage != null && (
+                    <div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Mileage</div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 12, color: CW_DIM }}>mi</span></div>
                     </div>
-                  </div>
-                )}
-                {session.time_taken && (
-                  <div>
-                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Time Taken</div>
-                    <div style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: INV_TEXT }}>{session.time_taken}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Services / Line items ── */}
-          {isDetail ? (
-            /* Car wash: show selected services as grouped chips */
-            jobs.length > 0 && (() => {
-              const extJobs = jobs.filter(j => j.category === 'exterior')
-              const intJobs = jobs.filter(j => j.category === 'interior')
-              const ungrouped = jobs.filter(j => j.category !== 'exterior' && j.category !== 'interior')
-              return (
-                <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-                  {extJobs.length > 0 && (
-                    <div style={{ marginBottom: intJobs.length > 0 || ungrouped.length > 0 ? 12 : 0 }}>
-                      <div style={{ fontFamily: FONT_UI, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 8 }}>Exterior</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                        {extJobs.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
+                  )}
+                  {session.performed_by && (
+                    <div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Performed By</div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>
+                        {session.performed_by === 'shop' ? (session.shop_name || 'Shop') : 'Self'}
                       </div>
                     </div>
                   )}
-                  {intJobs.length > 0 && (
-                    <div style={{ marginBottom: ungrouped.length > 0 ? 12 : 0 }}>
-                      <div style={{ fontFamily: FONT_UI, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 8 }}>Interior</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                        {intJobs.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
-                      </div>
+                  {session.time_taken && (
+                    <div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Time Taken</div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>{session.time_taken}</div>
                     </div>
                   )}
-                  {ungrouped.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                      {ungrouped.map(j => <span key={j.id} style={{ padding: '4px 10px', borderRadius: 9999, border: '1px solid rgba(138,176,200,0.45)', background: 'rgba(138,176,200,0.08)', fontFamily: FONT_UI, fontSize: 11, color: '#2a5a7a' }}>{j.title}</span>)}
+                  {session.total_cost != null && (
+                    <div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Total Cost</div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 20, color: CW_INK }}>${Number(session.total_cost).toFixed(2)}</div>
                     </div>
                   )}
                 </div>
-              )
-            })()
-          ) : (
-            /* Service: invoice-style line items with amounts */
+              </div>
+
+              {/* Exterior chips */}
+              {(() => {
+                const extJobs = jobs.filter(j => j.category === 'exterior')
+                if (extJobs.length === 0) return null
+                return (
+                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.20em', textTransform: 'uppercase', color: CW_BLUE, marginBottom: 10 }}>Exterior</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                      {extJobs.map(j => (
+                        <span key={j.id} style={{ padding: '6px 12px', borderRadius: 6, border: `1.5px solid ${CW_BLUE}`, background: 'rgba(138,176,200,0.14)', color: CW_INK, fontFamily: FONT_UI, fontWeight: 700, fontSize: 12 }}>{j.title}</span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Interior chips */}
+              {(() => {
+                const intJobs = jobs.filter(j => j.category === 'interior')
+                if (intJobs.length === 0) return null
+                return (
+                  <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.20em', textTransform: 'uppercase', color: CW_BLUE, marginBottom: 10 }}>Interior</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                      {intJobs.map(j => (
+                        <span key={j.id} style={{ padding: '6px 12px', borderRadius: 6, border: `1.5px solid ${CW_BLUE}`, background: 'rgba(138,176,200,0.14)', color: CW_INK, fontFamily: FONT_UI, fontWeight: 700, fontSize: 12 }}>{j.title}</span>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Notes */}
+              {session.notes && (
+                <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                  <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 6 }}>Notes</div>
+                  <div style={{ fontFamily: FONT_UI, fontSize: 14, color: CW_INK, lineHeight: 1.65 }}>{session.notes}</div>
+                </div>
+              )}
+
+              {/* Receipts */}
+              {receipts.length > 0 && (
+                <div style={{ borderBottom: `1px solid ${CW_RULE}` }}>
+                  <button
+                    onClick={() => {
+                      const next = !receiptsExpanded
+                      setReceiptsExpanded(next)
+                      if (next && Object.keys(receiptUrls).length === 0) loadReceiptUrls(receipts)
+                    }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '14px 20px', background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM }}>Receipts</span>
+                    <span style={{ fontFamily: FONT_UI, fontSize: 10, color: CW_BLUE, marginLeft: 6, fontWeight: 700 }}>({receipts.length})</span>
+                    <span style={{ marginLeft: 'auto', color: CW_DIM, fontSize: 11 }}>{receiptsExpanded ? '▴' : '▾'}</span>
+                  </button>
+                  {receiptsExpanded && (
+                    <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+                      {receipts.map(r => {
+                        const url = receiptUrls[r.id]
+                        return (
+                          <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
+                            style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${CW_RULE}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 4 }}>
+                            {r.file_type === 'image' ? (
+                              url
+                                ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 2 }} />
+                                : <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: CW_DIM }}>Loading…</span></div>
+                            ) : (
+                              <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                <span style={{ fontFamily: FONT_UI, fontSize: 16, fontWeight: 700, color: CW_BLUE }}>PDF</span>
+                                <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM }}>tap to open</span>
+                              </div>
+                            )}
+                            {r.file_name && <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Timeline badge */}
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                <span style={{
+                  fontFamily: FONT_UI, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
+                  padding: '4px 10px', borderRadius: 9999,
+                  border: `1px solid ${session.add_to_timeline ? `${CW_BLUE}88` : 'rgba(0,0,0,0.15)'}`,
+                  color: session.add_to_timeline ? CW_BLUE : CW_DIM,
+                  background: session.add_to_timeline ? 'rgba(138,176,200,0.12)' : 'transparent',
+                  fontWeight: 700,
+                }}>
+                  {session.add_to_timeline ? '◆ In Timeline' : '◇ Not in Timeline'}
+                </span>
+              </div>
+
+              {/* Delete */}
+              <div style={{ padding: '20px 20px 0' }}>
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  style={{ width: '100%', padding: '13px 0', background: 'transparent', border: '1px solid rgba(180,60,60,0.35)', borderRadius: 0, color: '#b04040', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Delete Record
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        ) : (
+
+          /* ══ PAPER INVOICE VIEW (service) ══ */
+          <div style={{ position: 'relative', zIndex: 1, margin: '16px 14px 80px', background: '#ffffff', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', overflow: 'hidden' }}>
+
+            {/* Faint G logo watermark */}
+            <img src={gLogo} aria-hidden style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 300, height: 300, objectFit: 'contain', opacity: 0.05, pointerEvents: 'none', zIndex: 0, userSelect: 'none' }} />
+
+            {/* Invoice header */}
+            <div style={{ padding: '20px 20px 16px', borderBottom: `2px solid ${INV_DIVIDER}`, position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <img src={gLogo} alt="G-Dimension" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                  <div>
+                    <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: INV_TEXT, letterSpacing: '0.04em' }}>G-DIMENSION</div>
+                    <div style={{ fontFamily: MONO, fontSize: 9, color: INV_MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>gdimension.app</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: INV_TEXT, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Service Invoice</div>
+                  <div style={{ fontFamily: MONO, fontSize: 10, color: INV_MUTED, marginTop: 2 }}>#{invoiceNum}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Date / Vehicle row */}
+            <div style={{ display: 'flex', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+              <div style={{ flex: 1, padding: '14px 20px', borderRight: `1px solid ${INV_DIVIDER}` }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Date of Service</div>
+                <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{dateStr}</div>
+              </div>
+              {session.mileage != null ? (
+                <div style={{ flex: 1, padding: '14px 20px' }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Odometer</div>
+                  <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>mi</span></div>
+                </div>
+              ) : car ? (
+                <div style={{ flex: 1, padding: '14px 20px' }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Vehicle</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+                </div>
+              ) : <div style={{ flex: 1 }} />}
+            </div>
+
+            {/* Vehicle (when mileage AND car both present) */}
+            {car && session.mileage != null && (
+              <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Vehicle</div>
+                <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+              </div>
+            )}
+
+            {/* Performed By */}
+            {(session.performed_by || session.shop_name || session.time_taken) && (
+              <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+                <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+                  {session.performed_by && (
+                    <div>
+                      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Performed By</div>
+                      <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT, textTransform: 'uppercase' }}>
+                        {session.performed_by === 'shop' ? (session.shop_name || 'Shop / Dealer') : 'Self'}
+                      </div>
+                    </div>
+                  )}
+                  {session.time_taken && (
+                    <div>
+                      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Time Taken</div>
+                      <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{session.time_taken}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Line items */}
             <div style={{ borderBottom: `1px solid ${INV_DIVIDER}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 20px 6px', background: '#f9f7f4', borderBottom: `1px solid ${INV_DIVIDER}` }}>
                 <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Description</span>
@@ -292,12 +402,7 @@ export default function MaintenanceSessionDetailPage() {
               {jobs.length === 0 ? (
                 <div style={{ padding: '16px 20px', fontFamily: MONO, fontSize: 12, color: INV_MUTED }}>No line items recorded.</div>
               ) : jobs.map((job, i) => (
-                <div key={job.id} style={{
-                  display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-                  padding: '10px 20px',
-                  borderBottom: i < jobs.length - 1 ? `1px dashed ${INV_DIVIDER}` : 'none',
-                  background: i % 2 === 0 ? '#ffffff' : '#fdfcfb',
-                }}>
+                <div key={job.id} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '10px 20px', borderBottom: i < jobs.length - 1 ? `1px dashed ${INV_DIVIDER}` : 'none', background: i % 2 === 0 ? '#ffffff' : '#fdfcfb' }}>
                   <div style={{ flex: 1, paddingRight: 16 }}>
                     <span style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{job.title}</span>
                   </div>
@@ -307,125 +412,123 @@ export default function MaintenanceSessionDetailPage() {
                 </div>
               ))}
             </div>
-          )}
 
-          {/* ── Cost breakdown ── */}
-          {(session.total_cost != null || session.labor_cost != null || session.tax_amount != null) && (() => {
-            const partsSum = jobs.reduce((acc, j) => acc + (j.cost != null ? Number(j.cost) : 0), 0)
-            const fmt = (n: number) => `$${n.toFixed(2)}`
-            const breakdownRow = (label: string, value: string, muted = true) => (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
-                <span style={{ fontFamily: CONTENT_FONT, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>{label}</span>
-                <span style={{ fontFamily: CONTENT_FONT, fontSize: 13, color: muted ? '#555' : INV_TEXT }}>{value}</span>
+            {/* Cost breakdown */}
+            {(session.total_cost != null || session.labor_cost != null || session.tax_amount != null) && (() => {
+              const partsSum = jobs.reduce((acc, j) => acc + (j.cost != null ? Number(j.cost) : 0), 0)
+              const fmt = (n: number) => `$${n.toFixed(2)}`
+              const hasBreakdown = partsSum > 0 || session.labor_cost != null || session.tax_amount != null
+              return (
+                <div style={{ borderBottom: `1px solid ${INV_DIVIDER}`, background: '#fafaf8', paddingTop: 8, paddingBottom: 8 }}>
+                  {hasBreakdown && partsSum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Parts</span>
+                      <span style={{ fontFamily: MONO, fontSize: 13, color: '#555' }}>{fmt(partsSum)}</span>
+                    </div>
+                  )}
+                  {session.labor_cost != null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Labor</span>
+                      <span style={{ fontFamily: MONO, fontSize: 13, color: '#555' }}>{fmt(Number(session.labor_cost))}</span>
+                    </div>
+                  )}
+                  {session.tax_amount != null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 20px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Tax</span>
+                      <span style={{ fontFamily: MONO, fontSize: 13, color: '#555' }}>{fmt(Number(session.tax_amount))}</span>
+                    </div>
+                  )}
+                  {hasBreakdown && <div style={{ borderTop: `1px dashed ${INV_DIVIDER}`, margin: '6px 20px 0' }} />}
+                  {session.total_cost != null && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '8px 20px 2px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
+                      <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Notes */}
+            {session.notes && (
+              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 6 }}>Notes</div>
+                <div style={{ fontFamily: MONO, fontSize: 12, color: '#3a3a3a', lineHeight: 1.65 }}>{session.notes}</div>
               </div>
-            )
-            const hasBreakdown = partsSum > 0 || session.labor_cost != null || session.tax_amount != null
-            return (
-              <div style={{ borderBottom: `1px solid ${INV_DIVIDER}`, background: '#fafaf8', paddingTop: 8, paddingBottom: 8 }}>
-                {hasBreakdown && partsSum > 0 && breakdownRow('Parts', fmt(partsSum))}
-                {session.labor_cost != null && breakdownRow('Labor', fmt(Number(session.labor_cost)))}
-                {session.tax_amount != null && breakdownRow('Tax', fmt(Number(session.tax_amount)))}
-                {hasBreakdown && <div style={{ borderTop: `1px dashed ${INV_DIVIDER}`, margin: '6px 20px 0' }} />}
-                {session.total_cost != null && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '8px 20px 2px' }}>
-                    <span style={{ fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: INV_MUTED }}>Total</span>
-                    <span style={{ fontFamily: CONTENT_FONT, fontSize: 24, fontWeight: 700, color: INV_TEXT }}>${Number(session.total_cost).toFixed(2)}</span>
+            )}
+
+            {/* Receipts */}
+            {receipts.length > 0 && (
+              <div style={{ borderBottom: `1px solid ${INV_DIVIDER}` }}>
+                <button
+                  onClick={() => {
+                    const next = !receiptsExpanded
+                    setReceiptsExpanded(next)
+                    if (next && Object.keys(receiptUrls).length === 0) loadReceiptUrls(receipts)
+                  }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Receipts</span>
+                  <span style={{ fontFamily: FONT_UI, fontSize: 10, color: '#bbb', marginLeft: 6 }}>({receipts.length})</span>
+                  <span style={{ marginLeft: 'auto', color: INV_MUTED, fontSize: 11 }}>{receiptsExpanded ? '▴' : '▾'}</span>
+                </button>
+                {receiptsExpanded && (
+                  <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
+                    {receipts.map(r => {
+                      const url = receiptUrls[r.id]
+                      return (
+                        <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
+                          style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${INV_DIVIDER}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 0 }}>
+                          {r.file_type === 'image' ? (
+                            url
+                              ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover' }} />
+                              : <div style={{ width: 76, height: 76, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: MONO, fontSize: 9, color: '#bbb' }}>Loading…</span></div>
+                          ) : (
+                            <div style={{ width: 76, height: 76, background: '#f5f5f5', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                              <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: '#888' }}>PDF</span>
+                              <span style={{ fontFamily: MONO, fontSize: 8, color: '#bbb' }}>tap to open</span>
+                            </div>
+                          )}
+                          {r.file_name && <span style={{ fontFamily: MONO, fontSize: 8, color: INV_MUTED, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
-            )
-          })()}
+            )}
 
-          {/* ── Notes ── */}
-          {session.notes && (
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 6 }}>Notes</div>
-              <div style={{ fontFamily: CONTENT_FONT, fontSize: isDetail ? 14 : 12, color: '#3a3a3a', lineHeight: 1.65 }}>{session.notes}</div>
+            {/* Timeline badge */}
+            <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
+              <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', padding: '3px 8px', border: `1px solid ${session.add_to_timeline ? 'rgba(180,145,70,0.55)' : '#d8d8d8'}`, color: session.add_to_timeline ? '#a07828' : INV_MUTED, background: session.add_to_timeline ? 'rgba(212,184,106,0.08)' : 'transparent' }}>
+                {session.add_to_timeline ? '◆ In Timeline' : '◇ Not in Timeline'}
+              </span>
             </div>
-          )}
 
-          {/* ── Receipts ── */}
-          {receipts.length > 0 && (
-            <div style={{ borderBottom: `1px solid ${INV_DIVIDER}` }}>
-              <button
-                onClick={() => {
-                  const next = !receiptsExpanded
-                  setReceiptsExpanded(next)
-                  if (next && Object.keys(receiptUrls).length === 0) loadReceiptUrls(receipts)
-                }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
-              >
-                <span style={{ fontFamily: CONTENT_FONT, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED }}>Receipts</span>
-                <span style={{ fontFamily: FONT_UI, fontSize: 10, color: '#bbb', marginLeft: 6 }}>({receipts.length})</span>
-                <span style={{ marginLeft: 'auto', color: INV_MUTED, fontSize: 11 }}>{receiptsExpanded ? '▴' : '▾'}</span>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 0 }}>
+              <button onClick={() => navigate(`/maintenance/service/edit/${sessionId}`)} style={{ flex: 1, padding: '14px 0', background: '#f9f7f4', border: 'none', borderRight: `1px solid ${INV_DIVIDER}`, color: '#444', fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                Edit Record
               </button>
-              {receiptsExpanded && (
-                <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
-                  {receipts.map(r => {
-                    const url = receiptUrls[r.id]
-                    return (
-                      <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
-                        style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${INV_DIVIDER}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 0 }}>
-                        {r.file_type === 'image' ? (
-                          url
-                            ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover' }} />
-                            : <div style={{ width: 76, height: 76, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: MONO, fontSize: 9, color: '#bbb' }}>Loading…</span></div>
-                        ) : (
-                          <div style={{ width: 76, height: 76, background: '#f5f5f5', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                            <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: '#888' }}>PDF</span>
-                            <span style={{ fontFamily: MONO, fontSize: 8, color: '#bbb' }}>tap to open</span>
-                          </div>
-                        )}
-                        {r.file_name && <span style={{ fontFamily: MONO, fontSize: 8, color: INV_MUTED, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+              <button onClick={() => setConfirmDelete(true)} style={{ flex: 1, padding: '14px 0', background: '#fdf8f8', border: 'none', color: '#c06060', fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                Delete
+              </button>
             </div>
-          )}
 
-          {/* ── Timeline badge ── */}
-          <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
-            <span style={{
-              fontFamily: CONTENT_FONT, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase',
-              padding: '3px 8px',
-              border: `1px solid ${session.add_to_timeline ? 'rgba(180,145,70,0.55)' : '#d8d8d8'}`,
-              color: session.add_to_timeline ? '#a07828' : INV_MUTED,
-              background: session.add_to_timeline ? 'rgba(212,184,106,0.08)' : 'transparent',
-            }}>
-              {session.add_to_timeline ? '◆ In Timeline' : '◇ Not in Timeline'}
-            </span>
           </div>
 
-          {/* ── Actions ── */}
-          <div style={{ display: 'flex', gap: 0 }}>
-            <button
-              onClick={() => navigate(`/maintenance/service/edit/${sessionId}`)}
-              style={{ flex: 1, padding: '14px 0', background: '#f9f7f4', border: 'none', borderRight: `1px solid ${INV_DIVIDER}`, color: '#444', fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
-            >
-              Edit Record
-            </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              style={{ flex: 1, padding: '14px 0', background: '#fdf8f8', border: 'none', color: '#c06060', fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
-            >
-              Delete
-            </button>
-          </div>
-
-        </div>
+        )}
       </div>
 
       {/* ── Delete confirmation overlay ── */}
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
-          <div style={{ width: '100%', background: '#ffffff', padding: '28px 24px 40px', borderTop: `2px solid ${INV_DIVIDER}` }}>
-            <div style={{ fontFamily: CONTENT_FONT, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', color: INV_TEXT, marginBottom: 8 }}>Delete this record?</div>
-            <div style={{ fontFamily: CONTENT_FONT, fontSize: 12, color: INV_MUTED, marginBottom: 24, lineHeight: 1.6 }}>This will permanently remove this record and all associated data. This cannot be undone.</div>
+          <div style={{ width: '100%', background: isDetail ? CW_BG : '#ffffff', padding: '28px 24px 40px', borderTop: isDetail ? `2px solid ${CW_RULE}` : `2px solid ${INV_DIVIDER}` }}>
+            <div style={{ fontFamily: isDetail ? FONT_UI : MONO, fontSize: 14, letterSpacing: '0.08em', textTransform: 'uppercase', color: isDetail ? CW_INK : INV_TEXT, marginBottom: 8 }}>Delete this record?</div>
+            <div style={{ fontFamily: isDetail ? FONT_UI : MONO, fontSize: 12, color: isDetail ? CW_DIM : INV_MUTED, marginBottom: 24, lineHeight: 1.6 }}>This will permanently remove this record and all associated data. This cannot be undone.</div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '12px 0', background: '#f4f4f4', border: `1px solid ${INV_DIVIDER}`, borderRadius: 0, color: '#555', fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Cancel</button>
-              <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '12px 0', background: deleting ? '#fdf0f0' : '#fce8e8', border: '1px solid #e0b0b0', borderRadius: 0, color: deleting ? '#c09090' : '#b04040', fontFamily: CONTENT_FONT, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: deleting ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+              <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, padding: '12px 0', background: '#f4f4f4', border: `1px solid ${isDetail ? CW_RULE : INV_DIVIDER}`, borderRadius: 0, color: '#555', fontFamily: isDetail ? FONT_UI : MONO, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, padding: '12px 0', background: deleting ? '#fdf0f0' : '#fce8e8', border: '1px solid #e0b0b0', borderRadius: 0, color: deleting ? '#c09090' : '#b04040', fontFamily: isDetail ? FONT_UI : MONO, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: deleting ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}>
                 {deleting ? 'Deleting…' : 'Delete Record'}
               </button>
             </div>

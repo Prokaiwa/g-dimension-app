@@ -262,9 +262,9 @@ export default function MaintenanceDetailNewPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
         {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '26px 20px 22px', borderBottom: `1px solid ${RULE}` }}>
-          <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }} />
-          <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 38, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>
+        <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${RULE}` }}>
+          <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 82, height: 82, objectFit: 'contain', display: 'block', marginBottom: 10 }} />
+          <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 40, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em', textAlign: 'center' }}>
             Car Wash
           </div>
         </div>
