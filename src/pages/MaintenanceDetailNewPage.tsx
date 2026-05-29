@@ -208,8 +208,8 @@ export default function MaintenanceDetailNewPage() {
 
     const sid = (session as { id: string }).id
     const jobRows = [
-      ...exteriorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'exterior', title, status: 'installed' })),
-      ...interiorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'interior', title, status: 'installed' })),
+      ...exteriorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'Exterior', title, status: 'installed' })),
+      ...interiorSel.map(title => ({ session_id: sid, car_id: carId, type: 'maintenance', category: 'Interior', title, status: 'installed' })),
     ]
     if (jobRows.length > 0) await supabase.from('jobs').insert(jobRows)
 
@@ -262,9 +262,9 @@ export default function MaintenanceDetailNewPage() {
       <div style={{ flex: 1, overflowY: 'auto' }}>
 
         {/* Title */}
-        <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${RULE}` }}>
-          <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 82, height: 82, objectFit: 'contain', display: 'block', marginBottom: 10 }} />
-          <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 40, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderBottom: `1px solid ${RULE}` }}>
+          <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 92, height: 92, objectFit: 'contain', flexShrink: 0 }} />
+          <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 42, color: BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>
             Car Wash
           </div>
         </div>

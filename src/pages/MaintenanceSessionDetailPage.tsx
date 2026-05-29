@@ -170,9 +170,9 @@ export default function MaintenanceSessionDetailPage() {
             <div style={{ position: 'relative', zIndex: 1, padding: '0 0 80px' }}>
 
               {/* Icon + Title */}
-              <div style={{ padding: '22px 20px 18px', borderBottom: `1px solid ${CW_RULE}` }}>
-                <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 80, height: 80, objectFit: 'contain', display: 'block', marginBottom: 10 }} />
-                <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 40, color: CW_BLUE, lineHeight: 1, letterSpacing: '-0.02em', textAlign: 'center' }}>Car Wash</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
+                <img src={carwashIcon} alt="" aria-hidden draggable={false} style={{ width: 92, height: 92, objectFit: 'contain', flexShrink: 0 }} />
+                <div style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 42, color: CW_BLUE, lineHeight: 1, letterSpacing: '-0.02em' }}>Car Wash</div>
               </div>
 
               {/* Date + Mileage */}
@@ -213,7 +213,7 @@ export default function MaintenanceSessionDetailPage() {
 
               {/* Exterior chips */}
               {(() => {
-                const extJobs = jobs.filter(j => j.category === 'exterior')
+                const extJobs = jobs.filter(j => j.category?.toLowerCase() === 'exterior')
                 if (extJobs.length === 0) return null
                 return (
                   <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
@@ -229,7 +229,7 @@ export default function MaintenanceSessionDetailPage() {
 
               {/* Interior chips */}
               {(() => {
-                const intJobs = jobs.filter(j => j.category === 'interior')
+                const intJobs = jobs.filter(j => j.category?.toLowerCase() === 'interior')
                 if (intJobs.length === 0) return null
                 return (
                   <div style={{ padding: '16px 20px', borderBottom: `1px solid ${CW_RULE}` }}>
