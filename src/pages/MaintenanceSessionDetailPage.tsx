@@ -306,11 +306,17 @@ export default function MaintenanceSessionDetailPage() {
                 </span>
               </div>
 
-              {/* Delete */}
-              <div style={{ padding: '20px 20px 0' }}>
+              {/* Actions */}
+              <div style={{ padding: '20px 20px 0', display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => navigate(`/maintenance/detail/edit/${sessionId}`)}
+                  style={{ flex: 1, padding: '13px 0', background: 'transparent', border: `1px solid ${CW_BLUE}88`, borderRadius: 0, color: CW_BLUE, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Edit Record
+                </button>
                 <button
                   onClick={() => setConfirmDelete(true)}
-                  style={{ width: '100%', padding: '13px 0', background: 'transparent', border: '1px solid rgba(180,60,60,0.35)', borderRadius: 0, color: '#b04040', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                  style={{ flex: 1, padding: '13px 0', background: 'transparent', border: '1px solid rgba(180,60,60,0.35)', borderRadius: 0, color: '#b04040', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
                 >
                   Delete Record
                 </button>

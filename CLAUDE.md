@@ -253,10 +253,11 @@ src/pages/TuningPartDetailPage.tsx  — Part detail (kraft paper, carousel/viewe
 src/pages/TuningPartEditPage.tsx    — Part edit form (kraft paper, fields + specs + photos + links)
 src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diagonal, service history strip)
 src/pages/MaintenanceServiceNewPage.tsx   — Add Service Session form (invoice/Courier aesthetic)
-src/pages/MaintenanceServiceEditPage.tsx  — Edit Service Session (STUB — not yet built)
+src/pages/MaintenanceServiceEditPage.tsx  — Edit Service Session (Windows XP aesthetic, loads + UPDATEs)
 src/pages/MaintenanceSessionDetailPage.tsx — Session detail view (shared by maintenance + detail types)
 src/pages/MaintenanceDetailPage.tsx       — Detailing log list (aesthetic TBD — watery feel pending)
-src/pages/MaintenanceDetailNewPage.tsx    — Log a Detail Session form
+src/pages/MaintenanceDetailNewPage.tsx    — Log a Detail Session form (blue Car Wash aesthetic)
+src/pages/MaintenanceDetailEditPage.tsx   — Edit Detail Session (blue Car Wash aesthetic, loads + UPDATEs)
 src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
@@ -333,11 +334,14 @@ All primary routes are implemented:
 ```
 /maintenance                        → MaintenancePage (landing)
 /maintenance/service/new            → MaintenanceServiceNewPage
-/maintenance/service/edit/:id       → MaintenanceServiceEditPage (STUB)
-/maintenance/:sessionId             → MaintenanceSessionDetailPage (handles both types)
+/maintenance/service/edit/:id       → MaintenanceServiceEditPage
 /maintenance/detail                 → MaintenanceDetailPage
 /maintenance/detail/new             → MaintenanceDetailNewPage
+/maintenance/detail/edit/:id        → MaintenanceDetailEditPage
+/maintenance/:sessionId             → MaintenanceSessionDetailPage (handles both types)
 ```
+
+*Edit pages — load + UPDATE pattern:* Both edit pages load the session/jobs/receipts on mount, then on save UPDATE the session, **delete + re-insert** all `jobs` (line items have no stable identity to diff), remove deleted receipts (storage + table), upload newly-attached receipts, and navigate to `/maintenance/:sessionId`. Edit pages reuse the exact aesthetic of their New counterpart (Service = Windows XP, Detail = blue Car Wash). The "Edit Record" button on the session detail page branches by `session.type`: detail → `/maintenance/detail/edit/:id`, service → `/maintenance/service/edit/:id`.
 All static routes are declared **above** the dynamic `/:sessionId` route in App.tsx — do not reorder.
 
 *Design identity — non-negotiable:*
