@@ -13,14 +13,15 @@ import carwashIcon from '../assets/icons/maintenance/carwash_icon.png'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_TIMELINE_DETAIL,
+  COLOR_DETAIL_BG, COLOR_DETAIL_INK, COLOR_DETAIL_INK_DIM, COLOR_DETAIL_RULE,
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
 
 const BLUE    = COLOR_TIMELINE_DETAIL  // '#8ab0c8' — muted cool blue, designed for detailing
-const BG      = '#f4f8fb'
-const INK     = '#111827'
-const INK_DIM = 'rgba(0,0,0,0.40)'
-const RULE    = 'rgba(0,0,0,0.07)'
+const BG      = COLOR_DETAIL_BG
+const INK     = COLOR_DETAIL_INK
+const INK_DIM = COLOR_DETAIL_INK_DIM
+const RULE    = COLOR_DETAIL_RULE
 
 const EXTERIOR_PRESETS = [
   'Hand Wash', 'Clay Bar', 'Paint Polish', 'Wax / Sealant',
