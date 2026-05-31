@@ -81,3 +81,25 @@ create policy "vehicle_search_aliases_select_public"  on public.vehicle_search_a
 -- part_categories had no explicit SELECT grant (the others have grants in their
 -- original migration files). Add it explicitly so it doesn't rely on legacy auto-grant.
 grant select on public.part_categories to anon, authenticated;
+
+-- Security hardening — lock down trigger functions (2026-05-31)
+-- Supabase advisor flagged 12 trigger functions: 8 SECURITY DEFINER triggers +
+-- rls_auto_enable (event trigger) were callable over /rest/v1/rpc/ by anon/
+-- authenticated (default PUBLIC execute grant); 3 more had a mutable search_path.
+-- The app makes zero .rpc() calls, so none should be API-exposed. Revoking EXECUTE
+-- does NOT affect trigger firing (triggers run with table privileges, not caller's),
+-- so signup/audit/timeline triggers are unaffected. Verified: all 12 warnings cleared.
+revoke execute on function public.handle_new_user()                  from public;
+revoke execute on function public.handle_timeline_entry()            from public;
+revoke execute on function public.job_photos_set_car_id()            from public;
+revoke execute on function public.job_specs_create_safety_reminder() from public;
+revoke execute on function public.jobs_handle_removal()              from public;
+revoke execute on function public.jobs_set_car_id()                  from public;
+revoke execute on function public.receipts_set_car_id()              from public;
+revoke execute on function public.write_audit_log()                  from public;
+revoke execute on function public.rls_auto_enable()
+  from public, anon, authenticated, service_role;
+
+alter function public.set_updated_at()              set search_path = public;
+alter function public.prevent_origin_entry_delete() set search_path = public;
+alter function public.job_specs_validate_value()    set search_path = public;
