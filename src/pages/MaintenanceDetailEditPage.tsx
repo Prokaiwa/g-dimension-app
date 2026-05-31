@@ -497,7 +497,7 @@ export default function MaintenanceDetailEditPage() {
           </button>
         </div>
 
-        {/* Save */}
+        {/* Save / Cancel */}
         <div style={{ padding: '24px 20px 48px' }}>
           <button
             onClick={handleSave}
@@ -514,6 +514,21 @@ export default function MaintenanceDetailEditPage() {
             }}
           >
             {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+          <button
+            onClick={() => navigate(detailRoute)}
+            disabled={saving}
+            style={{
+              width: '100%', marginTop: 12, padding: '10px 0',
+              background: 'none', border: 'none',
+              color: INK_DIM,
+              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              cursor: saving ? 'default' : 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            Cancel
           </button>
         </div>
 
