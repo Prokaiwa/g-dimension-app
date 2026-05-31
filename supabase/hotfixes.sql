@@ -103,3 +103,60 @@ revoke execute on function public.rls_auto_enable()
 alter function public.set_updated_at()              set search_path = public;
 alter function public.prevent_origin_entry_delete() set search_path = public;
 alter function public.job_specs_validate_value()    set search_path = public;
+
+-- Performance — RLS InitPlan optimization (2026-05-31)
+-- 18 RLS policies called auth.uid() directly, so Postgres re-evaluated it once
+-- PER ROW. Wrapping as (select auth.uid()) makes it a one-time InitPlan constant
+-- (evaluated once per query). Logic identical; used ALTER POLICY so cmd/roles are
+-- untouched. Atomic via transaction. Verified: all 18 InitPlan warnings cleared.
+begin;
+alter policy "analytics_events_insert_authenticated" on public.analytics_events
+  with check ((((select auth.uid()) = user_id) or (user_id is null)));
+alter policy "audit_log_select_owner" on public.audit_log
+  using (((select auth.uid()) = user_id));
+alter policy "car_contacts_all_owner" on public.car_contacts
+  using (exists (select 1 from public.cars where cars.id = car_contacts.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = car_contacts.car_id and cars.user_id = (select auth.uid())));
+alter policy "car_documents_all_owner" on public.car_documents
+  using (exists (select 1 from public.cars where cars.id = car_documents.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = car_documents.car_id and cars.user_id = (select auth.uid())));
+alter policy "car_reminders_all_owner" on public.car_reminders
+  using (exists (select 1 from public.cars where cars.id = car_reminders.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = car_reminders.car_id and cars.user_id = (select auth.uid())));
+alter policy "cars_all_owner" on public.cars
+  using (((select auth.uid()) = user_id))
+  with check (((select auth.uid()) = user_id));
+alter policy "error_logs_insert_authenticated" on public.error_logs
+  with check ((((select auth.uid()) = user_id) or (user_id is null)));
+alter policy "error_logs_select_owner" on public.error_logs
+  using (((select auth.uid()) = user_id));
+alter policy "Users manage own job links" on public.job_links
+  using ((user_id = (select auth.uid())))
+  with check ((user_id = (select auth.uid())));
+alter policy "job_photos_all_owner" on public.job_photos
+  using (exists (select 1 from public.cars where cars.id = job_photos.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = job_photos.car_id and cars.user_id = (select auth.uid())));
+alter policy "job_specs_all_owner" on public.job_specs
+  using (exists (select 1 from public.jobs j join public.cars c on c.id = j.car_id where j.id = job_specs.job_id and c.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.jobs j join public.cars c on c.id = j.car_id where j.id = job_specs.job_id and c.user_id = (select auth.uid())));
+alter policy "jobs_all_owner" on public.jobs
+  using (exists (select 1 from public.cars where cars.id = jobs.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = jobs.car_id and cars.user_id = (select auth.uid())));
+alter policy "notification_preferences_all_owner" on public.notification_preferences
+  using (((select auth.uid()) = user_id))
+  with check (((select auth.uid()) = user_id));
+alter policy "receipts_all_owner" on public.receipts
+  using (exists (select 1 from public.cars where cars.id = receipts.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = receipts.car_id and cars.user_id = (select auth.uid())));
+alter policy "sessions_all_owner" on public.sessions
+  using (exists (select 1 from public.cars where cars.id = sessions.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = sessions.car_id and cars.user_id = (select auth.uid())));
+alter policy "timeline_entries_all_owner" on public.timeline_entries
+  using (exists (select 1 from public.cars where cars.id = timeline_entries.car_id and cars.user_id = (select auth.uid())))
+  with check (exists (select 1 from public.cars where cars.id = timeline_entries.car_id and cars.user_id = (select auth.uid())));
+alter policy "user_flags_select_owner" on public.user_flags
+  using (((select auth.uid()) = user_id));
+alter policy "users_all_owner" on public.users
+  using (((select auth.uid()) = id))
+  with check (((select auth.uid()) = id));
+commit;
