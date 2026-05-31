@@ -520,7 +520,7 @@ export default function MaintenanceDetailEditPage() {
             disabled={saving}
             style={{
               width: '100%', marginTop: 12, padding: '10px 0',
-              background: 'none', border: 'none',
+              background: 'none', border: `1px solid ${INK_DIM}`, borderRadius: 0,
               color: INK_DIM,
               fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
               letterSpacing: '0.14em', textTransform: 'uppercase',
