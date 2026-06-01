@@ -53,6 +53,14 @@ function formatDate(d: string | null) {
 
 const isActive = (status: string) => status === 'removed' || status === 'purchased'
 
+// Categories whose parts carry a service interval (wear/racing parts) — only
+// these surface the "Set a service reminder" action. Keep in sync with the
+// same constant in TuningModDetailPage.
+const SERVICEABLE_CATEGORIES = new Set([
+  'Engine', 'Drivetrain', 'Forced Induction', 'Suspension',
+  'Brakes', 'Wheels & Tires', 'Cooling', 'Fuel System', 'Exhaust',
+])
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 import React from 'react'
@@ -543,6 +551,18 @@ export default function TuningPartDetailPage() {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* Set a service reminder — only for serviceable/wear categories */}
+        {part.category && SERVICEABLE_CATEGORIES.has(part.category) && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 20px 4px' }}>
+            <button
+              onClick={() => navigate('/garage/reminders', { state: { reminderForJob: { id: part.id, title: part.title, category: 'service' } } })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 10px', WebkitTapHighlightColor: 'transparent', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 16, color: COLOR_CARDBOARD_STAMP, opacity: 0.8 }}
+            >
+              ⚙ Set a service reminder →
+            </button>
           </div>
         )}
 

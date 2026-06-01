@@ -39,6 +39,15 @@ const GROUP_LABEL: Record<string, string> = {
   power: 'Power', chassis: 'Chassis', exterior: 'Exterior', interior: 'Interior',
 }
 
+// Categories whose parts realistically carry a service interval (wear/racing
+// parts) — only these surface the "Set a service reminder" action. Cosmetic
+// categories (Paint & Wrap, Lighting, Interior, Audio…) don't. Edit this list
+// to change which parts qualify.
+const SERVICEABLE_CATEGORIES = new Set([
+  'Engine', 'Drivetrain', 'Forced Induction', 'Suspension',
+  'Brakes', 'Wheels & Tires', 'Cooling', 'Fuel System', 'Exhaust',
+])
+
 const GROUP_PHOTO_COL: Record<string, string> = {
   power:    'build_sheet_power_photo',
   chassis:  'build_sheet_chassis_photo',
@@ -579,6 +588,18 @@ export default function TuningModDetailPage() {
             </span>
           </button>
         </div>
+
+        {/* Set a service reminder — only for serviceable/wear categories */}
+        {job?.category && SERVICEABLE_CATEGORIES.has(job.category) && (
+          <div style={{ padding: '14px 20px 0', display: 'flex', justifyContent: 'center' }}>
+            <button
+              onClick={() => navigate('/garage/reminders', { state: { reminderForJob: { id: job.id, title: job.title, category: 'service' } } })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 10px', WebkitTapHighlightColor: 'transparent', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.45)' }}
+            >
+              ⚙ Set a service reminder →
+            </button>
+          </div>
+        )}
 
       </div>
 
