@@ -140,6 +140,79 @@ const TITLE_PLACEHOLDER: Record<string, string> = {
   'Fuel Pump':                       'e.g. Walbro 255lph High Pressure Fuel Pump',
 }
 
+// Brand example for each part type — kept in sync with TITLE_PLACEHOLDER so the
+// title example ("AEM Cold Air Intake System") and the brand example ("AEM")
+// always refer to the same maker instead of two unrelated brands.
+const BRAND_PLACEHOLDER: Record<string, string> = {
+  // Wheels & Tires
+  'Wheels':                          'e.g. Enkei',
+  'Tires — Metric':                  'e.g. Michelin',
+  'Tires — Truck/Standard':          'e.g. BFGoodrich',
+  'Wheel Spacers / Adapters':        'e.g. H&R',
+  // Suspension
+  'Coilovers':                       'e.g. BC Racing',
+  'Air Suspension / Bags':           'e.g. Air Lift',
+  'Lowering Springs':                'e.g. Tein',
+  'Sway Bars':                       'e.g. Whiteline',
+  'Control Arms':                    'e.g. Megan Racing',
+  // Brakes
+  'Brake Pads':                      'e.g. Hawk',
+  'Rotors':                          'e.g. StopTech',
+  'Brake Calipers':                  'e.g. Wilwood',
+  'Big Brake Kit':                   'e.g. Brembo',
+  'Brake Fluid':                     'e.g. Motul',
+  // Engine
+  'Camshafts':                       'e.g. HKS',
+  'Cold Air Intake / Short Ram':     'e.g. AEM',
+  'Engine Management / ECU':         'e.g. Link',
+  'Pistons':                         'e.g. Wiseco',
+  'Connecting Rods':                 'e.g. Eagle',
+  'Head Work / Porting':             'e.g. JGY Engines',
+  // Forced Induction
+  'Turbocharger':                    'e.g. HKS',
+  'Intercooler':                     'e.g. Mishimoto',
+  'Wastegate':                       'e.g. TiAL',
+  'Blow-off Valve / Bypass Valve':   'e.g. TiAL',
+  // Exhaust
+  'Headers / Exhaust Manifold':      'e.g. Tomei',
+  'Catback System':                  'e.g. HKS',
+  'Downpipe / Frontpipe':            'e.g. Agency Power',
+  // Drivetrain
+  'Clutch':                          'e.g. ACT',
+  'Flywheel':                        'e.g. Fidanza',
+  'Differential':                    'e.g. Cusco',
+  'Driveshaft':                      'e.g. The Driveshaft Shop',
+  // Cooling
+  'Radiator':                        'e.g. Mishimoto',
+  'Oil Cooler':                      'e.g. Setrab',
+  'Thermostat':                      'e.g. Mishimoto',
+  // Electrical
+  'Battery':                         'e.g. Odyssey',
+  // Safety
+  'Harness / Seatbelt':              'e.g. Sparco',
+  'Roll Bar / Roll Cage':            'e.g. Autopower',
+  'Helmet':                          'e.g. Bell',
+  'Fire Suppression System':         'e.g. Lifeline',
+  // Exterior
+  'Wing / Spoiler':                  'e.g. Voltex',
+  'Fenders / Widebody':              'e.g. Work Wheels',
+  // Interior
+  'Seats':                           'e.g. Bride',
+  'Window Tint':                     'e.g. Llumar',
+  // Paint & Wrap
+  'Full Paint':                      'e.g. PPG',
+  'Vinyl Wrap':                      'e.g. 3M',
+  // Audio
+  'Head Unit':                       'e.g. Pioneer',
+  'Amplifier':                       'e.g. JL Audio',
+  'Subwoofer':                       'e.g. JL Audio',
+  // Lighting
+  'Headlights':                      'e.g. Morimoto',
+  // Fuel System
+  'Fuel Injectors':                  'e.g. DeatschWerks',
+  'Fuel Pump':                       'e.g. Walbro',
+}
+
 // ── Helper ────────────────────────────────────────────────────────────────
 
 function groupBy<T>(arr: T[], key: (item: T) => string): Record<string, T[]> {
@@ -910,7 +983,7 @@ export default function TuningAddPage() {
               <input
                 value={form.brand}
                 onChange={e => setForm(f => ({ ...f, brand: e.target.value }))}
-                placeholder="e.g. HKS"
+                placeholder={BRAND_PLACEHOLDER[selectedPartType?.name ?? ''] ?? 'e.g. Brand name'}
                 style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
             </div>
