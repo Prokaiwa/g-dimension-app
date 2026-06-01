@@ -1,15 +1,15 @@
-// Route: /garage/contacts — Contacts (per-car contact book) (Part 10)
+// Route: /garage/contacts — Contacts (per-USER contact book, cross-car) (Part 10)
 //
-// Aesthetic: "The Little Black Book" — a leather address-book / business-card
-// holder. Dark leather page; each contact is a cream business card with a
-// burnt-orange spine, a category tab, the name, and big tappable Call / Text /
-// Email / Web actions (the "hand it to your mechanic" handoff use case).
-// Distinct from Snapshot (light grey) and Detailing (light blue), but inside
-// the design system: sharp corners, Hanken, #c8661a accent, 44px tap targets.
-import { useEffect, useRef, useState } from 'react'
+// Aesthetic: "The Little Black Book" — a leather address book. Contacts belong
+// to the owner, not a single car (insurance, dealership, roadside, mechanic),
+// so this reads from user_contacts (migration 035), not car_contacts.
+// Laid out like a real contacts app: avatars, alphabetical letter dividers,
+// tap-to-expand Call / Text / Email / Web actions, a bottom search bar, and an
+// elevated empty state with quick-add tiles.
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { getActiveCarId } from '../lib/activeCar'
+import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -20,7 +20,6 @@ import {
   FONT_UI,
   FONT_TITLE,
   HEADER_HEIGHT,
-  RADIUS_BOTTOM_SHEET,
   SPACE_XS,
   SPACE_SM,
   SPACE_MD,
@@ -34,16 +33,12 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-// Leather page palette
-const LEATHER_BG = 'radial-gradient(ellipse 120% 80% at 50% 0%, #241c16 0%, #17110c 55%, #0c0907 100%)'
-const CARD_BG    = 'linear-gradient(180deg, #f6f1e6 0%, #ece4d4 100%)'
-const CARD_INK   = '#241c14'
-const CARD_MUTED = 'rgba(36,28,20,0.5)'
-const CARD_LINE  = 'rgba(36,28,20,0.12)'
-const SHEET_BG   = '#1a140f'
+const SHEET_BG  = '#1a140f'
+const CARD_INK  = '#241c14'
 
-// Suggested category labels for quick-pick in the form
 const LABEL_SUGGESTIONS = ['Mechanic', 'Tuner', 'Body Shop', 'Detailer', 'Insurance', 'Roadside', 'Dealership', 'Parts', 'Other']
+// Quick-add tiles for the empty state
+const QUICK_ADD = ['Mechanic', 'Insurance', 'Dealership', 'Roadside', 'Tuner', 'Body Shop']
 
 type Contact = {
   id: string
@@ -56,7 +51,6 @@ type Contact = {
   display_order: number
 }
 
-// Draft for the add/edit sheet. id present = editing existing.
 type Draft = {
   id?: string
   label: string
@@ -66,7 +60,6 @@ type Draft = {
   website: string
   notes: string
 }
-
 const EMPTY_DRAFT: Draft = { label: '', name: '', phone: '', email: '', website: '', notes: '' }
 
 function normalizeUrl(url: string): string {
@@ -75,118 +68,106 @@ function normalizeUrl(url: string): string {
   return /^https?:\/\//i.test(u) ? u : `https://${u}`
 }
 
-// ── Tiny stroke icons (sharp, 1.6 weight) ──────────────────────────────
-function IconPhone({ size = 16, color = CARD_INK }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" />
-    </svg>
-  )
-}
-function IconMessage({ size = 16, color = CARD_INK }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
-    </svg>
-  )
-}
-function IconMail({ size = 16, color = CARD_INK }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="0" />
-      <path d="m22 6-10 7L2 6" />
-    </svg>
-  )
-}
-function IconGlobe({ size = 16, color = CARD_INK }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
-    </svg>
-  )
+function displayName(c: Contact): string {
+  return (c.name && c.name.trim()) || c.label || '—'
 }
 
-// ── Action chip on a contact card (tel:/sms:/mailto:/website) ─────────
-function ActionChip({ href, icon, label, external }: { href: string; icon: React.ReactNode; label: string; external?: boolean }) {
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '?'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[1][0]).toUpperCase()
+}
+
+// ── Stroke icons ──────────────────────────────────────────────────────
+function IconPhone({ c = '#fff5dc' }: { c?: string }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" /></svg>
+}
+function IconMessage({ c = CARD_INK }: { c?: string }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" /></svg>
+}
+function IconMail({ c = CARD_INK }: { c?: string }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="0" /><path d="m22 6-10 7L2 6" /></svg>
+}
+function IconGlobe({ c = CARD_INK }: { c?: string }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" /></svg>
+}
+
+// Action chip in the expanded row
+function ActionChip({ href, icon, label, external, filled }: { href: string; icon: React.ReactNode; label: string; external?: boolean; filled?: boolean }) {
   return (
-    <a
-      href={href}
-      {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        minHeight: 34, padding: '0 12px',
-        background: 'rgba(36,28,20,0.05)',
-        border: `1px solid ${CARD_LINE}`,
-        textDecoration: 'none',
-        fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
-        letterSpacing: '0.04em', color: CARD_INK,
-        WebkitTapHighlightColor: 'transparent',
-      }}
-    >
-      {icon}
-      <span>{label}</span>
+    <a href={href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})} onClick={e => e.stopPropagation()} style={{
+      display: 'flex', alignItems: 'center', gap: 6, minHeight: 38, padding: '0 14px', flex: 1, justifyContent: 'center',
+      background: filled ? COLOR_ACCENT : 'rgba(240,228,200,0.06)',
+      border: `1px solid ${filled ? COLOR_ACCENT : 'rgba(240,228,200,0.16)'}`,
+      textDecoration: 'none', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em',
+      color: filled ? '#fff5dc' : '#f0e4c8', WebkitTapHighlightColor: 'transparent',
+    }}>
+      {icon}<span>{label}</span>
     </a>
   )
 }
 
 export default function GarageContactsPage() {
   const navigate = useNavigate()
-  const [carId, setCarId]       = useState<string | null>(null)
-  const [carInfo, setCarInfo]   = useState<string | null>(null)
+  const [userId, setUserId]     = useState<string | null>(null)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading]   = useState(true)
-  const [noCar, setNoCar]       = useState(false)
+  const [query, setQuery]       = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // Add/edit sheet
   const [draft, setDraft]   = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const labelInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
-      const id = await getActiveCarId()
-      if (!id) { setLoading(false); setNoCar(true); return }
-      setCarId(id)
-
-      const [{ data: car }, { data: rows }] = await Promise.all([
-        supabase.from('cars').select('year, model').eq('id', id).is('deleted_at', null).single(),
-        supabase
-          .from('car_contacts')
-          .select('id, label, name, phone, email, website, notes, display_order')
-          .eq('car_id', id)
-          .order('display_order', { ascending: true })
-          .order('created_at', { ascending: true }),
-      ])
-
-      if (car) setCarInfo([car.year, car.model].filter(Boolean).join(' '))
+      const { data: auth } = await supabase.auth.getUser()
+      const uid = auth?.user?.id
+      if (!uid) { setLoading(false); return }
+      setUserId(uid)
+      const { data: rows } = await supabase
+        .from('user_contacts')
+        .select('id, label, name, phone, email, website, notes, display_order')
+        .eq('user_id', uid)
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: true })
       setContacts((rows ?? []) as Contact[])
       setLoading(false)
     }
     load()
   }, [])
 
-  function openNew() {
-    setDraft({ ...EMPTY_DRAFT })
-  }
-
-  function openEdit(c: Contact) {
-    setDraft({
-      id: c.id,
-      label: c.label ?? '',
-      name: c.name ?? '',
-      phone: c.phone ?? '',
-      email: c.email ?? '',
-      website: c.website ?? '',
-      notes: c.notes ?? '',
+  // Filter + sort + group by first letter
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    const filtered = contacts.filter(c => {
+      if (!q) return true
+      return [c.name, c.label, c.phone, c.email, c.notes].some(v => v && v.toLowerCase().includes(q))
     })
+    filtered.sort((a, b) => displayName(a).localeCompare(displayName(b), undefined, { sensitivity: 'base' }))
+    const out: { letter: string; items: Contact[] }[] = []
+    for (const c of filtered) {
+      const ltr = displayName(c)[0]?.toUpperCase() ?? '#'
+      const key = /[A-Z]/.test(ltr) ? ltr : '#'
+      const last = out[out.length - 1]
+      if (last && last.letter === key) last.items.push(c)
+      else out.push({ letter: key, items: [c] })
+    }
+    return out
+  }, [contacts, query])
+
+  function openNew(prefillLabel?: string) {
+    setDraft({ ...EMPTY_DRAFT, label: prefillLabel ?? '' })
+  }
+  function openEdit(c: Contact) {
+    setDraft({ id: c.id, label: c.label ?? '', name: c.name ?? '', phone: c.phone ?? '', email: c.email ?? '', website: c.website ?? '', notes: c.notes ?? '' })
   }
 
   async function save() {
-    if (!draft || !carId) return
+    if (!draft || !userId) return
     const label = draft.label.trim()
     if (!label) { labelInputRef.current?.focus(); return }
-
     setSaving(true)
     const payload = {
       label,
@@ -196,26 +177,14 @@ export default function GarageContactsPage() {
       website: normalizeUrl(draft.website) || null,
       notes: draft.notes.trim() || null,
     }
-
+    const SEL = 'id, label, name, phone, email, website, notes, display_order'
     if (draft.id) {
-      const { data, error } = await supabase
-        .from('car_contacts')
-        .update(payload)
-        .eq('id', draft.id)
-        .select('id, label, name, phone, email, website, notes, display_order')
-        .single()
-      if (!error && data) {
-        setContacts(prev => prev.map(c => (c.id === draft.id ? (data as Contact) : c)))
-      }
+      const { data, error } = await supabase.from('user_contacts').update(payload).eq('id', draft.id).select(SEL).single()
+      if (!error && data) setContacts(prev => prev.map(c => (c.id === draft.id ? (data as Contact) : c)))
     } else {
-      const { data, error } = await supabase
-        .from('car_contacts')
-        .insert({ ...payload, car_id: carId, display_order: contacts.length })
-        .select('id, label, name, phone, email, website, notes, display_order')
-        .single()
+      const { data, error } = await supabase.from('user_contacts').insert({ ...payload, user_id: userId, display_order: contacts.length }).select(SEL).single()
       if (!error && data) setContacts(prev => [...prev, data as Contact])
     }
-
     setSaving(false)
     setDraft(null)
   }
@@ -223,21 +192,22 @@ export default function GarageContactsPage() {
   async function remove() {
     if (!draft?.id) return
     setSaving(true)
-    const { error } = await supabase.from('car_contacts').delete().eq('id', draft.id)
+    const { error } = await supabase.from('user_contacts').delete().eq('id', draft.id)
     if (!error) setContacts(prev => prev.filter(c => c.id !== draft.id))
     setSaving(false)
     setDraft(null)
   }
 
+  const hasContacts = contacts.length > 0
+
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: LEATHER_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'radial-gradient(ellipse 120% 80% at 50% 0%, #241c16 0%, #17110c 55%, #0c0907 100%)', fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
-        @keyframes contactCardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes sheetUp       { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes backdropIn    { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes contactRowIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .contacts-search::placeholder { color: rgba(240,228,200,0.4); }
       `}</style>
 
-      {/* ── Header (consistent app pattern) ── */}
+      {/* ── Header ── */}
       <div style={{ position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={() => navigate('/garage')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 4px', display: 'flex', alignItems: 'center' }}>
@@ -246,266 +216,163 @@ export default function GarageContactsPage() {
           <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: COLOR_HEADER_TITLE, letterSpacing: '0.01em' }}>Contacts</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
-          {carInfo && (
-            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, display: 'flex', alignItems: 'center', paddingRight: 10 }}>
-              {carInfo}
-            </span>
-          )}
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
           <div style={{ background: COLOR_BURGUNDY_M, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
       </div>
 
       {/* ── Body ── */}
-      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60%' }}>
             <span style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(240,228,200,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Loading…</span>
           </div>
         )}
 
-        {!loading && noCar && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60%', gap: SPACE_MD, padding: `0 ${SPACE_XL}px` }}>
-            <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic', fontSize: 24, letterSpacing: '-0.05em', color: '#f0e4c8', margin: 0, textAlign: 'center', lineHeight: 1.2 }}>No car in the garage</p>
-            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(240,228,200,0.5)', margin: 0, textAlign: 'center', lineHeight: 1.6 }}>Add a car from My Cars first.</p>
-            <button onClick={() => navigate('/garage/cars')} style={{ marginTop: SPACE_SM, padding: '10px 24px', background: 'none', border: '1px solid rgba(240,228,200,0.2)', color: '#f0e4c8', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-              My Cars
-            </button>
-          </div>
-        )}
-
-        {!loading && !noCar && (
-          <div style={{ padding: `${SPACE_LG}px ${SPACE_MD}px ${SPACE_XL * 3}px` }}>
-
-            {/* Intro line */}
-            <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500, fontSize: 15, color: 'rgba(240,228,200,0.55)', margin: `0 0 ${SPACE_LG}px`, lineHeight: 1.5 }}>
-              The people who keep this car running. Hand it to a mechanic and everything's a tap away.
-            </p>
-
-            {/* Empty state */}
-            {contacts.length === 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: SPACE_SM, padding: `${SPACE_XL}px 0`, opacity: 0.5 }}>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.6)' }}>No contacts yet</span>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(240,228,200,0.45)' }}>Tap + to add your first one.</span>
+        {/* Elevated empty state */}
+        {!loading && !hasContacts && (
+          <div style={{ padding: `${SPACE_XL}px ${SPACE_MD}px ${SPACE_XL * 2}px` }}>
+            <div style={{ textAlign: 'center', marginBottom: SPACE_XL }}>
+              <div style={{ width: 56, height: 56, margin: '0 auto 14px', borderRadius: '50%', border: '1.5px solid rgba(240,228,200,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(240,228,200,0.55)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6M16 19h6"/></svg>
               </div>
-            )}
-
-            {/* Contact cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_MD }}>
-              {contacts.map((c, i) => {
-                const phoneClean = c.phone ? c.phone.replace(/[^\d+]/g, '') : ''
-                return (
-                  <div
-                    key={c.id}
-                    style={{
-                      position: 'relative',
-                      background: CARD_BG,
-                      borderLeft: `4px solid ${COLOR_ACCENT}`,
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.45), 0 10px 22px rgba(0,0,0,0.3)',
-                      padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_SM + 2}px`,
-                      animation: `contactCardIn 420ms ${EASING_SETTLE} ${i * 55}ms both`,
-                    }}
-                  >
-                    {/* Top row: label tab + edit */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACE_SM }}>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: COLOR_ACCENT_DIM }}>
-                        {c.label}
-                      </span>
-                      <button
-                        onClick={() => openEdit(c)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: CARD_MUTED }}
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    {/* Name */}
-                    {c.name && (
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 19, letterSpacing: '-0.01em', color: CARD_INK, margin: '3px 0 0', lineHeight: 1.15 }}>
-                        {c.name}
-                      </p>
-                    )}
-
-                    {/* Raw phone/email text (visible read of the numbers) */}
-                    {(c.phone || c.email) && (
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, color: CARD_MUTED, margin: '4px 0 0', lineHeight: 1.5 }}>
-                        {[c.phone, c.email].filter(Boolean).join('  ·  ')}
-                      </p>
-                    )}
-
-                    {/* Notes */}
-                    {c.notes && (
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, fontStyle: 'italic', color: 'rgba(36,28,20,0.62)', margin: `${SPACE_SM}px 0 0`, lineHeight: 1.5 }}>
-                        {c.notes}
-                      </p>
-                    )}
-
-                    {/* Action chips */}
-                    {(c.phone || c.email || c.website) && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE_XS, marginTop: SPACE_MD, paddingTop: SPACE_SM, borderTop: `1px solid ${CARD_LINE}` }}>
-                        {phoneClean && <ActionChip href={`tel:${phoneClean}`} icon={<IconPhone />} label="Call" />}
-                        {phoneClean && <ActionChip href={`sms:${phoneClean}`} icon={<IconMessage />} label="Text" />}
-                        {c.email && <ActionChip href={`mailto:${c.email}`} icon={<IconMail />} label="Email" />}
-                        {c.website && <ActionChip href={normalizeUrl(c.website)} icon={<IconGlobe />} label="Website" external />}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: '#f0e4c8', margin: '0 0 6px' }}>Your address book</p>
+              <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(240,228,200,0.5)', margin: 0, lineHeight: 1.5 }}>
+                Keep your people in one place — across every car you own.
+              </p>
+            </div>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.4)', margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>Quick add</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SPACE_SM }}>
+              {QUICK_ADD.map(label => (
+                <button key={label} onClick={() => openNew(label)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 52, padding: '0 14px',
+                  background: 'linear-gradient(180deg, #f6f1e6 0%, #ece4d4 100%)', border: 'none', borderLeft: `4px solid ${COLOR_ACCENT}`,
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.4)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                }}>
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 18, color: COLOR_ACCENT, lineHeight: 1 }}>+</span>
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CARD_INK, textAlign: 'left' }}>{label}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* ── Add FAB ── */}
-        {!loading && !noCar && (
-          <button
-            onClick={openNew}
-            aria-label="Add contact"
-            style={{
-              position: 'fixed', right: SPACE_LG, bottom: SPACE_LG,
-              width: 56, height: 56, borderRadius: '50%',
-              background: COLOR_ACCENT, border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 18px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.2)',
-              zIndex: 20,
-            }}
-          >
-            <span style={{ color: '#fff5dc', fontSize: 30, fontWeight: 300, lineHeight: 1, marginTop: -2 }}>+</span>
-          </button>
+        {/* Contact list */}
+        {!loading && hasContacts && (
+          <div style={{ padding: `${SPACE_SM}px 0 96px` }}>
+            {groups.length === 0 && (
+              <div style={{ padding: `${SPACE_XL}px ${SPACE_MD}px`, textAlign: 'center' }}>
+                <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(240,228,200,0.45)' }}>No matches for "{query}"</span>
+              </div>
+            )}
+            {groups.map((g, gi) => (
+              <div key={g.letter}>
+                <div style={{ padding: `${SPACE_SM}px ${SPACE_MD}px 4px`, fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.18em', color: COLOR_ACCENT_DIM }}>{g.letter}</div>
+                {g.items.map((c, i) => {
+                  const open = expandedId === c.id
+                  const dn = displayName(c)
+                  const phoneClean = c.phone ? c.phone.replace(/[^\d+]/g, '') : ''
+                  return (
+                    <div key={c.id} style={{ borderBottom: '1px solid rgba(240,228,200,0.06)', animation: `contactRowIn 320ms ${EASING_SETTLE} ${(gi * 3 + i) * 30}ms both` }}>
+                      <button onClick={() => setExpandedId(open ? null : c.id)} style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: SPACE_MD, padding: `11px ${SPACE_MD}px`,
+                        background: open ? 'rgba(240,228,200,0.04)' : 'none', border: 'none', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+                      }}>
+                        {/* Avatar */}
+                        <div style={{ width: 42, height: 42, flexShrink: 0, borderRadius: '50%', background: 'rgba(200,102,26,0.16)', border: '1px solid rgba(200,102,26,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: COLOR_ACCENT, letterSpacing: '0.02em' }}>{initials(dn)}</span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15.5, color: '#f0e4c8', margin: 0, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dn}</p>
+                          <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(240,228,200,0.5)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {[c.name ? c.label : null, c.phone].filter(Boolean).join('  ·  ') || c.label}
+                          </p>
+                        </div>
+                        <span style={{ flexShrink: 0, color: 'rgba(240,228,200,0.35)', fontSize: 18, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 200ms ease' }}>›</span>
+                      </button>
+                      {open && (
+                        <div style={{ padding: `0 ${SPACE_MD}px ${SPACE_MD}px 70px` }}>
+                          {c.notes && (
+                            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, fontStyle: 'italic', color: 'rgba(240,228,200,0.55)', margin: `0 0 ${SPACE_SM}px`, lineHeight: 1.5 }}>{c.notes}</p>
+                          )}
+                          <div style={{ display: 'flex', gap: SPACE_XS, flexWrap: 'wrap' }}>
+                            {phoneClean && <ActionChip href={`tel:${phoneClean}`} icon={<IconPhone />} label="Call" filled />}
+                            {phoneClean && <ActionChip href={`sms:${phoneClean}`} icon={<IconMessage c="#f0e4c8" />} label="Text" />}
+                            {c.email && <ActionChip href={`mailto:${c.email}`} icon={<IconMail c="#f0e4c8" />} label="Email" />}
+                            {c.website && <ActionChip href={normalizeUrl(c.website)} icon={<IconGlobe c="#f0e4c8" />} label="Web" external />}
+                          </div>
+                          <button onClick={() => openEdit(c)} style={{ marginTop: SPACE_SM, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.45)' }}>Edit contact</button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ── Add / Edit bottom sheet ── */}
-      {draft && (
-        <>
-          <div
-            onClick={() => !saving && setDraft(null)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 30, animation: 'backdropIn 200ms ease both' }}
-          />
-          <div
-            style={{
-              position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 31,
-              background: SHEET_BG,
-              borderTopLeftRadius: RADIUS_BOTTOM_SHEET, borderTopRightRadius: RADIUS_BOTTOM_SHEET,
-              maxHeight: '90dvh', overflowY: 'auto',
-              padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XL}px`,
-              boxShadow: '0 -10px 40px rgba(0,0,0,0.6)',
-              animation: `sheetUp 320ms ${EASING_SETTLE} both`,
-            }}
-          >
-            {/* Grab handle */}
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(240,228,200,0.25)', margin: '0 auto 14px' }} />
+      {/* ── Bottom search + add toolbar ── */}
+      {!loading && (
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: SPACE_SM, padding: `${SPACE_SM}px ${SPACE_MD}px calc(${SPACE_SM}px + env(safe-area-inset-bottom))`, background: 'rgba(12,9,7,0.92)', borderTop: '1px solid rgba(240,228,200,0.08)', backdropFilter: 'blur(8px)' }}>
+        {hasContacts && (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', background: 'rgba(240,228,200,0.06)', border: '1px solid rgba(240,228,200,0.14)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(240,228,200,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input className="contacts-search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search contacts" style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_UI, fontWeight: 500, fontSize: 14, color: '#f0e4c8' }} />
+            {query && <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(240,228,200,0.5)', fontSize: 16, padding: 0 }}>×</button>}
+          </div>
+        )}
+        <button onClick={() => openNew()} aria-label="Add contact" style={{
+          flexShrink: 0, width: 40, height: 40, borderRadius: '50%', background: COLOR_ACCENT, border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.4)', marginLeft: hasContacts ? 0 : 'auto',
+        }}>
+          <span style={{ color: '#fff5dc', fontSize: 24, fontWeight: 300, lineHeight: 1, marginTop: -2 }}>+</span>
+        </button>
+        </div>
+      )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACE_MD }}>
-              <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: '#f0e4c8' }}>
-                {draft.id ? 'Edit Contact' : 'New Contact'}
-              </span>
-              <button onClick={() => !saving && setDraft(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.5)' }}>
-                Cancel
-              </button>
-            </div>
-
-            {/* Label (required) + quick-pick chips */}
+      {/* ── Add / Edit sheet ── */}
+      <BottomSheet open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit Contact' : 'New Contact'} bg={SHEET_BG} busy={saving}>
+        {draft && (
+          <>
             <FieldLabel>Label *</FieldLabel>
-            <input
-              ref={labelInputRef}
-              value={draft.label}
-              onChange={e => setDraft({ ...draft, label: e.target.value })}
-              placeholder="Mechanic, Tuner, Insurance…"
-              style={sheetInput}
-            />
+            <input ref={labelInputRef} value={draft.label} onChange={e => setDraft({ ...draft, label: e.target.value })} placeholder="Mechanic, Insurance, Dealership…" style={sheetInput} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE_XS, marginTop: SPACE_SM, marginBottom: SPACE_MD }}>
               {LABEL_SUGGESTIONS.map(s => {
                 const active = draft.label.trim().toLowerCase() === s.toLowerCase()
                 return (
-                  <button
-                    key={s}
-                    onClick={() => setDraft({ ...draft, label: s })}
-                    style={{
-                      padding: '6px 12px',
-                      background: active ? COLOR_ACCENT : 'rgba(240,228,200,0.06)',
-                      border: `1px solid ${active ? COLOR_ACCENT : 'rgba(240,228,200,0.18)'}`,
-                      color: active ? '#fff5dc' : 'rgba(240,228,200,0.7)',
-                      fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.04em',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {s}
-                  </button>
+                  <button key={s} onClick={() => setDraft({ ...draft, label: s })} style={{
+                    padding: '6px 12px', background: active ? COLOR_ACCENT : 'rgba(240,228,200,0.06)',
+                    border: `1px solid ${active ? COLOR_ACCENT : 'rgba(240,228,200,0.18)'}`,
+                    color: active ? '#fff5dc' : 'rgba(240,228,200,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.04em', cursor: 'pointer',
+                  }}>{s}</button>
                 )
               })}
             </div>
 
             <FieldLabel>Name</FieldLabel>
             <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Mike's Performance" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
-
             <FieldLabel>Phone</FieldLabel>
             <input value={draft.phone} onChange={e => setDraft({ ...draft, phone: e.target.value })} placeholder="(555) 123-4567" inputMode="tel" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
-
             <FieldLabel>Email</FieldLabel>
             <input value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} placeholder="shop@example.com" inputMode="email" autoCapitalize="none" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
-
             <FieldLabel>Website</FieldLabel>
             <input value={draft.website} onChange={e => setDraft({ ...draft, website: e.target.value })} placeholder="example.com" inputMode="url" autoCapitalize="none" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
-
             <FieldLabel>Notes</FieldLabel>
             <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="Ask for Dave · closed Mondays · cash only…" rows={3} style={{ ...sheetInput, resize: 'none', marginBottom: SPACE_LG }} />
 
-            {/* Actions */}
-            <button
-              onClick={save}
-              disabled={saving}
-              style={{
-                width: '100%', minHeight: 48,
-                background: COLOR_ACCENT, border: 'none', cursor: saving ? 'default' : 'pointer',
-                color: '#fff5dc', fontFamily: FONT_UI, fontWeight: 800, fontSize: 13,
-                letterSpacing: '0.1em', textTransform: 'uppercase',
-                opacity: saving ? 0.6 : 1,
-              }}
-            >
+            <button onClick={save} disabled={saving} style={{ width: '100%', minHeight: 48, background: COLOR_ACCENT, border: 'none', cursor: saving ? 'default' : 'pointer', color: '#fff5dc', fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', opacity: saving ? 0.6 : 1 }}>
               {saving ? 'Saving…' : draft.id ? 'Save Changes' : 'Add Contact'}
             </button>
-
             {draft.id && (
-              <button
-                onClick={remove}
-                disabled={saving}
-                style={{
-                  width: '100%', minHeight: 44, marginTop: SPACE_SM,
-                  background: 'none', border: '1px solid rgba(180,60,40,0.5)', cursor: 'pointer',
-                  color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-                  letterSpacing: '0.1em', textTransform: 'uppercase',
-                }}
-              >
+              <button onClick={remove} disabled={saving} style={{ width: '100%', minHeight: 44, marginTop: SPACE_SM, background: 'none', border: '1px solid rgba(180,60,40,0.5)', cursor: 'pointer', color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                 Delete Contact
               </button>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </BottomSheet>
     </div>
   )
-}
-
-// ── Sheet form helpers ──────────────────────────────────────────────────
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'block', fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.45)', marginBottom: 5 }}>
-      {children}
-    </label>
-  )
-}
-
-const sheetInput: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  background: 'rgba(240,228,200,0.05)',
-  border: 'none',
-  borderBottom: '1px solid rgba(240,228,200,0.22)',
-  padding: '10px 10px',
-  fontFamily: FONT_UI, fontWeight: 500, fontSize: 15,
-  color: '#f0e4c8',
-  outline: 'none',
-  borderRadius: 0,
 }

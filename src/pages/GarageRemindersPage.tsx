@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -19,7 +20,6 @@ import {
   FONT_UI,
   FONT_TITLE,
   HEADER_HEIGHT,
-  RADIUS_BOTTOM_SHEET,
   SPACE_XS,
   SPACE_SM,
   SPACE_MD,
@@ -266,8 +266,6 @@ export default function GarageRemindersPage() {
       <style>{`
         @keyframes telltalePulse { 0%,100% { box-shadow: 0 0 14px ${COLOR_ACCENT}, 0 0 4px ${COLOR_ACCENT}; } 50% { box-shadow: 0 0 4px rgba(200,102,26,0.4); } }
         @keyframes rowIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
       {/* ── Header ── */}
@@ -430,24 +428,9 @@ export default function GarageRemindersPage() {
       </div>
 
       {/* ── Add / Edit sheet ── */}
-      {draft && (
-        <>
-          <div onClick={() => !saving && setDraft(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 30, animation: 'backdropIn 200ms ease both' }} />
-          <div style={{
-            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 31,
-            background: SHEET_BG, borderTopLeftRadius: RADIUS_BOTTOM_SHEET, borderTopRightRadius: RADIUS_BOTTOM_SHEET,
-            maxHeight: '92dvh', overflowY: 'auto', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XL}px`,
-            boxShadow: '0 -10px 40px rgba(0,0,0,0.6)', animation: `sheetUp 320ms ${EASING_SETTLE} both`,
-          }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(240,228,200,0.25)', margin: '0 auto 14px' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACE_MD }}>
-              <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: CREAM }}>
-                {draft.id ? 'Edit Reminder' : 'New Reminder'}
-              </span>
-              <button onClick={() => !saving && setDraft(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Cancel</button>
-            </div>
-
+      <BottomSheet open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit Reminder' : 'New Reminder'} bg={SHEET_BG} busy={saving}>
+        {draft && (
+          <>
             {/* Linked part badge */}
             {draft.job_title && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: SPACE_MD, padding: '8px 10px', background: 'rgba(200,102,26,0.1)', border: '1px solid rgba(200,102,26,0.35)' }}>
@@ -503,23 +486,9 @@ export default function GarageRemindersPage() {
                 color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
               }}>Delete Reminder</button>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </BottomSheet>
     </div>
   )
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'block', fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.45)', marginBottom: 5 }}>
-      {children}
-    </label>
-  )
-}
-
-const sheetInput: React.CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'rgba(240,228,200,0.05)', border: 'none', borderBottom: '1px solid rgba(240,228,200,0.22)',
-  padding: '10px 10px', fontFamily: FONT_UI, fontWeight: 500, fontSize: 15, color: '#f0e4c8', outline: 'none', borderRadius: 0,
 }

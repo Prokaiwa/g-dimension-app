@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -20,7 +21,6 @@ import {
   FONT_UI,
   FONT_TITLE,
   HEADER_HEIGHT,
-  RADIUS_BOTTOM_SHEET,
   SPACE_XS,
   SPACE_SM,
   SPACE_MD,
@@ -148,7 +148,7 @@ export default function GarageDocumentsPage() {
     load()
   }, [])
 
-  function openNew() { setDraft({ ...EMPTY_DRAFT }) }
+  function openNew(prefillType?: DocType) { setDraft({ ...EMPTY_DRAFT, doc_type: prefillType ?? 'registration' }) }
   function openEdit(d: Doc) {
     setDraft({
       id: d.id, doc_type: d.doc_type, label: d.label ?? '',
@@ -240,8 +240,6 @@ export default function GarageDocumentsPage() {
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: VAULT_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
         @keyframes docIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
 
       {/* ── Header ── */}
@@ -295,11 +293,31 @@ export default function GarageDocumentsPage() {
               </span>
             </div>
 
-            {/* Empty state */}
+            {/* Elevated empty state — prelisted category tiles */}
             {docs.length === 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: SPACE_SM, padding: `${SPACE_XL}px 0`, opacity: 0.55 }}>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>No documents yet</span>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: DIM }}>Registration, insurance, title… tap + to add.</span>
+              <div style={{ paddingTop: SPACE_SM }}>
+                <div style={{ textAlign: 'center', marginBottom: SPACE_XL }}>
+                  <div style={{ width: 56, height: 56, margin: '0 auto 14px', borderRadius: '50%', border: '1.5px solid rgba(240,228,200,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(240,228,200,0.55)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+                  </div>
+                  <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '0 0 6px' }}>The glovebox</p>
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: DIM, margin: 0, lineHeight: 1.5 }}>
+                    Registration, insurance, title — kept private, opened only by you.
+                  </p>
+                </div>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: DIM, margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>Add a document</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SPACE_SM }}>
+                  {(['registration', 'insurance', 'title', 'emissions', 'inspection', 'warranty'] as DocType[]).map(t => (
+                    <button key={t} onClick={() => openNew(t)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, minHeight: 52, padding: '0 14px',
+                      background: PAPER, border: 'none', borderLeft: `4px solid ${COLOR_ACCENT}`,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.45)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                    }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 18, color: COLOR_ACCENT, lineHeight: 1 }}>+</span>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: PAPER_INK, textAlign: 'left' }}>{DOC_TYPE_LABEL[t]}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -391,7 +409,7 @@ export default function GarageDocumentsPage() {
         {/* Add FAB */}
         {!loading && !noCar && (
           <button
-            onClick={openNew}
+            onClick={() => openNew()}
             aria-label="Add document"
             style={{
               position: 'fixed', right: SPACE_LG, bottom: SPACE_LG,
@@ -407,24 +425,9 @@ export default function GarageDocumentsPage() {
       </div>
 
       {/* ── Add / Edit sheet ── */}
-      {draft && (
-        <>
-          <div onClick={() => !saving && setDraft(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 30, animation: 'backdropIn 200ms ease both' }} />
-          <div style={{
-            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 31,
-            background: SHEET_BG, borderTopLeftRadius: RADIUS_BOTTOM_SHEET, borderTopRightRadius: RADIUS_BOTTOM_SHEET,
-            maxHeight: '92dvh', overflowY: 'auto', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XL}px`,
-            boxShadow: '0 -10px 40px rgba(0,0,0,0.6)', animation: `sheetUp 320ms ${EASING_SETTLE} both`,
-          }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(240,228,200,0.25)', margin: '0 auto 14px' }} />
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACE_MD }}>
-              <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: CREAM }}>
-                {draft.id ? 'Edit Document' : 'New Document'}
-              </span>
-              <button onClick={() => !saving && setDraft(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Cancel</button>
-            </div>
-
+      <BottomSheet open={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit Document' : 'New Document'} bg={SHEET_BG} busy={saving}>
+        {draft && (
+          <>
             <FieldLabel>Type</FieldLabel>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE_XS, marginBottom: SPACE_MD }}>
               {DOC_TYPES.map(t => {
@@ -490,23 +493,9 @@ export default function GarageDocumentsPage() {
                 color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
               }}>Delete Document</button>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </BottomSheet>
     </div>
   )
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'block', fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.45)', marginBottom: 5 }}>
-      {children}
-    </label>
-  )
-}
-
-const sheetInput: React.CSSProperties = {
-  width: '100%', boxSizing: 'border-box',
-  background: 'rgba(240,228,200,0.05)', border: 'none', borderBottom: '1px solid rgba(240,228,200,0.22)',
-  padding: '10px 10px', fontFamily: FONT_UI, fontWeight: 500, fontSize: 15, color: '#f0e4c8', outline: 'none', borderRadius: 0,
 }
