@@ -47,6 +47,7 @@ type Contact = {
   phone: string | null
   email: string | null
   website: string | null
+  social: string | null
   notes: string | null
   display_order: number
 }
@@ -58,14 +59,30 @@ type Draft = {
   phone: string
   email: string
   website: string
+  social: string
   notes: string
 }
-const EMPTY_DRAFT: Draft = { label: '', name: '', phone: '', email: '', website: '', notes: '' }
+const EMPTY_DRAFT: Draft = { label: '', name: '', phone: '', email: '', website: '', social: '', notes: '' }
 
 function normalizeUrl(url: string): string {
   const u = url.trim()
   if (!u) return ''
   return /^https?:\/\//i.test(u) ? u : `https://${u}`
+}
+
+// Light, non-destructive phone formatting. US/NANP 10-digit numbers get the
+// familiar (555) 123-4567 grouping. Anything with a leading + (explicit country
+// code) or a non-US national format (leading trunk 0, or >10 digits) is left
+// exactly as typed — so AU/NZ/UK/JP numbers are never mangled.
+function formatPhone(input: string): string {
+  if (input.trimStart().startsWith('+')) return input
+  const digits = input.replace(/\D/g, '')
+  if (digits.startsWith('0') || digits.length > 10) return input
+  const a = digits.slice(0, 3), b = digits.slice(3, 6), c = digits.slice(6, 10)
+  if (digits.length > 6) return `(${a}) ${b}-${c}`
+  if (digits.length > 3) return `(${a}) ${b}`
+  if (digits.length > 0) return `(${a}`
+  return ''
 }
 
 function displayName(c: Contact): string {
@@ -91,6 +108,9 @@ function IconMail({ c = CARD_INK }: { c?: string }) {
 }
 function IconGlobe({ c = CARD_INK }: { c?: string }) {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" /></svg>
+}
+function IconAt({ c = CARD_INK }: { c?: string }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" /></svg>
 }
 
 // Action chip in the expanded row
@@ -128,7 +148,7 @@ export default function GarageContactsPage() {
       setUserId(uid)
       const { data: rows } = await supabase
         .from('user_contacts')
-        .select('id, label, name, phone, email, website, notes, display_order')
+        .select('id, label, name, phone, email, website, social, notes, display_order')
         .eq('user_id', uid)
         .order('display_order', { ascending: true })
         .order('created_at', { ascending: true })
@@ -161,7 +181,7 @@ export default function GarageContactsPage() {
     setDraft({ ...EMPTY_DRAFT, label: prefillLabel ?? '' })
   }
   function openEdit(c: Contact) {
-    setDraft({ id: c.id, label: c.label ?? '', name: c.name ?? '', phone: c.phone ?? '', email: c.email ?? '', website: c.website ?? '', notes: c.notes ?? '' })
+    setDraft({ id: c.id, label: c.label ?? '', name: c.name ?? '', phone: c.phone ?? '', email: c.email ?? '', website: c.website ?? '', social: c.social ?? '', notes: c.notes ?? '' })
   }
 
   async function save() {
@@ -175,9 +195,10 @@ export default function GarageContactsPage() {
       phone: draft.phone.trim() || null,
       email: draft.email.trim() || null,
       website: normalizeUrl(draft.website) || null,
+      social: normalizeUrl(draft.social) || null,
       notes: draft.notes.trim() || null,
     }
-    const SEL = 'id, label, name, phone, email, website, notes, display_order'
+    const SEL = 'id, label, name, phone, email, website, social, notes, display_order'
     if (draft.id) {
       const { data, error } = await supabase.from('user_contacts').update(payload).eq('id', draft.id).select(SEL).single()
       if (!error && data) setContacts(prev => prev.map(c => (c.id === draft.id ? (data as Contact) : c)))
@@ -300,6 +321,7 @@ export default function GarageContactsPage() {
                             {phoneClean && <ActionChip href={`sms:${phoneClean}`} icon={<IconMessage c="#f0e4c8" />} label="Text" />}
                             {c.email && <ActionChip href={`mailto:${c.email}`} icon={<IconMail c="#f0e4c8" />} label="Email" />}
                             {c.website && <ActionChip href={normalizeUrl(c.website)} icon={<IconGlobe c="#f0e4c8" />} label="Web" external />}
+                            {c.social && <ActionChip href={normalizeUrl(c.social)} icon={<IconAt c="#f0e4c8" />} label="Social" external />}
                           </div>
                           <button onClick={() => openEdit(c)} style={{ marginTop: SPACE_SM, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.45)' }}>Edit contact</button>
                         </div>
@@ -354,11 +376,16 @@ export default function GarageContactsPage() {
             <FieldLabel>Name</FieldLabel>
             <input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Mike's Performance" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
             <FieldLabel>Phone</FieldLabel>
-            <input value={draft.phone} onChange={e => setDraft({ ...draft, phone: e.target.value })} placeholder="(555) 123-4567" inputMode="tel" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
+            <input value={draft.phone} onChange={e => setDraft({ ...draft, phone: formatPhone(e.target.value) })} placeholder="(555) 123-4567" inputMode="tel" style={{ ...sheetInput }} />
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: 'rgba(240,228,200,0.4)', margin: `6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
+              Outside the US? Start with your country code (e.g. +61, +44, +81).
+            </p>
             <FieldLabel>Email</FieldLabel>
             <input value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} placeholder="shop@example.com" inputMode="email" autoCapitalize="none" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
             <FieldLabel>Website</FieldLabel>
             <input value={draft.website} onChange={e => setDraft({ ...draft, website: e.target.value })} placeholder="example.com" inputMode="url" autoCapitalize="none" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
+            <FieldLabel>Social</FieldLabel>
+            <input value={draft.social} onChange={e => setDraft({ ...draft, social: e.target.value })} placeholder="instagram.com/yourshop" inputMode="url" autoCapitalize="none" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
             <FieldLabel>Notes</FieldLabel>
             <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="Ask for Dave · closed Mondays · cash only…" rows={3} style={{ ...sheetInput, resize: 'none', marginBottom: SPACE_LG }} />
 

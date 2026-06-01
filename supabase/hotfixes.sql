@@ -56,6 +56,15 @@ $$;
 delete from public.job_specs where job_id = '25961923-8b73-4978-9153-a7e8996ba292';
 delete from public.jobs      where id     = '25961923-8b73-4978-9153-a7e8996ba292';
 
+-- Fix missing DML grants on car_documents + receipts (2026-06-01)
+-- The 2026-05-16 grant block covered jobs/job_photos/cars/car_reminders/sessions
+-- but missed car_documents and receipts. Adding/editing/deleting documents — and
+-- the new standalone receipts (which are car_documents rows, doc_type='receipt')
+-- — failed silently. The Documents → Receipts tab also reads public.receipts and
+-- needs SELECT. Grant full DML to both for consistency with the other user tables.
+grant select, insert, update, delete on public.car_documents to authenticated;
+grant select, insert, update, delete on public.receipts      to authenticated;
+
 -- Migration 032: session cost breakdown columns (2026-05-28)
 -- Run this in the Supabase SQL Editor after applying 032_session_cost_breakdown.sql.
 -- Adds labor_cost and tax_amount to sessions for shop invoice breakdown.

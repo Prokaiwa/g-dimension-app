@@ -61,6 +61,50 @@ const DOC_TYPE_LABEL: Record<DocType, string> = {
   inspection: 'Inspection', warranty: 'Warranty', purchase: 'Purchase', receipt: 'Receipt', other: 'Other',
 }
 
+// Contextual placeholder for the Label field, per document type.
+const LABEL_PLACEHOLDER: Record<DocType, string> = {
+  registration: 'e.g. 2026 tags · plate ABC-123',
+  insurance: 'e.g. State Farm Policy 2026',
+  title: 'e.g. Pink slip / title',
+  emissions: 'e.g. Smog certificate',
+  inspection: 'e.g. Safety inspection',
+  warranty: 'e.g. Powertrain warranty',
+  purchase: 'e.g. Bill of sale',
+  receipt: 'e.g. Insurance payment — June',
+  other: 'e.g. Document name',
+}
+
+// Map a doc type to a car_reminders.category (its CHECK is narrower than ours).
+const DOCTYPE_TO_REMINDER: Record<DocType, string> = {
+  registration: 'registration', insurance: 'insurance', emissions: 'emissions',
+  inspection: 'inspection', warranty: 'warranty',
+  title: 'other', purchase: 'other', receipt: 'other', other: 'other',
+}
+
+// Expiry-reminder lead-time presets (days before expiry). 0 = no reminder.
+const REMIND_PRESETS: { label: string; days: number }[] = [
+  { label: 'No reminder', days: 0 },
+  { label: '2 weeks',     days: 14 },
+  { label: '1 month',     days: 30 },
+  { label: '3 months',    days: 90 },
+]
+
+// expiry minus N days → 'YYYY-MM-DD'
+function minusDays(isoDate: string, days: number): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  d.setDate(d.getDate() - days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Given an expiry and a reminder due_date, snap the gap to the nearest preset.
+function nearestPreset(expiry: string, dueDate: string): number {
+  const gap = Math.round((new Date(expiry + 'T00:00:00').getTime() - new Date(dueDate + 'T00:00:00').getTime()) / 86400000)
+  if (gap <= 0) return 0
+  if (gap <= 18) return 14
+  if (gap <= 60) return 30
+  return 90
+}
+
 type Tab = 'documents' | 'receipts'
 
 type Doc = {
@@ -97,12 +141,13 @@ type Draft = {
   issued_date: string
   expiry_date: string
   amount: string               // receipts only
+  remindDays: number           // documents only — 0 = no expiry reminder
   file: File | null            // new file to upload (null = keep existing)
   existingFileName: string | null
 }
 
-const EMPTY_DOC: Draft = { kind: 'document', doc_type: 'registration', label: '', issued_date: '', expiry_date: '', amount: '', file: null, existingFileName: null }
-const EMPTY_RECEIPT: Draft = { kind: 'receipt', doc_type: 'receipt', label: '', issued_date: '', expiry_date: '', amount: '', file: null, existingFileName: null }
+const EMPTY_DOC: Draft = { kind: 'document', doc_type: 'registration', label: '', issued_date: '', expiry_date: '', amount: '', remindDays: 0, file: null, existingFileName: null }
+const EMPTY_RECEIPT: Draft = { kind: 'receipt', doc_type: 'receipt', label: '', issued_date: '', expiry_date: '', amount: '', remindDays: 0, file: null, existingFileName: null }
 
 type ExpiryStatus = 'expired' | 'soon' | 'ok' | null
 function expiryStatus(expiry: string | null): ExpiryStatus {
@@ -154,6 +199,9 @@ export default function GarageDocumentsPage() {
 
   const [draft, setDraft]   = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState<string | null>(null)
+  // doc id → linked expiry reminder ({ id, due_date }), for prefilling the edit sheet
+  const [docReminders, setDocReminders] = useState<Record<string, { id: string; due_date: string | null }>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function loadData() {
@@ -195,6 +243,18 @@ export default function GarageDocumentsPage() {
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
+    // Map document-linked expiry reminders so the edit sheet can prefill them.
+    const { data: remRows } = await supabase
+      .from('car_reminders')
+      .select('id, document_id, due_date')
+      .eq('car_id', id)
+      .not('document_id', 'is', null)
+    const remMap: Record<string, { id: string; due_date: string | null }> = {}
+    for (const r of (remRows ?? []) as { id: string; document_id: string; due_date: string | null }[]) {
+      remMap[r.document_id] = { id: r.id, due_date: r.due_date }
+    }
+    setDocReminders(remMap)
+
     // Sign thumbnails for image docs (PDFs use a glyph).
     const imageRows = all.filter(d => d.file_type === 'image' && d.file_url)
     const signed = await Promise.all(imageRows.map(async d => {
@@ -208,15 +268,19 @@ export default function GarageDocumentsPage() {
 
   useEffect(() => { loadData() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  function openNewDoc(prefillType?: DocType) { setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
-  function openNewReceipt() { setDraft({ ...EMPTY_RECEIPT }) }
+  function openNewDoc(prefillType?: DocType) { setError(null); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
+  function openNewReceipt() { setError(null); setDraft({ ...EMPTY_RECEIPT }) }
   function openEdit(d: Doc) {
+    setError(null)
+    const rem = docReminders[d.id]
+    const remindDays = d.expiry_date && rem?.due_date ? nearestPreset(d.expiry_date, rem.due_date) : 0
     setDraft({
       id: d.id,
       kind: d.doc_type === 'receipt' ? 'receipt' : 'document',
       doc_type: d.doc_type, label: d.label ?? '',
       issued_date: d.issued_date ?? '', expiry_date: d.expiry_date ?? '',
       amount: d.amount != null ? String(d.amount) : '',
+      remindDays,
       file: null, existingFileName: d.file_name,
     })
   }
@@ -224,10 +288,11 @@ export default function GarageDocumentsPage() {
   async function save() {
     if (!draft || !carId) return
     setSaving(true)
+    setError(null)
 
     const { data: authData } = await supabase.auth.getUser()
     const userId = authData?.user?.id
-    if (!userId) { setSaving(false); return }
+    if (!userId) { setError('Not signed in — please reload.'); setSaving(false); return }
 
     // Upload a new file if one was picked.
     let fileUrl: string | undefined
@@ -239,10 +304,10 @@ export default function GarageDocumentsPage() {
       const path  = `${userId}/${carId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
       let upload: File | Blob = draft.file
       if (isImg) {
-        try { upload = await imageCompression(draft.file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg' }) } catch { /* use original */ }
+        try { upload = await imageCompression(draft.file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, exifOrientation: -1, fileType: 'image/jpeg' }) } catch { /* use original */ }
       }
       const { error: upErr } = await supabase.storage.from('car-documents').upload(path, upload, { contentType: isImg ? 'image/jpeg' : 'application/pdf' })
-      if (upErr) { console.error('Document upload failed:', upErr.message); setSaving(false); return }
+      if (upErr) { setError(`Upload failed: ${upErr.message}`); setSaving(false); return }
       fileUrl = path
       fileType = isImg ? 'image' : 'pdf'
       fileName = draft.file.name
@@ -268,15 +333,37 @@ export default function GarageDocumentsPage() {
     }
 
     let error
+    let docId = draft.id
     if (draft.id) {
       const payload = fileUrl ? { ...base, file_url: fileUrl, file_type: fileType, file_name: fileName } : base
       ;({ error } = await supabase.from('car_documents').update(payload).eq('id', draft.id))
     } else {
       const payload = { ...base, car_id: carId, file_url: fileUrl ?? null, file_type: fileType ?? null, file_name: fileName ?? null }
-      ;({ error } = await supabase.from('car_documents').insert(payload))
+      const res = await supabase.from('car_documents').insert(payload).select('id').single()
+      error = res.error
+      docId = res.data?.id
     }
 
-    if (error) { console.error('Save failed:', error.message); setSaving(false); return }
+    if (error) { setError(`Couldn't save: ${error.message}`); setSaving(false); return }
+
+    // Expiry reminder — documents only. Upsert / delete the linked car_reminders row.
+    if (!isReceipt && docId) {
+      const expiry = draft.expiry_date || null
+      const { data: existing } = await supabase.from('car_reminders').select('id').eq('document_id', docId).limit(1)
+      const existingId = existing?.[0]?.id as string | undefined
+      if (draft.remindDays > 0 && expiry) {
+        const remPayload = {
+          title: `${draft.label.trim() || DOC_TYPE_LABEL[draft.doc_type]} expires`,
+          category: DOCTYPE_TO_REMINDER[draft.doc_type],
+          due_date: minusDays(expiry, draft.remindDays),
+          document_id: docId,
+        }
+        if (existingId) await supabase.from('car_reminders').update(remPayload).eq('id', existingId)
+        else await supabase.from('car_reminders').insert({ ...remPayload, car_id: carId })
+      } else if (existingId) {
+        await supabase.from('car_reminders').delete().eq('id', existingId)
+      }
+    }
 
     await loadData()
     setSaving(false)
@@ -286,10 +373,14 @@ export default function GarageDocumentsPage() {
   async function remove() {
     if (!draft?.id) return
     setSaving(true)
+    setError(null)
     const doc = [...docs, ...receiptDocs].find(d => d.id === draft.id)
     if (doc?.file_url) await supabase.storage.from('car-documents').remove([doc.file_url])
+    // Drop any expiry reminder linked to this document.
+    await supabase.from('car_reminders').delete().eq('document_id', draft.id)
     const { error } = await supabase.from('car_documents').delete().eq('id', draft.id)
-    if (!error) await loadData()
+    if (error) { setError(`Couldn't delete: ${error.message}`); setSaving(false); return }
+    await loadData()
     setSaving(false)
     setDraft(null)
   }
@@ -660,7 +751,7 @@ export default function GarageDocumentsPage() {
             <input
               value={draft.label}
               onChange={e => setDraft({ ...draft, label: e.target.value })}
-              placeholder={isReceiptDraft ? 'e.g. Insurance payment — June' : 'e.g. State Farm Policy 2026'}
+              placeholder={isReceiptDraft ? 'e.g. Insurance payment — June' : LABEL_PLACEHOLDER[draft.doc_type]}
               style={{ ...sheetInput, marginBottom: SPACE_MD }}
             />
 
@@ -694,6 +785,30 @@ export default function GarageDocumentsPage() {
               </div>
             )}
 
+            {/* Expiry reminder — documents with an expiry date only */}
+            {!isReceiptDraft && draft.expiry_date && (
+              <>
+                <FieldLabel>Remind me before it expires</FieldLabel>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE_XS, marginBottom: SPACE_MD }}>
+                  {REMIND_PRESETS.map(p => {
+                    const active = draft.remindDays === p.days
+                    return (
+                      <button key={p.days} onClick={() => setDraft({ ...draft, remindDays: p.days })} style={{
+                        padding: '6px 12px',
+                        background: active ? COLOR_ACCENT : 'rgba(240,228,200,0.05)',
+                        border: `1px solid ${active ? COLOR_ACCENT : FAINT}`,
+                        color: active ? '#fff5dc' : 'rgba(240,228,200,0.7)',
+                        fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.04em', cursor: 'pointer',
+                      }}>{p.label}</button>
+                    )
+                  })}
+                </div>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `-6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
+                  Adds a reminder on the Reminders screen, ahead of the expiry date.
+                </p>
+              </>
+            )}
+
             {/* File picker */}
             <FieldLabel>File (image or PDF)</FieldLabel>
             <input
@@ -717,6 +832,10 @@ export default function GarageDocumentsPage() {
                 {draft.file ? draft.file.name : draft.existingFileName ? `Replace — ${draft.existingFileName}` : 'Choose a file…'}
               </span>
             </button>
+
+            {error && (
+              <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: '#e08a6e', margin: `0 0 ${SPACE_SM}px`, lineHeight: 1.4 }}>{error}</p>
+            )}
 
             <button onClick={save} disabled={saving} style={{
               width: '100%', minHeight: 48, background: COLOR_ACCENT, border: 'none', cursor: saving ? 'default' : 'pointer',
