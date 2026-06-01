@@ -1084,6 +1084,12 @@ create table receipts (
 
 ### `car_contacts`
 
+> **Superseded (migration 035).** The Contacts screen now uses `user_contacts` —
+> a per-**user** (cross-car) contact book, so insurance / dealership / roadside /
+> mechanic carry across every car instead of being re-entered per car.
+> `car_contacts` is left in place (unused by the app) and may be dropped in a
+> later cleanup migration. Same columns, keyed on `user_id` instead of `car_id`.
+
 ```sql
 create table car_contacts (
   id            uuid primary key default gen_random_uuid(),
@@ -1118,6 +1124,14 @@ create table car_documents (
 );
 ```
 
+> **Extended (migration 036).** `doc_type` now also allows `'receipt'`, and the
+> table gained `amount decimal(10,2)` + `currency char(3)`. A `doc_type='receipt'`
+> row is a standalone titled receipt (insurance payment, registration fee) shown
+> on the Documents → Receipts tab. These live here (private vault) rather than in
+> `receipts` because they are ownership costs, **not** build spend — they are
+> never counted toward Build Investment. The Receipts tab also surfaces the real
+> `receipts` rows (service + part purchases) read-only.
+
 ### `car_reminders`
 
 ```sql
@@ -1137,6 +1151,12 @@ create table car_reminders (
   created_at  timestamptz default now()
 );
 ```
+
+> **Extended (migration 034).** Added `job_id uuid references jobs(id) on delete
+> set null` — an optional link to a specific part/mod. Powers part-level
+> service-interval reminders ("rebuild the turbo every 30k mi"), set via the
+> "⚙ Set a service reminder" action on a serviceable part/mod detail page. Pairs
+> naturally with `due_mileage`.
 
 ### `user_flags` *(new)*
 

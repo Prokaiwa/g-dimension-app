@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 032_session_cost_breakdown.sql (2026-05-28)
--- All migrations 001–032 confirmed applied to production.
+-- Last migration applied : 036_document_receipts.sql (2026-06-01)
+-- All migrations 001–036 confirmed applied to production.
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)
