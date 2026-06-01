@@ -1,38 +1,36 @@
 -- =============================================================================
--- G-DIMENSION — Migration 037: vehicle model canonicalization
+-- G-DIMENSION — Migration 037: collapse generation-split models to nameplates
 -- =============================================================================
--- Two related reference-data cleanups for the Add Car flow:
+-- Some JDM nameplates were seeded split by generation / chassis code as
+-- separate MODELS ("Skyline R32", "Skyline R33", "Skyline R34"). That makes the
+-- model picker inconsistent with every other make — a 1999 and a 2008 Civic are
+-- both just "Civic". This migration collapses those into ONE nameplate model
+-- each ("Skyline"), matching how all other makes are stored.
 --
---   PART A — Collapse JDM nameplates stored split by generation / chassis code
---            ("Skyline R32", "Skyline R33", "Skyline R34") into ONE nameplate
---            model ("Skyline") with the generations moved down to the variant
---            layer that already exists (vehicle_variants — it already holds
---            "R32 GT-R", "R33 GT-R", etc.). The detailed trim variants are
---            re-parented onto the nameplate, and a plain generation variant
---            (just "R32") is added so the generation alone stays selectable.
+-- The specific generation is NOT broken out into the model/variant picker. It
+-- belongs ON THE CAR: cars.chassis_code (free text, e.g. "R32", "S14", "FD3S")
+-- and cars.trim already exist for exactly this. So when a car is re-pointed
+-- from a generation model to the nameplate, its chassis_code is back-filled
+-- from the generation code if it was empty — no information is lost.
 --
---   PART B — Split Lexus nameplates the market sells as distinct sequential
---            generations (LS 400 / LS 430 / LS 460 / LS 500) out of the single
---            "LS" row into separate models.
+-- Detailed trim variants seeded in migration 017 (e.g. "R32 GT-R", "S14 Kouki")
+-- are re-parented onto the nameplate model rather than deleted, so any car
+-- linked via cars.variant_id keeps working and the reference data survives. The
+-- model list itself just shows the single nameplate.
 --
--- SAFETY:
---   * Idempotent — safe to run more than once.
---   * Name-keyed, not id-keyed (live ids are unknown). A block that finds no
---     matching make/model simply no-ops and RAISEs a NOTICE so it is visible.
---   * FK-safe — vehicle_variants.model_id and cars.model_id are always
---     re-pointed BEFORE any vehicle_models row is deleted.
---   * Helpers are created in pg_temp (dropped automatically at session end).
+-- NOTE: Lexus LS / IS / GS are deliberately NOT touched. Their engine-number
+-- suffixes (LS 430, IS 350) are recorded per-car in the Trim field, consistent
+-- with the nameplate rule above.
 --
--- HOW TO RUN: paste into the Supabase SQL Editor and execute. Read the NOTICE
---   output to confirm what changed. The editor runs this as one transaction —
---   if anything looks wrong, ROLLBACK before it commits.
+-- SAFETY: idempotent, name-keyed (live ids unknown — a block that finds no
+-- match no-ops with a NOTICE), and FK-safe (variants + cars are re-pointed
+-- before any model is deleted). Helper lives in pg_temp. Runs as one
+-- transaction in the SQL editor — review the NOTICE output, ROLLBACK if wrong.
 --
 -- AFTER CONFIRMING IT RAN: bump the watermark in supabase/hotfixes.sql and the
---   migration range / table in CLAUDE.md per the repo's "Live DB watermark rule".
+-- migration range / table in CLAUDE.md per the "Live DB watermark rule".
 -- =============================================================================
 
-
--- ── PART A helper: collapse split generations into one nameplate ─────────────
 create or replace function pg_temp.collapse_nameplate(
   p_make   text,
   p_target text,
@@ -46,7 +44,6 @@ declare
   v_max_end    int;
   v_open_end   boolean;
   v_body       text;
-  v_gen_var    int;
   v_moved_cars int := 0;
   g            jsonb;
 begin
@@ -57,9 +54,7 @@ begin
   end if;
 
   -- Combined year range + a representative body style across the source rows.
-  select min(year_start),
-         max(year_end),
-         bool_or(year_end is null),
+  select min(year_start), max(year_end), bool_or(year_end is null),
          (array_agg(body_style order by year_start))[1]
     into v_min_start, v_max_end, v_open_end, v_body
     from public.vehicle_models
@@ -89,25 +84,14 @@ begin
      where id = v_target_id;
   end if;
 
-  -- For each generation: add a plain chassis variant, re-parent its trim
-  -- variants, re-point its cars, then drop the now-empty generation model.
+  -- Per generation: re-parent its trim variants, re-point + back-fill its cars,
+  -- then drop the now-empty generation model.
   for g in select * from jsonb_array_elements(p_gens) loop
     select id into v_src_id from public.vehicle_models
      where make_id = v_make_id and model_name = (g->>'model');
     if v_src_id is null or v_src_id = v_target_id then
       continue;   -- already collapsed, or never existed
     end if;
-
-    -- Plain generation variant (e.g. just "R32") so the generation is pickable.
-    insert into public.vehicle_variants
-      (model_id, variant_name, chassis_code, year_start, year_end, is_jdm_only, source)
-    select v_target_id, g->>'code', g->>'code',
-           m.year_start, m.year_end, true, 'jdm_manual'
-      from public.vehicle_models m where m.id = v_src_id
-    on conflict (model_id, variant_name) do nothing;
-
-    select id into v_gen_var from public.vehicle_variants
-     where model_id = v_target_id and variant_name = (g->>'code');
 
     -- Re-parent detailed trim variants (skip names already present on target).
     update public.vehicle_variants vv
@@ -118,89 +102,18 @@ begin
                           and x.variant_name = vv.variant_name);
     delete from public.vehicle_variants where model_id = v_src_id;  -- drop collided dups
 
-    -- Re-point cars: nameplate model, preserve generation as chassis_code, and
-    -- attach the plain generation variant when the car had none.
+    -- Re-point cars to the nameplate; preserve the generation as chassis_code
+    -- when the car does not already have one.
     update public.cars
        set model_id     = v_target_id,
-           variant_id   = coalesce(variant_id, v_gen_var),
-           chassis_code = coalesce(chassis_code, g->>'code')
+           chassis_code = coalesce(nullif(trim(chassis_code), ''), g->>'code')
      where model_id = v_src_id;
     get diagnostics v_moved_cars = row_count;
 
     delete from public.vehicle_models where id = v_src_id;
-    raise notice 'collapsed % "%" -> "%" (% cars re-pointed)',
-      p_make, g->>'model', p_target, v_moved_cars;
+    raise notice 'collapsed % "%" -> "%" (% cars re-pointed, chassis_code back-filled to %)',
+      p_make, g->>'model', p_target, v_moved_cars, g->>'code';
   end loop;
-end;
-$$;
-
-
--- ── PART B helper: split one nameplate into sequential-era models ────────────
-create or replace function pg_temp.split_nameplate(
-  p_make    text,
-  p_source  text,    -- existing single model, e.g. "LS"
-  p_splits  jsonb,   -- [{"name":"LS 400","start":1989,"end":2000}, ...]
-  p_default text     -- era to use when a car's year is null / out of range
-) returns void language plpgsql as $$
-declare
-  v_make_id    int;
-  v_source_id  int;
-  v_body       text;
-  v_jdm        boolean;
-  v_split_id   int;
-  v_default_id int;
-  v_moved      int;
-  s            jsonb;
-begin
-  select id into v_make_id from public.vehicle_makes where make_name = p_make;
-  if v_make_id is null then
-    raise notice 'split_nameplate: make "%" not found — skipped', p_make;
-    return;
-  end if;
-
-  select id, body_style, is_jdm_only into v_source_id, v_body, v_jdm
-    from public.vehicle_models where make_id = v_make_id and model_name = p_source;
-  if v_source_id is null then
-    raise notice 'split_nameplate: % model "%" not found — skipped '
-                 '(tell me the actual model name in your data)', p_make, p_source;
-    return;
-  end if;
-
-  -- Create each era model.
-  for s in select * from jsonb_array_elements(p_splits) loop
-    insert into public.vehicle_models
-      (make_id, model_name, year_start, year_end, body_style, is_jdm_only, source)
-    values
-      (v_make_id, s->>'name', (s->>'start')::int,
-       nullif(s->>'end','')::int, v_body, coalesce(v_jdm, false), 'user_added')
-    on conflict (make_id, model_name) do nothing;
-  end loop;
-
-  select id into v_default_id from public.vehicle_models
-   where make_id = v_make_id and model_name = p_default;
-
-  -- Re-point cars to the era whose [start,end] contains cars.year.
-  for s in select * from jsonb_array_elements(p_splits) loop
-    select id into v_split_id from public.vehicle_models
-     where make_id = v_make_id and model_name = (s->>'name');
-    update public.cars c
-       set model_id = v_split_id
-     where c.model_id = v_source_id
-       and c.year is not null
-       and c.year >= (s->>'start')::int
-       and (nullif(s->>'end','') is null or c.year <= (s->>'end')::int);
-  end loop;
-
-  -- Leftovers (null / out-of-range year) → default era.
-  update public.cars set model_id = v_default_id where model_id = v_source_id;
-  get diagnostics v_moved = row_count;
-
-  -- Any variants that hung off the single model → default era.
-  update public.vehicle_variants set model_id = v_default_id where model_id = v_source_id;
-
-  delete from public.vehicle_models where id = v_source_id;
-  raise notice 'split % "%" into % eras (% leftover cars -> "%")',
-    p_make, p_source, jsonb_array_length(p_splits), v_moved, p_default;
 end;
 $$;
 
@@ -208,7 +121,6 @@ $$;
 -- ── Execute ──────────────────────────────────────────────────────────────────
 do $$
 begin
-  -- PART A — collapse generation-coded JDM nameplates into one model each.
   perform pg_temp.collapse_nameplate('Nissan', 'Skyline',
     '[{"model":"Skyline R32","code":"R32"},
       {"model":"Skyline R33","code":"R33"},
@@ -231,38 +143,4 @@ begin
     '[{"model":"Lancer Evolution IV","code":"Evo IV"},
       {"model":"Lancer Evolution V","code":"Evo V"},
       {"model":"Lancer Evolution VI","code":"Evo VI"}]');
-
-  -- PART B — split Lexus LS into the sequential generations Lexus sold as
-  --          distinct models. (Clean: the eras do not overlap.)
-  perform pg_temp.split_nameplate('Lexus', 'LS',
-    '[{"name":"LS 400","start":1989,"end":2000},
-      {"name":"LS 430","start":2001,"end":2006},
-      {"name":"LS 460","start":2007,"end":2017},
-      {"name":"LS 500","start":2018,"end":null}]', 'LS 400');
-
-  -- ── HELD FOR A DECISION — Lexus IS / GS / SC ───────────────────────────────
-  -- Unlike LS, these engine-number suffixes are TRIMS sold side-by-side within
-  -- the same era (IS 250 & IS 350 both 2006–2015; SC 300 & SC 400 both
-  -- 1992–2000), so a year-based re-point of existing cars can't reliably tell
-  -- them apart. They're left commented until we decide: split-as-models (with
-  -- an arbitrary default for ambiguous existing cars) OR add them as variants.
-  -- Enable only after confirming the trade-off.
-  --
-  -- perform pg_temp.split_nameplate('Lexus', 'SC',
-  --   '[{"name":"SC 300","start":1992,"end":2000},
-  --     {"name":"SC 400","start":1992,"end":2000},
-  --     {"name":"SC 430","start":2001,"end":2010}]', 'SC 430');
-  --
-  -- perform pg_temp.split_nameplate('Lexus', 'GS',
-  --   '[{"name":"GS 300","start":1993,"end":2011},
-  --     {"name":"GS 350","start":2007,"end":2020},
-  --     {"name":"GS 400","start":1998,"end":2000},
-  --     {"name":"GS 430","start":2001,"end":2007},
-  --     {"name":"GS F","start":2016,"end":2020}]', 'GS 350');
-  --
-  -- perform pg_temp.split_nameplate('Lexus', 'IS',
-  --   '[{"name":"IS 300","start":2001,"end":2005},
-  --     {"name":"IS 250","start":2006,"end":2015},
-  --     {"name":"IS 350","start":2006,"end":2024},
-  --     {"name":"IS 500","start":2022,"end":null}]', 'IS 250');
 end $$;
