@@ -1,17 +1,23 @@
 // Route: /profile — Own profile, reached via the avatar/name in the Home header
 // (Part 10, Part 13). Shows identity (avatar, display name, @username, location,
-// bio, plan) and is the doorway to Settings. Edit happens in a bottom sheet that
-// writes straight to the `users` row. Settings live inside Profile per CLAUDE.md.
+// plan badge, bio), a stats strip, and a garage preview, and is the doorway to
+// Settings. Edit happens in a bottom sheet that writes straight to the `users`
+// row. Settings live inside Profile per CLAUDE.md.
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   getCurrentUserProfile,
+  getProfileStats,
   profileName,
   normalizeUsername,
   USERNAME_MIN_LEN,
+  PROFILE_COLS,
   type UserProfile,
+  type ProfileCar,
+  type ProfileStats,
 } from '../lib/userProfile'
+import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
@@ -36,9 +42,9 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-const CREAM       = '#f0e4c8'
-const MUTED       = 'rgba(240,228,200,0.5)'
-const FAINT       = 'rgba(240,228,200,0.32)'
+const CREAM = '#f0e4c8'
+const MUTED = 'rgba(240,228,200,0.5)'
+const FAINT = 'rgba(240,228,200,0.32)'
 
 type Draft = {
   display_name: string
@@ -46,6 +52,7 @@ type Draft = {
   bio: string
   city: string
   country: string
+  country_code: string | null
 }
 
 function avatarLetter(p: UserProfile): string {
@@ -56,6 +63,23 @@ function memberSince(iso: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function carSubtitle(c: ProfileCar): string {
+  return [c.year, c.make, c.model].filter(Boolean).join(' ')
+}
+
+// One headline number in the stats strip.
+function Stat({ value, label, onClick }: { value: number; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} disabled={!onClick} style={{
+      flex: 1, background: 'none', border: 'none', padding: `${SPACE_SM}px 0`,
+      cursor: onClick ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent',
+    }}>
+      <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 22, color: CREAM, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: FAINT, marginTop: 5 }}>{label}</div>
+    </button>
+  )
 }
 
 // A labelled value row in the Account section.
@@ -78,7 +102,7 @@ function NavRow({ label, sub, onClick }: { label: string; sub?: string; onClick:
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: CREAM, margin: 0, lineHeight: 1.2 }}>{label}</p>
-        {sub && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: MUTED, margin: '3px 0 0' }}>{sub}</p>}
+        {sub && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: MUTED, margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</p>}
       </div>
       <span style={{ flexShrink: 0, color: FAINT, fontSize: 20, lineHeight: 1 }}>›</span>
     </button>
@@ -88,10 +112,11 @@ function NavRow({ label, sub, onClick }: { label: string; sub?: string; onClick:
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const [draft, setDraft]       = useState<Draft | null>(null)
-  const [saving, setSaving]     = useState(false)
+  const [draft, setDraft]           = useState<Draft | null>(null)
+  const [saving, setSaving]         = useState(false)
   const [unameError, setUnameError] = useState<string | null>(null)
   const usernameRef = useRef<HTMLInputElement>(null)
 
@@ -99,6 +124,7 @@ export default function ProfilePage() {
     getCurrentUserProfile().then(p => {
       setProfile(p)
       setLoading(false)
+      if (p) getProfileStats(p.id).then(setStats)
     })
   }, [])
 
@@ -111,6 +137,7 @@ export default function ProfilePage() {
       bio: profile.bio ?? '',
       city: profile.city ?? '',
       country: profile.country ?? '',
+      country_code: profile.country_code ?? null,
     })
   }
 
@@ -124,18 +151,22 @@ export default function ProfilePage() {
     }
     setSaving(true)
     setUnameError(null)
+    const country = draft.country.trim()
     const payload = {
       display_name: draft.display_name.trim() || null,
       username: uname,
       bio: draft.bio.trim() || null,
       city: draft.city.trim() || null,
-      country: draft.country.trim() || null,
+      country: country || null,
+      // Keep the code in sync with the chosen country; clear it if the country
+      // is blank or a free-typed value we don't recognise.
+      country_code: country ? (draft.country_code ?? codeForCountry(country)) : null,
     }
     const { data, error } = await supabase
       .from('users')
       .update(payload)
       .eq('id', profile.id)
-      .select('id, username, email, display_name, avatar_url, city, country, bio, subscription_status, created_at')
+      .select(PROFILE_COLS)
       .single()
     setSaving(false)
     if (error) {
@@ -158,12 +189,14 @@ export default function ProfilePage() {
   }
 
   const location = profile ? [profile.city, profile.country].filter(Boolean).join(', ') : ''
+  const flag = profile ? (flagEmoji(profile.country_code) || flagEmoji(codeForCountry(profile.country ?? ''))) : ''
   const isPro = profile?.subscription_status === 'pro'
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: GRADIENT_APP_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
         @keyframes profileIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .garage-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* ── Header ── */}
@@ -221,7 +254,9 @@ export default function ProfilePage() {
               {(location || isPro) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: SPACE_SM, marginTop: SPACE_SM, flexWrap: 'wrap', justifyContent: 'center' }}>
                   {location && (
-                    <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, color: MUTED }}>{location}</span>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, color: MUTED }}>
+                      {flag && <span style={{ marginRight: 5 }}>{flag}</span>}{location}
+                    </span>
                   )}
                   <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: isPro ? '#fff5dc' : MUTED, background: isPro ? COLOR_ACCENT : 'rgba(240,228,200,0.08)', border: isPro ? 'none' : '1px solid rgba(240,228,200,0.16)', padding: '3px 8px', borderRadius: 2 }}>
                     {isPro ? 'Pro' : 'Free'}
@@ -244,6 +279,46 @@ export default function ProfilePage() {
                 Edit Profile
               </button>
             </div>
+
+            {/* Stats strip */}
+            <div style={{ display: 'flex', alignItems: 'stretch', marginTop: SPACE_XL, padding: `4px 0`, borderTop: '1px solid rgba(240,228,200,0.07)', borderBottom: '1px solid rgba(240,228,200,0.07)' }}>
+              <Stat value={stats?.cars.length ?? 0} label="Cars" onClick={() => navigate('/garage/cars')} />
+              <div style={{ width: 1, background: 'rgba(240,228,200,0.07)' }} />
+              <Stat value={stats?.modCount ?? 0} label="Mods" onClick={() => navigate('/tuning/build-sheet')} />
+              <div style={{ width: 1, background: 'rgba(240,228,200,0.07)' }} />
+              <Stat value={stats?.photoCount ?? 0} label="Photos" onClick={() => navigate('/photos')} />
+            </div>
+
+            {/* Garage preview */}
+            <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, margin: `${SPACE_XL}px 0 ${SPACE_SM}px` }}>Garage</p>
+            {stats && stats.cars.length === 0 ? (
+              <button onClick={() => navigate('/garage/cars/new')} style={{
+                width: '100%', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: SPACE_SM,
+                background: 'rgba(240,228,200,0.04)', border: '1px dashed rgba(240,228,200,0.2)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+              }}>
+                <span style={{ color: COLOR_ACCENT, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>+</span>
+                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: MUTED }}>Add your first car</span>
+              </button>
+            ) : (
+              <div className="garage-scroll" style={{ display: 'flex', gap: SPACE_SM, overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: `0 -${SPACE_MD}px`, padding: `0 ${SPACE_MD}px` }}>
+                {(stats?.cars ?? []).map(c => (
+                  <button key={c.id} onClick={() => navigate('/garage/cars')} style={{
+                    flexShrink: 0, width: 150, background: 'rgba(240,228,200,0.04)', border: '1px solid rgba(240,228,200,0.08)',
+                    cursor: 'pointer', padding: 0, textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+                  }}>
+                    <div style={{ height: 92, background: '#0c0a08', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {c.garage_photo_url
+                        ? <img src={c.garage_photo_url} alt={c.nickname} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        : <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: FAINT }}>No photo</span>}
+                    </div>
+                    <div style={{ padding: `${SPACE_SM}px ${SPACE_SM}px ${SPACE_SM + 2}px` }}>
+                      <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nickname}</p>
+                      <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: MUTED, margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{carSubtitle(c) || '—'}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Navigation */}
             <div style={{ marginTop: SPACE_XL, borderTop: '1px solid rgba(240,228,200,0.07)' }}>
@@ -297,7 +372,8 @@ export default function ProfilePage() {
             </p>
 
             <FieldLabel>Bio</FieldLabel>
-            <textarea value={draft.bio} onChange={e => setDraft({ ...draft, bio: e.target.value })} placeholder="A line about you and your build…" rows={3} style={{ ...sheetInput, resize: 'none', marginBottom: SPACE_MD }} />
+            <textarea value={draft.bio} onChange={e => setDraft({ ...draft, bio: e.target.value.slice(0, 200) })} placeholder="A line about you and your build…" rows={3} style={{ ...sheetInput, resize: 'none', marginBottom: 4 }} />
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: FAINT, margin: `0 0 ${SPACE_MD}px`, textAlign: 'right' }}>{draft.bio.length}/200</p>
 
             <div style={{ display: 'flex', gap: SPACE_MD }}>
               <div style={{ flex: 1 }}>
@@ -306,7 +382,16 @@ export default function ProfilePage() {
               </div>
               <div style={{ flex: 1 }}>
                 <FieldLabel>Country</FieldLabel>
-                <input value={draft.country} onChange={e => setDraft({ ...draft, country: e.target.value })} placeholder="Country" style={{ ...sheetInput, marginBottom: SPACE_LG }} />
+                <input
+                  list="profile-countries"
+                  value={draft.country}
+                  onChange={e => { const v = e.target.value; setDraft({ ...draft, country: v, country_code: codeForCountry(v) }) }}
+                  placeholder="Country"
+                  style={{ ...sheetInput, marginBottom: SPACE_LG }}
+                />
+                <datalist id="profile-countries">
+                  {COUNTRIES.map(c => <option key={c.code} value={c.name} />)}
+                </datalist>
               </div>
             </div>
 

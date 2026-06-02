@@ -12,13 +12,14 @@ export type UserProfile = {
   avatar_url: string | null
   city: string | null
   country: string | null
+  country_code: string | null
   bio: string | null
   subscription_status: 'free' | 'pro'
   created_at: string
 }
 
 export const PROFILE_COLS =
-  'id, username, email, display_name, avatar_url, city, country, bio, subscription_status, created_at'
+  'id, username, email, display_name, avatar_url, city, country, country_code, bio, subscription_status, created_at'
 
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   const { data: auth } = await supabase.auth.getUser()
@@ -38,6 +39,64 @@ export function profileName(
   p: Pick<UserProfile, 'display_name' | 'username'>,
 ): string {
   return (p.display_name && p.display_name.trim()) || p.username || ''
+}
+
+// ── Profile stats / garage preview ──────────────────────────────────────────
+// Headline numbers and car thumbnails for the Profile screen. RLS already scopes
+// every table to the owner, so these counts are the user's own build at a glance.
+export type ProfileCar = {
+  id: string
+  nickname: string
+  year: number | null
+  make: string | null
+  model: string | null
+  garage_photo_url: string | null
+  created_at: string
+}
+
+export type ProfileStats = {
+  cars: ProfileCar[]
+  modCount: number
+  photoCount: number
+}
+
+export async function getProfileStats(uid: string): Promise<ProfileStats> {
+  const { data: carRows } = await supabase
+    .from('cars')
+    .select('id, nickname, year, make, model, garage_photo_url, created_at')
+    .eq('user_id', uid)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+  const cars = (carRows ?? []) as ProfileCar[]
+
+  if (cars.length === 0) return { cars, modCount: 0, photoCount: 0 }
+
+  const carIds = cars.map(c => c.id)
+
+  // Installed mods across all of the user's cars.
+  const { count: modCount } = await supabase
+    .from('jobs')
+    .select('id', { count: 'exact', head: true })
+    .in('car_id', carIds)
+    .eq('status', 'installed')
+
+  // Build photos: job_photos hanging off those cars' jobs.
+  const { data: jobRows } = await supabase
+    .from('jobs')
+    .select('id')
+    .in('car_id', carIds)
+  const jobIds = (jobRows ?? []).map(j => j.id as string)
+
+  let photoCount = 0
+  if (jobIds.length) {
+    const { count } = await supabase
+      .from('job_photos')
+      .select('id', { count: 'exact', head: true })
+      .in('job_id', jobIds)
+    photoCount = count ?? 0
+  }
+
+  return { cars, modCount: modCount ?? 0, photoCount }
 }
 
 // Usernames are unique, lowercase, and limited to [a-z0-9_] (see the signup
