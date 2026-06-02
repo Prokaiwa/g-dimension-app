@@ -35,7 +35,7 @@ const FAINT = 'rgba(240,228,200,0.32)'
 
 // The thank-you note behind the "Do Not Click On This" row — David's words, verbatim.
 const THANK_YOU =
-  "Why the hell did you click on this?! Well while you're here I just wanted to tell you how thankful I am for using G-Dimension. As technology keeps improving I wanted to share a space for people to be able to keep catalogging builds, sharing info, and giving inspiration to other car enthusiasts. Car culture needs to be preserved and to be documented and I wanted to have a place where you could have it all. If it weren't for like-minded people like yourselves, I wouldn't have the amazing relationships I've built over the years. To meet someone in a parking lot and complement each other's car and have that naturally grow into different friend groups is something absolutely amazing. So from the bottom of my heart thank you."
+  "Why the hell did you click on this?! Well, while you're here, I just wanted to tell you how thankful I am for using G-Dimension. As technology keeps improving, I wanted to share a space for people to be able to keep cataloging builds, sharing info, and giving inspiration to other car enthusiasts. Car culture needs to be preserved and to be documented, and I wanted to have a place where you could have it all. If it weren't for like-minded people like yourselves, I wouldn't have the amazing relationships I've built over the years. To meet someone in a parking lot and compliment each other's car and have that naturally grow into different friend groups is something absolutely amazing. So from the bottom of my heart, thank you."
 
 type UnitPrefs = {
   distance_unit: 'mi' | 'km'
