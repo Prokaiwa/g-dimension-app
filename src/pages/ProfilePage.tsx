@@ -133,6 +133,7 @@ export default function ProfilePage() {
   const [saving, setSaving]         = useState(false)
   const [unameError, setUnameError] = useState<string | null>(null)
   const [draftInvalidChar, setDraftInvalidChar] = useState(false)
+  const [usernameDirty, setUsernameDirty] = useState(false)
   const usernameRef = useRef<HTMLInputElement>(null)
 
   // Live handle status for the edit sheet (idle/no-query while the sheet is closed).
@@ -177,6 +178,7 @@ export default function ProfilePage() {
     if (!profile) return
     setUnameError(null)
     setDraftInvalidChar(false)
+    setUsernameDirty(false)
     setDraft({
       display_name: profile.display_name ?? '',
       username: profile.username ?? '',
@@ -244,15 +246,19 @@ export default function ProfilePage() {
   const flag = profile ? (flagEmoji(profile.country_code) || flagEmoji(codeForCountry(profile.country ?? ''))) : ''
   const isPro = profile?.subscription_status === 'pro'
 
-  // Live handle feedback for the edit sheet.
-  const unameShowOk    = !!draft && !draftInvalidChar && !unameError && unameStatus === 'available'
-  const unameShowError = !!draft && (draftInvalidChar || !!unameError || unameStatus === 'taken' || unameStatus === 'reserved')
+  // Live handle feedback for the edit sheet. Status styling only appears once the
+  // user has actually edited the handle — opening the sheet shouldn't announce
+  // your own current username as "available".
+  const DEFAULT_UNAME_HINT = 'Lowercase letters, numbers and underscores. This is your public /builds link.'
+  const unameShowOk    = !!draft && usernameDirty && !draftInvalidChar && !unameError && unameStatus === 'available'
+  const unameShowError = !!draft && (draftInvalidChar || !!unameError || (usernameDirty && (unameStatus === 'taken' || unameStatus === 'reserved')))
   const unameHint = (() => {
     if (!draft) return { text: '', color: FAINT }
     if (unameError) return { text: unameError, color: '#d27a5e' }
     if (draftInvalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: '#d27a5e' }
+    if (!usernameDirty) return { text: DEFAULT_UNAME_HINT, color: FAINT }
     if (unameStatus === 'available') return { text: usernameStatusMessage('available', draft.username), color: OK_GREEN }
-    if (unameStatus === 'idle') return { text: 'Lowercase letters, numbers and underscores. This is your public /builds link.', color: FAINT }
+    if (unameStatus === 'idle') return { text: DEFAULT_UNAME_HINT, color: FAINT }
     const color = (unameStatus === 'taken' || unameStatus === 'reserved') ? '#d27a5e' : FAINT
     return { text: usernameStatusMessage(unameStatus, draft.username), color }
   })()
@@ -359,7 +365,7 @@ export default function ProfilePage() {
               )}
 
               <button onClick={openEdit} style={{
-                marginTop: SPACE_LG, minHeight: 44, padding: '0 26px', borderRadius: 9999,
+                marginTop: SPACE_LG, minHeight: 44, padding: '0 26px', borderRadius: 10,
                 background: 'none', border: `1px solid ${COLOR_ACCENT}`, cursor: 'pointer',
                 color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase',
                 WebkitTapHighlightColor: 'transparent',
@@ -447,7 +453,7 @@ export default function ProfilePage() {
               <input
                 ref={usernameRef}
                 value={draft.username}
-                onChange={e => { const raw = e.target.value; setDraftInvalidChar(hasInvalidUsernameChars(raw)); setDraft({ ...draft, username: normalizeUsername(raw) }); setUnameError(null) }}
+                onChange={e => { const raw = e.target.value; setUsernameDirty(true); setDraftInvalidChar(hasInvalidUsernameChars(raw)); setDraft({ ...draft, username: normalizeUsername(raw) }); setUnameError(null) }}
                 placeholder="username"
                 autoCapitalize="none"
                 autoCorrect="off"
@@ -457,7 +463,7 @@ export default function ProfilePage() {
               <span style={{ width: 26, flexShrink: 0, textAlign: 'center', fontSize: 13, paddingRight: 6 }}>
                 {unameShowOk && <span style={{ color: OK_GREEN }}>✓</span>}
                 {unameShowError && <span style={{ color: '#d27a5e' }}>✕</span>}
-                {!draftInvalidChar && !unameError && unameStatus === 'checking' && <span style={{ color: FAINT }}>…</span>}
+                {usernameDirty && !draftInvalidChar && !unameError && unameStatus === 'checking' && <span style={{ color: FAINT }}>…</span>}
               </span>
             </div>
             <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: unameHint.color, margin: `6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
@@ -475,15 +481,21 @@ export default function ProfilePage() {
               </div>
               <div style={{ flex: 1 }}>
                 <FieldLabel>Country</FieldLabel>
-                <select
-                  value={draft.country}
-                  onChange={e => { const name = e.target.value; setDraft({ ...draft, country: name, country_code: codeForCountry(name) }) }}
-                  style={{ ...sheetInput, marginBottom: SPACE_LG, cursor: 'pointer', height: 41 }}
-                >
-                  <option value="">Select country…</option>
-                  {legacyCountry && <option value={legacyCountry}>{legacyCountry}</option>}
-                  {COUNTRIES.map(c => <option key={c.code} value={c.name}>{flagEmoji(c.code)}  {c.name}</option>)}
-                </select>
+                <div style={{ position: 'relative', marginBottom: SPACE_LG }}>
+                  <select
+                    value={draft.country}
+                    onChange={e => { const name = e.target.value; setDraft({ ...draft, country: name, country_code: codeForCountry(name) }) }}
+                    style={{ ...sheetInput, marginBottom: 0, height: 41, cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', paddingRight: 28 }}
+                  >
+                    <option value="">Select country…</option>
+                    {legacyCountry && <option value={legacyCountry}>{legacyCountry}</option>}
+                    {COUNTRIES.map(c => <option key={c.code} value={c.name}>{flagEmoji(c.code)}  {c.name}</option>)}
+                  </select>
+                  {/* Custom chevron — matches the field label colour (native arrow is unstyleable/black) */}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(240,228,200,0.45)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </div>
               </div>
             </div>
 
