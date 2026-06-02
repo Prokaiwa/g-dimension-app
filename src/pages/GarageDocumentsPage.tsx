@@ -89,19 +89,11 @@ const REMIND_PRESETS: { label: string; days: number }[] = [
   { label: '3 months',    days: 90 },
 ]
 
-// expiry minus N days → 'YYYY-MM-DD'
-function minusDays(isoDate: string, days: number): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  d.setDate(d.getDate() - days)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Given an expiry and a reminder due_date, snap the gap to the nearest preset.
-function nearestPreset(expiry: string, dueDate: string): number {
-  const gap = Math.round((new Date(expiry + 'T00:00:00').getTime() - new Date(dueDate + 'T00:00:00').getTime()) / 86400000)
-  if (gap <= 0) return 0
-  if (gap <= 18) return 14
-  if (gap <= 60) return 30
+// Snap a stored lead time (days) to the nearest available preset.
+function snapPreset(days: number | null | undefined): number {
+  if (!days || days <= 0) return 0
+  if (days <= 18) return 14
+  if (days <= 60) return 30
   return 90
 }
 
@@ -200,8 +192,8 @@ export default function GarageDocumentsPage() {
   const [draft, setDraft]   = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState<string | null>(null)
-  // doc id → linked expiry reminder ({ id, due_date }), for prefilling the edit sheet
-  const [docReminders, setDocReminders] = useState<Record<string, { id: string; due_date: string | null }>>({})
+  // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
+  const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function loadData() {
@@ -243,16 +235,22 @@ export default function GarageDocumentsPage() {
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
-    // Map document-linked expiry reminders so the edit sheet can prefill them.
-    const { data: remRows } = await supabase
-      .from('car_reminders')
-      .select('id, document_id, due_date')
-      .eq('car_id', id)
-      .not('document_id', 'is', null)
-    const remMap: Record<string, { id: string; due_date: string | null }> = {}
-    for (const r of (remRows ?? []) as { id: string; document_id: string; due_date: string | null }[]) {
-      remMap[r.document_id] = { id: r.id, due_date: r.due_date }
+    // Map document-linked expiry reminders (lead time) so the edit sheet can prefill.
+    // Resilient to the pre-038 schema (remind_days_before may not exist yet).
+    let remRows: { document_id: string; remind_days_before: number | null }[] | null = null
+    const remFull = await supabase
+      .from('car_reminders').select('document_id, remind_days_before')
+      .eq('car_id', id).not('document_id', 'is', null)
+    if (remFull.error) {
+      const remBase = await supabase
+        .from('car_reminders').select('document_id')
+        .eq('car_id', id).not('document_id', 'is', null)
+      remRows = (remBase.data ?? []).map(r => ({ document_id: (r as { document_id: string }).document_id, remind_days_before: null }))
+    } else {
+      remRows = remFull.data as { document_id: string; remind_days_before: number | null }[]
     }
+    const remMap: Record<string, number> = {}
+    for (const r of remRows ?? []) remMap[r.document_id] = snapPreset(r.remind_days_before)
     setDocReminders(remMap)
 
     // Sign thumbnails for image docs (PDFs use a glyph).
@@ -272,8 +270,7 @@ export default function GarageDocumentsPage() {
   function openNewReceipt() { setError(null); setDraft({ ...EMPTY_RECEIPT }) }
   function openEdit(d: Doc) {
     setError(null)
-    const rem = docReminders[d.id]
-    const remindDays = d.expiry_date && rem?.due_date ? nearestPreset(d.expiry_date, rem.due_date) : 0
+    const remindDays = d.doc_type !== 'receipt' ? (docReminders[d.id] ?? 0) : 0
     setDraft({
       id: d.id,
       kind: d.doc_type === 'receipt' ? 'receipt' : 'document',
@@ -347,6 +344,8 @@ export default function GarageDocumentsPage() {
     if (error) { setError(`Couldn't save: ${error.message}`); setSaving(false); return }
 
     // Expiry reminder — documents only. Upsert / delete the linked car_reminders row.
+    // due_date is the real deadline (the expiry); remind_days_before just controls
+    // how early it starts alerting — so it never reads as "overdue" before expiry.
     if (!isReceipt && docId) {
       const expiry = draft.expiry_date || null
       const { data: existing } = await supabase.from('car_reminders').select('id').eq('document_id', docId).limit(1)
@@ -355,7 +354,8 @@ export default function GarageDocumentsPage() {
         const remPayload = {
           title: `${draft.label.trim() || DOC_TYPE_LABEL[draft.doc_type]} expires`,
           category: DOCTYPE_TO_REMINDER[draft.doc_type],
-          due_date: minusDays(expiry, draft.remindDays),
+          due_date: expiry,
+          remind_days_before: draft.remindDays,
           document_id: docId,
         }
         if (existingId) await supabase.from('car_reminders').update(remPayload).eq('id', existingId)

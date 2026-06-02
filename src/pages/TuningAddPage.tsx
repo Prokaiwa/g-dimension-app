@@ -182,10 +182,12 @@ export default function TuningAddPage() {
   const [advancedExpanded, setAdvancedExpanded] = useState(false)
   const [form, setForm] = useState({
     title: '', brand: '', partNumber: '',
-    dateInstalled: '', partsCost: '', laborCost: '',
+    dateInstalled: '', installMileage: '', partsCost: '', laborCost: '',
     installedBy: null as 'self' | 'shop' | null,
     notes: '',
   })
+  const [currentMileage, setCurrentMileage] = useState<number | null>(null)
+  const [updateOdometer, setUpdateOdometer] = useState(true)
   const [specValues, setSpecValues]       = useState<Record<string, string>>({})
   const [multiValues, setMultiValues]     = useState<Record<string, string[]>>({})
   const [photos, setPhotos]               = useState<File[]>([])
@@ -263,6 +265,15 @@ export default function TuningAddPage() {
     const urls = photoPreviews
     return () => { urls.forEach(URL.revokeObjectURL) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the car's current odometer so we can offer to bump it from the install mileage.
+  useEffect(() => {
+    getActiveCarId().then(id => {
+      if (!id) return
+      supabase.from('cars').select('current_mileage').eq('id', id).single()
+        .then(({ data }) => { if (data) setCurrentMileage((data as { current_mileage: number | null }).current_mileage ?? null) })
+    })
+  }, [])
 
   // ── Navigation ──────────────────────────────────────────────────────────
 
@@ -501,6 +512,8 @@ export default function TuningAddPage() {
         brand:          form.brand.trim()       || null,
         part_number:    form.partNumber.trim()  || null,
         date_installed: form.dateInstalled      || null,
+        // Only include when set, so mod-adding still works before migration 038.
+        ...(!partsBinMode && form.installMileage.trim() ? { install_mileage: parseInt(form.installMileage, 10) } : {}),
         parts_cost:     form.partsCost  ? parseFloat(form.partsCost)  : null,
         labor_cost:     form.laborCost  ? parseFloat(form.laborCost)  : null,
         installed_by:   form.installedBy        || null,
@@ -518,6 +531,12 @@ export default function TuningAddPage() {
     }
 
     const jobId = jobData.id as string
+
+    // Keep the odometer fresh from the install mileage (opt-in, only if higher).
+    const enteredMi = form.installMileage ? parseInt(form.installMileage, 10) : NaN
+    if (!partsBinMode && updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
+      await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
+    }
 
     // 3. INSERT job_specs for all non-empty spec fields
     type SpecRow = { job_id: string; spec_key: string; spec_value: string; spec_unit: string | null }
@@ -926,6 +945,42 @@ export default function TuningAddPage() {
                     onChange={e => setForm(f => ({ ...f, dateInstalled: e.target.value }))}
                     style={{ ...inp, colorScheme: 'dark', caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
                   />
+                </div>
+                <div style={{ padding: '20px 22px 0' }}>
+                  <label style={lbl}>Mileage at Install</label>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="number" inputMode="numeric" min="0"
+                      value={form.installMileage}
+                      onChange={e => setForm(f => ({ ...f, installMileage: e.target.value }))}
+                      placeholder="e.g. 85000"
+                      style={{ ...inp, flex: 1, caretColor: '#39ff14' }}
+                    />
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, paddingBottom: 1 }}>mi</span>
+                  </div>
+                  {(() => {
+                    const entered = form.installMileage ? parseInt(form.installMileage, 10) : NaN
+                    if (!Number.isFinite(entered) || entered <= (currentMileage ?? -1)) return null
+                    return (
+                      <button
+                        onClick={() => setUpdateOdometer(v => !v)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: '12px 0 0', WebkitTapHighlightColor: 'transparent', textAlign: 'left' }}
+                      >
+                        <div style={{
+                          width: 18, height: 18, flexShrink: 0,
+                          border: `1.5px solid ${updateOdometer ? 'rgba(200,102,26,0.8)' : 'rgba(245,240,228,0.2)'}`,
+                          background: updateOdometer ? 'rgba(200,102,26,0.15)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {updateOdometer && <span style={{ color: '#c8661a', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                        </div>
+                        <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.5)', lineHeight: 1.4 }}>
+                          Update odometer to {entered.toLocaleString()} mi
+                          {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {currentMileage.toLocaleString()})</span>}
+                        </span>
+                      </button>
+                    )
+                  })()}
                 </div>
                 <div style={{ padding: '20px 22px 0' }}>
                   <label style={lbl}>Installed By</label>
