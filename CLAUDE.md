@@ -160,7 +160,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `037_contact_social.sql` — run in order.
+`supabase/migrations/001_users.sql` → `039_username_claim.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -179,10 +179,12 @@ const carId = await getActiveCarId()
 | `035_user_contacts.sql` | `user_contacts` table — per-**user** (cross-car) contact book + RLS owner policy + grants. Supersedes per-car `car_contacts` for the Contacts screen; `car_contacts` left in place (unused) |
 | `036_document_receipts.sql` | `car_documents.doc_type` CHECK widened to allow `'receipt'`; `car_documents.amount` (decimal) + `currency` (char 3) columns — standalone titled receipts (insurance/registration fees). NOT counted toward Build Investment |
 | `037_contact_social.sql` | `user_contacts.social` (text) — optional social/profile link per contact, shown after Website on the Contacts screen |
+| `038_username_uniqueness.sql` | Rewrites `handle_new_user()` to generate a **collision-safe** username at signup (walks `base`, `base2`, `base3`… to the first free handle). Fixes a latent bug where a colliding auto-handle raised a unique_violation and rolled back the whole signup. Function-only change; trigger unchanged |
+| `039_username_claim.sql` | `users.username_set` (boolean, default false) — onboarding flag. New signups start `false` and are routed through the `/welcome` handle-claim screen; existing users backfilled to `true`. Frontend gate reads it defensively (fails open if absent) |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
-**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–036` → new range) and add the new migration to the table above.
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–039` → new range) and add the new migration to the table above.
 
 **Supabase schema change notice (effective May 30, 2026):** Any new tables created in the `public` schema after this date require explicit PostgREST grants — Supabase no longer auto-grants access. After creating a new table, always run: `grant select, insert, update, delete on public.<table> to authenticated;` (and `grant select on public.<table> to anon;` for public reference tables).
 
@@ -266,7 +268,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–037
+supabase/migrations/                — Numbered SQL files 001–039
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
