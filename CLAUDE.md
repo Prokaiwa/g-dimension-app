@@ -64,7 +64,8 @@ These are enforced decisions. Do not deviate without explicit instruction.
 
 **Shape:**
 - `border-radius: 0` on ALL architectural elements — headers, panels, inputs, nav cards, stat rows. No exceptions.
-- Permitted radius only on: pill buttons (`9999px`), bottom sheet top corners (`12px`), avatars (`50%`), notification dots (`50%`), timeline cards (`4px` — the single exception), tiny accent badges (`2px`).
+- Permitted radius only on: **rounded-rectangle buttons (`RADIUS_BUTTON` = `10px`)**, pill buttons (`9999px`), bottom sheet top corners (`12px`), avatars (`50%`), notification dots (`50%`), timeline cards (`4px` — the single exception), tiny accent badges (`2px`).
+- **Buttons: prefer the rounded rectangle (`RADIUS_BUTTON`), not the pill.** Pills read as generic-modern-app; the rounded rectangle is the deliberate anti-app choice. Pills (`RADIUS_PILL`) remain only where already established (auth CTAs, the sparing Save/Choose/Add actions) — don't add new ones. This supersedes the "Pill buttons in the app" note in MASTER_ARCHITECTURE.md Part 8.
 
 **Color:**
 - Never use pure white (`#ffffff`) for body text. Cap at `#f5f5f5`.

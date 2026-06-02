@@ -320,7 +320,7 @@ Border-radius only on:
 
 **No pure white.** Cap at `#f5f5f5` in dark screens.
 
-**Pill buttons in the app:** Used sparingly. Only where a single decisive action is needed (Save, Choose, Add).
+**Buttons (updated):** The preferred button shape is the **rounded rectangle** (`RADIUS_BUTTON` = 10px) — a deliberate anti-app choice. **Pill buttons** are now legacy: keep them only where already established (auth CTAs, the sparing Save/Choose/Add actions), don't add new ones. See CLAUDE.md "Non-Negotiable Design Rules → Shape".
 
 ---
 

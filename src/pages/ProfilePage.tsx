@@ -39,6 +39,7 @@ import {
   SPACE_LG,
   SPACE_XL,
   EASING_SETTLE,
+  RADIUS_BUTTON,
 } from '../tokens'
 
 const _now        = new Date()
@@ -365,7 +366,7 @@ export default function ProfilePage() {
               )}
 
               <button onClick={openEdit} style={{
-                marginTop: SPACE_LG, minHeight: 44, padding: '0 26px', borderRadius: 10,
+                marginTop: SPACE_LG, minHeight: 44, padding: '0 26px', borderRadius: RADIUS_BUTTON,
                 background: 'none', border: `1px solid ${COLOR_ACCENT}`, cursor: 'pointer',
                 color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase',
                 WebkitTapHighlightColor: 'transparent',

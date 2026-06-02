@@ -164,6 +164,7 @@ export const RADIUS_NONE         = 0;
 
 // Permitted radius contexts only:
 export const RADIUS_PILL         = '9999px'; // full pill — use height/2 in practice
+export const RADIUS_BUTTON       = 10;       // rounded-rectangle buttons — the PREFERRED button shape (anti-app). Pills are legacy/sparingly used.
 export const RADIUS_BOTTOM_SHEET = 12;       // bottom sheet top corners
 export const RADIUS_AVATAR       = '50%';    // avatars
 export const RADIUS_DOT          = '50%';    // notification dots
