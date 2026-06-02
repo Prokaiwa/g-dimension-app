@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 039_username_claim.sql (2026-06-02)
--- All migrations 001–039 confirmed applied to production.
+-- Last migration applied : 040_avatar_bucket.sql (2026-06-02)
+-- All migrations 001–040 confirmed applied to production.
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)
