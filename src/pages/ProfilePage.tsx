@@ -18,6 +18,7 @@ import {
   type ProfileStats,
 } from '../lib/userProfile'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
+import { uploadAvatar } from '../lib/avatar'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
@@ -109,6 +110,15 @@ function NavRow({ label, sub, onClick }: { label: string; sub?: string; onClick:
   )
 }
 
+function CameraIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff5dc" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  )
+}
+
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -119,6 +129,29 @@ export default function ProfilePage() {
   const [saving, setSaving]         = useState(false)
   const [unameError, setUnameError] = useState<string | null>(null)
   const usernameRef = useRef<HTMLInputElement>(null)
+
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading]     = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // let the user re-pick the same file later
+    if (!file || !profile) return
+    if (!file.type.startsWith('image/')) { setUploadError('Please choose an image file.'); return }
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const url = await uploadAvatar(file, profile.id, profile.avatar_url)
+      const { error } = await supabase.from('users').update({ avatar_url: url }).eq('id', profile.id)
+      if (error) throw error
+      setProfile({ ...profile, avatar_url: url })
+    } catch {
+      setUploadError('Couldn’t update your photo — please try again.')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
@@ -196,6 +229,7 @@ export default function ProfilePage() {
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: GRADIENT_APP_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       <style>{`
         @keyframes profileIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes profileSpin { to { transform: rotate(360deg); } }
         .garage-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
@@ -233,16 +267,37 @@ export default function ProfilePage() {
 
             {/* Hero — avatar + identity */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{
-                width: 92, height: 92, borderRadius: '50%',
-                background: profile.avatar_url ? `center / cover no-repeat url(${profile.avatar_url})` : COLOR_ACCENT,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.55)', border: '1px solid rgba(240,228,200,0.12)',
-              }}>
-                {!profile.avatar_url && (
-                  <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 38, color: '#fff' }}>{avatarLetter(profile)}</span>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploading}
+                aria-label="Change profile photo"
+                style={{ position: 'relative', width: 92, height: 92, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: uploading ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div style={{
+                  width: 92, height: 92, borderRadius: '50%',
+                  background: profile.avatar_url ? `center / cover no-repeat url(${profile.avatar_url})` : COLOR_ACCENT,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.55)', border: '1px solid rgba(240,228,200,0.12)',
+                }}>
+                  {!profile.avatar_url && (
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 38, color: '#fff' }}>{avatarLetter(profile)}</span>
+                  )}
+                </div>
+                {/* Camera affordance */}
+                <div style={{ position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: '50%', background: COLOR_ACCENT, border: '2px solid #161412', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.5)' }}>
+                  <CameraIcon />
+                </div>
+                {/* Uploading overlay */}
+                {uploading && (
+                  <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid rgba(240,228,200,0.25)', borderTopColor: CREAM, animation: 'profileSpin 700ms linear infinite' }} />
+                  </div>
                 )}
-              </div>
+              </button>
+              <input ref={avatarInputRef} type="file" accept="image/*" onChange={onPickAvatar} style={{ display: 'none' }} />
+              {uploadError && (
+                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: COLOR_ACCENT, margin: `${SPACE_SM}px 0 0`, textAlign: 'center' }}>{uploadError}</p>
+              )}
 
               <h1 style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 32, color: '#f5f5f5', margin: `${SPACE_MD}px 0 0`, lineHeight: 1.1 }}>
                 {profileName(profile)}

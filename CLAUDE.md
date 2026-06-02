@@ -124,13 +124,14 @@ The `cars.garage_photo_url` comment in `004_cars.sql` ("Remove.bg pipeline") is 
 
 ## Storage Buckets
 
-5 buckets total. Two are PRIVATE — access via signed URL only, never public URL.
+6 buckets total. Two are PRIVATE — access via signed URL only, never public URL.
 
 | Bucket | Access | Stores |
 |---|---|---|
 | `car-photos` | PUBLIC | garage_photo_url, showcase_photo_url |
 | `job-photos` | PUBLIC | job_photos.photo_url |
 | `timeline-photos` | PUBLIC | sessions.timeline_photo_url, origin entry |
+| `avatars` | PUBLIC | users.avatar_url — profile pictures (migration 040) |
 | `receipts` | **PRIVATE** | receipts.file_url — financial records |
 | `car-documents` | **PRIVATE** | car_documents.file_url — VINs, registration, insurance |
 
@@ -160,7 +161,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `039_username_claim.sql` — run in order.
+`supabase/migrations/001_users.sql` → `040_avatar_bucket.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -181,10 +182,11 @@ const carId = await getActiveCarId()
 | `037_contact_social.sql` | `user_contacts.social` (text) — optional social/profile link per contact, shown after Website on the Contacts screen |
 | `038_username_uniqueness.sql` | Rewrites `handle_new_user()` to generate a **collision-safe** username at signup (walks `base`, `base2`, `base3`… to the first free handle). Fixes a latent bug where a colliding auto-handle raised a unique_violation and rolled back the whole signup. Function-only change; trigger unchanged |
 | `039_username_claim.sql` | `users.username_set` (boolean, default false) — onboarding flag. New signups start `false` and are routed through the `/welcome` handle-claim screen; existing users backfilled to `true`. Frontend gate reads it defensively (fails open if absent) |
+| `040_avatar_bucket.sql` | `avatars` storage bucket (PUBLIC, 6th bucket) + owner-scoped RLS policies — backs `users.avatar_url` profile pictures. Uploaded via `src/lib/avatar.ts` (JPEG-compressed, path `{user_id}/{ts}-{rand}.jpg`). Until run, avatar upload fails gracefully and the letter avatar shows |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
-**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–039` → new range) and add the new migration to the table above.
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–040` → new range) and add the new migration to the table above.
 
 **Supabase schema change notice (effective May 30, 2026):** Any new tables created in the `public` schema after this date require explicit PostgREST grants — Supabase no longer auto-grants access. After creating a new table, always run: `grant select, insert, update, delete on public.<table> to authenticated;` (and `grant select on public.<table> to anon;` for public reference tables).
 
@@ -268,7 +270,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–039
+supabase/migrations/                — Numbered SQL files 001–040
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```

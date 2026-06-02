@@ -63,13 +63,16 @@ export default function HomePage() {
   const rafRef   = useRef<number>(0)
   const rectRef  = useRef<DOMRect | null>(null)
   const [displayName, setDisplayName] = useState('...')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [_entered, setEntered] = useState(false)
   const [pressedNode, setPressedNode] = useState<string | null>(null)
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
-      if (p) setDisplayName(profileName(p))
+      if (!p) return
+      setDisplayName(profileName(p))
+      setAvatarUrl(p.avatar_url)
     })
     getActiveCarId().then(carId => {
       if (!carId) return
@@ -214,14 +217,14 @@ export default function HomePage() {
           <div style={{
             width: 28, height: 28,
             borderRadius: RADIUS_AVATAR,
-            background: COLOR_ACCENT,
+            background: avatarUrl ? `center / cover no-repeat url(${avatarUrl})` : COLOR_ACCENT,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
             color: '#fff',
             flexShrink: 0,
             boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
           }}>
-            {avatarLetter}
+            {!avatarUrl && avatarLetter}
           </div>
           <span style={{
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
