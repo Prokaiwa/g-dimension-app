@@ -63,6 +63,7 @@ type Reminder = {
   is_complete: boolean
   completed_at: string | null
   job_id: string | null
+  remind_days_before: number | null
 }
 
 type Draft = {
@@ -91,9 +92,11 @@ function urgencyOf(r: Reminder, currentMileage: number | null): { level: Urgency
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const due = new Date(r.due_date + 'T00:00:00')
     const days = Math.round((due.getTime() - today.getTime()) / 86400000)
+    // Custom lead time (e.g. "remind 3 months before") widens the soon window.
+    const soonDays = r.remind_days_before ?? DUE_SOON_DAYS
     if (days < 0) { bump('overdue'); readouts.push(`${Math.abs(days)}d overdue`) }
     else if (days === 0) { bump('soon'); readouts.push('due today') }
-    else { if (days <= DUE_SOON_DAYS) bump('soon'); readouts.push(`in ${days}d`) }
+    else { if (days <= soonDays) bump('soon'); readouts.push(`in ${days}d`) }
   }
 
   if (r.due_mileage != null) {
@@ -164,14 +167,17 @@ export default function GarageRemindersPage() {
       if (!id) { setLoading(false); setNoCar(true); return }
       setCarId(id)
 
-      const [{ data: car }, { data: rows }] = await Promise.all([
+      const REM_FULL = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id, remind_days_before'
+      const REM_BASE = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id'
+      const [{ data: car }, remFull] = await Promise.all([
         supabase.from('cars').select('year, model, current_mileage').eq('id', id).is('deleted_at', null).single(),
-        supabase
-          .from('car_reminders')
-          .select('id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id')
-          .eq('car_id', id)
-          .order('due_date', { ascending: true, nullsFirst: false }),
+        supabase.from('car_reminders').select(REM_FULL).eq('car_id', id).order('due_date', { ascending: true, nullsFirst: false }),
       ])
+      let rows: unknown[] | null = remFull.data
+      if (remFull.error) {
+        const remBase = await supabase.from('car_reminders').select(REM_BASE).eq('car_id', id).order('due_date', { ascending: true, nullsFirst: false })
+        rows = remBase.data
+      }
 
       if (car) {
         setCarInfo([car.year, car.model].filter(Boolean).join(' '))

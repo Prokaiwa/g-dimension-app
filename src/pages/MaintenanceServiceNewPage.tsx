@@ -68,6 +68,8 @@ export default function MaintenanceServiceNewPage() {
 
   const [carInfo,       setCarInfo]       = useState('')
   const [carId,         setCarId]         = useState<string | null>(null)
+  const [currentMileage, setCurrentMileage] = useState<number | null>(null)
+  const [updateOdometer, setUpdateOdometer] = useState(true)
   const [date,          setDate]          = useState(TODAY)
   const [mileage,       setMileage]       = useState('')
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop'>('self')
@@ -87,11 +89,12 @@ export default function MaintenanceServiceNewPage() {
     getActiveCarId().then(id => {
       if (!id) return
       setCarId(id)
-      supabase.from('cars').select('year, make, model').eq('id', id).single()
+      supabase.from('cars').select('year, make, model, current_mileage').eq('id', id).single()
         .then(({ data }) => {
           if (data) {
-            const d = data as { year: number | null; make: string | null; model: string | null }
+            const d = data as { year: number | null; make: string | null; model: string | null; current_mileage: number | null }
             setCarInfo([d.year, d.make, d.model].filter(Boolean).join(' '))
+            setCurrentMileage(d.current_mileage ?? null)
           }
         })
     })
@@ -131,6 +134,11 @@ export default function MaintenanceServiceNewPage() {
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
     }).select('id').single()
     if (error || !session) { setSaving(false); return }
+    // Keep the odometer fresh from the logged mileage (opt-in, only if higher).
+    const enteredMi = mileage ? parseInt(mileage, 10) : NaN
+    if (updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
+      await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
+    }
     if (jobs.length > 0) {
       const { error: jobsError } = await supabase.from('jobs').insert(jobs.map(j => ({
         car_id: carId, session_id: session.id, type: 'maintenance',
@@ -255,6 +263,18 @@ export default function MaintenanceServiceNewPage() {
                 placeholder="0" className="xp-input" style={{ ...xpInput, width: 120 }} />
             </div>
           </div>
+
+          {(() => {
+            const entered = mileage ? parseInt(mileage, 10) : NaN
+            if (!Number.isFinite(entered) || entered <= (currentMileage ?? -1)) return null
+            return (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, fontFamily: XP_FONT, fontSize: 12, color: XP_TEXT, cursor: 'pointer' }}>
+                <input type="checkbox" checked={updateOdometer} onChange={e => setUpdateOdometer(e.target.checked)} />
+                Update {carInfo || 'this car'}'s odometer to {entered.toLocaleString()} mi
+                {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {currentMileage.toLocaleString()})</span>}
+              </label>
+            )
+          })()}
 
           <div style={{ marginBottom: performedBy === 'shop' ? 10 : 0 }}>
             <span style={{ ...xpLabel, marginBottom: 5 }}>Performed by:</span>

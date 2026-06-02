@@ -162,7 +162,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `040_avatar_bucket.sql` — run in order.
+`supabase/migrations/001_users.sql` → `041_reminder_leadtime_job_mileage.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -184,6 +184,7 @@ const carId = await getActiveCarId()
 | `038_username_uniqueness.sql` | Rewrites `handle_new_user()` to generate a **collision-safe** username at signup (walks `base`, `base2`, `base3`… to the first free handle). Fixes a latent bug where a colliding auto-handle raised a unique_violation and rolled back the whole signup. Function-only change; trigger unchanged |
 | `039_username_claim.sql` | `users.username_set` (boolean, default false) — onboarding flag. New signups start `false` and are routed through the `/welcome` handle-claim screen; existing users backfilled to `true`. Frontend gate reads it defensively (fails open if absent) |
 | `040_avatar_bucket.sql` | `avatars` storage bucket (PUBLIC, 6th bucket) + owner-scoped RLS policies — backs `users.avatar_url` profile pictures. Uploaded via `src/lib/avatar.ts` (JPEG-compressed, path `{user_id}/{ts}-{rand}.jpg`). Until run, avatar upload fails gracefully and the letter avatar shows |
+| `041_reminder_leadtime_job_mileage.sql` | `car_reminders.remind_days_before` (int) — lead time before `due_date` to start alerting (document expiry reminders set `due_date` = the real expiry, not expiry-minus-leadtime); `jobs.install_mileage` (int) — odometer when a mod was installed, feeds the "update current mileage" prompt |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -271,7 +272,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–040
+supabase/migrations/                — Numbered SQL files 001–041
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
