@@ -11,12 +11,15 @@ import {
   getProfileStats,
   profileName,
   normalizeUsername,
+  hasInvalidUsernameChars,
+  usernameStatusMessage,
   USERNAME_MIN_LEN,
   PROFILE_COLS,
   type UserProfile,
   type ProfileCar,
   type ProfileStats,
 } from '../lib/userProfile'
+import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
@@ -46,6 +49,7 @@ const DAY_LABEL   = String(_now.getDate())
 const CREAM = '#f0e4c8'
 const MUTED = 'rgba(240,228,200,0.5)'
 const FAINT = 'rgba(240,228,200,0.32)'
+const OK_GREEN = '#7bbf6a'
 
 type Draft = {
   display_name: string
@@ -128,7 +132,15 @@ export default function ProfilePage() {
   const [draft, setDraft]           = useState<Draft | null>(null)
   const [saving, setSaving]         = useState(false)
   const [unameError, setUnameError] = useState<string | null>(null)
+  const [draftInvalidChar, setDraftInvalidChar] = useState(false)
   const usernameRef = useRef<HTMLInputElement>(null)
+
+  // Live handle status for the edit sheet (idle/no-query while the sheet is closed).
+  const unameStatus = useUsernameStatus(
+    draft?.username ?? '',
+    profile?.username ?? '',
+    draft ? (profile?.id ?? null) : null,
+  )
 
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading]     = useState(false)
@@ -164,6 +176,7 @@ export default function ProfilePage() {
   function openEdit() {
     if (!profile) return
     setUnameError(null)
+    setDraftInvalidChar(false)
     setDraft({
       display_name: profile.display_name ?? '',
       username: profile.username ?? '',
@@ -177,11 +190,17 @@ export default function ProfilePage() {
   async function save() {
     if (!draft || !profile) return
     const uname = normalizeUsername(draft.username)
+    if (draftInvalidChar) {
+      setUnameError('Only lowercase letters, numbers and underscores.')
+      usernameRef.current?.focus(); return
+    }
     if (uname.length < USERNAME_MIN_LEN) {
       setUnameError(`At least ${USERNAME_MIN_LEN} characters — letters, numbers, underscores.`)
-      usernameRef.current?.focus()
-      return
+      usernameRef.current?.focus(); return
     }
+    if (unameStatus === 'reserved') { setUnameError('That handle is reserved.'); usernameRef.current?.focus(); return }
+    if (unameStatus === 'taken')    { setUnameError('That username is already taken.'); usernameRef.current?.focus(); return }
+    if (unameStatus === 'checking') { setUnameError('Still checking that handle…'); return }
     setSaving(true)
     setUnameError(null)
     const country = draft.country.trim()
@@ -224,6 +243,20 @@ export default function ProfilePage() {
   const location = profile ? [profile.city, profile.country].filter(Boolean).join(', ') : ''
   const flag = profile ? (flagEmoji(profile.country_code) || flagEmoji(codeForCountry(profile.country ?? ''))) : ''
   const isPro = profile?.subscription_status === 'pro'
+
+  // Live handle feedback for the edit sheet.
+  const unameShowOk    = !!draft && !draftInvalidChar && !unameError && unameStatus === 'available'
+  const unameShowError = !!draft && (draftInvalidChar || !!unameError || unameStatus === 'taken' || unameStatus === 'reserved')
+  const unameHint = (() => {
+    if (!draft) return { text: '', color: FAINT }
+    if (unameError) return { text: unameError, color: '#d27a5e' }
+    if (draftInvalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: '#d27a5e' }
+    if (unameStatus === 'available') return { text: usernameStatusMessage('available', draft.username), color: OK_GREEN }
+    if (unameStatus === 'idle') return { text: 'Lowercase letters, numbers and underscores. This is your public /builds link.', color: FAINT }
+    const color = (unameStatus === 'taken' || unameStatus === 'reserved') ? '#d27a5e' : FAINT
+    return { text: usernameStatusMessage(unameStatus, draft.username), color }
+  })()
+  const legacyCountry = draft && draft.country && !COUNTRIES.some(c => c.name === draft.country) ? draft.country : null
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: GRADIENT_APP_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
@@ -409,21 +442,26 @@ export default function ProfilePage() {
             <input value={draft.display_name} onChange={e => setDraft({ ...draft, display_name: e.target.value })} placeholder="How your name appears" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
 
             <FieldLabel>Username</FieldLabel>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderBottom: `1px solid ${unameError ? '#d27a5e' : 'rgba(240,228,200,0.22)'}`, background: 'rgba(240,228,200,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderBottom: `1px solid ${unameShowError ? '#d27a5e' : unameShowOk ? OK_GREEN : 'rgba(240,228,200,0.22)'}`, background: 'rgba(240,228,200,0.05)' }}>
               <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: MUTED, paddingLeft: 10 }}>@</span>
               <input
                 ref={usernameRef}
                 value={draft.username}
-                onChange={e => { setDraft({ ...draft, username: normalizeUsername(e.target.value) }); setUnameError(null) }}
+                onChange={e => { const raw = e.target.value; setDraftInvalidChar(hasInvalidUsernameChars(raw)); setDraft({ ...draft, username: normalizeUsername(raw) }); setUnameError(null) }}
                 placeholder="username"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
                 style={{ ...sheetInput, borderBottom: 'none', background: 'none', paddingLeft: 2 }}
               />
+              <span style={{ width: 26, flexShrink: 0, textAlign: 'center', fontSize: 13, paddingRight: 6 }}>
+                {unameShowOk && <span style={{ color: OK_GREEN }}>✓</span>}
+                {unameShowError && <span style={{ color: '#d27a5e' }}>✕</span>}
+                {!draftInvalidChar && !unameError && unameStatus === 'checking' && <span style={{ color: FAINT }}>…</span>}
+              </span>
             </div>
-            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: unameError ? '#d27a5e' : FAINT, margin: `6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
-              {unameError ?? 'Lowercase letters, numbers and underscores. This is your public /builds link.'}
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: unameHint.color, margin: `6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
+              {unameHint.text}
             </p>
 
             <FieldLabel>Bio</FieldLabel>
@@ -437,16 +475,15 @@ export default function ProfilePage() {
               </div>
               <div style={{ flex: 1 }}>
                 <FieldLabel>Country</FieldLabel>
-                <input
-                  list="profile-countries"
+                <select
                   value={draft.country}
-                  onChange={e => { const v = e.target.value; setDraft({ ...draft, country: v, country_code: codeForCountry(v) }) }}
-                  placeholder="Country"
-                  style={{ ...sheetInput, marginBottom: SPACE_LG }}
-                />
-                <datalist id="profile-countries">
-                  {COUNTRIES.map(c => <option key={c.code} value={c.name} />)}
-                </datalist>
+                  onChange={e => { const name = e.target.value; setDraft({ ...draft, country: name, country_code: codeForCountry(name) }) }}
+                  style={{ ...sheetInput, marginBottom: SPACE_LG, cursor: 'pointer', height: 41 }}
+                >
+                  <option value="">Select country…</option>
+                  {legacyCountry && <option value={legacyCountry}>{legacyCountry}</option>}
+                  {COUNTRIES.map(c => <option key={c.code} value={c.name}>{flagEmoji(c.code)}  {c.name}</option>)}
+                </select>
               </div>
             </div>
 

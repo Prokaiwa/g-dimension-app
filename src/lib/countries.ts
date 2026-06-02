@@ -46,11 +46,33 @@ export const COUNTRIES: Country[] = [
   { name: 'China', code: 'CN' },
 ]
 
-// Look up an ISO code from a free-text country name (case-insensitive).
+// Common alternate spellings / abbreviations → ISO code. Keys are in the
+// normalized form produced by normName() below (lowercase, punctuation → space).
+const COUNTRY_ALIASES: Record<string, string> = {
+  'usa': 'US', 'us': 'US', 'u s': 'US', 'u s a': 'US',
+  'america': 'US', 'united states of america': 'US', 'the united states': 'US', 'states': 'US',
+  'uk': 'GB', 'u k': 'GB', 'britain': 'GB', 'great britain': 'GB',
+  'england': 'GB', 'scotland': 'GB', 'wales': 'GB', 'the united kingdom': 'GB',
+  'uae': 'AE', 'the uae': 'AE',
+  'korea': 'KR', 'south korea': 'KR',
+  'holland': 'NL', 'the netherlands': 'NL',
+  'nz': 'NZ',
+}
+
+// Normalize a free-text country name: lowercase, punctuation → spaces, collapse
+// runs of whitespace. So "U.S.A.", "U S A", and "usa" all converge.
+function normName(s: string): string {
+  return s.toLowerCase().replace(/[.\-_,]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+// Look up an ISO code from a free-text country name. Matches the canonical list
+// first, then common aliases/abbreviations. Returns null if unrecognized.
 export function codeForCountry(name: string): string | null {
-  const n = name.trim().toLowerCase()
+  const n = normName(name)
   if (!n) return null
-  return COUNTRIES.find(c => c.name.toLowerCase() === n)?.code ?? null
+  const byName = COUNTRIES.find(c => normName(c.name) === n)
+  if (byName) return byName.code
+  return COUNTRY_ALIASES[n] ?? null
 }
 
 // Render an ISO alpha-2 code as a flag emoji via regional-indicator codepoints.

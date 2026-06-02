@@ -28,10 +28,29 @@ export default function BottomSheet({
   const [dragging, setDragging] = useState(false)
   const [hasDragged, setHasDragged] = useState(false)
   const startY = useRef(0)
+  const backdropRef = useRef<HTMLDivElement>(null)
 
   // Reset drag state each time the sheet opens (it stays mounted while closed).
   useEffect(() => {
     if (open) { setDragY(0); setDragging(false); setHasDragged(false) }
+  }, [open])
+
+  // Lock background scroll while open. body overflow covers body-scrolling pages;
+  // blocking wheel/touchmove on the dimmed backdrop covers pages whose scroll
+  // lives in an inner container. The sheet itself still scrolls internally.
+  useEffect(() => {
+    const el = backdropRef.current
+    if (!open || !el) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const prevent = (e: Event) => e.preventDefault()
+    el.addEventListener('wheel', prevent, { passive: false })
+    el.addEventListener('touchmove', prevent, { passive: false })
+    return () => {
+      document.body.style.overflow = prevOverflow
+      el.removeEventListener('wheel', prevent)
+      el.removeEventListener('touchmove', prevent)
+    }
   }, [open])
 
   if (!open) return null
@@ -63,8 +82,9 @@ export default function BottomSheet({
       `}</style>
 
       <div
+        ref={backdropRef}
         onClick={close}
-        style={{ position: 'fixed', inset: 0, background: `rgba(0,0,0,${dragging ? backdropAlpha : 0.6})`, zIndex: 30, animation: dragging ? undefined : 'bsBackdropIn 200ms ease both' }}
+        style={{ position: 'fixed', inset: 0, background: `rgba(0,0,0,${dragging ? backdropAlpha : 0.6})`, zIndex: 30, touchAction: 'none', animation: dragging ? undefined : 'bsBackdropIn 200ms ease both' }}
       />
 
       <div

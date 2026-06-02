@@ -3,18 +3,18 @@
 // un-onboarded users here; on success we set the username + username_set=true
 // and drop them into /home. Existing users (backfilled in migration 039) never
 // see this screen.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   getCurrentUserProfile,
   normalizeUsername,
-  isReservedUsername,
-  isUsernameAvailable,
+  hasInvalidUsernameChars,
+  usernameStatusMessage,
   markOnboarded,
-  USERNAME_MIN_LEN,
   type UserProfile,
 } from '../lib/userProfile'
+import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import logo from '../assets/logo/gdimensionlight.png'
 import {
   GRADIENT_APP_BG,
@@ -33,14 +33,6 @@ import {
   TRANSITION_STANDARD,
 } from '../tokens'
 
-type Status =
-  | { kind: 'idle' }
-  | { kind: 'short' }
-  | { kind: 'reserved' }
-  | { kind: 'checking' }
-  | { kind: 'available' }
-  | { kind: 'taken' }
-
 const OK_GREEN = '#7bbf6a'
 
 export default function WelcomePage() {
@@ -48,12 +40,9 @@ export default function WelcomePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const [invalidChar, setInvalidChar] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  // Guards against a slow availability response overwriting a newer keystroke.
-  const reqIdRef = useRef(0)
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
@@ -64,26 +53,14 @@ export default function WelcomePage() {
     })
   }, [])
 
-  // Debounced availability check whenever the handle changes.
-  useEffect(() => {
-    if (!profile) return
-    const u = username
-    if (u.length < USERNAME_MIN_LEN) { setStatus({ kind: 'short' }); return }
-    if (isReservedUsername(u)) { setStatus({ kind: 'reserved' }); return }
-    // Unchanged from what they already own → it's theirs.
-    if (u === profile.username) { setStatus({ kind: 'available' }); return }
+  const status = useUsernameStatus(username, profile?.username ?? '', profile?.id ?? null)
+  const canSubmit = status === 'available' && !invalidChar && !saving
 
-    setStatus({ kind: 'checking' })
-    const reqId = ++reqIdRef.current
-    const t = setTimeout(async () => {
-      const free = await isUsernameAvailable(u, profile.id)
-      if (reqId !== reqIdRef.current) return // a newer keystroke superseded this
-      setStatus({ kind: free ? 'available' : 'taken' })
-    }, 400)
-    return () => clearTimeout(t)
-  }, [username, profile])
-
-  const canSubmit = status.kind === 'available' && !saving
+  function onUsernameChange(raw: string) {
+    setError('')
+    setInvalidChar(hasInvalidUsernameChars(raw))
+    setUsername(normalizeUsername(raw))
+  }
 
   async function claim() {
     if (!profile || !canSubmit) return
@@ -92,34 +69,28 @@ export default function WelcomePage() {
     setError('')
     const { error: updateErr } = await supabase
       .from('users')
-      .update({
-        username: u,
-        display_name: displayName.trim() || null,
-        username_set: true,
-      })
+      .update({ username: u, display_name: displayName.trim() || null, username_set: true })
       .eq('id', profile.id)
     if (updateErr) {
       setSaving(false)
-      if (updateErr.code === '23505') {
-        setStatus({ kind: 'taken' })
-      } else {
-        setError('Could not save — please try again.')
-      }
+      setError(updateErr.code === '23505'
+        ? 'That username was just taken — please pick another.'
+        : 'Could not save — please try again.')
       return
     }
     markOnboarded(profile.id)
     navigate('/home', { replace: true })
   }
 
+  const showOk    = !invalidChar && status === 'available'
+  const showError = invalidChar || status === 'taken' || status === 'reserved'
+
   const hint = (() => {
-    switch (status.kind) {
-      case 'short':     return { text: `At least ${USERNAME_MIN_LEN} characters — letters, numbers, underscores.`, color: COLOR_TEXT_SECONDARY }
-      case 'reserved':  return { text: 'That handle is reserved.', color: COLOR_ACCENT }
-      case 'checking':  return { text: 'Checking availability…', color: COLOR_TEXT_SECONDARY }
-      case 'available': return { text: `@${username} is available.`, color: OK_GREEN }
-      case 'taken':     return { text: `@${username} is taken — try another.`, color: COLOR_ACCENT }
-      default:          return { text: 'This becomes your public link: gdimension.app/builds/…', color: COLOR_TEXT_SECONDARY }
-    }
+    if (invalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: COLOR_ACCENT }
+    if (status === 'idle') return { text: 'This becomes your public link: gdimension.app/builds/…', color: COLOR_TEXT_SECONDARY }
+    if (status === 'available') return { text: usernameStatusMessage(status, username), color: OK_GREEN }
+    const color = (status === 'taken' || status === 'reserved') ? COLOR_ACCENT : COLOR_TEXT_SECONDARY
+    return { text: usernameStatusMessage(status, username), color }
   })()
 
   return (
@@ -147,17 +118,13 @@ export default function WelcomePage() {
             display: 'flex', alignItems: 'center', height: 48,
             background: 'rgba(240,228,200,0.05)',
             border: '1px solid rgba(240,228,200,0.16)',
-            borderBottom: `2px solid ${
-              status.kind === 'available' ? OK_GREEN
-              : (status.kind === 'taken' || status.kind === 'reserved') ? COLOR_ACCENT
-              : 'rgba(240,228,200,0.28)'
-            }`,
+            borderBottom: `2px solid ${showOk ? OK_GREEN : showError ? COLOR_ACCENT : 'rgba(240,228,200,0.28)'}`,
             transition: `border-color ${TRANSITION_STANDARD}`,
           }}>
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 16, color: COLOR_TEXT_SECONDARY, padding: '0 4px 0 12px' }}>@</span>
             <input
               value={username}
-              onChange={e => setUsername(normalizeUsername(e.target.value))}
+              onChange={e => onUsernameChange(e.target.value)}
               placeholder="username"
               autoCapitalize="none"
               autoCorrect="off"
@@ -166,8 +133,9 @@ export default function WelcomePage() {
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_UI, fontWeight: 700, fontSize: 16, color: COLOR_TEXT_PRIMARY, paddingRight: 12 }}
             />
             <span style={{ width: 28, flexShrink: 0, textAlign: 'center', fontSize: 15 }}>
-              {status.kind === 'available' && <span style={{ color: OK_GREEN }}>✓</span>}
-              {(status.kind === 'taken' || status.kind === 'reserved') && <span style={{ color: COLOR_ACCENT }}>✕</span>}
+              {showOk && <span style={{ color: OK_GREEN }}>✓</span>}
+              {showError && <span style={{ color: COLOR_ACCENT }}>✕</span>}
+              {status === 'checking' && !invalidChar && <span style={{ color: COLOR_TEXT_SECONDARY, fontSize: 12 }}>…</span>}
             </span>
           </div>
           <p style={{ fontFamily: FONT_UI, fontSize: 11, color: hint.color, margin: '6px 2px 0', lineHeight: 1.4 }}>

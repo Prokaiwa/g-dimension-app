@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeUsername,
   isReservedUsername,
+  hasInvalidUsernameChars,
+  usernameStatusMessage,
   profileName,
   USERNAME_MIN_LEN,
 } from './userProfile'
@@ -46,6 +48,28 @@ describe('profileName', () => {
   it('falls back to username when display name is empty or whitespace', () => {
     expect(profileName({ display_name: '   ', username: 'hiro_92' })).toBe('hiro_92')
     expect(profileName({ display_name: null, username: 'hiro_92' })).toBe('hiro_92')
+  })
+})
+
+describe('hasInvalidUsernameChars', () => {
+  it('detects disallowed characters', () => {
+    expect(hasInvalidUsernameChars('john.doe')).toBe(true)
+    expect(hasInvalidUsernameChars('john doe')).toBe(true)
+    expect(hasInvalidUsernameChars('john-doe')).toBe(true)
+  })
+  it('accepts letters, digits and underscores (any case)', () => {
+    expect(hasInvalidUsernameChars('JohnDoe_99')).toBe(false)
+    expect(hasInvalidUsernameChars('')).toBe(false)
+  })
+})
+
+describe('usernameStatusMessage', () => {
+  it('returns availability copy with the handle', () => {
+    expect(usernameStatusMessage('available', 'hiro')).toContain('available')
+    expect(usernameStatusMessage('taken', 'hiro')).toContain('taken')
+  })
+  it('returns empty string for idle', () => {
+    expect(usernameStatusMessage('idle', 'hiro')).toBe('')
   })
 })
 

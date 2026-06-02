@@ -107,6 +107,31 @@ export function normalizeUsername(input: string): string {
 
 export const USERNAME_MIN_LEN = 3
 
+// True if the raw input contains characters that aren't allowed in a handle
+// (anything outside letters, digits, underscore). Used to tell the user *why*
+// their keystroke didn't appear, since the field strips them on the way in.
+export function hasInvalidUsernameChars(raw: string): boolean {
+  return /[^a-zA-Z0-9_]/.test(raw)
+}
+
+// Live status of a candidate handle. Shared by the signup claim screen and the
+// Edit Profile sheet so both behave identically.
+export type UsernameStatus =
+  | 'idle' | 'short' | 'reserved' | 'checking' | 'available' | 'taken'
+
+// Human-readable line for a given status. Idle/invalid-char messaging is handled
+// by the caller (it depends on what the user just typed).
+export function usernameStatusMessage(status: UsernameStatus, value: string): string {
+  switch (status) {
+    case 'short':     return `At least ${USERNAME_MIN_LEN} characters — letters, numbers, underscores.`
+    case 'reserved':  return 'That handle is reserved.'
+    case 'checking':  return 'Checking availability…'
+    case 'available': return value ? `@${value} is available.` : ''
+    case 'taken':     return `@${value} is taken — try another.`
+    default:          return ''
+  }
+}
+
 // ── Onboarding / handle claim ────────────────────────────────────────────────
 // `username_set` (migration 039) is false for fresh signups until they choose a
 // handle. The gate in App.tsx routes un-onboarded users to /welcome.

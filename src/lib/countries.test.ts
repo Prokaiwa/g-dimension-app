@@ -7,6 +7,14 @@ describe('codeForCountry', () => {
     expect(codeForCountry('JAPAN')).toBe('JP')
     expect(codeForCountry('  united states ')).toBe('US')
   })
+  it('resolves common aliases and punctuation/abbreviations', () => {
+    expect(codeForCountry('USA')).toBe('US')
+    expect(codeForCountry('U.S.A.')).toBe('US')
+    expect(codeForCountry('United States of America')).toBe('US')
+    expect(codeForCountry('The United States')).toBe('US')
+    expect(codeForCountry('uk')).toBe('GB')
+    expect(codeForCountry('Britain')).toBe('GB')
+  })
   it('returns null for unknown or empty names', () => {
     expect(codeForCountry('Atlantis')).toBeNull()
     expect(codeForCountry('')).toBeNull()
