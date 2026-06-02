@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer } from './lib/activeCar'
+import { isOnboarded } from './lib/userProfile'
 
 // Auth / marketing
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import WelcomePage from './pages/WelcomePage'
 
 // Hub
 import HomePage from './pages/HomePage'
@@ -60,21 +63,47 @@ import PublicProfilePage from './pages/PublicProfilePage'
 // Dev tools
 import SpecTestPage from './pages/SpecTestPage'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const [authed, setAuthed] = useState<boolean | null>(null)
+// Auth + onboarding gate. 'loading' until resolved, then one of:
+//   'anon'       — no session → /login
+//   'onboarding' — signed in but hasn't claimed a handle → /welcome
+//   'ready'      — signed in and onboarded
+type GateState = 'loading' | 'anon' | 'onboarding' | 'ready'
+
+function useAuthGate(): GateState {
+  const [state, setState] = useState<GateState>('loading')
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthed(!!data.session)
-    })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setAuthed(!!session)
-    })
-    return () => subscription.unsubscribe()
+    let active = true
+    async function evaluate(session: Session | null) {
+      if (!session) { if (active) setState('anon'); return }
+      const onboarded = await isOnboarded(session.user.id)
+      if (active) setState(onboarded ? 'ready' : 'onboarding')
+    }
+    supabase.auth.getSession().then(({ data }) => evaluate(data.session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => evaluate(session))
+    return () => { active = false; subscription.unsubscribe() }
   }, [])
 
-  if (authed === null) return null
-  if (!authed) return <Navigate to="/login" replace />
+  return state
+}
+
+// App pages: require a session AND a claimed handle.
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const state = useAuthGate()
+  if (state === 'loading') return null
+  if (state === 'anon') return <Navigate to="/login" replace />
+  if (state === 'onboarding') return <Navigate to="/welcome" replace />
+  return <>{children}</>
+}
+
+// The /welcome claim screen: needs a session, but is only reachable while
+// onboarding (already-onboarded users are bounced to /home so they can't
+// re-trigger it).
+function WelcomeRoute({ children }: { children: React.ReactNode }) {
+  const state = useAuthGate()
+  if (state === 'loading') return null
+  if (state === 'anon') return <Navigate to="/login" replace />
+  if (state === 'ready') return <Navigate to="/home" replace />
   return <>{children}</>
 }
 
@@ -96,6 +125,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/welcome" element={<WelcomeRoute><WelcomePage /></WelcomeRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
       <Route path="/garage" element={<ProtectedRoute><GaragePage /></ProtectedRoute>} />

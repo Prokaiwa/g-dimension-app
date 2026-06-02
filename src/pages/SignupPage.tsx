@@ -38,7 +38,13 @@ export default function SignupPage() {
     setError('')
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setLoading(true)
-    const { error: authError } = await supabase.auth.signUp({ email, password })
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      // Land confirmed users in the app; the auth gate routes them to /welcome
+      // to claim a handle before /home.
+      options: { emailRedirectTo: `${window.location.origin}/home` },
+    })
     setLoading(false)
     if (authError) {
       setError(authError.message)

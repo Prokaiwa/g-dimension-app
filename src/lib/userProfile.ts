@@ -106,3 +106,59 @@ export function normalizeUsername(input: string): string {
 }
 
 export const USERNAME_MIN_LEN = 3
+
+// ── Onboarding / handle claim ────────────────────────────────────────────────
+// `username_set` (migration 039) is false for fresh signups until they choose a
+// handle. The gate in App.tsx routes un-onboarded users to /welcome.
+
+// Once a user is known-onboarded in this session, remember it so every route
+// change doesn't re-query. Cleared naturally on reload.
+const onboardedCache = new Set<string>()
+
+export function markOnboarded(uid: string): void {
+  onboardedCache.add(uid)
+}
+
+// Fail OPEN: if the column doesn't exist yet (039 not run) or the query errors,
+// treat the user as onboarded so they're never trapped outside the app.
+export async function isOnboarded(uid: string): Promise<boolean> {
+  if (onboardedCache.has(uid)) return true
+  const { data, error } = await supabase
+    .from('users')
+    .select('username_set')
+    .eq('id', uid)
+    .single()
+  if (error) { onboardedCache.add(uid); return true }
+  const ok = (data as { username_set?: boolean })?.username_set !== false
+  if (ok) onboardedCache.add(uid)
+  return ok
+}
+
+// Handles that would shadow routes, impersonate the brand, or read as system
+// values. Checked in addition to the DB unique constraint.
+export const RESERVED_USERNAMES = new Set([
+  'admin', 'administrator', 'api', 'app', 'auth', 'build', 'builds', 'dashboard',
+  'gdimension', 'g-dimension', 'help', 'home', 'login', 'logout', 'me', 'profile',
+  'root', 'settings', 'signin', 'signup', 'support', 'system', 'user', 'users',
+  'www', 'garage', 'tuning', 'maintenance', 'timeline', 'photos', 'welcome',
+  'null', 'undefined', 'spec-test', 'about', 'contact', 'privacy', 'terms',
+])
+
+export function isReservedUsername(u: string): boolean {
+  return RESERVED_USERNAMES.has(u.toLowerCase())
+}
+
+// Is this handle free for `selfId` to take? Reads the public username column
+// (allowed by RLS). Fails open on error — the unique constraint is the backstop.
+export async function isUsernameAvailable(username: string, selfId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .neq('id', selfId)
+    .limit(1)
+    .maybeSingle()
+  if (error) return true
+  return !data
+}
+
