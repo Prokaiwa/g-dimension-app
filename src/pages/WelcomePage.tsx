@@ -31,9 +31,10 @@ import {
   SPACE_MD,
   SPACE_LG,
   TRANSITION_STANDARD,
+  COLOR_SUCCESS,
 } from '../tokens'
 
-const OK_GREEN = '#7bbf6a'
+const OK_GREEN = COLOR_SUCCESS
 
 export default function WelcomePage() {
   const navigate = useNavigate()

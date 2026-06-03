@@ -40,6 +40,8 @@ import {
   SPACE_XL,
   EASING_SETTLE,
   RADIUS_BUTTON,
+  COLOR_SUCCESS,
+  COLOR_ERROR,
 } from '../tokens'
 
 const _now        = new Date()
@@ -50,7 +52,7 @@ const DAY_LABEL   = String(_now.getDate())
 const CREAM = '#f0e4c8'
 const MUTED = 'rgba(240,228,200,0.5)'
 const FAINT = 'rgba(240,228,200,0.32)'
-const OK_GREEN = '#7bbf6a'
+const OK_GREEN = COLOR_SUCCESS
 
 type Draft = {
   display_name: string
@@ -255,12 +257,12 @@ export default function ProfilePage() {
   const unameShowError = !!draft && (draftInvalidChar || !!unameError || (usernameDirty && (unameStatus === 'taken' || unameStatus === 'reserved')))
   const unameHint = (() => {
     if (!draft) return { text: '', color: FAINT }
-    if (unameError) return { text: unameError, color: '#d27a5e' }
-    if (draftInvalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: '#d27a5e' }
+    if (unameError) return { text: unameError, color: COLOR_ERROR }
+    if (draftInvalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: COLOR_ERROR }
     if (!usernameDirty) return { text: DEFAULT_UNAME_HINT, color: FAINT }
     if (unameStatus === 'available') return { text: usernameStatusMessage('available', draft.username), color: OK_GREEN }
     if (unameStatus === 'idle') return { text: DEFAULT_UNAME_HINT, color: FAINT }
-    const color = (unameStatus === 'taken' || unameStatus === 'reserved') ? '#d27a5e' : FAINT
+    const color = (unameStatus === 'taken' || unameStatus === 'reserved') ? COLOR_ERROR : FAINT
     return { text: usernameStatusMessage(unameStatus, draft.username), color }
   })()
   const legacyCountry = draft && draft.country && !COUNTRIES.some(c => c.name === draft.country) ? draft.country : null
@@ -432,7 +434,7 @@ export default function ProfilePage() {
             <button onClick={signOut} style={{
               width: '100%', minHeight: 48, marginTop: SPACE_XL,
               background: 'none', border: '1px solid rgba(180,60,40,0.5)', cursor: 'pointer',
-              color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: COLOR_ERROR, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
               WebkitTapHighlightColor: 'transparent',
             }}>
               Sign Out
@@ -449,7 +451,7 @@ export default function ProfilePage() {
             <input value={draft.display_name} onChange={e => setDraft({ ...draft, display_name: e.target.value })} placeholder="How your name appears" style={{ ...sheetInput, marginBottom: SPACE_MD }} />
 
             <FieldLabel>Username</FieldLabel>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderBottom: `1px solid ${unameShowError ? '#d27a5e' : unameShowOk ? OK_GREEN : 'rgba(240,228,200,0.22)'}`, background: 'rgba(240,228,200,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderBottom: `1px solid ${unameShowError ? COLOR_ERROR : unameShowOk ? OK_GREEN : 'rgba(240,228,200,0.22)'}`, background: 'rgba(240,228,200,0.05)' }}>
               <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: MUTED, paddingLeft: 10 }}>@</span>
               <input
                 ref={usernameRef}
@@ -463,7 +465,7 @@ export default function ProfilePage() {
               />
               <span style={{ width: 26, flexShrink: 0, textAlign: 'center', fontSize: 13, paddingRight: 6 }}>
                 {unameShowOk && <span style={{ color: OK_GREEN }}>✓</span>}
-                {unameShowError && <span style={{ color: '#d27a5e' }}>✕</span>}
+                {unameShowError && <span style={{ color: COLOR_ERROR }}>✕</span>}
                 {usernameDirty && !draftInvalidChar && !unameError && unameStatus === 'checking' && <span style={{ color: FAINT }}>…</span>}
               </span>
             </div>

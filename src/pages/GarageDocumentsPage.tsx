@@ -33,6 +33,7 @@ import {
   SPACE_LG,
   SPACE_XL,
   EASING_SETTLE,
+  COLOR_ERROR,
 } from '../tokens'
 
 const _now        = new Date()
@@ -264,7 +265,7 @@ export default function GarageDocumentsPage() {
     setThumbs(prev => ({ ...prev, ...map }))
   }
 
-  useEffect(() => { loadData() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadData() }, [])
 
   function openNewDoc(prefillType?: DocType) { setError(null); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
   function openNewReceipt() { setError(null); setDraft({ ...EMPTY_RECEIPT }) }
@@ -845,7 +846,7 @@ export default function GarageDocumentsPage() {
             {draft.id && (
               <button onClick={remove} disabled={saving} style={{
                 width: '100%', minHeight: 44, marginTop: SPACE_SM, background: 'none', border: '1px solid rgba(180,60,40,0.5)', cursor: 'pointer',
-                color: '#d27a5e', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+                color: COLOR_ERROR, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
               }}>{isReceiptDraft ? 'Delete Receipt' : 'Delete Document'}</button>
             )}
           </>

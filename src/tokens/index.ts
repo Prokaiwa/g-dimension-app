@@ -53,6 +53,10 @@ export const COLOR_TEXT_SECONDARY = '#8a8a8c';
 export const COLOR_TEXT_MUTED     = '#3f3f46';
 export const COLOR_TEXT_BLACK     = '#000000'; // dark text on concrete panels
 
+// Status / validation — inline feedback (username availability, form errors)
+export const COLOR_SUCCESS        = '#7bbf6a'; // valid / available / OK green
+export const COLOR_ERROR          = '#d27a5e'; // invalid / taken / error salmon
+
 // ------------------------------------------------------------
 // PART 4 — TYPOGRAPHY
 // ------------------------------------------------------------
