@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 043_drop_car_contacts.sql (2026-06-03)
--- All migrations 001–043 confirmed applied to production.
+-- Last migration applied : 044_car_variant.sql (2026-06-03)
+-- All migrations 001–044 confirmed applied to production.
 -- (Note: 041 was applied 2026-06-03, out of order — it had been skipped while
 --  042/043 went in first; live is now contiguous 001–043.)
 -- =============================================================================

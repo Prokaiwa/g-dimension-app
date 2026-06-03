@@ -162,7 +162,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `043_drop_car_contacts.sql` — run in order.
+`supabase/migrations/001_users.sql` → `044_car_variant.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -187,10 +187,11 @@ const carId = await getActiveCarId()
 | `041_reminder_leadtime_job_mileage.sql` | `car_reminders.remind_days_before` (int) — lead time before `due_date` to start alerting (document expiry reminders set `due_date` = the real expiry, not expiry-minus-leadtime); `jobs.install_mileage` (int) — odometer when a mod was installed, feeds the "update current mileage" prompt. **Applied 2026-06-03, out of order (after 042/043) — had been skipped; the GarageDocuments reminder-write and TuningAdd install-mileage write depend on it** |
 | `042_handle_new_user_retry.sql` | Wraps the `handle_new_user()` INSERT in a `unique_violation` retry loop to fully close the residual username-collision race left by 038 (concurrent same-base signups). Function-only; preserves the 2026-05-31 EXECUTE revoke |
 | `043_drop_car_contacts.sql` | Drops the orphaned `car_contacts` table (superseded by `user_contacts` in 035; was 0 rows, no code refs). CASCADE also removes its RLS policies + grants |
+| `044_car_variant.sql` | `cars.variant` (text) — free-text sub-model label (e.g. "430" on a Lexus LS), distinct from `model` (family) and `trim` (spec level). Display name = year + model + variant ("2006 LS 430"). Forward-compatible with the empty `vehicle_variants` catalog + `cars.variant_id` for a future picker |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
-**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–043` → new range) and add the new migration to the table above.
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–044` → new range) and add the new migration to the table above.
 
 **Supabase schema change notice (effective May 30, 2026):** Any new tables created in the `public` schema after this date require explicit PostgREST grants — Supabase no longer auto-grants access. After creating a new table, always run: `grant select, insert, update, delete on public.<table> to authenticated;` (and `grant select on public.<table> to anon;` for public reference tables).
 
