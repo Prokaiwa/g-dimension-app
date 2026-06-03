@@ -162,7 +162,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `041_reminder_leadtime_job_mileage.sql` — run in order.
+`supabase/migrations/001_users.sql` → `043_drop_car_contacts.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -178,17 +178,19 @@ const carId = await getActiveCarId()
 | `032_session_cost_breakdown.sql` | `sessions.labor_cost` (decimal), `sessions.tax_amount` (decimal) — shop invoice cost breakdown |
 | `033_session_mod_groups.sql` | `sessions.title text` — display name for grouped mod entries on the Build Sheet (nullable; only set on `type='modification'` sessions created via the grouped install flow) |
 | `034_reminder_job_link.sql` | `car_reminders.job_id` FK to `jobs` (on delete set null) — part-level service-interval reminders (e.g. turbo rebuild every 30k mi). Pairs with `due_mileage` / `due_date` |
-| `035_user_contacts.sql` | `user_contacts` table — per-**user** (cross-car) contact book + RLS owner policy + grants. Supersedes per-car `car_contacts` for the Contacts screen; `car_contacts` left in place (unused) |
+| `035_user_contacts.sql` | `user_contacts` table — per-**user** (cross-car) contact book + RLS owner policy + grants. Supersedes per-car `car_contacts` for the Contacts screen (`car_contacts` since dropped — see 043) |
 | `036_document_receipts.sql` | `car_documents.doc_type` CHECK widened to allow `'receipt'`; `car_documents.amount` (decimal) + `currency` (char 3) columns — standalone titled receipts (insurance/registration fees). NOT counted toward Build Investment |
 | `037_contact_social.sql` | `user_contacts.social` (text) — optional social/profile link per contact, shown after Website on the Contacts screen |
 | `038_username_uniqueness.sql` | Rewrites `handle_new_user()` to generate a **collision-safe** username at signup (walks `base`, `base2`, `base3`… to the first free handle). Fixes a latent bug where a colliding auto-handle raised a unique_violation and rolled back the whole signup. Function-only change; trigger unchanged |
 | `039_username_claim.sql` | `users.username_set` (boolean, default false) — onboarding flag. New signups start `false` and are routed through the `/welcome` handle-claim screen; existing users backfilled to `true`. Frontend gate reads it defensively (fails open if absent) |
 | `040_avatar_bucket.sql` | `avatars` storage bucket (PUBLIC, 6th bucket) + owner-scoped RLS policies — backs `users.avatar_url` profile pictures. Uploaded via `src/lib/avatar.ts` (JPEG-compressed, path `{user_id}/{ts}-{rand}.jpg`). Until run, avatar upload fails gracefully and the letter avatar shows |
-| `041_reminder_leadtime_job_mileage.sql` | `car_reminders.remind_days_before` (int) — lead time before `due_date` to start alerting (document expiry reminders set `due_date` = the real expiry, not expiry-minus-leadtime); `jobs.install_mileage` (int) — odometer when a mod was installed, feeds the "update current mileage" prompt |
+| `041_reminder_leadtime_job_mileage.sql` | `car_reminders.remind_days_before` (int) — lead time before `due_date` to start alerting (document expiry reminders set `due_date` = the real expiry, not expiry-minus-leadtime); `jobs.install_mileage` (int) — odometer when a mod was installed, feeds the "update current mileage" prompt. **Applied 2026-06-03, out of order (after 042/043) — had been skipped; the GarageDocuments reminder-write and TuningAdd install-mileage write depend on it** |
+| `042_handle_new_user_retry.sql` | Wraps the `handle_new_user()` INSERT in a `unique_violation` retry loop to fully close the residual username-collision race left by 038 (concurrent same-base signups). Function-only; preserves the 2026-05-31 EXECUTE revoke |
+| `043_drop_car_contacts.sql` | Drops the orphaned `car_contacts` table (superseded by `user_contacts` in 035; was 0 rows, no code refs). CASCADE also removes its RLS policies + grants |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
-**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–040` → new range) and add the new migration to the table above.
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–043` → new range) and add the new migration to the table above.
 
 **Supabase schema change notice (effective May 30, 2026):** Any new tables created in the `public` schema after this date require explicit PostgREST grants — Supabase no longer auto-grants access. After creating a new table, always run: `grant select, insert, update, delete on public.<table> to authenticated;` (and `grant select on public.<table> to anon;` for public reference tables).
 

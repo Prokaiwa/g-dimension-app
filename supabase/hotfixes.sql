@@ -5,8 +5,10 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 040_avatar_bucket.sql (2026-06-02)
--- All migrations 001–040 confirmed applied to production.
+-- Last migration applied : 043_drop_car_contacts.sql (2026-06-03)
+-- All migrations 001–043 confirmed applied to production.
+-- (Note: 041 was applied 2026-06-03, out of order — it had been skipped while
+--  042/043 went in first; live is now contiguous 001–043.)
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)
@@ -168,4 +170,25 @@ alter policy "user_flags_select_owner" on public.user_flags
 alter policy "users_all_owner" on public.users
   using (((select auth.uid()) = id))
   with check (((select auth.uid()) = id));
+commit;
+
+-- Security — stop public buckets from being enumerable (2026-06-03)
+-- The 4 public buckets (car-photos, job-photos, timeline-photos, avatars) each had
+-- a broad SELECT policy on storage.objects that let anon/authenticated LIST every
+-- file. Public object URLs (/object/public/) bypass RLS, so image display is
+-- unaffected — this only removes enumeration. App makes no storage .list() calls.
+-- Also wraps auth.uid() in the avatar write policies (040) to match the
+-- InitPlan-optimized pattern. Verified: bucket-listing advisor warnings cleared.
+begin;
+drop policy if exists "car_photos_select_public"      on storage.objects;
+drop policy if exists "job_photos_select_public"      on storage.objects;
+drop policy if exists "timeline_photos_select_public" on storage.objects;
+drop policy if exists "avatars_select_public"         on storage.objects;
+
+alter policy "avatars_insert_owner" on storage.objects
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+alter policy "avatars_update_owner" on storage.objects
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
+alter policy "avatars_delete_owner" on storage.objects
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = (select auth.uid())::text);
 commit;
