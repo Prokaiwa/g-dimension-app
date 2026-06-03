@@ -35,7 +35,7 @@ const TILES = [
 export default function TuningPage() {
   const navigate = useNavigate()
   const [pressed, setPressed] = useState<string | null>(null)
-  const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
+  const [car, setCar] = useState<{ year: number | null; model: string | null; variant: string | null } | null>(null)
   const [bgLoaded, setBgLoaded] = useState(false)
   const bgRef = useRef<HTMLImageElement>(null)
 
@@ -46,8 +46,8 @@ export default function TuningPage() {
   useEffect(() => {
     getActiveCarId().then(carId => {
       if (!carId) return
-      supabase.from('cars').select('year, model').eq('id', carId).single()
-        .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null }) })
+      supabase.from('cars').select('year, model, variant').eq('id', carId).single()
+        .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null; variant: string | null }) })
     })
   }, [])
 
@@ -137,7 +137,7 @@ export default function TuningPage() {
               color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75,
               paddingRight: 10,
             }}>
-              {[car.year, car.model].filter(Boolean).join(' ')}
+              {[car.year, car.model, car.variant].filter(Boolean).join(' ')}
             </span>
           )}
           <div style={{

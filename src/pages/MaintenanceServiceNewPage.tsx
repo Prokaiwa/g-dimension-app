@@ -89,11 +89,11 @@ export default function MaintenanceServiceNewPage() {
     getActiveCarId().then(id => {
       if (!id) return
       setCarId(id)
-      supabase.from('cars').select('year, make, model, current_mileage').eq('id', id).single()
+      supabase.from('cars').select('year, make, model, variant, current_mileage').eq('id', id).single()
         .then(({ data }) => {
           if (data) {
-            const d = data as { year: number | null; make: string | null; model: string | null; current_mileage: number | null }
-            setCarInfo([d.year, d.make, d.model].filter(Boolean).join(' '))
+            const d = data as { year: number | null; make: string | null; model: string | null; variant: string | null; current_mileage: number | null }
+            setCarInfo([d.year, d.make, d.model, d.variant].filter(Boolean).join(' '))
             setCurrentMileage(d.current_mileage ?? null)
           }
         })

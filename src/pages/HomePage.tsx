@@ -78,12 +78,12 @@ export default function HomePage() {
       if (!carId) return
       supabase
         .from('cars')
-        .select('year, model')
+        .select('year, model, variant')
         .eq('id', carId)
         .is('deleted_at', null)
         .single()
         .then(({ data }) => {
-          if (data) setCarInfo([data.year, data.model].filter(Boolean).join(' '))
+          if (data) setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' '))
         })
     })
   }, [])

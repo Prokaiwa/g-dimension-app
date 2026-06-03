@@ -26,7 +26,7 @@ type Part = {
   job_photos: JobPhoto[]
 }
 
-type Car = { year: number | null; make: string | null; model: string | null }
+type Car = { year: number | null; make: string | null; model: string | null; variant: string | null }
 
 // ── Kraft paper grain ─────────────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ export default function TuningPartsPage() {
     if (!carId) { setLoading(false); return }
 
     const [{ data: carData }, { data: active }, { data: history }, { data: planned }] = await Promise.all([
-      supabase.from('cars').select('year, make, model').eq('id', carId).single(),
+      supabase.from('cars').select('year, make, model, variant').eq('id', carId).single(),
       supabase
         .from('jobs')
         .select('id, title, brand, category, date_removed, date_installed, parts_cost, status, sale_price, sale_date, job_photos(photo_url, display_order)')
@@ -157,7 +157,7 @@ export default function TuningPartsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {car && (
               <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
-                {[car.year, car.model].filter(Boolean).join(' ')}
+                {[car.year, car.model, car.variant].filter(Boolean).join(' ')}
               </span>
             )}
             <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px', flexShrink: 0 }}>

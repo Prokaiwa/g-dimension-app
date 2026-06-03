@@ -26,13 +26,13 @@ export default function MaintenancePage() {
   const navigate = useNavigate()
   const [pressed, setPressed] = useState<string | null>(null)
   const [bgLoaded, setBgLoaded] = useState(false)
-  const [car, setCar] = useState<{ year: number | null; model: string | null } | null>(null)
+  const [car, setCar] = useState<{ year: number | null; model: string | null; variant: string | null } | null>(null)
 
   useEffect(() => {
     getActiveCarId().then(carId => {
       if (!carId) return
-      supabase.from('cars').select('year, model').eq('id', carId).single()
-        .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null }) })
+      supabase.from('cars').select('year, model, variant').eq('id', carId).single()
+        .then(({ data }) => { if (data) setCar(data as { year: number | null; model: string | null; variant: string | null }) })
     })
   }, [])
 
@@ -123,7 +123,7 @@ export default function MaintenancePage() {
           <span style={{ color: COLOR_HEADER_TITLE, fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em' }}>Maintenance &amp; Service</span>
         </button>
         <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0 }}>
-          {car && <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>{[car.year, car.model].filter(Boolean).join(' ')}</span>}
+          {car && <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>{[car.year, car.model, car.variant].filter(Boolean).join(' ')}</span>}
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
           <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>

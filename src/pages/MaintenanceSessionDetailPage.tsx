@@ -54,6 +54,7 @@ type Car = {
   year: number | null
   make: string | null
   model: string | null
+  variant: string | null
 }
 
 const MONO = "'Courier New', Courier, monospace"
@@ -92,7 +93,7 @@ export default function MaintenanceSessionDetailPage() {
       if (s) {
         setSession(s as Session)
         if (s.car_id) {
-          const { data: c } = await supabase.from('cars').select('year,make,model').eq('id', s.car_id).single()
+          const { data: c } = await supabase.from('cars').select('year,make,model,variant').eq('id', s.car_id).single()
           if (c) setCar(c as Car)
         }
       }
@@ -364,7 +365,7 @@ export default function MaintenanceSessionDetailPage() {
               ) : car ? (
                 <div style={{ flex: 1, padding: '14px 20px' }}>
                   <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Vehicle</div>
-                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: INV_TEXT }}>{[car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')}</div>
                 </div>
               ) : <div style={{ flex: 1 }} />}
             </div>
@@ -373,7 +374,7 @@ export default function MaintenanceSessionDetailPage() {
             {car && session.mileage != null && (
               <div style={{ padding: '12px 20px', borderBottom: `1px solid ${INV_DIVIDER}` }}>
                 <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 3 }}>Vehicle</div>
-                <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model].filter(Boolean).join(' ')}</div>
+                <div style={{ fontFamily: MONO, fontSize: 13, color: INV_TEXT }}>{[car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')}</div>
               </div>
             )}
 

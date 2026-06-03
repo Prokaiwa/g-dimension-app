@@ -38,6 +38,7 @@ type SnapshotCar = {
   year: number | null
   make: string | null
   model: string | null
+  variant: string | null
   nickname: string
   color: string | null
   is_import: boolean
@@ -110,7 +111,7 @@ export default function GarageSnapshotPage() {
 
       const chosenId = localStorage.getItem('gdim_chosen_car_id')
       const COLS = [
-        'id', 'year', 'make', 'model', 'nickname', 'color', 'is_import',
+        'id', 'year', 'make', 'model', 'variant', 'nickname', 'color', 'is_import',
         'vin', 'license_plate', 'engine_type',
         'oil_type', 'tire_size', 'battery_model', 'current_mileage',
         'garage_photo_url', 'photo_y_offset',
@@ -139,7 +140,7 @@ export default function GarageSnapshotPage() {
   }, [])
 
   const isDefaultNickname = car
-    ? car.nickname === [car.year, car.make, car.model].filter(Boolean).join(' ')
+    ? car.nickname === [car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')
     : false
 
   return (
@@ -156,7 +157,7 @@ export default function GarageSnapshotPage() {
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
           {car && (
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, display: 'flex', alignItems: 'center', paddingRight: 10 }}>
-              {[car.year, car.model].filter(Boolean).join(' ')}
+              {[car.year, car.model, car.variant].filter(Boolean).join(' ')}
             </span>
           )}
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
@@ -203,7 +204,7 @@ export default function GarageSnapshotPage() {
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: SPACE_SM, flexWrap: 'wrap' }}>
                   <p style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 24, letterSpacing: '-0.08em', color: TEXT, margin: 0, lineHeight: 1.1 }}>
-                    {[car.year, car.model].filter(Boolean).join(' ') || 'Unknown'}
+                    {[car.year, car.model, car.variant].filter(Boolean).join(' ') || 'Unknown'}
                   </p>
                   {car.is_import && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.18em', textTransform: 'uppercase', color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '2px 5px', flexShrink: 0, marginTop: 4 }}>

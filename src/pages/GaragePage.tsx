@@ -73,14 +73,14 @@ export default function GaragePage() {
       }
       supabase
         .from('cars')
-        .select('id, year, model')
+        .select('id, year, model, variant')
         .eq('id', carId)
         .is('deleted_at', null)
         .single()
         .then(({ data }) => {
           if (data) {
             setHasCar(true)
-            setCarInfo([data.year, data.model].filter(Boolean).join(' '))
+            setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' '))
           } else {
             setHasCar(false)
           }

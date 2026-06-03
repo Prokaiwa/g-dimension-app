@@ -133,10 +133,10 @@ export default function MaintenanceServiceEditPage() {
         setNotes(sess.notes ?? '')
         setAddToTimeline(!!sess.add_to_timeline)
         if (sess.car_id) {
-          const { data: c } = await supabase.from('cars').select('year, make, model').eq('id', sess.car_id).single()
+          const { data: c } = await supabase.from('cars').select('year, make, model, variant').eq('id', sess.car_id).single()
           if (c) {
-            const d = c as { year: number | null; make: string | null; model: string | null }
-            setCarInfo([d.year, d.make, d.model].filter(Boolean).join(' '))
+            const d = c as { year: number | null; make: string | null; model: string | null; variant: string | null }
+            setCarInfo([d.year, d.make, d.model, d.variant].filter(Boolean).join(' '))
           }
         }
       }

@@ -73,6 +73,7 @@ type Car = {
   year: number | null
   make: string | null
   model: string | null
+  variant: string | null
   garage_photo_url: string | null
   photo_y_offset: number | null
   horsepower: number | null
@@ -333,7 +334,7 @@ export default function TuningBuildSheetPage() {
       const [{ data: carData }, { data: modsData }, { data: sessData }] = await Promise.all([
         supabase
           .from('cars')
-          .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo')
+          .select('id, year, make, model, variant, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo')
           .eq('id', carId)
           .single(),
         supabase
@@ -502,7 +503,7 @@ export default function TuningBuildSheetPage() {
                 fontSize: 26, letterSpacing: '-0.01em', lineHeight: 1.1,
                 color: 'rgba(245,240,228,0.95)', margin: 0,
               }}>
-                {[car?.year, car?.model].filter(Boolean).join(' ') || 'Unknown'}
+                {[car?.year, car?.model, car?.variant].filter(Boolean).join(' ') || 'Unknown'}
               </p>
               {car?.make && (
                 <p style={{
