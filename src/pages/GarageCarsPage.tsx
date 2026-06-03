@@ -38,24 +38,24 @@ const DAY_LABEL   = String(_now.getDate())
 
 type Car = {
   id: string; year: number | null; make: string | null
-  model: string | null; trim: string | null
+  model: string | null; variant: string | null; trim: string | null
   nickname: string; current_mileage: number | null; color: string | null
   garage_photo_url: string | null
 }
 
-const CAR_COLUMNS = 'id, year, make, model, trim, nickname, current_mileage, color, garage_photo_url'
+const CAR_COLUMNS = 'id, year, make, model, variant, trim, nickname, current_mileage, color, garage_photo_url'
 type MakeItem  = { id: number; name: string; priority: number }
 type ModelItem = { id: number; name: string }
 
 type FormData = {
-  year: string; make: string; model: string; trim: string
+  year: string; make: string; model: string; variant: string; trim: string
   nickname: string; mileage: string; mileageUnit: 'mi' | 'km'
   purchaseDate: string; purchasePrice: string; purchaseCurrency: string
   mileageAtPurchase: string; wherePurchased: string; originStory: string
 }
 
 const EMPTY_FORM: FormData = {
-  year: '', make: '', model: '', trim: '', nickname: '', mileage: '', mileageUnit: 'mi',
+  year: '', make: '', model: '', variant: '', trim: '', nickname: '', mileage: '', mileageUnit: 'mi',
   purchaseDate: '', purchasePrice: '', purchaseCurrency: 'USD',
   mileageAtPurchase: '', wherePurchased: '', originStory: '',
 }
@@ -507,7 +507,7 @@ export default function GarageCarsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); setSaveErr('Not signed in.'); return }
     const nickname = form.nickname.trim() ||
-      [form.year, form.make, form.model].filter(Boolean).join(' ')
+      [form.year, form.make, form.model, form.variant].filter(Boolean).join(' ')
     const rawMileage = parseInt(form.mileage) || null
     // DB always stores miles — convert km input
     const mileageInMiles = rawMileage && form.mileageUnit === 'km'
@@ -522,6 +522,7 @@ export default function GarageCarsPage() {
         make_id: selectedMakeId,
         model: form.model.trim() || null,
         model_id: selectedModelId,
+        variant: form.variant.trim() || null,
         trim: form.trim.trim() || null,
         nickname,
         current_mileage: mileageInMiles,
@@ -558,15 +559,16 @@ export default function GarageCarsPage() {
     if (!car) return
     const { data } = await supabase
       .from('cars')
-      .select('color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url')
+      .select('color, paint_code, nickname, trim, variant, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url')
       .eq('id', car.id)
       .single()
-    const autoNick = [car.year, car.make, car.model].filter(Boolean).join(' ')
+    const autoNick = [car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')
     setDetailsData({
       color:             data?.color              ?? '',
       colorCode:         data?.paint_code ?? '',
       nickname:          data?.nickname === autoNick ? '' : (data?.nickname ?? ''),
       trim:              data?.trim               ?? '',
+      variant:           data?.variant            ?? '',
       mileage:           data?.current_mileage    != null ? String(data.current_mileage) : '',
       mileageUnit:       'mi',
       chassisCode:       data?.chassis_code       ?? '',
@@ -606,8 +608,9 @@ export default function GarageCarsPage() {
     const update: Record<string, unknown> = {
         color:             detailsData.color.trim()          || null,
         paint_code:        (detailsData.colorCode ?? '').trim() || null,
-        nickname:          detailsData.nickname.trim()       || [car.year, car.model].filter(Boolean).join(' '),
+        nickname:          detailsData.nickname.trim()       || [car.year, car.model, car.variant].filter(Boolean).join(' '),
         trim:              detailsData.trim.trim()           || null,
+        variant:           detailsData.variant?.trim()       || null,
         current_mileage:   mileageInMiles,
         chassis_code:      detailsData.chassisCode?.trim()   || null,
         vin:               detailsData.vin?.trim()           || null,
@@ -648,8 +651,8 @@ export default function GarageCarsPage() {
     setDetailsSaving(false)
     if (error) { setDetailsErr(error.message); return }
     setCars(prev => prev.map(c => c.id === car.id
-      ? { ...c, color: detailsData.color.trim() || null, trim: detailsData.trim.trim() || null,
-          nickname: detailsData.nickname.trim() || [car.year, car.model].filter(Boolean).join(' '),
+      ? { ...c, color: detailsData.color.trim() || null, trim: detailsData.trim.trim() || null, variant: detailsData.variant?.trim() || null,
+          nickname: detailsData.nickname.trim() || [car.year, car.model, car.variant].filter(Boolean).join(' '),
           current_mileage: mileageInMiles,
           garage_photo_url: newPhotoUrl ?? c.garage_photo_url }
       : c))
@@ -701,7 +704,7 @@ export default function GarageCarsPage() {
       `}</style>
 
       <GarageBg />
-      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && chosenCarId ? (() => { const c = cars.find(x => x.id === chosenCarId); return c ? [c.year, c.model].filter(Boolean).join(' ') : undefined })() : undefined} />
+      <Header onBack={() => navigate('/garage')} subtitle={!showAdd && chosenCarId ? (() => { const c = cars.find(x => x.id === chosenCarId); return c ? [c.year, c.model, c.variant].filter(Boolean).join(' ') : undefined })() : undefined} />
 
       {/* ── CAROUSEL ── */}
       {!loading && (
@@ -730,7 +733,7 @@ export default function GarageCarsPage() {
                         onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
                       />
                       <span style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 33, color: 'rgba(245,240,228,0.95)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                        {car.model}
+                        {[car.model, car.variant].filter(Boolean).join(' ')}
                       </span>
                     </div>
 
@@ -910,6 +913,10 @@ export default function GarageCarsPage() {
                   <div style={FIELD}>
                     <span style={LABEL}>Nickname <span style={OPT}>opt</span></span>
                     <input type="text" autoCapitalize="words" placeholder="e.g. The S14, Project R" value={detailsData.nickname} onChange={e => setDetailsData(d => ({ ...d!, nickname: e.target.value }))} style={INPUT} />
+                  </div>
+                  <div style={FIELD}>
+                    <span style={LABEL}>Variant <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" placeholder="e.g. 430, Type R, GT-R" value={detailsData.variant ?? ''} onChange={e => setDetailsData(d => ({ ...d!, variant: e.target.value }))} style={INPUT} />
                   </div>
                   <div style={FIELD}>
                     <span style={LABEL}>Trim <span style={OPT}>opt</span></span>
@@ -1133,6 +1140,14 @@ export default function GarageCarsPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Variant / sub-model */}
+                {form.model && (
+                  <div style={FIELD}>
+                    <span style={LABEL}>Variant <span style={OPT}>opt</span></span>
+                    <input type="text" autoCapitalize="words" placeholder="e.g. 430, Type R, GT-R" value={form.variant} onChange={set('variant')} style={INPUT} />
+                  </div>
+                )}
 
                 {/* Trim + Nickname */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SPACE_SM }}>
