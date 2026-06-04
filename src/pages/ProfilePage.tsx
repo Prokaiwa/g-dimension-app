@@ -389,7 +389,7 @@ export default function ProfilePage() {
             {/* Garage preview */}
             <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, margin: `${SPACE_XL}px 0 ${SPACE_SM}px` }}>Garage</p>
             {stats && stats.cars.length === 0 ? (
-              <button onClick={() => navigate('/garage/cars/new')} style={{
+              <button onClick={() => navigate('/garage/cars')} style={{
                 width: '100%', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: SPACE_SM,
                 background: 'rgba(240,228,200,0.04)', border: '1px dashed rgba(240,228,200,0.2)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
               }}>
