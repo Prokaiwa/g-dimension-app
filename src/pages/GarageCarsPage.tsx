@@ -448,7 +448,7 @@ export default function GarageCarsPage() {
   const [photoFieldKey, setPhotoFieldKey]     = useState(0)
   const [sheetDragY, setSheetDragY]           = useState(0)   // swipe-to-dismiss offset for the Details sheet
   const [sheetDragging, setSheetDragging]     = useState(false)
-  const sheetDrag                             = useRef<{ startY: number; startScroll: number; committed: boolean } | null>(null)
+  const sheetRef                              = useRef<HTMLDivElement>(null)
   const detailScrollRef                       = useRef<HTMLDivElement>(null)
   const detailsCarId                          = useRef<string | null>(null)  // guards against a stale Details fetch
   const scrollRef                             = useRef<HTMLDivElement>(null)
@@ -643,42 +643,50 @@ export default function GarageCarsPage() {
     })
   }
 
-  // Drag-to-dismiss for the Details sheet. From the grip it always drags; from
-  // the spec body it only takes over once the list is scrolled to the top, so
-  // normal scrolling keeps working. Then a downward pull anywhere closes it.
-  function onSheetPointerDown(e: React.PointerEvent) {
-    const fromGrip = !!(e.target as HTMLElement).closest('[data-sheet-grip]')
-    sheetDrag.current = {
-      startY: e.clientY,
-      startScroll: fromGrip ? -1 : (detailScrollRef.current?.scrollTop ?? 0),
-      committed: false,
+  // Drag-to-dismiss for the Details sheet. A non-passive touch listener so we
+  // can preventDefault and stop the native scroll/rubber-band from "pulling the
+  // text" instead of closing. Dragging from the grip always dismisses; from the
+  // spec list it only takes over once the list is scrolled to the top, so
+  // normal scrolling keeps working. A downward pull past the threshold closes.
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el) return
+    let startY = 0, curY = 0, dragging = false, fromGrip = false
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0]; if (!t) return
+      fromGrip = !!(e.target as HTMLElement).closest('[data-sheet-grip]')
+      startY = t.clientY; curY = 0; dragging = false
     }
-  }
-  function onSheetPointerMove(e: React.PointerEvent) {
-    const s = sheetDrag.current
-    if (!s) return
-    const dy = e.clientY - s.startY
-    if (!s.committed) {
-      if (s.startScroll <= 0 && dy > 4) {
-        s.committed = true
-        setSheetDragging(true)
-        try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* capture unsupported */ }
-      } else {
-        return
+    const onMove = (e: TouchEvent) => {
+      const t = e.touches[0]; if (!t) return
+      const dy = t.clientY - startY
+      if (!dragging) {
+        const atTop = (detailScrollRef.current?.scrollTop ?? 0) <= 0
+        if ((fromGrip || atTop) && dy > 4) { dragging = true; setSheetDragging(true) }
+        else return
       }
+      if (dy <= 0) { curY = 0; setSheetDragY(0); return }
+      e.preventDefault()          // suppress native scroll/bounce while dismissing
+      curY = dy; setSheetDragY(dy)
     }
-    setSheetDragY(Math.max(0, dy))
-  }
-  function onSheetPointerEnd() {
-    const s = sheetDrag.current
-    sheetDrag.current = null
-    if (!s || !s.committed) return
-    setSheetDragging(false)
-    setSheetDragY(prev => {
-      if (prev > 110) setShowDetails(false)  // past threshold → close
-      return 0                               // otherwise snap back
-    })
-  }
+    const onEnd = () => {
+      if (!dragging) return
+      dragging = false
+      setSheetDragging(false)
+      if (curY > 110) setShowDetails(false)   // past threshold → close
+      setSheetDragY(0)                         // otherwise snap back
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+    }
+  }, [])
 
   const ctaStyle = (active: boolean): React.CSSProperties => ({
     width: '100%', padding: '14px',
@@ -724,12 +732,18 @@ export default function GarageCarsPage() {
             </div>
           ) : (
             <>
-              <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
-                {cars.map((car, i) => (
+              <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: showDetails ? 'hidden' : 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
+                {cars.map((car, i) => {
+                  // "Openness" of this card's Details sheet: 1 = fully open (car
+                  // lifted/shrunk, chrome hidden), 0 = normal carousel. Tracks the
+                  // drag so the car grows back + logo/model fade in as you pull down.
+                  const detail = showDetails && i === activeIdx
+                  const t = detail ? (sheetDragging ? Math.max(0, 1 - sheetDragY / 400) : 1) : 0
+                  return (
                   <div key={car.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse 90% 55% at 50% 58%, #272420 0%, #141210 40%, #0d0b09 62%, #07070a 100%)' }}>
 
-                    {/* Top bar — logo + model */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
+                    {/* Top bar — logo + model (fades out as this card's Details sheet opens) */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease', pointerEvents: detail ? 'none' : undefined }}>
                       <img
                         src={`/manufacturer_logos/${(car.make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
                         alt={car.make ?? ''}
@@ -784,17 +798,18 @@ export default function GarageCarsPage() {
                           'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)',
                         ].join(', '),
                       }} />
-                      {/* 7. Car — sits just above floor line */}
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2 }}>
+                      {/* 7. Car — sits just above floor line; lifts + shrinks into the
+                          hero position as this card's Details sheet opens (tracks the drag) */}
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
                         <CarStage src={car.garage_photo_url || garagePlaceholder} />
                       </div>
-                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5 }}>
+                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                         {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
                       </div>
                     </div>
 
-                    {/* Info strip */}
-                    <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)', position: 'relative', zIndex: 2 }}>
+                    {/* Info strip (hidden under the Details sheet while open) */}
+                    <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)', position: 'relative', zIndex: 2, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease', pointerEvents: detail ? 'none' : undefined }}>
                       {/* Color */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {car.color
@@ -850,7 +865,8 @@ export default function GarageCarsPage() {
                     </div>
 
                   </div>
-                ))}
+                  )
+                })}
                 <div style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
                   <button onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(200,102,26,0.22)', border: '1.5px solid rgba(200,102,26,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addCarPulse 3s ease-in-out infinite' }}>
                     <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, textShadow: '0 0 10px rgba(200,102,26,0.9)' }}>+</span>
@@ -882,74 +898,26 @@ export default function GarageCarsPage() {
         </div>
       )}
 
-      {/* ── DETAILS SHEET ── read-only spec sheet that rises under the car hero.
-          The car stays on its (compressed) garage stage; only the sheet scrolls.
-          Scrim fades in while the hero + sheet slide up as one. Pull down from
-          the grip (or the spec list when it's at the top) to dismiss; the
-          chevron leaves the garage. */}
+      {/* ── DETAILS SHEET ── bottom sheet over the carousel. The real card morphs
+          (car lifts/shrinks, logo + model fade) so there's never a duplicate car —
+          this sheet holds only the spec content. Pull down from the grip (or the
+          list when it's at the top) to dismiss; the header chevron leaves the garage. */}
       {(() => {
         const car = cars[activeIdx]
-        const panelTransition = sheetDragging ? 'none' : `transform 440ms ${EASING_SETTLE}`
         return (
-          <div style={{ position: 'absolute', inset: 0, zIndex: 20, pointerEvents: showDetails ? 'auto' : 'none' }}>
-            {/* Scrim — hides the carousel behind the rising sheet */}
-            <div aria-hidden style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', opacity: showDetails ? 1 : 0, transition: sheetDragging ? 'none' : 'opacity 320ms ease', pointerEvents: 'none' }} />
-
-            {/* Header stays fixed on top so the sheet reads as rising beneath it */}
-            <div style={{ position: 'relative', zIndex: 2 }}>
-              <GarageHeader
-                onBack={() => navigate('/garage')}
-                subtitle={car ? [car.year, car.model, car.variant].filter(Boolean).join(' ') : undefined}
-              />
-            </div>
-
-            {/* Sliding panel — hero + sheet move up together as one motion */}
-            <div style={{
-              position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0, zIndex: 1,
+          <div
+            ref={sheetRef}
+            style={{
+              position: 'absolute', left: 0, right: 0, top: '46%', bottom: 0, zIndex: 20,
               display: 'flex', flexDirection: 'column',
-              background: 'radial-gradient(ellipse 90% 55% at 50% 58%, #272420 0%, #141210 40%, #0d0b09 62%, #07070a 100%)',
-              transform: showDetails ? `translateY(${sheetDragY}px)` : 'translateY(100%)',
-              transition: panelTransition,
+              background: '#0b0b0d', borderTopLeftRadius: 14, borderTopRightRadius: 14,
+              boxShadow: '0 -12px 34px rgba(0,0,0,0.6)',
+              transform: showDetails ? `translateY(${sheetDragY}px)` : 'translateY(110%)',
+              transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}`,
               willChange: 'transform',
-              overflow: 'hidden',
-            }}>
-            {/* HERO — compressed garage stage (door lines + floor pool + car) */}
-            <div style={{ height: 'min(38vh, 300px)', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
-              <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.53) 58%, rgba(0,0,0,0.87) 100%)' }} />
-              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: [
-                'linear-gradient(to bottom, transparent calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 1.5px), transparent calc(38% + 1.5px))',
-                'repeating-linear-gradient(to bottom, transparent 0px, transparent 10px, rgba(0,0,0,0.20) 10px, rgba(0,0,0,0.20) 10.5px, rgba(255,255,255,0.035) 10.5px, rgba(255,255,255,0.035) 11px)',
-              ].join(', ') }} />
-              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: [
-                'linear-gradient(to right, transparent calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 4px), transparent calc(14% + 4px))',
-                'linear-gradient(to right, transparent calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 4px), transparent calc(86% + 4px))',
-              ].join(', ') }} />
-              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', background: 'linear-gradient(to bottom, #07070a 0%, transparent 40%)', pointerEvents: 'none', zIndex: 1 }} />
-              <div aria-hidden style={{ position: 'absolute', bottom: '46%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-              <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%', background: [
-                'radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)',
-                'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)',
-              ].join(', ') }} />
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '24%', zIndex: 2 }}>
-                {car && <CarStage src={car.garage_photo_url || garagePlaceholder} />}
-              </div>
-            </div>
-
-            {/* SHEET CARD — rounded top, scrolls internally */}
-            <div style={{
-              flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
-              background: '#0b0b0d', borderTopLeftRadius: 12, borderTopRightRadius: 12,
-              boxShadow: '0 -10px 30px rgba(0,0,0,0.55)',
-              position: 'relative', zIndex: 3,
-            }}>
-              {/* Drag-to-dismiss surface: grip + title + spec list */}
-              <div
-                onPointerDown={onSheetPointerDown}
-                onPointerMove={onSheetPointerMove}
-                onPointerUp={onSheetPointerEnd}
-                onPointerCancel={onSheetPointerEnd}
-                style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
-              >
+              pointerEvents: showDetails ? 'auto' : 'none',
+            }}
+          >
                 {/* Grab handle + title — always draggable */}
                 <div data-sheet-grip style={{ flexShrink: 0, touchAction: 'none', WebkitTapHighlightColor: 'transparent', cursor: 'grab' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '11px 0 7px' }}>
@@ -1030,14 +998,11 @@ export default function GarageCarsPage() {
                 })()}
                   <div style={{ height: SPACE_MD }} />
                 </div>
-              </div>
 
-              {/* Footer — outside the drag surface so the button taps cleanly */}
+              {/* Footer */}
               <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <button onClick={() => { if (car) navigate(`/garage/cars/${car.id}/edit`) }} style={ctaStyle(true)}>Edit</button>
               </div>
-            </div>
-            </div>
           </div>
         )
       })()}
