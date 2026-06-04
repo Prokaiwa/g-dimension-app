@@ -445,8 +445,10 @@ export default function GarageCarsPage() {
   const [detailsData, setDetailsData]         = useState<Record<string, string> | null>(null)
   const [pressedAction, setPressedAction]     = useState<string | null>(null)
   const [addPhotoBlob, setAddPhotoBlob]       = useState<Blob | null>(null)
-  const [detailsPhotoUrl, setDetailsPhotoUrl] = useState<string | null>(null)
   const [photoFieldKey, setPhotoFieldKey]     = useState(0)
+  const [sheetDragY, setSheetDragY]           = useState(0)   // swipe-to-dismiss offset for the Details sheet
+  const [sheetDragging, setSheetDragging]     = useState(false)
+  const sheetDragStart                        = useRef<number | null>(null)
   const scrollRef                             = useRef<HTMLDivElement>(null)
 
   // Begin downloading the background-removal model so it's ready by the
@@ -630,8 +632,29 @@ export default function GarageCarsPage() {
       wherePurchased:    data?.purchase_dealer    ?? '',
       originStory:       data?.purchase_story     ?? '',
     })
-    setDetailsPhotoUrl(data?.garage_photo_url ?? car.garage_photo_url ?? null)
+    setSheetDragY(0)
+    setSheetDragging(false)
     setShowDetails(true)
+  }
+
+  // Swipe-down-to-dismiss for the Details sheet (drag starts on the grab handle).
+  function onSheetDragStart(e: React.PointerEvent) {
+    sheetDragStart.current = e.clientY
+    setSheetDragging(true)
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* capture unsupported */ }
+  }
+  function onSheetDragMove(e: React.PointerEvent) {
+    if (sheetDragStart.current == null) return
+    setSheetDragY(Math.max(0, e.clientY - sheetDragStart.current))
+  }
+  function onSheetDragEnd() {
+    if (sheetDragStart.current == null) return
+    sheetDragStart.current = null
+    setSheetDragging(false)
+    setSheetDragY(prev => {
+      if (prev > 120) { setShowDetails(false); return 0 }  // past threshold → close
+      return 0                                              // snap back
+    })
   }
 
   const ctaStyle = (active: boolean): React.CSSProperties => ({
@@ -825,7 +848,7 @@ export default function GarageCarsPage() {
                 </>
               )}
 
-              <div style={{ position: 'absolute', bottom: SPACE_MD, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
+              <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
                 {[...cars, null].map((_, i) => (
                   <div key={i} style={{ width: i === activeIdx ? 16 : 4, height: 4, background: i === activeIdx ? COLOR_ACCENT : 'rgba(255,255,255,0.2)', transition: '300ms ease', borderRadius: 2 }} />
                 ))}
@@ -835,87 +858,145 @@ export default function GarageCarsPage() {
         </div>
       )}
 
-      {/* ── DETAILS OVERLAY (read-only spec sheet; Edit opens the edit route) ── */}
-      <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showDetails ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <GarageBg />
-        <GarageHeader onBack={() => setShowDetails(false)} />
+      {/* ── DETAILS SHEET ── read-only spec sheet that rises under the car hero.
+          The car stays on its (compressed) garage stage; only the sheet scrolls.
+          Swipe the handle down to dismiss; the chevron leaves the garage. */}
+      {(() => {
+        const car = cars[activeIdx]
+        const sheetTransition = sheetDragging ? 'none' : `transform 380ms ${EASING_SETTLE}, opacity 260ms ease`
+        return (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 20, display: 'flex', flexDirection: 'column',
+            background: 'radial-gradient(ellipse 90% 55% at 50% 58%, #272420 0%, #141210 40%, #0d0b09 62%, #07070a 100%)',
+            opacity: showDetails ? 1 : 0,
+            pointerEvents: showDetails ? 'auto' : 'none',
+            transition: sheetDragging ? 'none' : 'opacity 260ms ease',
+            overflow: 'hidden',
+          }}>
+            <GarageHeader
+              onBack={() => navigate('/garage')}
+              subtitle={car ? [car.year, car.model, car.variant].filter(Boolean).join(' ') : undefined}
+            />
 
-        <div className="form-scroll" style={{ flex: 1, overflowY: 'auto', padding: `${SPACE_MD}px ${SPACE_MD}px 0`, position: 'relative', zIndex: 1 }}>
-          {cars[activeIdx] && (
-            <div style={{ marginBottom: SPACE_LG }}>
-              <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 28, color: COLOR_HEADER_TITLE, margin: '0 0 4px', lineHeight: 1.1 }}>
-                {cars[activeIdx].year} {cars[activeIdx].model}
-              </p>
-              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
-                {cars[activeIdx].make}
-              </p>
-            </div>
-          )}
-
-          {detailsData && (() => {
-            const d = detailsData
-            const num = (s: string) => s && s.trim() !== '' ? Number(s).toLocaleString() : ''
-            const identity: [string, string][] = [
-              ['Paint Color', d.color],
-              ['Color Code', d.colorCode],
-              ['Nickname', d.nickname],
-              ['Variant', d.variant],
-              ['Trim', d.trim],
-              ['Mileage', d.mileage ? `${num(d.mileage)} mi` : ''],
-            ]
-            const specs: [string, string][] = [
-              ['Chassis Code', d.chassisCode],
-              ['VIN', d.vin],
-              ['License Plate', d.licensePlate],
-              ['Engine', d.engineType],
-              ['Forced Induction', d.forcedInduction && d.forcedInduction !== 'none' ? (FORCED_INDUCTION_LABELS[d.forcedInduction] ?? d.forcedInduction) : ''],
-              ['Horsepower', d.horsepower ? `${num(d.horsepower)} hp` : ''],
-              ['Torque', d.torque ? `${num(d.torque)} lb-ft` : ''],
-              ['Transmission', TRANSMISSION_LABELS[d.transmission] ?? ''],
-              ['Drivetrain', DRIVETRAIN_LABELS[d.drivetrain] ?? ''],
-              ['Oil Type', d.oilType],
-              ['Tire Size', d.tireSize],
-              ['Battery', d.batteryModel],
-            ]
-            const purchase: [string, string][] = [
-              ['Purchase Date', d.purchaseDate],
-              ['Purchase Price', d.purchasePrice ? `${d.purchaseCurrency || 'USD'} ${num(d.purchasePrice)}` : ''],
-              ['Mileage at Purchase', d.mileageAtPurchase ? `${num(d.mileageAtPurchase)} mi` : ''],
-              ['Acquired Via', d.wherePurchased],
-            ]
-            const hasStory = !!d.originStory && d.originStory.trim() !== ''
-            const anyFilled = [...identity, ...specs, ...purchase].some(([, v]) => v && v.trim() !== '') || hasStory
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_LG }}>
-                {detailsPhotoUrl && (
-                  <div style={{ width: '100%', height: 172, background: 'radial-gradient(ellipse 100% 75% at 50% 42%, #3a3a3a 0%, #1f1f1f 55%, #0d0d0f 100%)', border: '1px solid rgba(245,240,228,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    <img src={detailsPhotoUrl} alt="" style={{ maxWidth: '92%', maxHeight: '88%', objectFit: 'contain' }} />
-                  </div>
-                )}
-                <SpecGroup title="Identity" rows={identity} />
-                <SpecGroup title="Vehicle Specs" rows={specs} />
-                <SpecGroup title="Purchase Info" rows={purchase} />
-                {hasStory && (
-                  <div>
-                    <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.3)', margin: `0 0 ${SPACE_SM}px` }}>Origin Story</p>
-                    <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontStyle: 'italic', fontSize: 14.5, color: 'rgba(245,240,228,0.78)', lineHeight: 1.65, margin: 0 }}>{d.originStory}</p>
-                  </div>
-                )}
-                {!anyFilled && (
-                  <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(245,245,245,0.4)', lineHeight: 1.6, margin: 0 }}>
-                    No details yet. Tap Edit to add your car’s specs, photo, and story.
-                  </p>
-                )}
+            {/* HERO — compressed garage stage (door lines + floor pool + car) */}
+            <div style={{ height: 'min(38vh, 300px)', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
+              <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.53) 58%, rgba(0,0,0,0.87) 100%)' }} />
+              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: [
+                'linear-gradient(to bottom, transparent calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 1.5px), transparent calc(38% + 1.5px))',
+                'repeating-linear-gradient(to bottom, transparent 0px, transparent 10px, rgba(0,0,0,0.20) 10px, rgba(0,0,0,0.20) 10.5px, rgba(255,255,255,0.035) 10.5px, rgba(255,255,255,0.035) 11px)',
+              ].join(', ') }} />
+              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: [
+                'linear-gradient(to right, transparent calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 4px), transparent calc(14% + 4px))',
+                'linear-gradient(to right, transparent calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 4px), transparent calc(86% + 4px))',
+              ].join(', ') }} />
+              <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', background: 'linear-gradient(to bottom, #07070a 0%, transparent 40%)', pointerEvents: 'none', zIndex: 1 }} />
+              <div aria-hidden style={{ position: 'absolute', bottom: '46%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.07)' }} />
+              <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%', background: [
+                'radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)',
+                'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)',
+              ].join(', ') }} />
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '24%', zIndex: 2 }}>
+                {car && <CarStage src={car.garage_photo_url || garagePlaceholder} />}
               </div>
-            )
-          })()}
-          <div style={{ height: SPACE_MD }} />
-        </div>
+            </div>
 
-        <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(5,5,7,0.96)', position: 'relative', zIndex: 5 }}>
-          <button onClick={() => { const c = cars[activeIdx]; if (c) navigate(`/garage/cars/${c.id}/edit`) }} style={ctaStyle(true)}>Edit</button>
-        </div>
-      </div>
+            {/* SHEET — fixed height, scrolls internally */}
+            <div style={{
+              flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+              background: '#0b0b0d', borderTopLeftRadius: 12, borderTopRightRadius: 12,
+              boxShadow: '0 -10px 30px rgba(0,0,0,0.55)',
+              transform: showDetails ? `translateY(${sheetDragY}px)` : 'translateY(100%)',
+              transition: sheetTransition,
+              position: 'relative', zIndex: 3,
+            }}>
+              {/* Grab handle / drag-to-dismiss zone */}
+              <div
+                onPointerDown={onSheetDragStart}
+                onPointerMove={onSheetDragMove}
+                onPointerUp={onSheetDragEnd}
+                onPointerCancel={onSheetDragEnd}
+                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '11px 0 7px', flexShrink: 0, cursor: 'grab', touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div style={{ width: 40, height: 4, borderRadius: 9999, background: 'rgba(245,245,245,0.22)' }} />
+              </div>
+
+              {/* Title */}
+              {car && (
+                <div style={{ flexShrink: 0, padding: `0 ${SPACE_MD}px ${SPACE_SM}px` }}>
+                  <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 27, color: COLOR_HEADER_TITLE, margin: '0 0 3px', lineHeight: 1.1 }}>
+                    {car.year} {car.model}
+                  </p>
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
+                    {car.make}
+                  </p>
+                </div>
+              )}
+
+              {/* Scrollable spec content */}
+              <div className="form-scroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: `${SPACE_SM}px ${SPACE_MD}px 0` }}>
+                {detailsData && (() => {
+                  const d = detailsData
+                  const num = (s: string) => s && s.trim() !== '' ? Number(s).toLocaleString() : ''
+                  const identity: [string, string][] = [
+                    ['Paint Color', d.color],
+                    ['Color Code', d.colorCode],
+                    ['Nickname', d.nickname],
+                    ['Variant', d.variant],
+                    ['Trim', d.trim],
+                    ['Mileage', d.mileage ? `${num(d.mileage)} mi` : ''],
+                  ]
+                  const specs: [string, string][] = [
+                    ['Chassis Code', d.chassisCode],
+                    ['VIN', d.vin],
+                    ['License Plate', d.licensePlate],
+                    ['Engine', d.engineType],
+                    ['Forced Induction', d.forcedInduction && d.forcedInduction !== 'none' ? (FORCED_INDUCTION_LABELS[d.forcedInduction] ?? d.forcedInduction) : ''],
+                    ['Horsepower', d.horsepower ? `${num(d.horsepower)} hp` : ''],
+                    ['Torque', d.torque ? `${num(d.torque)} lb-ft` : ''],
+                    ['Transmission', TRANSMISSION_LABELS[d.transmission] ?? ''],
+                    ['Drivetrain', DRIVETRAIN_LABELS[d.drivetrain] ?? ''],
+                    ['Oil Type', d.oilType],
+                    ['Tire Size', d.tireSize],
+                    ['Battery', d.batteryModel],
+                  ]
+                  const purchase: [string, string][] = [
+                    ['Purchase Date', d.purchaseDate],
+                    ['Purchase Price', d.purchasePrice ? `${d.purchaseCurrency || 'USD'} ${num(d.purchasePrice)}` : ''],
+                    ['Mileage at Purchase', d.mileageAtPurchase ? `${num(d.mileageAtPurchase)} mi` : ''],
+                    ['Acquired Via', d.wherePurchased],
+                  ]
+                  const hasStory = !!d.originStory && d.originStory.trim() !== ''
+                  const anyFilled = [...identity, ...specs, ...purchase].some(([, v]) => v && v.trim() !== '') || hasStory
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_LG }}>
+                      <SpecGroup title="Identity" rows={identity} />
+                      <SpecGroup title="Vehicle Specs" rows={specs} />
+                      <SpecGroup title="Purchase Info" rows={purchase} />
+                      {hasStory && (
+                        <div>
+                          <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,245,245,0.3)', margin: `0 0 ${SPACE_SM}px` }}>Origin Story</p>
+                          <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontStyle: 'italic', fontSize: 14.5, color: 'rgba(245,240,228,0.78)', lineHeight: 1.65, margin: 0 }}>{d.originStory}</p>
+                        </div>
+                      )}
+                      {!anyFilled && (
+                        <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(245,245,245,0.4)', lineHeight: 1.6, margin: 0 }}>
+                          No details yet. Tap Edit to add your car’s specs, photo, and story.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
+                <div style={{ height: SPACE_MD }} />
+              </div>
+
+              {/* Footer */}
+              <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <button onClick={() => { if (car) navigate(`/garage/cars/${car.id}/edit`) }} style={ctaStyle(true)}>Edit</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── ADD CAR OVERLAY ── */}
       <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showAdd ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
