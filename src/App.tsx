@@ -80,7 +80,16 @@ function useAuthGate(): GateState {
       if (active) setState(onboarded ? 'ready' : 'onboarding')
     }
     supabase.auth.getSession().then(({ data }) => evaluate(data.session))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => evaluate(session))
+    // IMPORTANT: supabase-js holds an internal auth lock for the duration of the
+    // onAuthStateChange callback. evaluate() runs isOnboarded(), a DB query that
+    // needs that same lock to attach a fresh access token — calling it straight
+    // from here can deadlock, leaving the gate stuck on 'loading' (a black
+    // screen) until a manual refresh. This bites on return after the token has
+    // expired, when the SDK fires TOKEN_REFRESHED/SIGNED_IN. Defer out of the
+    // callback so the lock is released before the query runs.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setTimeout(() => evaluate(session), 0)
+    })
     return () => { active = false; subscription.unsubscribe() }
   }, [])
 
@@ -114,7 +123,10 @@ export default function App() {
     syncActiveCarFromServer()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') syncActiveCarFromServer()
+      // Defer out of the callback — syncActiveCarFromServer() queries Supabase,
+      // which needs the auth lock this callback is still holding (see the note in
+      // useAuthGate). Calling it inline can deadlock.
+      if (event === 'SIGNED_IN') setTimeout(() => { syncActiveCarFromServer() }, 0)
     })
     return () => subscription.unsubscribe()
   }, [])

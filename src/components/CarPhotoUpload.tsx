@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   removeCarBackground,
   subscribeModelState,
@@ -27,6 +28,11 @@ type Props = {
 // A dark spotlight backdrop that mirrors how the car reads in the carousel.
 const SPOTLIGHT = 'radial-gradient(ellipse 100% 75% at 50% 42%, #3a3a3a 0%, #1f1f1f 55%, #0d0d0f 100%)'
 
+// On a warm model the cut-out can finish in a few hundred ms — keep the
+// "Removing the background" moment on screen for at least this long so it's a
+// deliberate, visible beat every time (add and edit alike), never a flash.
+const MIN_REMOVING_MS = 850
+
 export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
   const objectUrlRef = useRef<string | null>(null)
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
@@ -47,6 +53,7 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     console.info('[CarPhotoUpload] file selected:', file.name, file.type, `${Math.round(file.size / 1024)}KB`)
     setError(null)
     setBusy(true)
+    const startedAt = Date.now()
     try {
       const blob = await removeCarBackground(file)
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
@@ -60,6 +67,9 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
       setError(`Could not process that photo (${detail})`)
       onChange(null)
     } finally {
+      // Hold the overlay to a minimum so a warm-model cut-out doesn't just blink.
+      const elapsed = Date.now() - startedAt
+      if (elapsed < MIN_REMOVING_MS) await new Promise(r => setTimeout(r, MIN_REMOVING_MS - elapsed))
       setBusy(false)
     }
   }
@@ -168,18 +178,24 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
         </p>
       )}
 
-      {downloadingModel && (
+      {/* Portalled to <body>: the upload lives inside transformed modal/carousel
+          containers, and a transformed ancestor becomes the containing block for
+          position:fixed — which would trap this overlay inside the modal box
+          instead of covering the screen. The portal keeps it viewport-anchored. */}
+      {downloadingModel && createPortal(
         <StudioOverlay
           title="Preparing your garage"
           subtitle="Setting up the background remover. This happens once — it'll be instant every time after."
           progress={getModelProgress()}
-        />
+        />,
+        document.body,
       )}
-      {processing && (
+      {processing && createPortal(
         <StudioOverlay
           title="Removing the background"
           subtitle="Cutting your car cleanly out of the photo…"
-        />
+        />,
+        document.body,
       )}
     </>
   )
