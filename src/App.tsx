@@ -60,6 +60,10 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 // Public (non-auth)
 import PublicProfilePage from './pages/PublicProfilePage'
 
+// Monitoring
+import AuthGateFallback from './components/AuthGateFallback'
+import ErrorBanner from './components/ErrorBanner'
+
 // Dev tools
 import SpecTestPage from './pages/SpecTestPage'
 
@@ -99,7 +103,7 @@ function useAuthGate(): GateState {
 // App pages: require a session AND a claimed handle.
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const state = useAuthGate()
-  if (state === 'loading') return null
+  if (state === 'loading') return <AuthGateFallback />
   if (state === 'anon') return <Navigate to="/login" replace />
   if (state === 'onboarding') return <Navigate to="/welcome" replace />
   return <>{children}</>
@@ -110,7 +114,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // re-trigger it).
 function WelcomeRoute({ children }: { children: React.ReactNode }) {
   const state = useAuthGate()
-  if (state === 'loading') return null
+  if (state === 'loading') return <AuthGateFallback />
   if (state === 'anon') return <Navigate to="/login" replace />
   if (state === 'ready') return <Navigate to="/home" replace />
   return <>{children}</>
@@ -132,7 +136,9 @@ export default function App() {
   }, [])
 
   return (
-    <Routes>
+    <>
+      <ErrorBanner />
+      <Routes>
       {/* Part 10 — Full Route Map */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -182,6 +188,7 @@ export default function App() {
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
-    </Routes>
+      </Routes>
+    </>
   )
 }
