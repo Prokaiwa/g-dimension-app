@@ -112,7 +112,7 @@ function SpecGroup({ title, rows }: { title: string; rows: [string, string][] })
 }
 
 // ── Car stage ────────────────────────────────────────────────────────────────
-function CarStage({ src }: { src: string }) {
+function CarStage({ src, placeholder, onAddPhoto }: { src: string; placeholder?: boolean; onAddPhoto?: () => void }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <div style={{ position: 'relative', width: '88%' }}>
@@ -128,11 +128,35 @@ function CarStage({ src }: { src: string }) {
           display: 'block',
           position: 'relative',
           zIndex: 2,
-          filter: 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
+          // No photo yet → drop it to ~20% brightness (an 80% black wash) so the
+          // "Add Photo" prompt reads as the subject.
+          filter: placeholder ? 'brightness(0.2)' : 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
           opacity: loaded ? 1 : 0,
           transition: 'opacity 180ms ease',
         }}
       />
+      {placeholder && (
+        <button
+          onClick={onAddPhoto}
+          aria-label="Add a photo"
+          style={{
+            position: 'absolute', inset: 0, zIndex: 3,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 9,
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ width: 46, height: 46, borderRadius: '50%', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 14px rgba(200,102,26,0.45)' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLOR_ACCENT} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" />
+              <circle cx="12" cy="13" r="3.2" />
+            </svg>
+          </span>
+          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_ACCENT, textShadow: '0 0 10px rgba(200,102,26,0.5)' }}>
+            Add Photo
+          </span>
+        </button>
+      )}
     </div>
   )
 }
@@ -801,7 +825,7 @@ export default function GarageCarsPage() {
                       {/* 7. Car — sits just above floor line; lifts + shrinks into the
                           hero position as this card's Details sheet opens (tracks the drag) */}
                       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
-                        <CarStage src={car.garage_photo_url || garagePlaceholder} />
+                        <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} onAddPhoto={() => navigate(`/garage/cars/${car.id}/edit`)} />
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                         {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
