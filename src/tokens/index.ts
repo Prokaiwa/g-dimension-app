@@ -220,6 +220,7 @@ export const COLOR_TIMELINE_CHEVRON  = '#c8a050'; // amber-gold — back navigat
 export const COLOR_TIMELINE_MOD      = '#c8c4bc'; // warm stone grey — modification entries
 export const COLOR_TIMELINE_SERVICE  = '#d4b86a'; // soft warm gold — maintenance/service entries
 export const COLOR_TIMELINE_DETAIL   = '#8ab0c8'; // muted cool blue — detailing entries
+export const COLOR_TIMELINE_NOTE     = COLOR_TIMELINE_CHEVRON; // amber-gold — free-form personal entries (Part 12 notes)
 
 // Detailing (Car Wash) aesthetic — dark UI on a light-blue page; pairs with COLOR_TIMELINE_DETAIL
 export const COLOR_DETAIL_BG      = '#f4f8fb';          // light blue page background

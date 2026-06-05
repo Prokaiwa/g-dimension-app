@@ -47,6 +47,7 @@ import MaintenanceDetailEditPage from './pages/MaintenanceDetailEditPage'
 
 // Timeline
 import TimelinePage from './pages/TimelinePage'
+import TimelineEntryNewPage from './pages/TimelineEntryNewPage'
 import EntryDetailPage from './pages/EntryDetailPage'
 
 // Photos
@@ -175,6 +176,7 @@ export default function App() {
       <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
 
       <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />
+      <Route path="/timeline/new" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
       <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
 
       <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />

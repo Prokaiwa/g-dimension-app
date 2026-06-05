@@ -24,15 +24,16 @@ import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
   COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_MOD, COLOR_TIMELINE_SERVICE,
-  COLOR_TIMELINE_DETAIL, RADIUS_TIMELINE_CARD,
+  COLOR_TIMELINE_DETAIL, COLOR_TIMELINE_NOTE, RADIUS_TIMELINE_CARD, RADIUS_BUTTON,
   FONT_UI, FONT_TITLE, EASING_SETTLE, CANVAS_W, COLOR_ERROR,
+  COLOR_ACCENT, COLOR_ACCENT_TEXT,
 } from '../tokens'
 
 // ── Layout constants ──
 const SPINE_LEFT = 9   // center of the connecting thread, from content left edge
 const CARD_LEFT  = 34  // where standard cards begin (clears the thread + node)
 const NODE_SIZE  = 11
-const THUMB      = 78  // standard-card "photo print" thumbnail size
+const THUMB      = 90  // standard-card "photo print" thumbnail size
 
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 1, maxWidthOrHeight: 1920,
@@ -41,18 +42,20 @@ const COMPRESSION_OPTIONS = {
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-type StdType = 'modification' | 'maintenance' | 'detail'
+type StdType = 'modification' | 'maintenance' | 'detail' | 'note'
 
 const TYPE_META: Record<StdType, { label: string; color: string }> = {
   modification: { label: 'Modification', color: COLOR_TIMELINE_MOD },
   maintenance:  { label: 'Service',      color: COLOR_TIMELINE_SERVICE },
   detail:       { label: 'Detail',       color: COLOR_TIMELINE_DETAIL },
+  note:         { label: 'Note',         color: COLOR_TIMELINE_NOTE },
 }
 
 type TLEntry = {
   id: string
   entry_type: 'origin' | StdType
   is_origin: boolean
+  title: string | null
   photo_url: string | null
   journal_entry: string | null
   display_date: string // YYYY-MM-DD
@@ -80,6 +83,8 @@ function yearOf(d: string): string {
 }
 
 function entryTitle(e: TLEntry, meta: SessionMeta | undefined): string {
+  // Notes (and any entry with its own headline) carry the title directly.
+  if (e.title?.trim()) return e.title.trim()
   const type = e.entry_type as StdType
   const shop = meta?.shop?.trim() || null
   const titles = meta?.jobTitles ?? []
@@ -151,7 +156,7 @@ export default function TimelinePage() {
           .select('purchase_story, purchase_date, created_at')
           .eq('id', cid).single(),
         supabase.from('timeline_entries')
-          .select('id, entry_type, is_origin, photo_url, journal_entry, display_date, session_id')
+          .select('id, entry_type, is_origin, title, photo_url, journal_entry, display_date, session_id')
           .eq('car_id', cid)
           .order('display_date', { ascending: true })
           .order('created_at', { ascending: true }),
@@ -307,6 +312,7 @@ export default function TimelinePage() {
   let lastYear: string | null = origin?.display_date ? yearOf(origin.display_date) : null
 
   return shell(
+    <>
     <div style={{ maxWidth: CANVAS_W, margin: '0 auto', padding: '64px 20px 96px' }}>
       {/* ── Origin cover card (full-bleed, no stripe) ── */}
       {origin && (
@@ -473,6 +479,23 @@ export default function TimelinePage() {
           </div>
         )
       })}
-    </div>,
+    </div>
+
+    {/* Floating "Add Entry" — free-form note (track day, car show, a story) */}
+    <button
+      onClick={() => navigate('/timeline/new')}
+      style={{
+        position: 'fixed', right: 18, bottom: 24, zIndex: 20,
+        height: 46, padding: '0 18px', borderRadius: RADIUS_BUTTON,
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: COLOR_ACCENT, color: COLOR_ACCENT_TEXT, border: 'none', cursor: 'pointer',
+        fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase',
+        boxShadow: '0 6px 18px rgba(0,0,0,0.18)', WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      <span style={{ fontSize: 17, lineHeight: 1, marginTop: -1 }}>＋</span>
+      Add Entry
+    </button>
+    </>,
   )
 }
