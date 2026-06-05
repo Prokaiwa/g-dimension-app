@@ -21,11 +21,9 @@
 -- Function-only + idempotent column re-add. No data migration. Safe to run once.
 -- =============================================================================
 
--- 1. Ensure migration 033's column is present. The live DB raised
---    `42703 column sessions.title does not exist` — which is either a genuinely
---    missing column OR a stale PostgREST schema cache (column present but unseen,
---    a known Supabase gotcha after DDL). `if not exists` is a no-op in the cache
---    case; the `notify` at the bottom forces a reload so PostgREST sees it either way.
+-- 1. Re-apply migration 033's column. Confirmed genuinely missing on production
+--    2026-06-05 via an information_schema audit (033 had been skipped — the live
+--    DB raised `42703 column sessions.title does not exist`). Idempotent.
 alter table public.sessions add column if not exists title text;
 
 -- 2. Recreate the timeline-sync trigger function with a conflict clause that

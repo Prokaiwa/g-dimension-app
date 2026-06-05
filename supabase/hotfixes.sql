@@ -5,10 +5,18 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 044_car_variant.sql (2026-06-03)
--- All migrations 001–044 confirmed applied to production.
--- (Note: 041 was applied 2026-06-03, out of order — it had been skipped while
---  042/043 went in first; live is now contiguous 001–043.)
+-- Last migration applied : 045_timeline_sync_fix.sql (2026-06-05)
+-- Migrations 001–045 applied to production, with corrections:
+--   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
+--     Confirmed missing 2026-06-05 via an information_schema audit (the live DB
+--     raised `42703 column sessions.title does not exist`). Re-applied as part
+--     of 045 on 2026-06-05.
+--   - 041 was applied 2026-06-03, out of order (after 042/043).
+-- Schema audit 2026-06-05: every column/table object for 024–044 present except
+-- 033 (now fixed); avatars bucket present; car_contacts correctly dropped.
+-- The earlier "001–044 all applied" claim was WRONG (033 had slipped) — do not
+-- assume a migration ran just because the watermark says so; verify against the
+-- live schema when in doubt.
 -- =============================================================================
 
 -- Fix missing grants on job_specs (2026-05-14)
