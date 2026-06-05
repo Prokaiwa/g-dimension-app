@@ -195,7 +195,8 @@ export default function TimelineEntryNewPage() {
         {/* Date */}
         <div style={{ marginBottom: 18 }}>
           <label style={labelStyle}>Date</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            style={{ ...inputStyle, WebkitAppearance: 'none', appearance: 'none', minWidth: 0 } as React.CSSProperties} />
         </div>
 
         {/* Journal */}
