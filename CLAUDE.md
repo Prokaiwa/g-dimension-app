@@ -162,7 +162,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `044_car_variant.sql` — run in order.
+`supabase/migrations/001_users.sql` → `045_timeline_sync_fix.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -188,6 +188,7 @@ const carId = await getActiveCarId()
 | `042_handle_new_user_retry.sql` | Wraps the `handle_new_user()` INSERT in a `unique_violation` retry loop to fully close the residual username-collision race left by 038 (concurrent same-base signups). Function-only; preserves the 2026-05-31 EXECUTE revoke |
 | `043_drop_car_contacts.sql` | Drops the orphaned `car_contacts` table (superseded by `user_contacts` in 035; was 0 rows, no code refs). CASCADE also removes its RLS policies + grants |
 | `044_car_variant.sql` | `cars.variant` (text) — free-text sub-model label (e.g. "430" on a Lexus LS), distinct from `model` (family) and `trim` (spec level). Display name = year + model + variant ("2006 LS 430"). Forward-compatible with the empty `vehicle_variants` catalog + `cars.variant_id` for a future picker |
+| `045_timeline_sync_fix.sql` | **Two live-DB fixes found while building the Timeline.** (1) Re-applies `sessions.title` — migration **033 had never actually been applied to production** (live DB raised `42703 column sessions.title does not exist`), despite the old watermark claiming 001–044 were all applied. (2) Rewrites `handle_timeline_entry()` (the `sessions_timeline_sync` trigger from 007): its bare `on conflict (session_id) do nothing` could not infer the **partial** unique index `timeline_entries_session_unique`, raising `42P10` on **every** `add_to_timeline = true` session insert — so no standard timeline entry could ever be created. Fix restates the index predicate in the conflict clause. Function-only + idempotent column re-add |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
