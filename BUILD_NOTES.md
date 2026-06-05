@@ -12,7 +12,7 @@ All primary routes are implemented:
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
 - Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (category → part type → form, with optional group field for batch installs), Mod Group detail, Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
 - Maintenance: landing (GT Auto diagonal), service form + edit, session detail, detailing log, add + edit detail session
-- Timeline: scroll, entry detail
+- Timeline: **stub only** — `TimelinePage` + `EntryDetailPage` return placeholder `<div>`s. Not yet built (see What's Next + MASTER_ARCHITECTURE Part 12).
 - Photos: masonry gallery
 - Profile, Settings, Settings/Archived, Public Profile (`/builds/:username`)
 
@@ -121,10 +121,25 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 ```
 `imgPad` shrinks the image within the 126×126 wrapper. `labelOffset` is `marginTop` on the label span.
 
+**Garage — My Cars: read/edit split + morphing Details sheet** (built Jun 2026):
+
+- **Read/edit split.** `/garage/cars` Details is now a **read-only spec sheet** (grouped Identity / Vehicle Specs / Purchase Info / Origin Story; empty rows hidden). The full editable form lives on `/garage/cars/:carId/edit` (`GarageCarsEditPage`) — mirrors mods/parts. `GarageBg` + `GarageHeader` are exported from `GarageCarsPage` for the edit page to reuse. Save/Remove return to `/garage/cars` with `{ focusCarId }` in router state so the carousel re-focuses the edited car. **Add Car remains an inline modal** on `/garage/cars` (there is no `/garage/cars/new` route).
+- **Details = bottom sheet that morphs the real card (no replica).** The sheet (bottom 54%, `top: 46%`) holds only the spec content. The **active carousel card itself** morphs: its car lifts/shrinks (`translateY(-20vh) scale(0.8)`) and the logo + model + info strip fade out, driven by an openness value `t` (0–1) that **tracks the drag** — so pulling the sheet down grows the car back and fades the chrome in continuously. One car, true morph, no duplicate. Sheet `top` and the car morph are coupled (the car must clear the sheet top) — tune together.
+- **Dismiss.** Non-passive `touchmove` gesture (`{ passive: false }` + `preventDefault`) on the sheet ref, so a downward pull closes instead of the native scroll bouncing. Grip (handle + title, `data-sheet-grip`) always drags; the spec list takes over only at `scrollTop <= 0`. ~110px threshold. Header chevron leaves the Garage (→ `/garage`); swipe-down closes the sheet. Opens instantly (specs stream in with a skeleton + stale-fetch guard via `detailsCarId` ref).
+- **No-photo placeholder.** `CarStage` dims the placeholder **image only** to `brightness(0.12)` and overlays a tappable camera + "Add Photo" prompt (→ edit page) with a soft pulsing amber "beat". The same beat (`addPhotoBeat` / `addPhotoTextBeat`, 2.8s) is shared by both Add-Car circles (now hollow amber rings, no fill).
+
+**On-device monitoring** (built Jun 2026, for phone testing — no console attached):
+- `AuthGateFallback` — replaces the auth gate's empty render. Nothing shows on fast loads; after 8s unresolved it shows a recovery screen (Reload / Sign in again) so a wedged auth layer can't present as a dead black screen.
+- `ErrorBanner` — traps `window.onerror` + `unhandledrejection`, shows a dismissible banner. Renders nothing until an error fires; safe to leave mounted. (Mounted once in `App.tsx`, above the routes.)
+
 ---
 
 ## What's Next (not yet built)
 
+- **Timeline + Entry Detail** — both still stubs (`TimelinePage`, `EntryDetailPage` return one-line `<div>`s). This is the next major build. Reads from `timeline_entries` (migration 007), **not** from `sessions`/`jobs` directly:
+  - **Origin Entry** — one per car (`is_origin = true`, `session_id` NULL), auto-seeded from `cars.purchase_story` + a day-one photo, `display_date` = `cars.purchase_date`. Cannot be deleted, only edited. Always the first card.
+  - **Standard entries** — auto-synced from `sessions.add_to_timeline = true` via the `sessions_timeline_sync` trigger (`entry_type` ∈ modification/maintenance/detail; `photo_url` = `sessions.timeline_photo_url`; `journal_entry`; `display_date` = `sessions.date_performed`). No app code creates/deletes these — the trigger does.
+  - **Design (MASTER_ARCHITECTURE Part 12):** the emotional heart; the **only light/parchment destination** (`#f5f2ee`), **NO header** (floating amber-gold `‹` `#c8a050` only, like Photos), **oldest-at-top** (Origin first, scroll down = forward in time), year markers as chapter dividers. Entry cards: 3px left accent stripe by type (mod `#c8c4bc` / service `#d4b86a` / detail `#8ab0c8`), type label + right-aligned date, optional full-width photo, journal text in **Cormorant Garamond italic** (the one place Cormorant carries the personal voice). Timeline tokens already exist in `src/tokens` / MASTER_ARCHITECTURE Part 3.
 - **Blueprint page** — currently a stub. Should show planned/purchased mods not yet installed. Blueprint items are status=`planned` or status=`purchased` jobs. The page exists at `/tuning/blueprint` but has no real content.
 - **Mod lifecycle completeness** — no flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
 - **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
