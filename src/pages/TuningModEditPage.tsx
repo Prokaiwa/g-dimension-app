@@ -85,6 +85,8 @@ export default function TuningModEditPage() {
   const [addToTimeline,   setAddToTimeline]   = useState(false)
   const [sessionId,       setSessionId]       = useState<string | null>(null)
   const [sessionHasTitle, setSessionHasTitle] = useState(false)
+  const [timelineTitle,   setTimelineTitle]   = useState('')
+  const [timelineStory,   setTimelineStory]   = useState('')
 
   // Spec fields
   const [specTemplates,  setSpecTemplates]  = useState<SpecTemplate[]>([])
@@ -150,13 +152,15 @@ export default function TuningModEditPage() {
         setSessionId(job.session_id)
         const { data: sess } = await supabase
           .from('sessions')
-          .select('add_to_timeline, title')
+          .select('add_to_timeline, title, timeline_title, journal_entry')
           .eq('id', job.session_id)
           .single()
         if (sess) {
-          const s = sess as { add_to_timeline: boolean | null; title: string | null }
+          const s = sess as { add_to_timeline: boolean | null; title: string | null; timeline_title: string | null; journal_entry: string | null }
           setAddToTimeline(!!s.add_to_timeline)
           setSessionHasTitle(!!s.title)
+          setTimelineTitle(s.timeline_title ?? '')
+          setTimelineStory(s.journal_entry ?? '')
         }
       }
 
@@ -426,7 +430,11 @@ export default function TuningModEditPage() {
       // Existing session — flip its flag. Keep an anonymous (untitled) session's
       // date in sync with this mod's install date so the Timeline card dates
       // correctly. Never touch a named group's date — it's the group's date.
-      const sessUpdate: { add_to_timeline: boolean; date_performed?: string } = { add_to_timeline: addToTimeline }
+      const sessUpdate: { add_to_timeline: boolean; date_performed?: string; timeline_title: string | null; journal_entry: string | null } = {
+        add_to_timeline: addToTimeline,
+        timeline_title: timelineTitle.trim() || null,
+        journal_entry: timelineStory.trim() || null,
+      }
       if (!sessionHasTitle && dateInstalled) sessUpdate.date_performed = dateInstalled
       const { error: sessErr } = await supabase.from('sessions').update(sessUpdate).eq('id', sessionId)
       if (sessErr) { setSaveErr(sessErr.message); setSaving(false); return }
@@ -435,7 +443,8 @@ export default function TuningModEditPage() {
       // (mirrors the solo-mod path in TuningAddPage) and attach the job to it.
       const { data: sData, error: sErr } = await supabase
         .from('sessions')
-        .insert({ car_id: carId, type: 'modification', date_performed: dateInstalled || today, add_to_timeline: true })
+        .insert({ car_id: carId, type: 'modification', date_performed: dateInstalled || today, add_to_timeline: true,
+          timeline_title: timelineTitle.trim() || null, journal_entry: timelineStory.trim() || null })
         .select('id')
         .single()
       if (sErr) { setSaveErr(sErr.message); setSaving(false); return }
@@ -587,6 +596,23 @@ export default function TuningModEditPage() {
               }} />
             </div>
           </div>
+
+          {/* Timeline title + story — only when the entry is on the Timeline */}
+          {addToTimeline && (
+            <>
+              <div style={{ paddingTop: 18 }}>
+                <label style={LABEL}>Timeline Title</label>
+                <input value={timelineTitle} onChange={e => setTimelineTitle(e.target.value)}
+                  placeholder={title.trim() || 'Defaults to the mod name'} style={{ ...INPUT, caretColor: '#39ff14' }} />
+              </div>
+              <div style={{ paddingTop: 18 }}>
+                <label style={LABEL}>Story</label>
+                <textarea value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
+                  rows={3} placeholder="The story behind this — how it went, why it matters…"
+                  style={{ ...INPUT, resize: 'none', lineHeight: 1.5, fontStyle: 'italic', caretColor: '#39ff14' } as React.CSSProperties} />
+              </div>
+            </>
+          )}
 
         </div>
 

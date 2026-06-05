@@ -82,6 +82,8 @@ export default function MaintenanceServiceNewPage() {
   const [timeTaken,     setTimeTaken]     = useState('')
   const [notes,         setNotes]         = useState('')
   const [addToTimeline,    setAddToTimeline]    = useState(false)
+  const [timelineTitle,    setTimelineTitle]    = useState('')
+  const [timelineStory,    setTimelineStory]    = useState('')
   const [pendingReceipts,  setPendingReceipts]  = useState<PendingReceipt[]>([])
   const [saving,           setSaving]           = useState(false)
 
@@ -132,6 +134,8 @@ export default function MaintenanceServiceNewPage() {
       total_cost: totalCost ? parseFloat(totalCost) : null,
       time_taken: timeTaken.trim() || null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
+      timeline_title: timelineTitle.trim() || null,
+      journal_entry: timelineStory.trim() || null,
     }).select('id').single()
     if (error || !session) { setSaving(false); return }
     // Keep the odometer fresh from the logged mileage (opt-in, only if higher).
@@ -419,6 +423,23 @@ export default function MaintenanceServiceNewPage() {
           <input type="checkbox" checked={addToTimeline} onChange={e => setAddToTimeline(e.target.checked)} />
           Add this service to the vehicle timeline
         </label>
+
+        {/* Timeline title + story — only when on the timeline */}
+        {addToTimeline && (
+          <XPGroupBox label="Timeline Entry" style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 8 }}>
+              <label style={xpLabel}>Title</label>
+              <input type="text" value={timelineTitle} onChange={e => setTimelineTitle(e.target.value)}
+                placeholder="Defaults to the service summary" className="xp-input" style={xpInput} />
+            </div>
+            <div>
+              <label style={xpLabel}>Story</label>
+              <textarea value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
+                placeholder="The story behind this service…"
+                className="xp-input" style={{ ...xpInput, resize: 'none', lineHeight: 1.5, padding: '5px', height: 56 }} />
+            </div>
+          </XPGroupBox>
+        )}
 
       </div>
 

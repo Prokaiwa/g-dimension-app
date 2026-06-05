@@ -198,6 +198,8 @@ export default function TuningAddPage() {
   const [newLinks,     setNewLinks]       = useState<{ url: string; label: string }[]>([])
   const [addToTimeline, setAddToTimeline]  = useState(true)
   const [groupName,     setGroupName]      = useState('')
+  const [timelineTitle, setTimelineTitle]  = useState('')
+  const [timelineStory, setTimelineStory]  = useState('')
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
@@ -479,6 +481,8 @@ export default function TuningAddPage() {
             title:           groupName.trim(),
             date_performed:  form.dateInstalled || today,
             add_to_timeline: addToTimeline,
+            timeline_title:  timelineTitle.trim() || null,
+            journal_entry:   timelineStory.trim() || null,
           })
           .select('id')
           .single()
@@ -492,6 +496,8 @@ export default function TuningAddPage() {
             type:            'modification',
             date_performed:  form.dateInstalled || today,
             add_to_timeline: true,
+            timeline_title:  timelineTitle.trim() || null,
+            journal_entry:   timelineStory.trim() || null,
           })
           .select('id')
           .single()
@@ -1211,6 +1217,31 @@ export default function TuningAddPage() {
                   </div>
                 </button>
               </div>
+            )}
+
+            {/* Timeline title + story — solo add, only when going on the Timeline */}
+            {!partsBinMode && !existingSessionId && addToTimeline && (
+              <>
+                <div style={{ padding: '20px 22px 0' }}>
+                  <label style={lbl}>Timeline Title <span style={{ opacity: 0.5, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span></label>
+                  <input
+                    value={timelineTitle}
+                    onChange={e => setTimelineTitle(e.target.value)}
+                    placeholder={form.title.trim() || groupName.trim() || 'Defaults to the mod name'}
+                    style={{ ...inp, caretColor: '#39ff14' }}
+                  />
+                </div>
+                <div style={{ padding: '20px 22px 0' }}>
+                  <label style={lbl}>Story <span style={{ opacity: 0.5, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span></label>
+                  <textarea
+                    value={timelineStory}
+                    onChange={e => setTimelineStory(e.target.value)}
+                    rows={3}
+                    placeholder="The story behind this — how it went, why it matters…"
+                    style={{ ...inp, resize: 'none', lineHeight: 1.5, fontStyle: 'italic', caretColor: '#39ff14' } as React.CSSProperties}
+                  />
+                </div>
+              </>
             )}
 
             {/* Existing group context banner — shown when adding to a group */}

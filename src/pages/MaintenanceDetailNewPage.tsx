@@ -155,6 +155,8 @@ export default function MaintenanceDetailNewPage() {
   const [totalCost, setTotalCost]     = useState('')
   const [notes, setNotes]             = useState('')
   const [addToTimeline, setAddToTimeline] = useState(false)
+  const [timelineTitle, setTimelineTitle] = useState('')
+  const [timelineStory, setTimelineStory] = useState('')
   const [pendingReceipts, setPendingReceipts] = useState<{ file: File; preview: string | null; name: string }[]>([])
   const [saving, setSaving]           = useState(false)
 
@@ -203,6 +205,8 @@ export default function MaintenanceDetailNewPage() {
       total_cost: totalCost ? parseFloat(totalCost) : null,
       notes: notes.trim() || null,
       add_to_timeline: addToTimeline,
+      timeline_title: timelineTitle.trim() || null,
+      journal_entry: timelineStory.trim() || null,
     }).select('id').single()
 
     if (error || !session) { setSaving(false); return }
@@ -411,6 +415,26 @@ export default function MaintenanceDetailNewPage() {
               <div style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM, marginTop: 2 }}>Log this wash as a chapter in your build story</div>
             </div>
           </button>
+
+          {addToTimeline && (
+            <div style={{ marginTop: 16 }}>
+              <div style={fieldLabel}>Timeline Title</div>
+              <input
+                value={timelineTitle} onChange={e => setTimelineTitle(e.target.value)}
+                placeholder="Defaults to the detail summary"
+                className="cw-input"
+                style={{ ...fieldInput, border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
+              />
+              <div style={{ ...fieldLabel, marginTop: 14 }}>Story</div>
+              <textarea
+                value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
+                placeholder="The story behind this — how it came out, why it mattered…"
+                rows={3}
+                className="cw-input"
+                style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, fontStyle: 'italic', border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
+              />
+            </div>
+          )}
         </div>
 
         {/* Save */}

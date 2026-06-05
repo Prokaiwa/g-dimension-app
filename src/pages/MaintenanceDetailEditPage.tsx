@@ -155,6 +155,8 @@ export default function MaintenanceDetailEditPage() {
   const [totalCost, setTotalCost]     = useState('')
   const [notes, setNotes]             = useState('')
   const [addToTimeline, setAddToTimeline] = useState(false)
+  const [timelineTitle, setTimelineTitle] = useState('')
+  const [timelineStory, setTimelineStory] = useState('')
   const [existingReceipts, setExistingReceipts] = useState<ExistingReceipt[]>([])
   const [removedReceipts, setRemovedReceipts]   = useState<{ id: string; file_url: string }[]>([])
   const [pendingReceipts, setPendingReceipts] = useState<{ file: File; preview: string | null; name: string }[]>([])
@@ -174,7 +176,7 @@ export default function MaintenanceDetailEditPage() {
     if (!sessionId) return
     Promise.all([
       supabase.from('sessions')
-        .select('car_id,date_performed,performed_by,shop_name,mileage,total_cost,time_taken,notes,add_to_timeline')
+        .select('car_id,date_performed,performed_by,shop_name,mileage,total_cost,time_taken,notes,add_to_timeline,timeline_title,journal_entry')
         .eq('id', sessionId).single(),
       supabase.from('jobs')
         .select('category,title')
@@ -190,6 +192,7 @@ export default function MaintenanceDetailEditPage() {
           car_id: string | null; date_performed: string; performed_by: 'self' | 'shop' | null
           shop_name: string | null; mileage: number | null; total_cost: number | null
           time_taken: string | null; notes: string | null; add_to_timeline: boolean
+          timeline_title: string | null; journal_entry: string | null
         }
         setCarId(sess.car_id)
         setDate(sess.date_performed)
@@ -200,6 +203,8 @@ export default function MaintenanceDetailEditPage() {
         setTimeTaken(sess.time_taken ?? '')
         setNotes(sess.notes ?? '')
         setAddToTimeline(!!sess.add_to_timeline)
+        setTimelineTitle(sess.timeline_title ?? '')
+        setTimelineStory(sess.journal_entry ?? '')
       }
       if (j) {
         const rows = j as { category: string | null; title: string }[]
@@ -255,6 +260,8 @@ export default function MaintenanceDetailEditPage() {
       time_taken: timeTaken.trim() || null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
+      timeline_title: timelineTitle.trim() || null,
+      journal_entry: timelineStory.trim() || null,
     }).eq('id', sessionId)
     if (error) { console.error('Session update error:', error); setSaving(false); return }
 
@@ -496,6 +503,26 @@ export default function MaintenanceDetailEditPage() {
               <div style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM, marginTop: 2 }}>Log this wash as a chapter in your build story</div>
             </div>
           </button>
+
+          {addToTimeline && (
+            <div style={{ marginTop: 16 }}>
+              <div style={fieldLabel}>Timeline Title</div>
+              <input
+                value={timelineTitle} onChange={e => setTimelineTitle(e.target.value)}
+                placeholder="Defaults to the detail summary"
+                className="cw-input"
+                style={{ ...fieldInput, border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
+              />
+              <div style={{ ...fieldLabel, marginTop: 14 }}>Story</div>
+              <textarea
+                value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
+                placeholder="The story behind this — how it came out, why it mattered…"
+                rows={3}
+                className="cw-input"
+                style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, fontStyle: 'italic', border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}
+              />
+            </div>
+          )}
         </div>
 
         {/* Save / Cancel */}

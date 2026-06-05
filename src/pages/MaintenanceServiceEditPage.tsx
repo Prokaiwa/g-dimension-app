@@ -91,6 +91,8 @@ export default function MaintenanceServiceEditPage() {
   const [timeTaken,     setTimeTaken]     = useState('')
   const [notes,         setNotes]         = useState('')
   const [addToTimeline,    setAddToTimeline]    = useState(false)
+  const [timelineTitle,    setTimelineTitle]    = useState('')
+  const [timelineStory,    setTimelineStory]    = useState('')
   const [existingReceipts, setExistingReceipts] = useState<ExistingReceipt[]>([])
   const [removedReceipts, setRemovedReceipts] = useState<{ id: string; file_url: string }[]>([])
   const [pendingReceipts,  setPendingReceipts]  = useState<PendingReceipt[]>([])
@@ -102,7 +104,7 @@ export default function MaintenanceServiceEditPage() {
     if (!sessionId) return
     Promise.all([
       supabase.from('sessions')
-        .select('car_id,date_performed,performed_by,shop_name,mileage,total_cost,labor_cost,tax_amount,time_taken,notes,add_to_timeline')
+        .select('car_id,date_performed,performed_by,shop_name,mileage,total_cost,labor_cost,tax_amount,time_taken,notes,add_to_timeline,timeline_title,journal_entry')
         .eq('id', sessionId).single(),
       supabase.from('jobs')
         .select('id,title,cost')
@@ -119,6 +121,7 @@ export default function MaintenanceServiceEditPage() {
           shop_name: string | null; mileage: number | null; total_cost: number | null
           labor_cost: number | null; tax_amount: number | null; time_taken: string | null
           notes: string | null; add_to_timeline: boolean
+          timeline_title: string | null; journal_entry: string | null
         }
         setCarId(sess.car_id)
         setDate(sess.date_performed)
@@ -132,6 +135,8 @@ export default function MaintenanceServiceEditPage() {
         setTimeTaken(sess.time_taken ?? '')
         setNotes(sess.notes ?? '')
         setAddToTimeline(!!sess.add_to_timeline)
+        setTimelineTitle(sess.timeline_title ?? '')
+        setTimelineStory(sess.journal_entry ?? '')
         if (sess.car_id) {
           const { data: c } = await supabase.from('cars').select('year, make, model, variant').eq('id', sess.car_id).single()
           if (c) {
@@ -198,6 +203,8 @@ export default function MaintenanceServiceEditPage() {
       total_cost: totalCost ? parseFloat(totalCost) : null,
       time_taken: timeTaken.trim() || null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
+      timeline_title: timelineTitle.trim() || null,
+      journal_entry: timelineStory.trim() || null,
     }).eq('id', sessionId)
     if (error) { console.error('Session update error:', error); setSaving(false); return }
 
@@ -494,6 +501,23 @@ export default function MaintenanceServiceEditPage() {
           <input type="checkbox" checked={addToTimeline} onChange={e => setAddToTimeline(e.target.checked)} />
           Add this service to the vehicle timeline
         </label>
+
+        {/* Timeline title + story — only when on the timeline */}
+        {addToTimeline && (
+          <XPGroupBox label="Timeline Entry" style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 8 }}>
+              <label style={xpLabel}>Title</label>
+              <input type="text" value={timelineTitle} onChange={e => setTimelineTitle(e.target.value)}
+                placeholder="Defaults to the service summary" className="xp-input" style={xpInput} />
+            </div>
+            <div>
+              <label style={xpLabel}>Story</label>
+              <textarea value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
+                placeholder="The story behind this service…"
+                className="xp-input" style={{ ...xpInput, resize: 'none', lineHeight: 1.5, padding: '5px', height: 56 }} />
+            </div>
+          </XPGroupBox>
+        )}
 
       </div>
 
