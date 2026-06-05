@@ -81,6 +81,11 @@ export default function TuningModEditPage() {
   const [laborCost,     setLaborCost]     = useState('')
   const [notes,         setNotes]         = useState('')
 
+  // Timeline membership (session-level — see handleSave)
+  const [addToTimeline,   setAddToTimeline]   = useState(false)
+  const [sessionId,       setSessionId]       = useState<string | null>(null)
+  const [sessionHasTitle, setSessionHasTitle] = useState(false)
+
   // Spec fields
   const [specTemplates,  setSpecTemplates]  = useState<SpecTemplate[]>([])
   const [specValues,     setSpecValues]     = useState<Record<string, string>>({})
@@ -118,7 +123,7 @@ export default function TuningModEditPage() {
       const [{ data: job }, { data: existingSpecs }, { data: photoData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id')
+          .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id, session_id')
           .eq('id', modId)
           .single(),
         supabase.from('job_specs').select('spec_key, spec_value, spec_unit').eq('job_id', modId),
@@ -139,6 +144,21 @@ export default function TuningModEditPage() {
       setCarId(job.car_id ?? null)
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
       setExistingLinks((linksData ?? []) as JobLink[])
+
+      // Timeline membership lives on the parent session, if there is one.
+      if (job.session_id) {
+        setSessionId(job.session_id)
+        const { data: sess } = await supabase
+          .from('sessions')
+          .select('add_to_timeline, title')
+          .eq('id', job.session_id)
+          .single()
+        if (sess) {
+          const s = sess as { add_to_timeline: boolean | null; title: string | null }
+          setAddToTimeline(!!s.add_to_timeline)
+          setSessionHasTitle(!!s.title)
+        }
+      }
 
       if (job.part_type_id) {
         const [{ data: pt }, { data: templates }] = await Promise.all([
@@ -399,6 +419,29 @@ export default function TuningModEditPage() {
       }
     }
 
+    // Timeline membership (session-level). The sessions_timeline_sync trigger
+    // creates/removes the timeline_entries row from sessions.add_to_timeline.
+    const today = new Date().toISOString().split('T')[0]
+    if (sessionId) {
+      // Existing session — flip its flag. Keep an anonymous (untitled) session's
+      // date in sync with this mod's install date so the Timeline card dates
+      // correctly. Never touch a named group's date — it's the group's date.
+      const sessUpdate: { add_to_timeline: boolean; date_performed?: string } = { add_to_timeline: addToTimeline }
+      if (!sessionHasTitle && dateInstalled) sessUpdate.date_performed = dateInstalled
+      const { error: sessErr } = await supabase.from('sessions').update(sessUpdate).eq('id', sessionId)
+      if (sessErr) { setSaveErr(sessErr.message); setSaving(false); return }
+    } else if (addToTimeline && carId) {
+      // No session yet — create an anonymous modification session for this mod
+      // (mirrors the solo-mod path in TuningAddPage) and attach the job to it.
+      const { data: sData, error: sErr } = await supabase
+        .from('sessions')
+        .insert({ car_id: carId, type: 'modification', date_performed: dateInstalled || today, add_to_timeline: true })
+        .select('id')
+        .single()
+      if (sErr) { setSaveErr(sErr.message); setSaving(false); return }
+      if (sData) await supabase.from('jobs').update({ session_id: (sData as { id: string }).id }).eq('id', modId!)
+    }
+
     navigate(`/tuning/mods/${modId}`)
   }
 
@@ -517,6 +560,32 @@ export default function TuningModEditPage() {
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               rows={3} placeholder="Any notes about this modification…"
               style={{ ...INPUT, resize: 'none', lineHeight: 1.5, caretColor: '#39ff14' } as React.CSSProperties} />
+          </div>
+
+          {/* Add to Timeline */}
+          <div style={{ paddingTop: 22, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={{ ...LABEL, marginBottom: 4 }}>Add to Timeline</label>
+              <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.28)', margin: 0, lineHeight: 1.4 }}>
+                {sessionHasTitle
+                  ? 'Part of a group — this controls the whole group’s card in your build story.'
+                  : 'Show this mod as a card in your build story.'}
+              </p>
+            </div>
+            <div onClick={() => setAddToTimeline(v => !v)}
+              style={{
+                width: 44, height: 26, position: 'relative', cursor: 'pointer', flexShrink: 0,
+                background: addToTimeline ? 'rgba(200,102,26,0.35)' : 'rgba(245,240,228,0.07)',
+                border: `1.5px solid ${addToTimeline ? 'rgba(200,102,26,0.65)' : 'rgba(245,240,228,0.14)'}`,
+                borderRadius: 13, transition: 'background 200ms, border-color 200ms',
+              }}>
+              <div style={{
+                position: 'absolute', top: 3, left: addToTimeline ? 20 : 3,
+                width: 16, height: 16, borderRadius: '50%',
+                background: addToTimeline ? '#c8661a' : 'rgba(245,240,228,0.28)',
+                transition: 'left 200ms, background 200ms',
+              }} />
+            </div>
           </div>
 
         </div>
