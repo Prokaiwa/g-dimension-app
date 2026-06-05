@@ -146,13 +146,13 @@ function CarStage({ src, placeholder, onAddPhoto }: { src: string; placeholder?:
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          <span style={{ width: 46, height: 46, borderRadius: '50%', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 14px rgba(200,102,26,0.45)' }}>
+          <span style={{ width: 46, height: 46, borderRadius: '50%', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'addPhotoBeat 1.7s ease-in-out infinite' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLOR_ACCENT} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" />
               <circle cx="12" cy="13" r="3.2" />
             </svg>
           </span>
-          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_ACCENT, textShadow: '0 0 10px rgba(200,102,26,0.5)' }}>
+          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_ACCENT, animation: 'addPhotoTextBeat 1.7s ease-in-out infinite' }}>
             Add Photo
           </span>
         </button>
@@ -732,6 +732,11 @@ export default function GarageCarsPage() {
         }
         @keyframes storyReveal { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes sheetSkeleton { 0%,100%{opacity:0.5} 50%{opacity:1} }
+        @keyframes addPhotoBeat {
+          0%,100% { transform: scale(1);    box-shadow: 0 0 7px rgba(200,102,26,0.3);  border-color: rgba(200,102,26,0.65); }
+          50%     { transform: scale(1.09); box-shadow: 0 0 20px rgba(200,102,26,0.85), 0 0 34px rgba(200,102,26,0.4); border-color: rgba(200,102,26,1); }
+        }
+        @keyframes addPhotoTextBeat { 0%,100%{text-shadow:0 0 6px rgba(200,102,26,0.35)} 50%{text-shadow:0 0 14px rgba(200,102,26,0.8)} }
         .hide-scrollbar{scrollbar-width:none}
         .hide-scrollbar::-webkit-scrollbar{display:none}
         .form-scroll{-webkit-overflow-scrolling:touch;scrollbar-width:none}
