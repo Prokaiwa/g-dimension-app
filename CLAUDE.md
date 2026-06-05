@@ -162,7 +162,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `046_timeline_note_entries.sql` — run in order.
+`supabase/migrations/001_users.sql` → `047_timeline_entry_media.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -190,6 +190,7 @@ const carId = await getActiveCarId()
 | `044_car_variant.sql` | `cars.variant` (text) — free-text sub-model label (e.g. "430" on a Lexus LS), distinct from `model` (family) and `trim` (spec level). Display name = year + model + variant ("2006 LS 430"). Forward-compatible with the empty `vehicle_variants` catalog + `cars.variant_id` for a future picker |
 | `045_timeline_sync_fix.sql` | **Two live-DB fixes found while building the Timeline.** (1) Re-applies `sessions.title` — migration **033 had never actually been applied to production** (live DB raised `42703 column sessions.title does not exist`), despite the old watermark claiming 001–044 were all applied. (2) Rewrites `handle_timeline_entry()` (the `sessions_timeline_sync` trigger from 007): its bare `on conflict (session_id) do nothing` could not infer the **partial** unique index `timeline_entries_session_unique`, raising `42P10` on **every** `add_to_timeline = true` session insert — so no standard timeline entry could ever be created. Fix restates the index predicate in the conflict clause. Function-only + idempotent column re-add |
 | `046_timeline_note_entries.sql` | Free-form Timeline entries. Widens `timeline_entries.entry_type` CHECK to allow `'note'` (personal/blog entries not tied to a session — track day, car show, a story; created via `/timeline/new`, `session_id` NULL) and adds `timeline_entries.title` (headline; notes set it, session-derived entries leave it NULL and still derive their title from the session/jobs). Idempotent + `notify pgrst` reload |
+| `047_timeline_entry_media.sql` | `timeline_entry_photos` + `timeline_entry_links` tables — multiple photos/links per Timeline note (added at compose time via `/timeline/new`), mirroring `job_photos`/`job_links`. `car_id` denormalized for 1-hop RLS; owner full access + public read for public cars; authenticated DML + anon select grants. The note's `timeline_entries.photo_url` stays the hero (first photo) for the card thumbnail; the full gallery + links render on Entry Detail |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 

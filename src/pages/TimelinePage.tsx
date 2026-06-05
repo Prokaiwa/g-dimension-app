@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { CameraIcon } from '../components/CameraIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
@@ -342,7 +343,7 @@ export default function TimelinePage() {
                     backdropFilter: 'blur(4px)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                   }}
                 >
-                  <span style={{ fontSize: 13, lineHeight: 1 }}>📷</span>
+                  <span style={{ display: 'flex', alignItems: 'center' }}><CameraIcon size={15} color="#f5f5f5" /></span>
                   <span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f5f5f5' }}>
                     {uploading ? 'Saving…' : 'Change'}
                   </span>
@@ -359,7 +360,7 @@ export default function TimelinePage() {
                   border: 'none', borderBottom: `1px dashed ${COLOR_TIMELINE_RULE}`,
                 }}
               >
-                <span style={{ fontSize: 22, lineHeight: 1, opacity: uploading ? 0.4 : 1 }}>📷</span>
+                <span style={{ display: 'flex', alignItems: 'center', opacity: uploading ? 0.4 : 1 }}><CameraIcon size={24} color={COLOR_TIMELINE_CHEVRON} /></span>
                 <span style={{ fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON }}>
                   {uploading ? 'Saving…' : 'Add the first photo'}
                 </span>

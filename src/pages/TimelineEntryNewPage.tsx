@@ -2,15 +2,17 @@
 //
 // A note is a build-journal entry not tied to any mod or service: a track day,
 // a car show, the story of getting pulled over. Writes a timeline_entries row
-// with entry_type='note', session_id=NULL (migration 046). Lives in the light
-// parchment world of the Timeline rather than the dark form aesthetic — you're
-// writing in your journal, in the same warm space.
+// (entry_type='note', session_id=NULL, migration 046) plus any photos/links
+// into timeline_entry_photos / timeline_entry_links (migration 047) — added at
+// compose time, no edit round-trip. Lives in the light parchment Timeline world.
 
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
+import { CameraIcon } from '../components/CameraIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT, COLOR_TIMELINE_MUTED,
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_NOTE,
@@ -44,8 +46,11 @@ export default function TimelineEntryNewPage() {
   const [date, setDate] = useState(today)
   const [title, setTitle] = useState('')
   const [journal, setJournal] = useState('')
-  const [photo, setPhoto] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
+  const [links, setLinks] = useState<{ url: string; label: string }[]>([])
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkLabel, setLinkLabel] = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -65,14 +70,31 @@ export default function TimelineEntryNewPage() {
   }, [])
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
+    const files = Array.from(e.target.files ?? [])
     e.target.value = ''
-    if (!f) return
-    setPhoto(f)
-    const reader = new FileReader()
-    reader.onload = ev => setPreview(ev.target?.result as string)
-    reader.readAsDataURL(f)
+    if (!files.length) return
+    setPhotos(prev => [...prev, ...files])
+    files.forEach(f => {
+      const reader = new FileReader()
+      reader.onload = ev => setPreviews(prev => [...prev, ev.target?.result as string])
+      reader.readAsDataURL(f)
+    })
   }
+
+  const removePhoto = (i: number) => {
+    setPhotos(prev => prev.filter((_, idx) => idx !== i))
+    setPreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const addLink = () => {
+    const url = linkUrl.trim()
+    if (!url) return
+    setLinks(prev => [...prev, { url, label: linkLabel.trim() }])
+    setLinkUrl('')
+    setLinkLabel('')
+  }
+
+  const removeLink = (i: number) => setLinks(prev => prev.filter((_, idx) => idx !== i))
 
   const canSave = !!title.trim() && !saving
 
@@ -82,28 +104,51 @@ export default function TimelineEntryNewPage() {
     setErr(null)
     setSaving(true)
     try {
-      let photoUrl: string | null = null
-      if (photo && userId) {
-        const compressed = await imageCompression(photo, COMPRESSION_OPTIONS)
-        const path = `${userId}/${carId}/note/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
-        const { data: up, error: upErr } = await supabase.storage
-          .from('timeline-photos')
-          .upload(path, compressed, { contentType: 'image/jpeg' })
-        if (upErr || !up) throw upErr ?? new Error('upload failed')
-        photoUrl = supabase.storage.from('timeline-photos').getPublicUrl(up.path).data.publicUrl
+      // 1. The entry itself
+      const { data: entry, error: entryErr } = await supabase
+        .from('timeline_entries')
+        .insert({
+          car_id: carId,
+          session_id: null,
+          entry_type: 'note',
+          is_origin: false,
+          title: title.trim(),
+          journal_entry: journal.trim() || null,
+          display_date: date || today,
+        })
+        .select('id').single()
+      if (entryErr || !entry) throw entryErr ?? new Error('save failed')
+      const entryId = (entry as { id: string }).id
+
+      // 2. Photos → upload, then gallery rows; hero = first photo
+      const urls: string[] = []
+      if (userId) {
+        for (const file of photos) {
+          const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
+          const path = `${userId}/${carId}/note/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
+          const { data: up, error: upErr } = await supabase.storage
+            .from('timeline-photos')
+            .upload(path, compressed, { contentType: 'image/jpeg' })
+          if (upErr || !up) continue
+          urls.push(supabase.storage.from('timeline-photos').getPublicUrl(up.path).data.publicUrl)
+        }
+      }
+      if (urls.length) {
+        await supabase.from('timeline_entry_photos').insert(
+          urls.map((u, i) => ({ entry_id: entryId, car_id: carId, photo_url: u, display_order: i })),
+        )
+        await supabase.from('timeline_entries').update({ photo_url: urls[0] }).eq('id', entryId)
       }
 
-      const { error } = await supabase.from('timeline_entries').insert({
-        car_id: carId,
-        session_id: null,
-        entry_type: 'note',
-        is_origin: false,
-        title: title.trim(),
-        journal_entry: journal.trim() || null,
-        photo_url: photoUrl,
-        display_date: date || today,
-      })
-      if (error) throw error
+      // 3. Links (include a URL still sitting in the input)
+      const pending = linkUrl.trim()
+      const allLinks = pending ? [...links, { url: pending, label: linkLabel.trim() }] : links
+      if (allLinks.length) {
+        await supabase.from('timeline_entry_links').insert(
+          allLinks.map((l, i) => ({ entry_id: entryId, car_id: carId, url: l.url, label: l.label || null, display_order: i })),
+        )
+      }
+
       navigate('/timeline')
     } catch (e) {
       setErr((e as { message?: string })?.message ?? 'Couldn’t save the entry. Try again.')
@@ -113,7 +158,7 @@ export default function TimelineEntryNewPage() {
 
   return (
     <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI }}>
-      <input ref={fileRef} type="file" accept="image/*" onChange={onPick} style={{ display: 'none' }} />
+      <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPick} style={{ display: 'none' }} />
 
       {/* Floating amber-gold chevron — back to the Timeline */}
       <button
@@ -162,38 +207,84 @@ export default function TimelineEntryNewPage() {
               fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 17 } as React.CSSProperties} />
         </div>
 
-        {/* Photo */}
-        <div style={{ marginBottom: 8 }}>
-          <label style={labelStyle}>Photo</label>
-          {preview ? (
-            <div style={{ position: 'relative', borderRadius: RADIUS_TIMELINE_CARD, overflow: 'hidden', border: `1px solid ${COLOR_TIMELINE_RULE}` }}>
-              <img src={preview} alt="" style={{ display: 'block', width: '100%', height: 200, objectFit: 'cover' }} />
-              <button
-                onClick={() => { setPhoto(null); setPreview(null) }}
-                aria-label="Remove photo"
-                style={{
-                  position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%',
-                  background: 'rgba(20,18,16,0.6)', border: 'none', cursor: 'pointer', color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-                }}
-              >×</button>
-            </div>
-          ) : (
+        {/* Photos */}
+        <div style={{ marginBottom: 18 }}>
+          <label style={labelStyle}>Photos</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {previews.map((src, i) => (
+              <div key={i} style={{ position: 'relative', width: 84, height: 84, borderRadius: RADIUS_TIMELINE_CARD, overflow: 'hidden', border: `1px solid ${COLOR_TIMELINE_RULE}` }}>
+                <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <button
+                  onClick={() => removePhoto(i)} aria-label="Remove photo"
+                  style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', background: 'rgba(20,18,16,0.6)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}
+                >×</button>
+              </div>
+            ))}
+            {/* Add tile */}
             <button
-              onClick={() => fileRef.current?.click()}
+              onClick={() => fileRef.current?.click()} aria-label="Add photos"
               style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                width: '100%', height: 110, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                background: 'rgba(200,160,80,0.06)', borderRadius: RADIUS_TIMELINE_CARD,
-                border: `1px dashed ${COLOR_TIMELINE_RULE}`,
+                width: 84, height: 84, borderRadius: RADIUS_TIMELINE_CARD, cursor: 'pointer',
+                background: 'rgba(200,160,80,0.06)', border: `1px dashed ${COLOR_TIMELINE_RULE}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <span style={{ fontSize: 20, lineHeight: 1 }}>📷</span>
-              <span style={{ fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_TIMELINE_NOTE }}>
-                Add a photo
-              </span>
+              <CameraIcon size={24} color={COLOR_TIMELINE_NOTE} />
             </button>
-          )}
+          </div>
+        </div>
+
+        {/* Links */}
+        <div style={{ marginBottom: 8 }}>
+          <label style={labelStyle}>Links</label>
+
+          {links.map((l, i) => {
+            const ytId = getYouTubeId(l.url)
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                {ytId ? (
+                  <div style={{ width: 56, height: 32, flexShrink: 0, overflow: 'hidden', borderRadius: 3, position: 'relative' }}>
+                    <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ) : (
+                  <span style={{ color: COLOR_ACCENT, fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>↗</span>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {l.label || l.url}
+                  </p>
+                  {l.label && (
+                    <p style={{ margin: '1px 0 0', fontFamily: FONT_UI, fontSize: 10, color: COLOR_TIMELINE_MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {l.url}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeLink(i)} aria-label="Remove link"
+                  style={{ flexShrink: 0, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}
+                >×</button>
+              </div>
+            )
+          })}
+
+          <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://"
+            style={{ ...inputStyle, marginBottom: 8 }} />
+          <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="Label (optional)"
+            style={{ ...inputStyle, marginBottom: 10 }} />
+          <button
+            onClick={addLink} disabled={!linkUrl.trim()}
+            style={{
+              padding: '9px 16px', borderRadius: RADIUS_BUTTON,
+              background: 'transparent', border: `1px solid ${linkUrl.trim() ? COLOR_ACCENT : COLOR_TIMELINE_RULE}`,
+              cursor: linkUrl.trim() ? 'pointer' : 'default',
+              fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: linkUrl.trim() ? COLOR_ACCENT : COLOR_TIMELINE_MUTED,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            + Add link
+          </button>
         </div>
 
         {err && (
