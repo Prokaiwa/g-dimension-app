@@ -128,9 +128,9 @@ function CarStage({ src, placeholder, onAddPhoto }: { src: string; placeholder?:
           display: 'block',
           position: 'relative',
           zIndex: 2,
-          // No photo yet → drop it to ~20% brightness (an 80% black wash) so the
+          // No photo yet → drop it to ~12% brightness (a deep black wash) so the
           // "Add Photo" prompt reads as the subject.
-          filter: placeholder ? 'brightness(0.2)' : 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
+          filter: placeholder ? 'brightness(0.12)' : 'drop-shadow(0px 8px 14px rgba(0,0,0,0.92))',
           opacity: loaded ? 1 : 0,
           transition: 'opacity 180ms ease',
         }}
