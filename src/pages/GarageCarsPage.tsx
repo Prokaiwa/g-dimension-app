@@ -726,10 +726,6 @@ export default function GarageCarsPage() {
     <div style={{ height: '100dvh', background: COLOR_CAVITY_BG, position: 'relative', overflow: 'hidden', fontFamily: FONT_UI, display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes hintPulse { 0%,100%{opacity:0} 30%,70%{opacity:0.6} }
-        @keyframes addCarPulse {
-          0%,100%{box-shadow:0 0 8px rgba(200,102,26,.3),0 0 0 0 rgba(200,102,26,0)}
-          50%    {box-shadow:0 0 22px rgba(200,102,26,.75),0 0 0 12px rgba(200,102,26,.1)}
-        }
         @keyframes storyReveal { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes sheetSkeleton { 0%,100%{opacity:0.5} 50%{opacity:1} }
         @keyframes addPhotoBeat {
@@ -752,8 +748,8 @@ export default function GarageCarsPage() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {cars.length === 0 ? (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
-              <button onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(200,102,26,0.22)', border: '1.5px solid rgba(200,102,26,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addCarPulse 3s ease-in-out infinite' }}>
-                <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, textShadow: '0 0 10px rgba(200,102,26,0.9)' }}>+</span>
+              <button onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
+                <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, animation: 'addPhotoTextBeat 2.8s ease-in-out infinite' }}>+</span>
               </button>
               <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 15, color: 'rgba(245,245,245,0.55)', margin: 0, textAlign: 'center', maxWidth: 200, lineHeight: 1.5 }}>
                 Tap to place your first car in the garage.
