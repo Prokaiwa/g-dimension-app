@@ -12,7 +12,7 @@ All primary routes are implemented:
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
 - Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (category → part type → form, with optional group field for batch installs), Mod Group detail, Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
 - Maintenance: landing (GT Auto diagonal), service form + edit, session detail, detailing log, add + edit detail session
-- Timeline: **stub only** — `TimelinePage` + `EntryDetailPage` return placeholder `<div>`s. Not yet built (see What's Next + MASTER_ARCHITECTURE Part 12).
+- Timeline: **built** — scroll (`TimelinePage`), compose/edit a note (`TimelineEntryNewPage`), Entry Detail (`EntryDetailPage`). See the **Timeline** section below.
 - Photos: masonry gallery
 - Profile, Settings, Settings/Archived, Public Profile (`/builds/:username`)
 
@@ -102,6 +102,7 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 - Line items: insert into `jobs` table with `type = 'maintenance'`, `session_id`, `category`, `title`, `cost`. No status lifecycle for maintenance jobs — they are historical records. `status = 'installed'` default is fine.
 - `add_to_timeline` defaults: **false** for maintenance sessions, **true** for detail sessions.
 - DB trigger auto-creates `timeline_entries` row when `add_to_timeline = true` — no app code needed.
+- When the toggle is ON, the form also exposes a **Timeline Title** (`sessions.timeline_title`, migration 048) + **Story** (`sessions.journal_entry`) — see the Timeline section. Both are carried onto the entry by the sync trigger.
 - `sessions` cascade-deletes `jobs` on delete — deleting a session removes all its line items automatically.
 - `MaintenanceSessionDetailPage` is shared by both `type = 'maintenance'` and `type = 'detail'` sessions. Always check `session.type` to conditionally render job line items and adjust back navigation.
 
@@ -132,14 +133,38 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 - `AuthGateFallback` — replaces the auth gate's empty render. Nothing shows on fast loads; after 8s unresolved it shows a recovery screen (Reload / Sign in again) so a wedged auth layer can't present as a dead black screen.
 - `ErrorBanner` — traps `window.onerror` + `unhandledrejection`, shows a dismissible banner. Renders nothing until an error fires; safe to leave mounted. (Mounted once in `App.tsx`, above the routes.)
 
+**Timeline — the emotional heart** (built Jun 2026, migrations 045–048):
+
+*Read MASTER_ARCHITECTURE Part 12 + its AS-BUILT ADDENDUM before touching this section.*
+
+*Pages / routes:*
+```
+/timeline                       → TimelinePage (scroll)
+/timeline/new                   → TimelineEntryNewPage (compose a note)
+/timeline/entry/:id             → EntryDetailPage (read view)
+/timeline/entry/:id/edit        → TimelineEntryNewPage (edit a note — same component)
+```
+
+*Two DB bugs fixed first (migration 045 — nothing worked before this):* (1) the `sessions_timeline_sync` trigger's bare `on conflict (session_id)` couldn't infer the **partial** unique index → `42P10` on every `add_to_timeline=true` insert; fixed by restating the predicate. (2) `sessions.title` (033) had never actually been applied to production — re-added. Both were silent: no standard entry could ever be created. If timeline entries stop appearing, suspect the trigger first.
+
+*Data sources by entry type (all rows live in `timeline_entries`, read oldest-at-top by `display_date`):*
+- **Origin** (`is_origin`, one per car, un-deletable via DB trigger): synthetic cover derived from `cars.purchase_story` / `purchase_date` until a photo is added; adding/replacing the cover photo (upload to `timeline-photos`) **persists** the real row. Full-bleed, no stripe.
+- **Session-derived** (`entry_type` mod/maintenance/detail, `session_id` set): created by the sync trigger. Title/story = `sessions.timeline_title` / `sessions.journal_entry` (migration 048; trigger copies them to `timeline_entries.title` / `journal_entry`). Thumbnail = `sessions.timeline_photo_url` → falls back to the session's first `job_photo`. Edited at the source (Tuning/Maintenance), which Entry Detail links to.
+- **Notes** (`entry_type='note'`, `session_id` NULL, migration 046): free-form, created at `/timeline/new`. Carry a title, date, story, and **multiple** photos + links (`timeline_entry_photos` / `timeline_entry_links`, migration 047). The entry's `photo_url` is kept synced to the first photo (card hero). Fully editable + deletable.
+
+*Title resolution* (used by both the card and Entry Detail): `timeline_entries.title` first (notes + custom session titles), then `sessions.title` (group name), then single job title / `N jobs`, then shop name, then the type label.
+
+*Design (parchment world, `COLOR_TIMELINE_*` tokens):* NO header — a floating amber-gold `‹` only. A **vertical connecting thread** down the left with a type-colored node per entry (mod stone-grey / service gold / detail blue / note amber-gold = `COLOR_TIMELINE_NOTE`, an alias of the chevron amber). Year chapter dividers; IntersectionObserver fade-in. Cards: type stripe + label + right-aligned date + title, 2-line Cormorant-italic journal, and an inset **"photo-print" thumbnail** (90px, border + soft shadow) to the right — a deliberate refinement of Part 12's "full-width 160px photo" for phone. `RADIUS_TIMELINE_CARD` (4px) is the one allowed radius. The "+ Add Entry" FAB (`COLOR_ACCENT`) → `/timeline/new`.
+
+*Compose/edit page (`TimelineEntryNewPage`):* one component for both create and edit (keys off the `:entryId` param). Edit mode loads the note + existing photos/links, lets you remove existing (× → queued delete) and add new; on save it diffs (deletes removed rows, uploads + appends new, re-syncs the hero `photo_url`). Lives in the parchment aesthetic (not the dark form look). Camera affordance is the shared `CameraIcon` (matches the Garage carousel), **not** an emoji.
+
+*Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
+
 ---
 
 ## What's Next (not yet built)
 
-- **Timeline + Entry Detail** — both still stubs (`TimelinePage`, `EntryDetailPage` return one-line `<div>`s). This is the next major build. Reads from `timeline_entries` (migration 007), **not** from `sessions`/`jobs` directly:
-  - **Origin Entry** — one per car (`is_origin = true`, `session_id` NULL), auto-seeded from `cars.purchase_story` + a day-one photo, `display_date` = `cars.purchase_date`. Cannot be deleted, only edited. Always the first card.
-  - **Standard entries** — auto-synced from `sessions.add_to_timeline = true` via the `sessions_timeline_sync` trigger (`entry_type` ∈ modification/maintenance/detail; `photo_url` = `sessions.timeline_photo_url`; `journal_entry`; `display_date` = `sessions.date_performed`). No app code creates/deletes these — the trigger does.
-  - **Design (MASTER_ARCHITECTURE Part 12):** the emotional heart; the **only light/parchment destination** (`#f5f2ee`), **NO header** (floating amber-gold `‹` `#c8a050` only, like Photos), **oldest-at-top** (Origin first, scroll down = forward in time), year markers as chapter dividers. Entry cards: 3px left accent stripe by type (mod `#c8c4bc` / service `#d4b86a` / detail `#8ab0c8`), type label + right-aligned date, optional full-width photo, journal text in **Cormorant Garamond italic** (the one place Cormorant carries the personal voice). Timeline tokens already exist in `src/tokens` / MASTER_ARCHITECTURE Part 3.
+- **Timeline note multi-photo display** — notes store multiple photos (`timeline_entry_photos`) and they render on Entry Detail, but the explicit "choose *the* hero shot" picker for **session entries** isn't built — those still use the `timeline_photo_url` → first-`job_photo` fallback. (`sessions.timeline_photo_url` has no upload UI yet.)
 - **Blueprint page** — currently a stub. Should show planned/purchased mods not yet installed. Blueprint items are status=`planned` or status=`purchased` jobs. The page exists at `/tuning/blueprint` but has no real content.
 - **Mod lifecycle completeness** — no flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
 - **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
