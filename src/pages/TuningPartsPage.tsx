@@ -156,7 +156,7 @@ export default function TuningPartsPage() {
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {car && (
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, whiteSpace: 'nowrap', flexShrink: 0, paddingRight: 3 }}>
                 {[car.year, car.model, car.variant].filter(Boolean).join(' ')}
               </span>
             )}

@@ -139,8 +139,15 @@ export default function GarageSnapshotPage() {
     load()
   }, [])
 
+  // Treat the nickname as "not real" if it matches any auto-generated form
+  // (current or historical — before make/variant were part of the name).
   const isDefaultNickname = car
-    ? car.nickname === [car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')
+    ? [
+        [car.year, car.model],
+        [car.year, car.make, car.model],
+        [car.year, car.model, car.variant],
+        [car.year, car.make, car.model, car.variant],
+      ].map(parts => parts.filter(Boolean).join(' ')).includes(car.nickname)
     : false
 
   return (
