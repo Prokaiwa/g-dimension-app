@@ -295,9 +295,17 @@ export default function EntryDetailPage() {
         )}
       </div>
 
-      {/* Note actions: Delete (Origin can't be deleted — DB trigger) */}
+      {/* Note actions: Edit + Delete (Origin can't be deleted — DB trigger) */}
       {isNote && (
-        <div style={{ maxWidth: 390, margin: '0 auto', padding: '8px 20px 0' }}>
+        <div style={{ maxWidth: 390, margin: '0 auto', padding: '8px 20px 0', display: 'flex', alignItems: 'center', gap: 18 }}>
+          <button onClick={() => navigate(`/timeline/entry/${entry.id}/edit`)}
+            style={{
+              fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: COLOR_TIMELINE_TEXT, background: 'transparent', border: `1px solid ${COLOR_TIMELINE_RULE}`,
+              borderRadius: RADIUS_BUTTON, padding: '10px 18px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}>
+            Edit
+          </button>
           <button onClick={() => setConfirmDelete(true)}
             style={{
               fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em',

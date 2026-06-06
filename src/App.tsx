@@ -177,6 +177,7 @@ export default function App() {
 
       <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />
       <Route path="/timeline/new" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
+      <Route path="/timeline/entry/:entryId/edit" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
       <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
 
       <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />

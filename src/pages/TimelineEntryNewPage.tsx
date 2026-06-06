@@ -1,13 +1,14 @@
-// Route: /timeline/new — compose a free-form Timeline entry ("note").
+// Route: /timeline/new (create) and /timeline/entry/:entryId/edit (edit) —
+// compose or edit a free-form Timeline entry ("note").
 //
 // A note is a build-journal entry not tied to any mod or service: a track day,
 // a car show, the story of getting pulled over. Writes a timeline_entries row
 // (entry_type='note', session_id=NULL, migration 046) plus any photos/links
-// into timeline_entry_photos / timeline_entry_links (migration 047) — added at
-// compose time, no edit round-trip. Lives in the light parchment Timeline world.
+// into timeline_entry_photos / timeline_entry_links (migration 047). In edit
+// mode it loads the existing note and lets you add/remove photos and links.
 
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -37,20 +38,41 @@ const inputStyle: React.CSSProperties = {
   fontFamily: FONT_UI, fontSize: 15, color: COLOR_TIMELINE_TEXT, outline: 'none',
 }
 
+type ExistingPhoto = { id: string; photo_url: string }
+type ExistingLink = { id: string; url: string; label: string | null }
+
+const removeBtn: React.CSSProperties = {
+  position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%',
+  background: 'rgba(20,18,16,0.6)', border: 'none', cursor: 'pointer', color: '#fff',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+}
+
 export default function TimelineEntryNewPage() {
   const navigate = useNavigate()
+  const { entryId } = useParams<{ entryId: string }>()
+  const isEdit = !!entryId
   const today = new Date().toISOString().slice(0, 10)
 
+  const [loading, setLoading] = useState(isEdit)
   const [carId, setCarId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [date, setDate] = useState(today)
   const [title, setTitle] = useState('')
   const [journal, setJournal] = useState('')
+
+  // New (unsaved) media
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [links, setLinks] = useState<{ url: string; label: string }[]>([])
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
+
+  // Existing media (edit mode)
+  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([])
+  const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([])
+  const [existingLinks, setExistingLinks] = useState<ExistingLink[]>([])
+  const [removedLinkIds, setRemovedLinkIds] = useState<string[]>([])
+
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -65,9 +87,29 @@ export default function TimelineEntryNewPage() {
       if (!active) return
       setCarId(cid)
       setUserId(session?.user?.id ?? null)
+
+      if (isEdit && entryId) {
+        const [entryRes, photoRes, linkRes] = await Promise.all([
+          supabase.from('timeline_entries').select('title, journal_entry, display_date, car_id').eq('id', entryId).single(),
+          supabase.from('timeline_entry_photos').select('id, photo_url').eq('entry_id', entryId).order('display_order'),
+          supabase.from('timeline_entry_links').select('id, url, label').eq('entry_id', entryId).order('display_order'),
+        ])
+        if (!active) return
+        const e = entryRes.data as { title: string | null; journal_entry: string | null; display_date: string; car_id: string } | null
+        if (e) {
+          setTitle(e.title ?? '')
+          setJournal(e.journal_entry ?? '')
+          setDate(e.display_date ?? today)
+          if (e.car_id) setCarId(e.car_id)
+        }
+        setExistingPhotos((photoRes.data ?? []) as ExistingPhoto[])
+        setExistingLinks((linkRes.data ?? []) as ExistingLink[])
+        setLoading(false)
+      }
     })()
     return () => { active = false }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryId])
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
@@ -81,9 +123,13 @@ export default function TimelineEntryNewPage() {
     })
   }
 
-  const removePhoto = (i: number) => {
+  const removeNewPhoto = (i: number) => {
     setPhotos(prev => prev.filter((_, idx) => idx !== i))
     setPreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
+  const removeExistingPhoto = (id: string) => {
+    setRemovedPhotoIds(prev => [...prev, id])
+    setExistingPhotos(prev => prev.filter(p => p.id !== id))
   }
 
   const addLink = () => {
@@ -93,8 +139,11 @@ export default function TimelineEntryNewPage() {
     setLinkUrl('')
     setLinkLabel('')
   }
-
-  const removeLink = (i: number) => setLinks(prev => prev.filter((_, idx) => idx !== i))
+  const removeNewLink = (i: number) => setLinks(prev => prev.filter((_, idx) => idx !== i))
+  const removeExistingLink = (id: string) => {
+    setRemovedLinkIds(prev => [...prev, id])
+    setExistingLinks(prev => prev.filter(l => l.id !== id))
+  }
 
   const canSave = !!title.trim() && !saving
 
@@ -104,66 +153,82 @@ export default function TimelineEntryNewPage() {
     setErr(null)
     setSaving(true)
     try {
-      // 1. The entry itself
-      const { data: entry, error: entryErr } = await supabase
-        .from('timeline_entries')
-        .insert({
-          car_id: carId,
-          session_id: null,
-          entry_type: 'note',
-          is_origin: false,
-          title: title.trim(),
-          journal_entry: journal.trim() || null,
-          display_date: date || today,
-        })
-        .select('id').single()
-      if (entryErr || !entry) throw entryErr ?? new Error('save failed')
-      const entryId = (entry as { id: string }).id
+      // 1. Create or update the entry row.
+      let id = entryId ?? ''
+      if (isEdit && entryId) {
+        const { error } = await supabase.from('timeline_entries')
+          .update({ title: title.trim(), journal_entry: journal.trim() || null, display_date: date || today })
+          .eq('id', entryId)
+        if (error) throw error
+      } else {
+        const { data: entry, error } = await supabase.from('timeline_entries')
+          .insert({
+            car_id: carId, session_id: null, entry_type: 'note', is_origin: false,
+            title: title.trim(), journal_entry: journal.trim() || null, display_date: date || today,
+          })
+          .select('id').single()
+        if (error || !entry) throw error ?? new Error('save failed')
+        id = (entry as { id: string }).id
+      }
 
-      // 2. Photos → upload, then gallery rows; hero = first photo
-      const urls: string[] = []
+      // 2. Remove deleted existing media.
+      if (removedPhotoIds.length) await supabase.from('timeline_entry_photos').delete().in('id', removedPhotoIds)
+      if (removedLinkIds.length)  await supabase.from('timeline_entry_links').delete().in('id', removedLinkIds)
+
+      // 3. Upload + insert new photos (ordered after the kept existing ones).
+      const newUrls: string[] = []
       if (userId) {
         for (const file of photos) {
           const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
           const path = `${userId}/${carId}/note/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
           const { data: up, error: upErr } = await supabase.storage
-            .from('timeline-photos')
-            .upload(path, compressed, { contentType: 'image/jpeg' })
+            .from('timeline-photos').upload(path, compressed, { contentType: 'image/jpeg' })
           if (upErr || !up) continue
-          urls.push(supabase.storage.from('timeline-photos').getPublicUrl(up.path).data.publicUrl)
+          newUrls.push(supabase.storage.from('timeline-photos').getPublicUrl(up.path).data.publicUrl)
         }
       }
-      if (urls.length) {
+      if (newUrls.length) {
+        const base = existingPhotos.length
         await supabase.from('timeline_entry_photos').insert(
-          urls.map((u, i) => ({ entry_id: entryId, car_id: carId, photo_url: u, display_order: i })),
+          newUrls.map((u, i) => ({ entry_id: id, car_id: carId, photo_url: u, display_order: base + i })),
         )
-        await supabase.from('timeline_entries').update({ photo_url: urls[0] }).eq('id', entryId)
       }
 
-      // 3. Links (include a URL still sitting in the input)
+      // 4. Insert new links (include a URL still sitting in the input).
       const pending = linkUrl.trim()
-      const allLinks = pending ? [...links, { url: pending, label: linkLabel.trim() }] : links
-      if (allLinks.length) {
+      const allNew = pending ? [...links, { url: pending, label: linkLabel.trim() }] : links
+      if (allNew.length) {
+        const base = existingLinks.length
         await supabase.from('timeline_entry_links').insert(
-          allLinks.map((l, i) => ({ entry_id: entryId, car_id: carId, url: l.url, label: l.label || null, display_order: i })),
+          allNew.map((l, i) => ({ entry_id: id, car_id: carId, url: l.url, label: l.label || null, display_order: base + i })),
         )
       }
 
-      navigate('/timeline')
+      // 5. Keep the card hero in sync: first kept existing photo, else first new.
+      const hero = existingPhotos[0]?.photo_url ?? newUrls[0] ?? null
+      await supabase.from('timeline_entries').update({ photo_url: hero }).eq('id', id)
+
+      navigate(isEdit ? `/timeline/entry/${id}` : '/timeline')
     } catch (e) {
       setErr((e as { message?: string })?.message ?? 'Couldn’t save the entry. Try again.')
       setSaving(false)
     }
   }
 
+  const backTo = isEdit ? `/timeline/entry/${entryId}` : '/timeline'
+
+  if (loading) {
+    return <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG }} />
+  }
+
   return (
     <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI }}>
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPick} style={{ display: 'none' }} />
 
-      {/* Floating amber-gold chevron — back to the Timeline */}
+      {/* Floating amber-gold chevron */}
       <button
-        onClick={() => navigate('/timeline')}
-        aria-label="Back to timeline"
+        onClick={() => navigate(backTo)}
+        aria-label="Back"
         style={{
           position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -179,7 +244,7 @@ export default function TimelineEntryNewPage() {
           margin: '0 0 4px', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
           fontSize: 30, color: COLOR_TIMELINE_TEXT, lineHeight: 1.1,
         }}>
-          New entry
+          {isEdit ? 'Edit entry' : 'New entry'}
         </h1>
         <p style={{ margin: '0 0 26px', fontFamily: FONT_UI, fontSize: 12, color: COLOR_TIMELINE_MUTED, lineHeight: 1.5 }}>
           A moment in the story — a track day, a show, a drive worth remembering.
@@ -212,16 +277,18 @@ export default function TimelineEntryNewPage() {
         <div style={{ marginBottom: 18 }}>
           <label style={labelStyle}>Photos</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {existingPhotos.map(p => (
+              <div key={p.id} style={{ position: 'relative', width: 84, height: 84, borderRadius: RADIUS_TIMELINE_CARD, overflow: 'hidden', border: `1px solid ${COLOR_TIMELINE_RULE}` }}>
+                <img src={p.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <button onClick={() => removeExistingPhoto(p.id)} aria-label="Remove photo" style={removeBtn}>×</button>
+              </div>
+            ))}
             {previews.map((src, i) => (
               <div key={i} style={{ position: 'relative', width: 84, height: 84, borderRadius: RADIUS_TIMELINE_CARD, overflow: 'hidden', border: `1px solid ${COLOR_TIMELINE_RULE}` }}>
                 <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                <button
-                  onClick={() => removePhoto(i)} aria-label="Remove photo"
-                  style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', background: 'rgba(20,18,16,0.6)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}
-                >×</button>
+                <button onClick={() => removeNewPhoto(i)} aria-label="Remove photo" style={removeBtn}>×</button>
               </div>
             ))}
-            {/* Add tile */}
             <button
               onClick={() => fileRef.current?.click()} aria-label="Add photos"
               style={{
@@ -240,12 +307,15 @@ export default function TimelineEntryNewPage() {
         <div style={{ marginBottom: 8 }}>
           <label style={labelStyle}>Links</label>
 
-          {links.map((l, i) => {
-            const ytId = getYouTubeId(l.url)
+          {[
+            ...existingLinks.map(l => ({ key: `e-${l.id}`, url: l.url, label: l.label, onRemove: () => removeExistingLink(l.id) })),
+            ...links.map((l, i) => ({ key: `n-${i}`, url: l.url, label: l.label || null, onRemove: () => removeNewLink(i) })),
+          ].map(item => {
+            const ytId = getYouTubeId(item.url)
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 {ytId ? (
-                  <div style={{ width: 56, height: 32, flexShrink: 0, overflow: 'hidden', borderRadius: 3, position: 'relative' }}>
+                  <div style={{ width: 56, height: 32, flexShrink: 0, overflow: 'hidden', borderRadius: 3 }}>
                     <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   </div>
                 ) : (
@@ -253,18 +323,16 @@ export default function TimelineEntryNewPage() {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {l.label || l.url}
+                    {item.label || item.url}
                   </p>
-                  {l.label && (
+                  {item.label && (
                     <p style={{ margin: '1px 0 0', fontFamily: FONT_UI, fontSize: 10, color: COLOR_TIMELINE_MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {l.url}
+                      {item.url}
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => removeLink(i)} aria-label="Remove link"
-                  style={{ flexShrink: 0, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}
-                >×</button>
+                <button onClick={item.onRemove} aria-label="Remove link"
+                  style={{ flexShrink: 0, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}>×</button>
               </div>
             )
           })}
@@ -308,7 +376,7 @@ export default function TimelineEntryNewPage() {
             WebkitTapHighlightColor: 'transparent', transition: 'background 200ms',
           }}
         >
-          {saving ? 'Saving…' : 'Add to Timeline'}
+          {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add to Timeline'}
         </button>
       </div>
     </div>
