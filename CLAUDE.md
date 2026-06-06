@@ -131,7 +131,7 @@ The `cars.garage_photo_url` comment in `004_cars.sql` ("Remove.bg pipeline") is 
 |---|---|---|
 | `car-photos` | PUBLIC | garage_photo_url, showcase_photo_url |
 | `job-photos` | PUBLIC | job_photos.photo_url |
-| `timeline-photos` | PUBLIC | sessions.timeline_photo_url, origin entry |
+| `timeline-photos` | PUBLIC | sessions.timeline_photo_url, Origin Entry photo, Timeline note photos (`timeline_entry_photos`) |
 | `avatars` | PUBLIC | users.avatar_url — profile pictures (migration 040) |
 | `receipts` | **PRIVATE** | receipts.file_url — financial records |
 | `car-documents` | **PRIVATE** | car_documents.file_url — VINs, registration, insurance |
@@ -195,7 +195,7 @@ const carId = await getActiveCarId()
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
-**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (`001–044` → new range) and add the new migration to the table above.
+**Live DB watermark rule:** After any migration is confirmed run in the Supabase SQL Editor, update the watermark comment at the top of `hotfixes.sql` to reflect the new last-applied migration and today's date. Also update the migration range in this file (e.g. `001–048` → new range) and add the new migration to the table above.
 
 **Supabase schema change notice (effective May 30, 2026):** Any new tables created in the `public` schema after this date require explicit PostgREST grants — Supabase no longer auto-grants access. After creating a new table, always run: `grant select, insert, update, delete on public.<table> to authenticated;` (and `grant select on public.<table> to anon;` for public reference tables).
 
@@ -279,11 +279,15 @@ src/pages/MaintenanceSessionDetailPage.tsx — Session detail view (shared by ma
 src/pages/MaintenanceDetailPage.tsx       — Detailing log list (aesthetic TBD — watery feel pending)
 src/pages/MaintenanceDetailNewPage.tsx    — Log a Detail Session form (blue Car Wash aesthetic)
 src/pages/MaintenanceDetailEditPage.tsx   — Edit Detail Session (blue Car Wash aesthetic, loads + UPDATEs)
+src/pages/TimelinePage.tsx          — Timeline scroll (parchment, NO header, floating amber chevron). Reads timeline_entries oldest-at-top; Origin cover (settable photo) + connecting thread + year dividers + photo-print thumbnails; "+ Add Entry" FAB → /timeline/new
+src/pages/TimelineEntryNewPage.tsx  — Compose AND edit a free-form note (/timeline/new, /timeline/entry/:id/edit). Title, date, story (Cormorant), multiple photos + links
+src/pages/EntryDetailPage.tsx       — Entry Detail (/timeline/entry/:id): hero + gallery + links; "View in Tuning/Maintenance" for session entries; Edit/Delete for notes
+src/components/CameraIcon.tsx       — Shared stroked camera glyph (matches the Garage carousel camera)
 src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–041
+supabase/migrations/                — Numbered SQL files 001–048
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
@@ -357,7 +361,7 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 - **Details sheet morphs the real carousel card — never a replica.** The sheet holds only the spec content; the active card's car lifts/shrinks and the logo + model + info strip fade out, driven by an "openness" value `t` (0–1) that **tracks the drag** (pulling the sheet down grows the car back). Do not reintroduce a hero car inside the sheet — that caused the duplicate-car look. Sheet covers the bottom 54% (`top: 46%`); the car morph at full-open is `translateY(-20vh) scale(0.8)` — the two are **coupled** (the car must clear the sheet top), so tune them together.
 - **Details dismiss is a non-passive touch listener** (`touchmove` with `{ passive: false }` + `preventDefault` on the sheet `ref`) — needed so a downward pull closes instead of the native scroll rubber-banding ("pulling the text"). Grip (handle + title, `data-sheet-grip`) always drags; the spec list takes over only at `scrollTop <= 0`. Don't convert it to passive or to React pointer handlers. The header chevron leaves the Garage (`/garage`); swipe-down closes the sheet.
 - **No-photo placeholder** — `CarStage` takes `placeholder` (dims the image to `filter: brightness(0.12)` — the image only, not the stage) + `onAddPhoto` (→ edit page). The amber-ring pulsing "beat" (`addPhotoBeat` / `addPhotoTextBeat`, 2.8s) is **shared** by the placeholder prompt AND both Add-Car circles (now hollow amber rings, no fill).
-- **Timeline + Entry Detail are still stubs** (`TimelinePage`, `EntryDetailPage` each return a one-line `<div>`). The build reads from `timeline_entries` (migration 007): Origin Entry (`is_origin`, one per car) + standard entries auto-synced from `sessions.add_to_timeline` via the `sessions_timeline_sync` trigger. Sort is **oldest-at-top** (Origin first) per MASTER_ARCHITECTURE Part 12.
+- **Timeline is built** (`TimelinePage`, `TimelineEntryNewPage`, `EntryDetailPage`). Reads `timeline_entries` (migration 007) oldest-at-top: Origin Entry (`is_origin`, one per car — synthetic from `cars.purchase_story` until a photo is added, then persisted) + session entries auto-synced via the `sessions_timeline_sync` trigger + free-form **notes** (`entry_type='note'`, migration 046). Parchment, NO header (floating amber `‹`), connecting thread, year dividers, photo-print thumbnails (timeline_photo_url → first job_photo fallback). Notes carry multiple photos/links (`timeline_entry_photos`/`_links`, migration 047) and are editable/deletable; session entries get a custom Timeline title + story (`sessions.timeline_title` + `journal_entry`, migration 048) and link back to their source for editing. **The card/detail title reads `timeline_entries.title` first**, then derives from session/jobs.
 
 ---
 

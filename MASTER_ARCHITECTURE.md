@@ -437,7 +437,9 @@ Right: Small car icon + car name (informational only — NOT tappable)
 /maintenance/detail/new        → Add Detail Session
 
 /timeline                      → Timeline scroll
-/timeline/entry/:entryId       → Entry Detail (read-only)
+/timeline/new                  → Compose a free-form note (as-built)
+/timeline/entry/:entryId       → Entry Detail
+/timeline/entry/:entryId/edit  → Edit a note (as-built)
 
 /photos                        → Masonry gallery
 
@@ -586,6 +588,18 @@ Title or job count + shop name
 - Default ON for detail sessions
 
 Only entries with toggle ON appear in Timeline. All entries exist in the database and are accessible from Tuning/Maintenance/Photos.
+
+### AS-BUILT ADDENDUM (Timeline shipped 2026-06) — supersedes the above where they differ
+
+Built across migrations 045–048 (see CLAUDE.md migration table + `hotfixes.sql` for the DB deltas; the Timeline DB sync had two latent bugs fixed in 045 before any entry could be created). The implemented design:
+
+- **Aesthetic.** Warm parchment (`COLOR_TIMELINE_BG`), NO header, single floating amber-gold `‹`. A **vertical connecting thread** runs down the left with a **type-colored node** per entry (mod stone-grey / service gold / detail blue / note amber-gold). **Year chapter dividers**; IntersectionObserver fade-in; oldest-at-top (Origin first).
+- **Cards.** Type stripe + label + right-aligned date + title, with the journal (Cormorant italic, 2-line clamp) and an inset **"photo-print" thumbnail** to the right (NOT a full-width banner — the Part 12 "~160px full-width photo" was refined to a compact thumbnail for phone). Thumbnail source = `sessions.timeline_photo_url` → falls back to the entry's first `job_photo`.
+- **Origin Entry.** Synthetic full-bleed cover derived from `cars.purchase_story` until a photo is added; adding/replacing the cover photo persists the real `is_origin` row (upload to `timeline-photos`). Still un-deletable (DB trigger).
+- **Free-form notes (NEW entry type, not in original Part 12).** `entry_type='note'`, `session_id` NULL, created via `/timeline/new` — for moments that aren't a mod/service/detail (track day, car show, a story, a ticket). Carry a title, date, story, **multiple photos and links** (`timeline_entry_photos` / `timeline_entry_links`, migration 047). Fully **editable and deletable** (`/timeline/entry/:id/edit`). Amber-gold stripe.
+- **Custom title + story on session entries.** Each of the six session forms (mod add/edit, service new/edit, detail new/edit) reveals a **Timeline Title** + **Story** field under the toggle. Title → `sessions.timeline_title` (migration 048, trigger-copied to `timeline_entries.title`); story → `sessions.journal_entry`. Empty title falls back to the derived name.
+- **Entry Detail** (`/timeline/entry/:id`) is a full read view (hero + gallery + clickable links, YouTube thumbnails). Session-derived entries link back to **Tuning/Maintenance** to edit at the source ("Editing from source destination"); notes get Edit + Delete inline.
+- **Title resolution.** Card + detail read `timeline_entries.title` first (notes + custom session titles), then derive from the session group name / job titles / count.
 
 ---
 

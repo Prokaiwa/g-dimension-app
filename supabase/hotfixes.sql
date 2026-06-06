@@ -5,15 +5,16 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 047_timeline_entry_media.sql (2026-06-05)
--- Migrations 001–047 applied to production, with corrections:
+-- Last migration applied : 048_session_timeline_fields.sql (2026-06-06)
+-- Migrations 001–048 applied to production, with corrections:
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
 --     Confirmed missing 2026-06-05 via an information_schema audit (the live DB
 --     raised `42703 column sessions.title does not exist`). Re-applied as part
 --     of 045 on 2026-06-05.
 --   - 041 was applied 2026-06-03, out of order (after 042/043).
 --   - 045 (timeline sync fix incl. the 033 re-add), 046 (note entries), and
---     047 (timeline_entry_photos / _links) were all applied 2026-06-05 while
+--     047 (timeline_entry_photos / _links) were all applied 2026-06-05, and
+--     048 (sessions.timeline_title + trigger title copy) on 2026-06-06, while
 --     building the Timeline destination.
 -- Schema audit 2026-06-05: every column/table object for 024–044 present except
 -- 033 (now fixed); avatars bucket present; car_contacts correctly dropped.
