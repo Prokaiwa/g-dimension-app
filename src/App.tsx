@@ -53,6 +53,9 @@ import EntryDetailPage from './pages/EntryDetailPage'
 // Photos
 import PhotosPage from './pages/PhotosPage'
 
+// Featured (magazine)
+import FeaturedPage from './pages/FeaturedPage'
+
 // Profile & settings
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
@@ -181,6 +184,7 @@ export default function App() {
       <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
 
       <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
+      <Route path="/featured" element={<ProtectedRoute><FeaturedPage /></ProtectedRoute>} />
 
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />

@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { setActiveCar, getActiveCarId } from '../lib/activeCar'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
-import { uploadGaragePhoto } from '../lib/carPhoto'
+import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
   COLOR_CAVITY_BG,
@@ -469,6 +469,7 @@ export default function GarageCarsPage() {
   const [detailsData, setDetailsData]         = useState<Record<string, string> | null>(null)
   const [pressedAction, setPressedAction]     = useState<string | null>(null)
   const [addPhotoBlob, setAddPhotoBlob]       = useState<Blob | null>(null)
+  const [addPhotoOriginal, setAddPhotoOriginal] = useState<File | null>(null)
   const [photoFieldKey, setPhotoFieldKey]     = useState(0)
   const [sheetDragY, setSheetDragY]           = useState(0)   // swipe-to-dismiss offset for the Details sheet
   const [sheetDragging, setSheetDragging]     = useState(false)
@@ -529,7 +530,7 @@ export default function GarageCarsPage() {
     setStep(1); setForm(EMPTY_FORM); setSaveErr(null)
     setAllMakes([]); setMakeModels([])
     setSelectedMakeId(null); setSelectedModelId(null); setShowAdd(true)
-    setAddPhotoBlob(null); setPhotoFieldKey(k => k + 1)
+    setAddPhotoBlob(null); setAddPhotoOriginal(null); setPhotoFieldKey(k => k + 1)
     setMakesLoading(true)
     const { data } = await supabase
       .from('vehicle_makes')
@@ -611,6 +612,12 @@ export default function GarageCarsPage() {
         await supabase.from('cars').update({ garage_photo_url: url }).eq('id', data.id)
         savedCar = { ...data, garage_photo_url: url }
       } catch { /* photo upload failure is non-fatal — the car is still saved */ }
+    }
+    if (addPhotoOriginal) {
+      try {
+        const originalUrl = await uploadCarOriginal(user.id, data.id, addPhotoOriginal)
+        await supabase.from('cars').update({ original_photo_url: originalUrl }).eq('id', data.id)
+      } catch { /* original-photo persistence is best-effort — never blocks the save */ }
     }
     setSaving(false)
     const updated = [...cars, savedCar]
@@ -1054,7 +1061,7 @@ export default function GarageCarsPage() {
                 {/* Car photo */}
                 <div style={FIELD}>
                   <span style={LABEL}>Car Photo <span style={OPT}>opt</span></span>
-                  <CarPhotoUpload key={`add-${photoFieldKey}`} onChange={setAddPhotoBlob} />
+                  <CarPhotoUpload key={`add-${photoFieldKey}`} onChange={(b, f) => { setAddPhotoBlob(b); setAddPhotoOriginal(f ?? null) }} />
                 </div>
 
                 {/* Year */}

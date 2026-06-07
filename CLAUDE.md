@@ -4,6 +4,8 @@ Car build journal PWA. React + Vite + Supabase. Live at gdimension.app.
 
 **Before implementing any new screen or feature, read `MASTER_ARCHITECTURE.md`.** It is the product spec, design system, and decision log in one file. It wins on every conflict.
 
+**🏁 Active work — the "Featured" magazine section:** read `FEATURED.md` before touching `/featured` (`src/pages/FeaturedPage.tsx`), the Home "Featured" node, or the car-photo upload pipeline. It holds the full direction, what's built (cover prototype + migration 049 original-photo persistence), and the next steps (interior spreads + the CSS/SVG page-turn). Featured is a deliberate **aesthetic island** allowed to break the global design rules (like Parts Bin).
+
 ## Git Rules — NON-NEGOTIABLE
 
 - **Always commit and push directly to `main`.** Never create a feature branch. Never push to any other branch.
@@ -162,7 +164,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `048_session_timeline_fields.sql` — run in order.
+`supabase/migrations/001_users.sql` → `049_car_original_photo.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -192,6 +194,7 @@ const carId = await getActiveCarId()
 | `046_timeline_note_entries.sql` | Free-form Timeline entries. Widens `timeline_entries.entry_type` CHECK to allow `'note'` (personal/blog entries not tied to a session — track day, car show, a story; created via `/timeline/new`, `session_id` NULL) and adds `timeline_entries.title` (headline; notes set it, session-derived entries leave it NULL and still derive their title from the session/jobs). Idempotent + `notify pgrst` reload |
 | `047_timeline_entry_media.sql` | `timeline_entry_photos` + `timeline_entry_links` tables — multiple photos/links per Timeline note (added at compose time via `/timeline/new`), mirroring `job_photos`/`job_links`. `car_id` denormalized for 1-hop RLS; owner full access + public read for public cars; authenticated DML + anon select grants. The note's `timeline_entries.photo_url` stays the hero (first photo) for the card thumbnail; the full gallery + links render on Entry Detail |
 | `048_session_timeline_fields.sql` | `sessions.timeline_title` (text) — custom Timeline-card title for session-derived entries (mod/service/detail), distinct from the dry record; the `handle_timeline_entry()` trigger now copies it → `timeline_entries.title` (and keeps it synced). The story already had a home (`sessions.journal_entry`, copied by the trigger). Both surface in the six session forms (mod add/edit, service new/edit, detail new/edit) under the Add-to-Timeline toggle. Empty title → card falls back to the derived name. No frontend rendering changes (Timeline + Entry Detail already read `timeline_entries.title` first). Function-only + idempotent column add |
+| `049_car_original_photo.sql` | `cars.original_photo_url` (text, nullable) — stores the **original** uploaded car photo (compressed JPEG, `car-photos` bucket, path `original-{ts}.jpg`) *before* background removal; `garage_photo_url` remains the PNG cutout derived from it. Lets the **Featured** magazine cover use the full photo, and lets background removal be re-run later (see `CAR_PHOTO_HANDOFF.md`). Saved on add/edit-car upload via `uploadCarOriginal()` in `carPhoto.ts` (best-effort — never blocks the car save; written as a *separate* update so a pre-migration gap can't break edits). Existing cars stay NULL until re-upload. Additive nullable column — no policy/grant changes (cars RLS already covers it). Applied 2026-06-07. |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -287,7 +290,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–048
+supabase/migrations/                — Numbered SQL files 001–049
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```

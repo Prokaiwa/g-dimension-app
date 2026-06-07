@@ -21,8 +21,9 @@ import {
 type Props = {
   /** Existing garage photo URL, if the car already has one. */
   currentUrl?: string | null
-  /** Called with the processed transparent PNG, or null if processing failed. */
-  onChange: (blob: Blob | null) => void
+  /** Called with the processed transparent PNG and the ORIGINAL file (for
+   *  storage), or (null, null) if processing failed. */
+  onChange: (blob: Blob | null, originalFile?: File | null) => void
 }
 
 // A dark spotlight backdrop that mirrors how the car reads in the carousel.
@@ -60,12 +61,12 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
       const url = URL.createObjectURL(blob)
       objectUrlRef.current = url
       setPreview(url)
-      onChange(blob)
+      onChange(blob, file)
     } catch (err) {
       console.error('[CarPhotoUpload] processing failed:', err)
       const detail = err instanceof Error ? err.message : String(err)
       setError(`Could not process that photo (${detail})`)
-      onChange(null)
+      onChange(null, null)
     } finally {
       // Hold the overlay to a minimum so a warm-model cut-out doesn't just blink.
       const elapsed = Date.now() - startedAt

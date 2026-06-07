@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
-import { uploadGaragePhoto } from '../lib/carPhoto'
+import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import { GarageBg, GarageHeader } from './GarageCarsPage'
 import {
@@ -57,6 +57,7 @@ export default function GarageCarsEditPage() {
   const [data, setData]       = useState<Details | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null)
+  const [photoOriginal, setPhotoOriginal] = useState<File | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [err, setErr]         = useState<string | null>(null)
@@ -147,10 +148,16 @@ export default function GarageCarsEditPage() {
       purchase_story:    data.originStory.trim()      || null,
     }
     let photoFailed = false
+    let originalUrl: string | null = null
     if (photoBlob) {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        if (user) update.garage_photo_url = await uploadGaragePhoto(user.id, carId, photoBlob)
+        if (user) {
+          update.garage_photo_url = await uploadGaragePhoto(user.id, carId, photoBlob)
+          if (photoOriginal) {
+            try { originalUrl = await uploadCarOriginal(user.id, carId, photoOriginal) } catch { /* best-effort */ }
+          }
+        }
       } catch {
         photoFailed = true
       }
@@ -158,6 +165,10 @@ export default function GarageCarsEditPage() {
     const { error } = await supabase.from('cars').update(update).eq('id', carId)
     setSaving(false)
     if (error) { setErr(error.message); return }
+    // Persist the original separately so a pre-migration column gap can never block the main save.
+    if (originalUrl) {
+      try { await supabase.from('cars').update({ original_photo_url: originalUrl }).eq('id', carId) } catch { /* ignore */ }
+    }
     if (photoFailed) {
       setErr('Photo upload failed — your other changes were saved. Tap Save again to retry the photo.')
       return
@@ -210,7 +221,7 @@ export default function GarageCarsEditPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
               <div style={FIELD}>
                 <span style={LABEL}>Car Photo <span style={OPT}>opt</span></span>
-                <CarPhotoUpload currentUrl={photoUrl} onChange={setPhotoBlob} />
+                <CarPhotoUpload currentUrl={photoUrl} onChange={(b, f) => { setPhotoBlob(b); setPhotoOriginal(f ?? null) }} />
               </div>
               <div style={FIELD}>
                 <span style={LABEL}>Paint Color <span style={OPT}>opt</span></span>

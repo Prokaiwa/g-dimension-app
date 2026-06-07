@@ -72,6 +72,11 @@ export const FONT_TITLE = "'Cormorant Garamond', 'Garamond', serif";
 export const FONT_HANDWRITTEN = "'Caveat', cursive";           // part names, body text
 export const FONT_STAMP       = "'Permanent Marker', cursive"; // headers, stamps
 
+// Featured (magazine) island ONLY — its own aesthetic, like Parts Bin.
+// Tuner-mag type: heavy condensed masthead + condensed deck. Not used elsewhere.
+export const FONT_MASTHEAD = "'Anton', 'Hanken Grotesk', sans-serif";  // G-DIMENSION masthead + big cover headlines
+export const FONT_DECK     = "'Oswald', 'Hanken Grotesk', sans-serif"; // cover-lines, decks, kickers, spec labels
+
 // Google Fonts import string (add to index.html <head>)
 // @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Caveat:wght@400;500;600;700&family=Permanent+Marker&display=swap');
 

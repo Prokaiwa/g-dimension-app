@@ -5,8 +5,10 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 048_session_timeline_fields.sql (2026-06-06)
--- Migrations 001–048 applied to production, with corrections:
+-- Last migration applied : 049_car_original_photo.sql (2026-06-07)
+-- Migrations 001–049 applied to production, with corrections:
+--   - 049 (cars.original_photo_url — persist the original car upload before
+--     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
 --     Confirmed missing 2026-06-05 via an information_schema audit (the live DB
 --     raised `42703 column sessions.title does not exist`). Re-applied as part
