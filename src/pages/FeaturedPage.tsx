@@ -161,12 +161,11 @@ export default function FeaturedPage() {
         {/* cover photo */}
         {photo ? (
           <img src={photo.url} alt=""
-            style={{
-              position: 'absolute',
-              inset: photo.mode === 'cutout' ? 'auto 0 5% 0' : 0,
-              width: '100%', height: photo.mode === 'cutout' ? '68%' : '100%',
-              objectFit: photo.mode === 'cutout' ? 'contain' : 'cover', objectPosition: 'center',
-            }} />
+            style={
+              photo.mode === 'cutout'
+                ? { position: 'absolute', inset: 'auto 0 5% 0', width: '100%', height: '68%', objectFit: 'contain', objectPosition: 'center' }
+                : { position: 'absolute', top: 0, left: 0, width: '100%', height: '64%', objectFit: 'cover', objectPosition: 'center 42%' }
+            } />
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
             <span style={{ fontFamily: FONT_DECK, color: 'rgba(245,245,245,0.5)', letterSpacing: '0.3em', fontSize: 12, textTransform: 'uppercase' }}>

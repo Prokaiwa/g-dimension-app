@@ -54,7 +54,18 @@ Key insight: the magazine feel is ~80% **editorial layout + typography**, ~20% p
 4. **Optional hero two-page spreads** with the dramatic gutter/warp down the *center* (full-bleed car across the gutter).
 - True finger-tracked cylinder curl is the ONLY part needing WebGL — defer as a later "delight pass."
 
-**Other next items:** photo-brightness auto-pick of masthead color (dark photo → white knockout, bright → black); smarter cover-line copy; eventually a dedicated **cover-photo picker** (the carousel shot isn't always the best cover) and exposing Featured on the public `/builds/:username`.
+**Other next items:** photo-brightness auto-pick of masthead color (dark photo → white knockout, bright → black); smarter cover-line copy; exposing Featured on the public `/builds/:username`.
+
+### 4.5 Cover-photo framing (THE big one — landscape/portrait/square/close/far)
+
+A fixed vertical cover can't blind-crop arbitrary photos well (a center `object-fit: cover` slices the sides off a wide car; `contain` letterboxes). The robust solution is layered:
+
+1. **Backbone — user reposition + zoom.** When the user sets their Featured cover, they pick a photo and **drag to reposition + pinch to zoom** inside the cover rectangle (like FB/IG cover crop). Store the framing on the car: `cover_focus_x`, `cover_focus_y` (object-position %) and `cover_zoom` (scale), or a crop rect. This handles EVERY shape/size/distance with zero guessing. This is the reliable answer — build it.
+2. **Smart seed — auto-frame from the cutout's bounding box.** We already run background removal and `trimToBlob()` in `backgroundRemoval.ts` computes the car's silhouette bounding box (see CAR_PHOTO_HANDOFF.md §3). Use that bbox to auto-center/scale the car as the *default* framing, so most users never touch the controls. (Store the bbox on upload to avoid recomputing.)
+3. **Always-safe fallback — cutout on a designed backdrop.** The background-removed car (cutout) can be scaled to fit ANY frame and placed on a magazine backdrop (gradient/studio/color). Guaranteed to show the whole car at any aspect — a great default for awkward source photos, and an editorial look in its own right.
+4. **Aspect-aware defaults (interim).** Until 1–2 ship: portrait → full-bleed cover; landscape → fit-width upper band; square → cover. Reduces (not eliminates) the cut-off problem.
+
+**Recommendation:** ship the cover-photo picker with reposition+zoom (layer 1), seeded by the cutout bbox (layer 2), with cutout-on-backdrop (layer 3) as the safe alternate. That's what makes Featured bulletproof across all user photos.
 
 ## 5. Original-photo persistence (built — migration 049)
 
