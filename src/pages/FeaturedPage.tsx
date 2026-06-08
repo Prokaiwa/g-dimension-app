@@ -161,11 +161,12 @@ export default function FeaturedPage() {
     if (!fromEl || !toEl) return
 
     const W = window.innerWidth
-    // sin peak at midpoint — drives shadow/crease intensity
     const s = Math.sin(p * Math.PI)
-    // Cream fades out in the last 15% of the turn so the arriving page bleeds through
-    // naturally instead of a cream-wall → instant-snap at completion
     const cA = Math.min(1, Math.max(0, (1 - p) / 0.15))
+    // Paper-back color matches the interior page background so dark themes don't show cream
+    const pb  = theme.pageBg  // e.g. '#111116' for knockout-white, '#faf8f4' for top-band
+    const pr  = parseInt(pb.slice(1,3),16), pg2 = parseInt(pb.slice(3,5),16), pbl = parseInt(pb.slice(5,7),16)
+    const paperRgba = (a: number) => `rgba(${pr},${pg2},${pbl},${a})`
 
     if (dir === 'fwd') {
       // Fold line moves right→left: at p=0 it's at 100% (right edge), at p=1 it's at 0% (left)
@@ -182,8 +183,8 @@ export default function FeaturedPage() {
         overlay.style.background = `linear-gradient(90deg,
           rgba(0,0,0,${0.55 * s}) 0%,
           rgba(0,0,0,${0.15 * s}) 10%,
-          rgba(237,232,223,${cA}) 28%,
-          rgba(232,227,216,${cA}) 100%)`
+          ${paperRgba(cA)} 28%,
+          ${paperRgba(cA * 0.92)} 100%)`
         overlay.style.opacity    = '1'
       }
       if (stripe) {
