@@ -188,6 +188,7 @@ export default function FeaturedPage() {
       }
       if (stripe) {
         stripe.style.left       = `calc(${foldPct}% - 3px)`
+        stripe.style.width      = '6px'
         stripe.style.background = `linear-gradient(90deg,
           rgba(0,0,0,${0.25 * s}) 0%,
           rgba(255,255,255,${0.7 * s}) 40%,
@@ -195,32 +196,25 @@ export default function FeaturedPage() {
         stripe.style.opacity    = '1'
       }
     } else {
-      // Fold line moves left→right: at p=0 it's at 0% (left), at p=1 it's at 100% (right)
+      // Back turn: clean reverse-wipe — current page clips away left-to-right,
+      // previous page shows through directly underneath. No paper-back overlay
+      // (you never see the back of the page going backward; that's forward-turn physics).
+      // A cast shadow from the folding edge falls on the arriving page for depth.
       const foldPct = p * 100
-      // Front face: clip the LEFT (folded) portion away.
-      // rotateY NEGATIVE at fold-line pivot: left edge (fold) recedes, right edge stays forward —
-      // this prevents a perspective gap appearing on the right side of the viewport.
       fromEl.style.clipPath        = `inset(0 0 0 ${p * 100}%)`
-      fromEl.style.transformOrigin = `${foldPct}% 50%`
-      fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${-p * 12}deg)`
-      // Paper-back: cream fill left of fold line (shadow at crease, cream further left)
-      if (overlay) {
-        overlay.style.left       = '0'
-        overlay.style.right      = 'auto'
-        overlay.style.width      = `${foldPct}%`
-        overlay.style.background = `linear-gradient(270deg,
-          rgba(0,0,0,${0.55 * s}) 0%,
-          rgba(0,0,0,${0.15 * s}) 10%,
-          rgba(237,232,223,${cA}) 28%,
-          rgba(232,227,216,${cA}) 100%)`
-        overlay.style.opacity    = '1'
-      }
+      fromEl.style.transform       = 'none'
+      fromEl.style.transformOrigin = ''
+      // Hide the cream overlay — cover shows through cleanly
+      if (overlay) overlay.style.opacity = '0'
+      // Cast shadow on the arriving page: a gradient that follows the fold edge
+      // and peaks at mid-turn, giving depth to the wipe without a cream wall
       if (stripe) {
-        stripe.style.left       = `calc(${foldPct}% - 3px)`
+        stripe.style.left       = `calc(${foldPct}% - 18px)`
+        stripe.style.width      = '18px'
         stripe.style.background = `linear-gradient(90deg,
-          rgba(0,0,0,${0.06 * s}) 0%,
-          rgba(255,255,255,${0.7 * s}) 40%,
-          rgba(0,0,0,${0.25 * s}) 100%)`
+          transparent 0%,
+          rgba(0,0,0,${0.22 * s}) 60%,
+          rgba(0,0,0,${0.38 * s}) 100%)`
         stripe.style.opacity    = '1'
       }
     }
@@ -542,7 +536,7 @@ export default function FeaturedPage() {
 
         {/* ── fold crease strip — bright edge highlight ── */}
         <div ref={foldLineRef}
-          style={{ position:'absolute', top:0, bottom:0, width:6, pointerEvents:'none', opacity:0 }} />
+          style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
 
       </div>
 
