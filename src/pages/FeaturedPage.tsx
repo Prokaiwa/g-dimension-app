@@ -163,6 +163,9 @@ export default function FeaturedPage() {
     const W = window.innerWidth
     // sin peak at midpoint — drives shadow/crease intensity
     const s = Math.sin(p * Math.PI)
+    // Cream fades out in the last 15% of the turn so the arriving page bleeds through
+    // naturally instead of a cream-wall → instant-snap at completion
+    const cA = Math.min(1, Math.max(0, (1 - p) / 0.15))
 
     if (dir === 'fwd') {
       // Fold line moves right→left: at p=0 it's at 100% (right edge), at p=1 it's at 0% (left)
@@ -179,8 +182,8 @@ export default function FeaturedPage() {
         overlay.style.background = `linear-gradient(90deg,
           rgba(0,0,0,${0.55 * s}) 0%,
           rgba(0,0,0,${0.15 * s}) 10%,
-          #ede8df 28%,
-          #e8e3d8 100%)`
+          rgba(237,232,223,${cA}) 28%,
+          rgba(232,227,216,${cA}) 100%)`
         overlay.style.opacity    = '1'
       }
       if (stripe) {
@@ -206,8 +209,8 @@ export default function FeaturedPage() {
         overlay.style.background = `linear-gradient(270deg,
           rgba(0,0,0,${0.55 * s}) 0%,
           rgba(0,0,0,${0.15 * s}) 10%,
-          #ede8df 28%,
-          #e8e3d8 100%)`
+          rgba(237,232,223,${cA}) 28%,
+          rgba(232,227,216,${cA}) 100%)`
         overlay.style.opacity    = '1'
       }
       if (stripe) {
@@ -226,23 +229,42 @@ export default function FeaturedPage() {
   function finishTurn(completed: boolean) {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
     progressRef.current = 0
-    const dir = turnDirRef.current
-    if (completed) {
-      const nxt = dir === 'fwd' ? pageIdxRef.current + 1 : pageIdxRef.current - 1
-      pageIdxRef.current = nxt
-      setPageIdx(nxt)
-    }
-    // Hide fold elements and reset their geometry so fwd/back don't bleed into each other
+    const dir     = turnDirRef.current
+    const fromIdx = pageIdxRef.current
+
+    // Hide fold elements first (cream is already transparent at p=1 due to cA fade)
     if (foldOverlayRef.current) {
       const o = foldOverlayRef.current
       o.style.opacity = '0'; o.style.left = '0'; o.style.right = '0'; o.style.width = 'auto'
     }
-    if (foldLineRef.current)    foldLineRef.current.style.opacity    = '0'
-    // Reset all page transforms
-    pageEls.current.forEach((el) => {
-      if (el) { el.style.clipPath = ''; el.style.transform = 'none'; el.style.transformOrigin = '' }
-    })
+    if (foldLineRef.current) foldLineRef.current.style.opacity = '0'
     shadowEls.current.forEach((el) => { if (el) el.style.opacity = '0' })
+
+    if (completed) {
+      const nxt   = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
+      const nxtEl = pageEls.current[nxt]
+      const fromEl = pageEls.current[fromIdx]
+      // 1. Promote arriving page to front BEFORE clearing leaving page's clip-path
+      //    so there's never a frame where the leaving page is unclipped and on top.
+      if (nxtEl) { nxtEl.style.zIndex = '4'; nxtEl.style.clipPath = ''; nxtEl.style.transform = 'none'; nxtEl.style.transformOrigin = '' }
+      // 2. Now safe to reset leaving page (it's behind the arriving page)
+      if (fromEl) { fromEl.style.zIndex = '1'; fromEl.style.clipPath = ''; fromEl.style.transform = 'none'; fromEl.style.transformOrigin = '' }
+      // 3. Reset all other pages
+      pageEls.current.forEach((el, i) => {
+        if (el && i !== nxt && i !== fromIdx) { el.style.clipPath = ''; el.style.transform = 'none'; el.style.transformOrigin = ''; el.style.zIndex = '1' }
+      })
+      pageIdxRef.current = nxt
+      setPageIdx(nxt)
+    } else {
+      // Snap back — just reset the leaving page
+      const fromEl = pageEls.current[fromIdx]
+      if (fromEl) { fromEl.style.clipPath = ''; fromEl.style.transform = 'none'; fromEl.style.transformOrigin = ''; fromEl.style.zIndex = '3' }
+      // Reset arriving page (it was armed but never completed)
+      const abortIdx = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
+      const abortEl  = pageEls.current[abortIdx]
+      if (abortEl) { abortEl.style.clipPath = ''; abortEl.style.transform = 'none'; abortEl.style.transformOrigin = ''; abortEl.style.zIndex = '1' }
+    }
+
     isTurningRef.current = false
     setIsTurning(false)
   }
