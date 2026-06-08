@@ -167,52 +167,55 @@ export default function FeaturedPage() {
     if (dir === 'fwd') {
       // Fold line moves right→left: at p=0 it's at 100% (right edge), at p=1 it's at 0% (left)
       const foldPct = (1 - p) * 100
-      // Front face: clip away everything right of the fold line
-      fromEl.style.clipPath       = `inset(0 ${p * 100}% 0 0)`
+      // Front face: clip away everything right of the fold line; tilt the remaining slice
+      fromEl.style.clipPath        = `inset(0 ${p * 100}% 0 0)`
       fromEl.style.transformOrigin = `${foldPct}% 50%`
-      fromEl.style.transform      = `perspective(${W * 2}px) rotateY(${-p * 22}deg)`
-      // Paper-back overlay fills the folded region (right of fold line)
+      fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${-p * 14}deg)`
+      // Paper-back: cream fill right of fold line (shadow at crease edge, cream further right)
       if (overlay) {
         overlay.style.left       = `${foldPct}%`
         overlay.style.right      = '0'
+        overlay.style.width      = 'auto'
         overlay.style.background = `linear-gradient(90deg,
-          rgba(0,0,0,${0.52 * s}) 0%,
-          rgba(0,0,0,${0.18 * s}) 8%,
-          #ede8df 22%,
+          rgba(0,0,0,${0.55 * s}) 0%,
+          rgba(0,0,0,${0.15 * s}) 10%,
+          #ede8df 28%,
           #e8e3d8 100%)`
         overlay.style.opacity    = '1'
       }
-      // Crease strip at fold line
       if (stripe) {
         stripe.style.left       = `calc(${foldPct}% - 3px)`
         stripe.style.background = `linear-gradient(90deg,
-          rgba(0,0,0,${0.28 * s}) 0%,
-          rgba(255,255,255,${0.72 * s}) 40%,
-          rgba(0,0,0,${0.08 * s}) 100%)`
+          rgba(0,0,0,${0.25 * s}) 0%,
+          rgba(255,255,255,${0.7 * s}) 40%,
+          rgba(0,0,0,${0.06 * s}) 100%)`
         stripe.style.opacity    = '1'
       }
     } else {
       // Fold line moves left→right: at p=0 it's at 0% (left), at p=1 it's at 100% (right)
       const foldPct = p * 100
-      fromEl.style.clipPath       = `inset(0 0 0 ${p * 100}%)`
+      // Front face: clip away everything LEFT of the fold line; tilt the remaining right slice
+      fromEl.style.clipPath        = `inset(0 0 0 ${p * 100}%)`
       fromEl.style.transformOrigin = `${foldPct}% 50%`
-      fromEl.style.transform      = `perspective(${W * 2}px) rotateY(${p * 22}deg)`
+      fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${p * 14}deg)`
+      // Paper-back: cream fill left of fold line (shadow at crease, cream further left)
       if (overlay) {
         overlay.style.left       = '0'
-        overlay.style.right      = `${(1 - p) * 100}%`
+        overlay.style.right      = 'auto'
+        overlay.style.width      = `${foldPct}%`
         overlay.style.background = `linear-gradient(270deg,
-          rgba(0,0,0,${0.52 * s}) 0%,
-          rgba(0,0,0,${0.18 * s}) 8%,
-          #ede8df 22%,
+          rgba(0,0,0,${0.55 * s}) 0%,
+          rgba(0,0,0,${0.15 * s}) 10%,
+          #ede8df 28%,
           #e8e3d8 100%)`
         overlay.style.opacity    = '1'
       }
       if (stripe) {
         stripe.style.left       = `calc(${foldPct}% - 3px)`
         stripe.style.background = `linear-gradient(90deg,
-          rgba(0,0,0,${0.08 * s}) 0%,
-          rgba(255,255,255,${0.72 * s}) 40%,
-          rgba(0,0,0,${0.28 * s}) 100%)`
+          rgba(0,0,0,${0.06 * s}) 0%,
+          rgba(255,255,255,${0.7 * s}) 40%,
+          rgba(0,0,0,${0.25 * s}) 100%)`
         stripe.style.opacity    = '1'
       }
     }
@@ -229,8 +232,11 @@ export default function FeaturedPage() {
       pageIdxRef.current = nxt
       setPageIdx(nxt)
     }
-    // Hide fold elements
-    if (foldOverlayRef.current) foldOverlayRef.current.style.opacity = '0'
+    // Hide fold elements and reset their geometry so fwd/back don't bleed into each other
+    if (foldOverlayRef.current) {
+      const o = foldOverlayRef.current
+      o.style.opacity = '0'; o.style.left = '0'; o.style.right = '0'; o.style.width = 'auto'
+    }
     if (foldLineRef.current)    foldLineRef.current.style.opacity    = '0'
     // Reset all page transforms
     pageEls.current.forEach((el) => {
@@ -242,11 +248,18 @@ export default function FeaturedPage() {
   }
 
   function animateTo(from: number, to: number, dir: 'fwd'|'back', cb: (done: boolean) => void) {
-    const dur = Math.max(120, Math.abs(to - from) * 300)
+    // Completing (to=1): ease-out cubic — physical deceleration, no hard snap.
+    // Aborting (to=0): ease-in so it accelerates back quickly.
+    const completing = to >= 1
+    const dist = Math.abs(to - from)
+    const dur  = Math.max(240, dist * 540) // 540ms full turn feels like real paper
     const t0 = performance.now(), delta = to - from
     const run = (now: number) => {
       const t = Math.min((now - t0) / dur, 1)
-      const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t
+      // Ease-out cubic when completing, ease-in-out when snapping back
+      const e = completing
+        ? 1 - Math.pow(1 - t, 3)
+        : t < 0.5 ? 2*t*t : -1+(4-2*t)*t
       progressRef.current = from + delta * e
       applyTransforms(progressRef.current, dir)
       if (t < 1) { rafRef.current = requestAnimationFrame(run) } else { cb(to >= 1) }
