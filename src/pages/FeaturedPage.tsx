@@ -1,5 +1,6 @@
 // Route: /featured — "Featured" magazine (aesthetic island — like Parts Bin)
-// COVER (4 templates, dot-cycle only) + SPEC SPREAD + finger-tracked 3D page-turn
+// COVER (4 templates, swipe L/R to cycle) + SPEC SPREAD + finger-tracked 3D page-turn
+// Swipe left/right on cover = cycle templates. Drag from right 30% leftward = turn page forward.
 // Uses FONT_MASTHEAD (Anton) + FONT_DECK (Oswald), not the app type system.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -101,7 +102,7 @@ export default function FeaturedPage() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [loading, setLoading] = useState(true)
   const [coverIdx, setCoverIdx] = useState(0)
-  // pageIdx: 0 = cover at rest, 1 = spec at rest
+  // pageIdx: 0 = cover, 1 = spec
   const [pageIdx, setPageIdx] = useState<0 | 1>(0)
   const [isTurning, setIsTurning] = useState(false)
 
@@ -109,20 +110,23 @@ export default function FeaturedPage() {
   const containerRef   = useRef<HTMLDivElement>(null)
   const coverPageRef   = useRef<HTMLDivElement>(null)
   const specPageRef    = useRef<HTMLDivElement>(null)
+  // Shadow overlays sit on top of page content — darkens page as it folds/reveals
   const coverShadowRef = useRef<HTMLDivElement>(null)
   const specShadowRef  = useRef<HTMLDivElement>(null)
+  // Fold-edge highlight strip — thin bright line at the rotating edge
+  const foldHlRef      = useRef<HTMLDivElement>(null)
 
-  // ── synchronous turn-state refs (no re-render needed) ────────────────────────
+  // ── turn state refs (sync, no re-render) ─────────────────────────────────────
   const isTurningRef = useRef(false)
   const pageIdxRef   = useRef<0 | 1>(0)
   const turnDirRef   = useRef<'fwd' | 'back'>('fwd')
   const progressRef  = useRef(0)
   const rafRef       = useRef<number | null>(null)
 
-  // ── touch-tracking refs ───────────────────────────────────────────────────────
-  const touchStartXRef = useRef<number | null>(null)
-  const touchStartYRef = useRef<number | null>(null)
-  const isDragRef      = useRef(false)
+  // ── touch refs ───────────────────────────────────────────────────────────────
+  const touchStartXRef   = useRef<number | null>(null)
+  const touchStartYRef   = useRef<number | null>(null)
+  const isDragTurnRef    = useRef(false) // true when touch is driving a page-turn drag
 
   // ── data fetch ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -130,7 +134,6 @@ export default function FeaturedPage() {
     ;(async () => {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
-
       const [carRes, jobsRes] = await Promise.all([
         supabase.from('cars')
           .select('year, make, model, variant, trim, nickname, horsepower, forced_induction, drivetrain, purchase_date, showcase_photo_url, garage_photo_url, original_photo_url')
@@ -140,16 +143,13 @@ export default function FeaturedPage() {
           .eq('car_id', carId).eq('status', 'installed')
           .order('created_at', { ascending: true }),
       ])
-
       if (!alive) return
       const c = (carRes.data as unknown as Car) ?? null
       setCar(c)
-
       const cands: Photo[] = []
       if (c?.original_photo_url) cands.push({ url: c.original_photo_url, mode: 'full', label: 'Original' })
-      if (c?.garage_photo_url) cands.push({ url: c.garage_photo_url, mode: 'cutout', label: 'No BG' })
+      if (c?.garage_photo_url)   cands.push({ url: c.garage_photo_url,   mode: 'cutout', label: 'No BG' })
       setPhotos(cands)
-
       setJobs((jobsRes.data as unknown as Job[]) ?? [])
       if (carRes.data) setCoverIdx(seedFrom(carId) % TEMPLATES.length)
       setLoading(false)
@@ -157,7 +157,7 @@ export default function FeaturedPage() {
     return () => { alive = false }
   }, [])
 
-  // ── sync z-index to rest state after pageIdx changes ─────────────────────────
+  // ── z-index at rest: active page on top ──────────────────────────────────────
   useLayoutEffect(() => {
     if (isTurningRef.current) return
     if (coverPageRef.current) coverPageRef.current.style.zIndex = pageIdx === 0 ? '2' : '1'
@@ -166,21 +166,24 @@ export default function FeaturedPage() {
 
   // ── turn helpers ──────────────────────────────────────────────────────────────
 
-  // Apply rotation + shadow at progress p in [0,1].
-  // fwd: cover 0°→-90°, spec 90°→0°  |  back: spec 0°→90°, cover -90°→0°
+  // Direct DOM update at progress p ∈ [0,1].
+  // fwd: cover 0°→-90° (folds away left), spec 90°→0° (unfolds from right).
+  // back: spec 0°→90° (folds right), cover -90°→0° (unfolds from left).
   function applyTransforms(p: number, dir: 'fwd' | 'back') {
     const cov = coverPageRef.current, spc = specPageRef.current
     if (!cov || !spc) return
     cov.style.transform = `rotateY(${dir === 'fwd' ? -90 * p : -90 * (1 - p)}deg)`
     spc.style.transform = `rotateY(${dir === 'fwd' ? 90 * (1 - p) : 90 * p}deg)`
-    // Fold shadow peaks mid-turn (sin curve); reveal shadow fades as new page comes into view
-    const fold = Math.sin(p * Math.PI) * 0.65
-    const rev  = (1 - p) * 0.45
+    // Fold shadow: sin curve peaks at midpoint on the turning (folding) page
+    // Reveal shadow: fades as new page swings into view
+    const fold = Math.sin(p * Math.PI) * 0.72
+    const rev  = (1 - p) * 0.5
     if (coverShadowRef.current) coverShadowRef.current.style.opacity = String(dir === 'fwd' ? fold : rev)
     if (specShadowRef.current)  specShadowRef.current.style.opacity  = String(dir === 'fwd' ? rev  : fold)
+    // Fold-edge highlight: bright strip peaking at mid-turn
+    if (foldHlRef.current) foldHlRef.current.style.opacity = String(Math.sin(p * Math.PI) * 0.7)
   }
 
-  // Called when turn completes or snaps back
   function finishTurn(completed: boolean) {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
     progressRef.current = 0
@@ -191,46 +194,41 @@ export default function FeaturedPage() {
     }
     isTurningRef.current = false
     setIsTurning(false)
-    // Reset transforms to flat
-    if (coverPageRef.current)  coverPageRef.current.style.transform  = 'rotateY(0deg)'
-    if (specPageRef.current)   specPageRef.current.style.transform   = 'rotateY(0deg)'
-    if (coverShadowRef.current) coverShadowRef.current.style.opacity = '0'
-    if (specShadowRef.current)  specShadowRef.current.style.opacity  = '0'
+    if (coverPageRef.current)   coverPageRef.current.style.transform  = 'rotateY(0deg)'
+    if (specPageRef.current)    specPageRef.current.style.transform   = 'rotateY(0deg)'
+    if (coverShadowRef.current) coverShadowRef.current.style.opacity  = '0'
+    if (specShadowRef.current)  specShadowRef.current.style.opacity   = '0'
+    if (foldHlRef.current)      foldHlRef.current.style.opacity       = '0'
   }
 
-  // RAF animation from `from` to `to` progress; calls cb(didComplete) when done
   function animateTo(from: number, to: number, dir: 'fwd' | 'back', cb: (done: boolean) => void) {
-    const dur = Math.max(100, Math.abs(to - from) * 280)
-    const t0  = performance.now()
-    const delta = to - from
+    const dur = Math.max(100, Math.abs(to - from) * 300)
+    const t0  = performance.now(), delta = to - from
     const run = (now: number) => {
       const t = Math.min((now - t0) / dur, 1)
-      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t // ease-in-out quad
+      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
       const p = from + delta * e
       progressRef.current = p
       applyTransforms(p, dir)
-      if (t < 1) { rafRef.current = requestAnimationFrame(run) }
-      else { cb(to >= 1) }
+      if (t < 1) { rafRef.current = requestAnimationFrame(run) } else { cb(to >= 1) }
     }
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(run)
   }
 
-  // Programmatic turn (button tap) — animates full 0→1
+  // Programmatic full turn (button tap)
   function runTurn(dir: 'fwd' | 'back') {
     if (isTurningRef.current) return
     isTurningRef.current = true
     turnDirRef.current = dir
     setIsTurning(true)
-    // Folding page sits on top
     if (coverPageRef.current) coverPageRef.current.style.zIndex = dir === 'fwd' ? '2' : '1'
     if (specPageRef.current)  specPageRef.current.style.zIndex  = dir === 'fwd' ? '1' : '2'
     applyTransforms(0, dir)
     animateTo(0, 1, dir, finishTurn)
   }
 
-  // ── non-passive touchmove (needed to preventDefault during horizontal drag) ───
-  // Store latest function pointers in refs so the useEffect closure stays fresh
+  // ── stable fn refs for non-passive touchmove ──────────────────────────────────
   const applyRef   = useRef(applyTransforms)
   const finishRef  = useRef(finishTurn)
   const animateRef = useRef(animateTo)
@@ -238,90 +236,106 @@ export default function FeaturedPage() {
   finishRef.current  = finishTurn
   animateRef.current = animateTo
 
+  // Non-passive touchmove: needed for preventDefault on horizontal drags.
+  // Only activates when the user starts from the right-30% of the cover (the "turn corner"),
+  // OR anywhere on the spec page going right.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-
     const onMove = (e: TouchEvent) => {
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
 
-      if (!isDragRef.current) {
-        // Wait for enough movement to determine intent
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
-        // Vertical scroll wins — let the inner scroll handle it
-        if (Math.abs(dy) > Math.abs(dx)) { touchStartXRef.current = null; return }
-        // Horizontal drag — determine direction vs page
+      if (!isDragTurnRef.current) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
+        // Let vertical scrolling win
+        if (Math.abs(dy) > Math.abs(dx) * 0.8) { touchStartXRef.current = null; return }
+
         const pg = pageIdxRef.current
-        if (pg === 0 && dx < 0) {
-          // Cover, swipe left → forward
-          isDragRef.current = true
-          isTurningRef.current = true
-          turnDirRef.current = 'fwd'
+        const startX = touchStartXRef.current!
+        const W = window.innerWidth
+
+        if (pg === 0 && dx < 0 && startX >= W * 0.70) {
+          // Cover, right-30% zone, swipe left → page-turn forward
+          isDragTurnRef.current = true
+          isTurningRef.current  = true
+          turnDirRef.current    = 'fwd'
           setIsTurning(true)
           if (coverPageRef.current) coverPageRef.current.style.zIndex = '2'
           if (specPageRef.current)  specPageRef.current.style.zIndex  = '1'
         } else if (pg === 1 && dx > 0) {
-          // Spec, swipe right → back
-          isDragRef.current = true
-          isTurningRef.current = true
-          turnDirRef.current = 'back'
+          // Spec, any swipe right → page-turn back
+          isDragTurnRef.current = true
+          isTurningRef.current  = true
+          turnDirRef.current    = 'back'
           setIsTurning(true)
           if (coverPageRef.current) coverPageRef.current.style.zIndex = '1'
           if (specPageRef.current)  specPageRef.current.style.zIndex  = '2'
         } else {
+          // Not a page-turn zone — don't intercept, let React onTouchEnd handle template cycle
           touchStartXRef.current = null
           return
         }
       }
 
       e.preventDefault()
-      const dir    = turnDirRef.current
-      const rawDx  = dir === 'fwd' ? -dx : dx
-      const p      = Math.min(Math.max(rawDx / (window.innerWidth * 0.6), 0), 1)
+      const dir   = turnDirRef.current
+      const rawDx = dir === 'fwd' ? -dx : dx
+      const p     = Math.min(Math.max(rawDx / (window.innerWidth * 0.65), 0), 1)
       progressRef.current = p
       applyRef.current(p, dir)
     }
-
     container.addEventListener('touchmove', onMove, { passive: false })
     return () => container.removeEventListener('touchmove', onMove)
   }, [])
 
+  // React handlers (passive — template cycle on cover, release on page turn)
   function handleTouchStart(e: React.TouchEvent) {
     if (isTurningRef.current) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
-    isDragRef.current = false
+    isDragTurnRef.current  = false
   }
 
-  function handleTouchEnd() {
-    if (!isDragRef.current) { touchStartXRef.current = null; return }
-    isDragRef.current = false
+  function handleTouchEnd(e: React.TouchEvent) {
+    const endX = e.changedTouches[0].clientX
+
+    if (isDragTurnRef.current) {
+      // Release from page-turn drag
+      isDragTurnRef.current  = false
+      touchStartXRef.current = null
+      const p = progressRef.current, dir = turnDirRef.current
+      if (p >= 0.35) animateRef.current(p, 1, dir, finishRef.current)
+      else           animateRef.current(p, 0, dir, () => finishRef.current(false))
+      return
+    }
+
+    // Not a page-turn drag: handle template cycling on cover
+    if (touchStartXRef.current !== null && pageIdx === 0 && !isTurning) {
+      const dx = endX - touchStartXRef.current
+      const dy = e.changedTouches[0].clientY - (touchStartYRef.current ?? 0)
+      if (Math.abs(dx) > 45 && Math.abs(dy) < 70) {
+        cycleCover(dx < 0 ? 1 : -1)
+      }
+    }
     touchStartXRef.current = null
-    const p   = progressRef.current
-    const dir = turnDirRef.current
-    // Complete if dragged ≥ 35%, snap back otherwise
-    if (p >= 0.35) animateRef.current(p, 1, dir, finishRef.current)
-    else           animateRef.current(p, 0, dir, () => finishRef.current(false))
   }
 
   // ── computed display values ───────────────────────────────────────────────────
-  const seed = useMemo(() => seedFrom((car?.nickname ?? '') + (car?.year ?? '')), [car])
-  const rng  = useMemo(() => mulberry32(seed || 1), [seed])
-
+  const seed       = useMemo(() => seedFrom((car?.nickname ?? '') + (car?.year ?? '')), [car])
+  const rng        = useMemo(() => mulberry32(seed || 1), [seed])
   const purchaseYear = car?.purchase_date ? new Date(car.purchase_date).getFullYear() : null
-  const thisYear     = new Date().getFullYear()
-  const vol          = purchaseYear ? Math.max(1, thisYear - purchaseYear + 1) : 1
-  const issue        = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
-  const carName      = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
-  const headline     = (car?.nickname || car?.model || 'YOUR BUILD').toString()
-  const fi           = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-', ' ') : null
-  const powerLine    = [
+  const thisYear   = new Date().getFullYear()
+  const vol        = purchaseYear ? Math.max(1, thisYear - purchaseYear + 1) : 1
+  const issue      = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
+  const carName    = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
+  const headline   = (car?.nickname || car?.model || 'YOUR BUILD').toString()
+  const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-', ' ') : null
+  const powerLine  = [
     car?.horsepower ? `${car.horsepower} HP` : null, fi,
     car?.drivetrain ? car.drivetrain.toUpperCase() : null,
   ].filter(Boolean).join(' · ')
-
   const bars   = useMemo(() => { const r = mulberry32((seed || 1) ^ 0x9e3779b9); return Array.from({ length: 20 }, () => 2 + Math.floor(r() * 4)) }, [seed])
   const barNum = useMemo(() => String(70000 + Math.floor(rng() * 29999)) + ' ' + String(10 + Math.floor(rng() * 89)), [rng])
 
@@ -341,40 +355,32 @@ export default function FeaturedPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* SVG spine-warp filter */}
-      <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }} aria-hidden>
-        <defs>
-          <filter id="feat-spine-warp" x="-5%" width="115%" y="0%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.5" numOctaves="3" seed="11" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale={isTurning ? 12 : 0}
-              xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      </svg>
+      {/* ─── page stage ─── */}
+      {/* Lower perspective = more dramatic depth on rotation. backface-visibility hides the back face. */}
+      <div style={{ position: 'absolute', inset: 0, perspective: '800px', perspectiveOrigin: '50% 50%' }}>
 
-      {/* ─── page stage — perspective wrapper for 3D turn ─── */}
-      <div style={{ position: 'absolute', inset: 0, perspective: '1100px', perspectiveOrigin: '50% 50%' }}>
-
-        {/* ══ COVER PAGE ══ — always mounted; z-index managed by turn helpers */}
+        {/* ══ COVER PAGE ══ */}
         <div
           ref={coverPageRef}
-          style={{ position: 'absolute', inset: 0, transformOrigin: 'right center', willChange: 'transform', zIndex: 2 }}
+          style={{
+            position: 'absolute', inset: 0,
+            transformOrigin: 'right center',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            zIndex: 2,
+          }}
         >
-          {/* fold/reveal shadow overlay */}
-          <div ref={coverShadowRef} style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, zIndex: 10, pointerEvents: 'none' }} />
-
           <div key={t.id} style={{ position: 'absolute', inset: 0, animation: !isTurning ? `featFade 360ms ${EASING_SETTLE} both` : 'none' }}>
             {/* backdrop */}
             <div style={{ position: 'absolute', inset: 0, background: t.surfaceBg }} />
 
-            {/* cover photo — spine-warp filter active during turn */}
+            {/* cover photo */}
             {photo ? (
               <img src={photo.url} alt=""
                 style={photo.mode === 'cutout'
-                  ? { position: 'absolute', inset: 'auto 0 5% 0', width: '100%', height: '68%', objectFit: 'contain', objectPosition: 'center',
-                      filter: isTurning ? 'url(#feat-spine-warp)' : 'none' }
-                  : { position: 'absolute', top: 0, left: 0, width: '100%', height: '64%', objectFit: 'cover', objectPosition: 'center 42%',
-                      filter: isTurning ? 'url(#feat-spine-warp)' : 'none' }
+                  ? { position: 'absolute', inset: 'auto 0 5% 0', width: '100%', height: '68%', objectFit: 'contain', objectPosition: 'center' }
+                  : { position: 'absolute', top: 0, left: 0, width: '100%', height: '64%', objectFit: 'cover', objectPosition: 'center 42%' }
                 }
               />
             ) : (
@@ -460,11 +466,11 @@ export default function FeaturedPage() {
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03, mixBlendMode: 'screen',
               backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
 
-            {/* right-edge spine gutter */}
+            {/* right spine gutter */}
             <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 32, pointerEvents: 'none',
               background: 'linear-gradient(270deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.06) 55%, transparent 100%)' }} />
 
-            {/* "INSIDE ▸" trigger chip */}
+            {/* "INSIDE ▸" trigger — tapping always does full programmatic turn */}
             <div
               onClick={() => !isTurning && runTurn('fwd')}
               style={{ position: 'absolute', right: 12, bottom: 50, zIndex: 9,
@@ -474,26 +480,48 @@ export default function FeaturedPage() {
               INSIDE ▸
             </div>
           </div>
+
+          {/* fold shadow — AFTER content so it paints on top */}
+          <div ref={coverShadowRef}
+            style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.85) 100%)',
+              opacity: 0 }} />
         </div>
 
-        {/* ══ SPEC PAGE ══ — always mounted; z-index managed by turn helpers */}
+        {/* ══ SPEC PAGE ══ */}
         <div
           ref={specPageRef}
-          style={{ position: 'absolute', inset: 0, transformOrigin: 'left center', willChange: 'transform', zIndex: 1 }}
+          style={{
+            position: 'absolute', inset: 0,
+            transformOrigin: 'left center',
+            willChange: 'transform',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            zIndex: 1,
+          }}
         >
-          {/* fold/reveal shadow overlay */}
-          <div ref={specShadowRef} style={{ position: 'absolute', inset: 0, background: '#000', opacity: 0, zIndex: 10, pointerEvents: 'none' }} />
-
           <SpecSpread
             car={car} jobs={jobs} carName={carName} powerLine={powerLine}
             purchaseYear={purchaseYear} theme={theme} vol={vol} issue={issue}
             onBack={() => !isTurning && runTurn('back')}
           />
+
+          {/* reveal shadow — AFTER content so it paints on top */}
+          <div ref={specShadowRef}
+            style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 60%, transparent 100%)',
+              opacity: 0 }} />
         </div>
+
+        {/* Fold-edge highlight strip — floats at the right spine during cover turn */}
+        <div ref={foldHlRef}
+          style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 3, pointerEvents: 'none',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55))',
+            opacity: 0, zIndex: 20 }} />
 
       </div>
 
-      {/* ─── chrome (always on top) ─── */}
+      {/* ─── chrome ─── */}
       <div
         onClick={() => navigate('/home')}
         style={{ position: 'absolute', top: 14, left: 12, zIndex: 30, fontFamily: FONT_DECK, fontSize: 30, lineHeight: 1,
@@ -519,7 +547,7 @@ export default function FeaturedPage() {
             </div>
           )}
 
-          {/* tap zones for template cycling — left 26%, right 22% (narrowed to not conflict with INSIDE chip) */}
+          {/* tap zones for template cycling */}
           <div onClick={() => cycleCover(-1)} style={{ position: 'absolute', top: '30%', bottom: '22%', left: 0, width: '26%', zIndex: 15 }} />
           <div onClick={() => cycleCover(1)}  style={{ position: 'absolute', top: '30%', bottom: '22%', right: 0, width: '22%', zIndex: 15 }} />
 
@@ -601,7 +629,7 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
   return (
     <div style={{ position: 'absolute', inset: 0, background: theme.pageBg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* left spine gutter shadow */}
+      {/* left spine gutter */}
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 32, pointerEvents: 'none', zIndex: 4,
         background: theme.gutterShadow }} />
 
@@ -618,10 +646,9 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
         </span>
       </div>
 
-      {/* page content — scrollable */}
+      {/* scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 24px 28px', WebkitOverflowScrolling: 'touch' as const }}>
 
-        {/* car identity block */}
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_MASTHEAD, color: theme.ink, fontSize: 38, lineHeight: 0.88,
             textTransform: 'uppercase', fontStyle: 'italic', letterSpacing: '-0.02em' }}>
@@ -645,7 +672,7 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
           </div>
         </div>
 
-        {/* ── TUNING MENU box ── */}
+        {/* TUNING MENU */}
         <div style={{ border: `1.5px solid ${theme.menuBorder}`, marginBottom: 20 }}>
           <div style={{ background: theme.menuHeaderBg, padding: '7px 12px',
             display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -658,7 +685,6 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
               {jobs.length} MOD{jobs.length !== 1 ? 'S' : ''} INSTALLED
             </span>
           </div>
-
           {activeGroups.length === 0 ? (
             <div style={{ padding: '20px 12px', textAlign: 'center',
               fontFamily: FONT_DECK, color: theme.subInk, fontSize: 10.5,
@@ -694,7 +720,7 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
           )}
         </div>
 
-        {/* ── quick-stats grid ── */}
+        {/* quick-stats grid */}
         {stats.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
             outline: `1px solid ${theme.rule}`, background: theme.rule, marginBottom: 8 }}>
@@ -712,7 +738,6 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
             ))}
           </div>
         )}
-
       </div>
 
       {/* folio bar */}
@@ -732,7 +757,7 @@ function SpecSpread({ car, jobs, carName, powerLine, purchaseYear, theme, vol, i
         </span>
       </div>
 
-      {/* paper noise grain */}
+      {/* paper grain */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.025, mixBlendMode: 'multiply',
         backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
     </div>
