@@ -197,10 +197,12 @@ export default function FeaturedPage() {
     } else {
       // Fold line moves left→right: at p=0 it's at 0% (left), at p=1 it's at 100% (right)
       const foldPct = p * 100
-      // Front face: clip away everything LEFT of the fold line; tilt the remaining right slice
+      // Front face: clip the LEFT (folded) portion away.
+      // rotateY NEGATIVE at fold-line pivot: left edge (fold) recedes, right edge stays forward —
+      // this prevents a perspective gap appearing on the right side of the viewport.
       fromEl.style.clipPath        = `inset(0 0 0 ${p * 100}%)`
       fromEl.style.transformOrigin = `${foldPct}% 50%`
-      fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${p * 14}deg)`
+      fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${-p * 12}deg)`
       // Paper-back: cream fill left of fold line (shadow at crease, cream further left)
       if (overlay) {
         overlay.style.left       = '0'
