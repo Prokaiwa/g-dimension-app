@@ -1,8 +1,9 @@
 // Route: /featured — "Featured" magazine (aesthetic island)
 // 3 pages: Cover → Spec spread → Mods spread
-// Page turn: leaving page peels with transformOrigin:'left center' rotateY(+90°) fwd
-//            or transformOrigin:'right center' rotateY(-90°) back — spine-side stays fixed,
-//            free edge goes into screen. Arriving page is static below (natural book turn).
+// Page turn: fold-line sweep via clip-path + transformOrigin-at-fold + slight rotateY tilt.
+//   The fold line travels across the page; left of it: original content (clipped, slightly tilting).
+//   Right of it: paper-back overlay (cream with shadow gradient) + bright crease strip.
+//   Arriving page is static below. No full-page rotation — feels like a real paper fold.
 // Swipe L/R on cover = cycle templates. Drag from right-30% = turn forward. Spec/mods: drag right = back.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -95,6 +96,9 @@ export default function FeaturedPage() {
   // ── DOM refs: one per page ────────────────────────────────────────────────────
   const pageEls   = useRef<(HTMLDivElement | null)[]>(Array(NUM_PAGES).fill(null))
   const shadowEls = useRef<(HTMLDivElement | null)[]>(Array(NUM_PAGES).fill(null))
+  // fold-line elements (shared, not per-page)
+  const foldOverlayRef = useRef<HTMLDivElement>(null)  // paper-back cream face
+  const foldLineRef    = useRef<HTMLDivElement>(null)  // bright crease strip
 
   // ── turn state refs ───────────────────────────────────────────────────────────
   const isTurningRef = useRef(false)
@@ -143,31 +147,77 @@ export default function FeaturedPage() {
 
   // ── turn helpers ──────────────────────────────────────────────────────────────
 
-  // fwd: leaving page (fromIdx) uses left-spine pivot, rotates right-side INTO screen (+90°)
-  // back: leaving page uses right-spine pivot, rotates left-side INTO screen (-90°)
+  // Fold-line sweep: clip-path reveals/hides pages; transformOrigin tracks the fold;
+  // slight rotateY tilt makes the kept slice recede at the crease.
+  // foldOverlayRef = cream paper-back fills the folded-over region
+  // foldLineRef    = thin bright crease strip at the fold edge
   function applyTransforms(p: number, dir: 'fwd'|'back') {
     const fromIdx = pageIdxRef.current
     const toIdx   = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
     const fromEl  = pageEls.current[fromIdx]
     const toEl    = pageEls.current[toIdx]
+    const overlay = foldOverlayRef.current
+    const stripe  = foldLineRef.current
     if (!fromEl || !toEl) return
 
-    if (dir === 'fwd') {
-      fromEl.style.transformOrigin = 'left center'
-      fromEl.style.transform       = `rotateY(${90 * p}deg)`
-    } else {
-      fromEl.style.transformOrigin = 'right center'
-      fromEl.style.transform       = `rotateY(${-90 * p}deg)`
-    }
-    toEl.style.transform = 'rotateY(0deg)'
+    const W = window.innerWidth
+    // sin peak at midpoint — drives shadow/crease intensity
+    const s = Math.sin(p * Math.PI)
 
-    // Fold shadow on the leaving page: peaks at p=0.5, fades to 0 at completion
-    const fold = Math.sin(p * Math.PI) * 0.75
-    const fromShadow = shadowEls.current[fromIdx]
-    const toShadow   = shadowEls.current[toIdx]
-    if (fromShadow) fromShadow.style.opacity = String(fold)
-    // Slight scrim on arriving page (fades away as it's revealed)
-    if (toShadow)   toShadow.style.opacity   = String((1 - p) * 0.35)
+    if (dir === 'fwd') {
+      // Fold line moves right→left: at p=0 it's at 100% (right edge), at p=1 it's at 0% (left)
+      const foldPct = (1 - p) * 100
+      // Front face: clip away everything right of the fold line
+      fromEl.style.clipPath       = `inset(0 ${p * 100}% 0 0)`
+      fromEl.style.transformOrigin = `${foldPct}% 50%`
+      fromEl.style.transform      = `perspective(${W * 2}px) rotateY(${-p * 22}deg)`
+      // Paper-back overlay fills the folded region (right of fold line)
+      if (overlay) {
+        overlay.style.left       = `${foldPct}%`
+        overlay.style.right      = '0'
+        overlay.style.background = `linear-gradient(90deg,
+          rgba(0,0,0,${0.52 * s}) 0%,
+          rgba(0,0,0,${0.18 * s}) 8%,
+          #ede8df 22%,
+          #e8e3d8 100%)`
+        overlay.style.opacity    = '1'
+      }
+      // Crease strip at fold line
+      if (stripe) {
+        stripe.style.left       = `calc(${foldPct}% - 3px)`
+        stripe.style.background = `linear-gradient(90deg,
+          rgba(0,0,0,${0.28 * s}) 0%,
+          rgba(255,255,255,${0.72 * s}) 40%,
+          rgba(0,0,0,${0.08 * s}) 100%)`
+        stripe.style.opacity    = '1'
+      }
+    } else {
+      // Fold line moves left→right: at p=0 it's at 0% (left), at p=1 it's at 100% (right)
+      const foldPct = p * 100
+      fromEl.style.clipPath       = `inset(0 0 0 ${p * 100}%)`
+      fromEl.style.transformOrigin = `${foldPct}% 50%`
+      fromEl.style.transform      = `perspective(${W * 2}px) rotateY(${p * 22}deg)`
+      if (overlay) {
+        overlay.style.left       = '0'
+        overlay.style.right      = `${(1 - p) * 100}%`
+        overlay.style.background = `linear-gradient(270deg,
+          rgba(0,0,0,${0.52 * s}) 0%,
+          rgba(0,0,0,${0.18 * s}) 8%,
+          #ede8df 22%,
+          #e8e3d8 100%)`
+        overlay.style.opacity    = '1'
+      }
+      if (stripe) {
+        stripe.style.left       = `calc(${foldPct}% - 3px)`
+        stripe.style.background = `linear-gradient(90deg,
+          rgba(0,0,0,${0.08 * s}) 0%,
+          rgba(255,255,255,${0.72 * s}) 40%,
+          rgba(0,0,0,${0.28 * s}) 100%)`
+        stripe.style.opacity    = '1'
+      }
+    }
+    toEl.style.transform  = 'none'
+    toEl.style.clipPath   = ''
   }
 
   function finishTurn(completed: boolean) {
@@ -179,9 +229,12 @@ export default function FeaturedPage() {
       pageIdxRef.current = nxt
       setPageIdx(nxt)
     }
-    // Reset transforms on all pages
+    // Hide fold elements
+    if (foldOverlayRef.current) foldOverlayRef.current.style.opacity = '0'
+    if (foldLineRef.current)    foldLineRef.current.style.opacity    = '0'
+    // Reset all page transforms
     pageEls.current.forEach((el) => {
-      if (el) { el.style.transform = 'rotateY(0deg)'; el.style.transformOrigin = 'left center' }
+      if (el) { el.style.clipPath = ''; el.style.transform = 'none'; el.style.transformOrigin = '' }
     })
     shadowEls.current.forEach((el) => { if (el) el.style.opacity = '0' })
     isTurningRef.current = false
@@ -210,10 +263,13 @@ export default function FeaturedPage() {
     isTurningRef.current = true
     turnDirRef.current   = dir
     setIsTurning(true)
-    // Leaving page on top (z=3), arriving page reveals below (z=2)
+    // Leaving page on top (z=4), arriving page reveals below (z=2), fold elements on z=3/5
     const fromEl = pageEls.current[fromIdx], toEl = pageEls.current[toIdx]
-    if (fromEl) fromEl.style.zIndex = '3'
-    if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'rotateY(0deg)' }
+    if (fromEl) fromEl.style.zIndex = '4'
+    if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
+    // Arm fold elements
+    if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
+    if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     applyTransforms(0, dir)
     animateTo(0, 1, dir, finishTurn)
   }
@@ -247,8 +303,10 @@ export default function FeaturedPage() {
           turnDirRef.current    = 'fwd'
           setIsTurning(true)
           const fromEl = pageEls.current[0], toEl = pageEls.current[1]
-          if (fromEl) fromEl.style.zIndex = '3'
-          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'rotateY(0deg)' }
+          if (fromEl) fromEl.style.zIndex = '4'
+          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
+          if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
+          if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
         } else if (pg > 0 && dx > 0) {
           // Spec/Mods: drag right = go back
           isDragTurnRef.current = true
@@ -256,8 +314,10 @@ export default function FeaturedPage() {
           turnDirRef.current    = 'back'
           setIsTurning(true)
           const fromEl = pageEls.current[pg], toEl = pageEls.current[pg - 1]
-          if (fromEl) fromEl.style.zIndex = '3'
-          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'rotateY(0deg)' }
+          if (fromEl) fromEl.style.zIndex = '4'
+          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
+          if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
+          if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
         } else {
           touchStartXRef.current = null; return
         }
@@ -342,7 +402,7 @@ export default function FeaturedPage() {
         {/* ══ PAGE 0: COVER ══ */}
         <div
           ref={el => { pageEls.current[0] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', zIndex:3 }}
+          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:3 }}
         >
           {/* Cover content — key triggers the fade-in on template change */}
           <div key={t.id} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
@@ -417,7 +477,7 @@ export default function FeaturedPage() {
         {/* ══ PAGE 1: SPEC SPREAD ══ */}
         <div
           ref={el => { pageEls.current[1] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', zIndex:1 }}
+          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:1 }}
         >
           <SpecSpread car={car} grouped={grouped} carName={carName} powerLine={powerLine}
             purchaseYear={purchaseYear} theme={theme} vol={vol} issue={issue}
@@ -430,7 +490,7 @@ export default function FeaturedPage() {
         {/* ══ PAGE 2: MODS SPREAD ══ */}
         <div
           ref={el => { pageEls.current[2] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden', zIndex:1 }}
+          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:1 }}
         >
           <ModsSpread car={car} grouped={grouped} totalMods={jobs.length} theme={theme} vol={vol} issue={issue}
             onBack={() => runTurn('back')} />
@@ -438,6 +498,14 @@ export default function FeaturedPage() {
             style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0,
               background:'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)' }} />
         </div>
+
+        {/* ── paper-back overlay — cream face of the folding leaf ── */}
+        <div ref={foldOverlayRef}
+          style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
+
+        {/* ── fold crease strip — bright edge highlight ── */}
+        <div ref={foldLineRef}
+          style={{ position:'absolute', top:0, bottom:0, width:6, pointerEvents:'none', opacity:0 }} />
 
       </div>
 
