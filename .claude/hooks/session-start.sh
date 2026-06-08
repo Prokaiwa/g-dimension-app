@@ -10,4 +10,8 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 fi
 
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}"
+
+# Always start on main — overrides any branch the session environment auto-configures
+git checkout main
+
 npm install
