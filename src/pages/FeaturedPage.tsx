@@ -21,6 +21,7 @@ interface Car {
   year: number | null; make: string | null; model: string | null; variant: string | null
   trim: string | null; nickname: string | null; horsepower: number | null
   forced_induction: string | null; drivetrain: string | null; purchase_date: string | null
+  current_mileage: number | null
   showcase_photo_url: string | null; garage_photo_url: string | null; original_photo_url: string | null
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null }
@@ -82,6 +83,84 @@ const GROUP_LABELS: Record<string,string> = { power:'POWER', chassis:'CHASSIS', 
 
 const NUM_PAGES = 3 // cover, spec, mods
 
+// ─── tagline generator ────────────────────────────────────────────────────────
+// Produces a two-part cover tagline from car data + build stats.
+// Uses a seeded RNG so the same car always gets the same tagline.
+const LUXURY_MAKES = new Set(['lexus','bmw','mercedes','mercedes-benz','cadillac','audi','infiniti','acura','genesis','porsche','maserati','rolls-royce','bentley','jaguar'])
+
+function generateTagline(
+  car: Car, totalMods: number,
+  grouped: Record<string, { length: number }>,
+  purchaseYear: number | null,
+  rng: () => number
+): string {
+  const hp          = car.horsepower ?? 0
+  const fi          = car.forced_induction && car.forced_induction !== 'none'
+  const fiLabel     = fi ? car.forced_induction!.replace('-', ' ') : ''
+  const dr          = (car.drivetrain ?? '').toUpperCase()
+  const powerMods   = grouped.power?.length  ?? 0
+  const chassisMods = grouped.chassis?.length ?? 0
+  const mi          = car.current_mileage ?? 0
+  const yearsOwned  = purchaseYear ? Math.max(0, new Date().getFullYear() - purchaseYear) : 0
+  const isLuxury    = LUXURY_MAKES.has((car.make ?? '').toLowerCase())
+
+  const pick = <T,>(arr: T[]) => arr[Math.floor(rng() * arr.length)]
+
+  let p1: string, p2: string
+
+  if (fi && hp >= 400) {
+    p1 = pick(['Boost-fed build', 'Forced induction machine', `${fiLabel} equipped`])
+    p2 = `${hp}hp through ${dr || 'the wheels'}`
+  } else if (fi && powerMods >= 3) {
+    p1 = pick([`${fiLabel} powered`, 'Forced induction build', 'Boosted and built'])
+    p2 = pick(['Maximum power, street registered', 'Built for the long pull', `${hp > 0 ? hp+'hp' : 'Tuned'} and street ready`])
+  } else if (fi) {
+    p1 = pick([`${fiLabel} equipped`, 'Boost on demand'])
+    p2 = pick(['Streetable power delivery', 'Daily driven, boost fed'])
+  } else if (hp >= 400) {
+    p1 = pick(['All-motor performance', 'Naturally aspirated build', 'Breathing free, pulling hard'])
+    p2 = `${hp}hp of pure intent`
+  } else if (isLuxury && mi > 100000 && chassisMods >= 2) {
+    p1 = pick(['High mileage, high standards', `${Math.round(mi/1000)}k miles, still earning it`])
+    p2 = pick(['Luxury smooth meets sporty handling', 'Pampered and performance-tuned'])
+  } else if (isLuxury && totalMods >= 5) {
+    p1 = pick(['Luxury meets performance', 'Where refinement meets speed', 'Beyond factory spec'])
+    p2 = pick(['Grand touring, reimagined', 'Built beyond the showroom', 'Elevated in every detail'])
+  } else if (isLuxury) {
+    p1 = pick(['Refined grand tourer', 'Luxury smooth', 'Elegance with intent'])
+    p2 = pick(['Built for the distance', 'Meticulously maintained', 'Every detail considered'])
+  } else if (mi > 150000) {
+    p1 = `${Math.round(mi/1000)}k miles and still going strong`
+    p2 = pick(['Routinely pampered', 'Meticulously maintained', 'Every mile well earned'])
+  } else if (mi > 100000) {
+    p1 = pick(['High mileage, high standards', `${Math.round(mi/1000)}k on the clock`])
+    p2 = pick(['Built to outlast expectations', 'Routinely pampered, always ready'])
+  } else if (totalMods >= 14) {
+    p1 = pick(['Nothing left stock', 'Built from the ground up', 'Comprehensive modification list'])
+    p2 = `${totalMods} modifications and counting`
+  } else if (chassisMods >= 3 && powerMods <= 1) {
+    p1 = pick(['Corner-carver setup', 'Chassis-first build', 'Suspension dialed in'])
+    p2 = pick(['Handling before horsepower', 'Built for the twisties', 'Precision over power'])
+  } else if (powerMods >= 4 && chassisMods >= 2) {
+    p1 = pick(['Power and chassis in balance', 'All-around performance build'])
+    p2 = pick(['Built fast, set up right', 'Every system upgraded'])
+  } else if (totalMods >= 6) {
+    p1 = pick(['Thoughtfully modified', 'Carefully curated build', 'Built with purpose'])
+    p2 = pick(['Style meets substance', 'Every mod chosen carefully', 'Quality over quantity'])
+  } else if (totalMods > 0) {
+    p1 = pick(['Tastefully modified', 'Subtly upgraded', 'Restrained but purposeful'])
+    p2 = pick(['Less is more, done right', 'Clean build, clear vision'])
+  } else if (yearsOwned >= 8) {
+    p1 = pick([`${yearsOwned} years of ownership`, 'Long-term relationship'])
+    p2 = pick(['Preserved with pride', 'Original and proud of it'])
+  } else {
+    p1 = pick(['As the factory intended', 'Stock specification'])
+    p2 = pick(['Preserved in original condition', 'Clean and unmolested'])
+  }
+
+  return `${p1} · ${p2}`
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function FeaturedPage() {
   const navigate = useNavigate()
@@ -122,7 +201,7 @@ export default function FeaturedPage() {
       if (!carId) { if (alive) setLoading(false); return }
       const [carRes, jobsRes] = await Promise.all([
         supabase.from('cars')
-          .select('year,make,model,variant,trim,nickname,horsepower,forced_induction,drivetrain,purchase_date,showcase_photo_url,garage_photo_url,original_photo_url')
+          .select('year,make,model,variant,trim,nickname,horsepower,forced_induction,drivetrain,purchase_date,current_mileage,showcase_photo_url,garage_photo_url,original_photo_url')
           .eq('id', carId).is('deleted_at', null).single(),
         supabase.from('jobs').select('id,title,category,brand')
           .eq('car_id', carId).eq('status','installed').order('created_at',{ascending:true}),
@@ -401,7 +480,6 @@ export default function FeaturedPage() {
   const vol        = purchaseYear ? Math.max(1, new Date().getFullYear() - purchaseYear + 1) : 1
   const issue      = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
   const carName    = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
-  const headline   = (car?.nickname || [car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD').toString()
   const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-',' ') : null
   const powerLine  = [car?.horsepower ? `${car.horsepower} HP` : null, fi, car?.drivetrain ? car.drivetrain.toUpperCase() : null].filter(Boolean).join(' · ')
   const t          = TEMPLATES[coverIdx]
@@ -418,6 +496,13 @@ export default function FeaturedPage() {
     }
     return g
   }, [jobs])
+
+  // Tagline — after grouped so generateTagline can use it; separate RNG seed
+  const tagline = useMemo(() => {
+    if (!car) return ''
+    const tRng = mulberry32((seed || 1) ^ 0xf00dcafe)
+    return generateTagline(car, jobs.length, grouped, purchaseYear, tRng)
+  }, [car, jobs.length, grouped, purchaseYear, seed])
 
   if (loading) return <div style={{ position:'fixed', inset:0, background:'#08080a' }} />
 
@@ -497,9 +582,28 @@ export default function FeaturedPage() {
               ? { position:'absolute', left:0, right:0, bottom:90, textAlign:'center', padding:'0 20px' }
               : { position:'absolute', left:16, right:16, bottom:96 }}>
               <span style={{ display:'inline-block', fontFamily:FONT_DECK, fontWeight:600, fontSize:11, letterSpacing:'0.22em', textTransform:'uppercase', color:'#fff', background:t.accent, padding:'3px 8px', marginBottom:10 }}>Feature Car</span>
-              <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:headline.length>12?44:58, textTransform:'uppercase', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{headline}</div>
-              <div style={{ fontFamily:FONT_DECK, fontWeight:500, color:bottomColor, opacity:0.92, fontSize:14, letterSpacing:'0.04em', textTransform:'uppercase', marginTop:8 }}>{carName}{car?.trim?` ${car.trim}`:''}</div>
-              {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:13, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:4 }}>{powerLine}</div>}
+              {/* Big headline only when there's a real custom nickname */}
+              {car?.nickname && (
+                <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:car.nickname.length>12?44:58, textTransform:'uppercase', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{car.nickname}</div>
+              )}
+              {/* Full car name — bigger/bolder when no nickname to take headline role */}
+              <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.95,
+                fontSize: car?.nickname ? 14 : (carName.length > 18 ? 22 : 28),
+                fontStyle: car?.nickname ? 'normal' : 'italic',
+                textTransform:'uppercase', letterSpacing:'-0.01em',
+                textShadow:t.textOnPhoto==='light'?'0 2px 10px rgba(0,0,0,0.5)':'none',
+                marginTop: car?.nickname ? 8 : 4 }}>
+                {carName}{car?.trim ? ` ${car.trim}` : ''}
+              </div>
+              {/* Auto-generated personality tagline */}
+              {tagline && (
+                <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.88,
+                  fontSize:13.5, lineHeight:1.35, marginTop:7,
+                  textShadow:t.textOnPhoto==='light'?'0 1px 8px rgba(0,0,0,0.5)':'none' }}>
+                  {tagline}
+                </div>
+              )}
+              {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
             {/* barcode — alternates position by cover template index */}
