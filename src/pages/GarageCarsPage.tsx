@@ -575,8 +575,7 @@ export default function GarageCarsPage() {
     setSaving(true); setSaveErr(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); setSaveErr('Not signed in.'); return }
-    const nickname = form.nickname.trim() ||
-      [form.year, form.make, form.model, form.variant].filter(Boolean).join(' ')
+    const nickname = form.nickname.trim() || null
     const rawMileage = parseInt(form.mileage) || null
     // DB always stores miles — convert km input
     const mileageInMiles = rawMileage && form.mileageUnit === 'km'

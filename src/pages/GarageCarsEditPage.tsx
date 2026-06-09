@@ -73,12 +73,11 @@ export default function GarageCarsEditPage() {
       .then(({ data: row }) => {
         if (!active) return
         if (!row) { setLoading(false); return }
-        const autoNick = [row.year, row.make, row.model, row.variant].filter(Boolean).join(' ')
         setMeta({ year: row.year, make: row.make, model: row.model, variant: row.variant })
         setData({
           color:             row.color              ?? '',
           colorCode:         row.paint_code         ?? '',
-          nickname:          row.nickname === autoNick ? '' : (row.nickname ?? ''),
+          nickname:          row.nickname            ?? '',
           trim:              row.trim               ?? '',
           variant:           row.variant            ?? '',
           mileage:           row.current_mileage    != null ? String(row.current_mileage) : '',
@@ -124,7 +123,7 @@ export default function GarageCarsEditPage() {
     const update: Record<string, unknown> = {
       color:             data.color.trim()            || null,
       paint_code:        (data.colorCode ?? '').trim() || null,
-      nickname:          data.nickname.trim()         || [meta.year, meta.model, data.variant].filter(Boolean).join(' '),
+      nickname:          data.nickname.trim()         || null,
       trim:              data.trim.trim()             || null,
       variant:           data.variant?.trim()         || null,
       current_mileage:   mileageInMiles,
