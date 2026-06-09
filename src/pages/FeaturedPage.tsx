@@ -401,7 +401,7 @@ export default function FeaturedPage() {
   const vol        = purchaseYear ? Math.max(1, new Date().getFullYear() - purchaseYear + 1) : 1
   const issue      = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
   const carName    = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
-  const headline   = (car?.nickname || car?.model || 'YOUR BUILD').toString()
+  const headline   = (car?.nickname || [car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD').toString()
   const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-',' ') : null
   const powerLine  = [car?.horsepower ? `${car.horsepower} HP` : null, fi, car?.drivetrain ? car.drivetrain.toUpperCase() : null].filter(Boolean).join(' · ')
   const t          = TEMPLATES[coverIdx]
