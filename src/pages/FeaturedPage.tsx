@@ -5,6 +5,7 @@
 //   Right of it: paper-back overlay (cream with shadow gradient) + bright crease strip.
 //   Arriving page is static below. No full-page rotation — feels like a real paper fold.
 // Swipe L/R on cover = cycle templates. Drag from right-30% = turn forward. Spec/mods: drag right = back.
+import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -92,6 +93,7 @@ export default function FeaturedPage() {
   const [coverIdx, setCoverIdx] = useState(0)
   const [pageIdx, setPageIdx]   = useState(0) // 0=cover, 1=spec, 2=mods
   const [isTurning, setIsTurning] = useState(false)
+  const [photoAspect, setPhotoAspect] = useState<number|null>(null)
 
   // ── DOM refs: one per page ────────────────────────────────────────────────────
   const pageEls   = useRef<(HTMLDivElement | null)[]>(Array(NUM_PAGES).fill(null))
@@ -402,8 +404,6 @@ export default function FeaturedPage() {
   const headline   = (car?.nickname || car?.model || 'YOUR BUILD').toString()
   const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-',' ') : null
   const powerLine  = [car?.horsepower ? `${car.horsepower} HP` : null, fi, car?.drivetrain ? car.drivetrain.toUpperCase() : null].filter(Boolean).join(' · ')
-  const bars       = useMemo(() => { const r = mulberry32((seed||1)^0x9e3779b9); return Array.from({length:20},()=>2+Math.floor(r()*4)) },[seed])
-  const barNum     = useMemo(() => String(70000+Math.floor(rng()*29999))+' '+String(10+Math.floor(rng()*89)),[rng])
   const t          = TEMPLATES[coverIdx]
   const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
   const photo      = photos[photoIdx] ?? null
@@ -441,9 +441,18 @@ export default function FeaturedPage() {
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
             {photo && (
               <img src={photo.url} alt=""
+                onLoad={photo.mode==='full' ? (e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) } : undefined}
                 style={photo.mode==='cutout'
                   ? { position:'absolute', inset:'auto 0 5% 0', width:'100%', height:'68%', objectFit:'contain', objectPosition:'center' }
-                  : { position:'absolute', top:0, left:0, width:'100%', height:'64%', objectFit:'cover', objectPosition:'center 42%' }}
+                  : (() => {
+                      const h = photoAspect !== null
+                        ? (photoAspect > 1.3 ? '52%' : photoAspect < 0.85 ? '72%' : '64%')
+                        : '64%'
+                      const pos = photoAspect !== null
+                        ? (photoAspect > 1.3 ? 'center 38%' : photoAspect < 0.85 ? 'center 30%' : 'center 42%')
+                        : 'center 42%'
+                      return { position:'absolute' as const, top:0, left:0, width:'100%', height:h, objectFit:'cover' as const, objectPosition:pos }
+                    })()}
               />
             )}
             {!photo && (
@@ -457,29 +466,48 @@ export default function FeaturedPage() {
 
             {t.band
               ? <div style={{ position:'absolute', top:0, left:0, right:0, background:t.bandBg, padding:'12px 16px 9px' }}>
-                  <Masthead t={t} size={40} /><TopStrip accent={t.accent} dark vol={vol} issue={issue} purchaseYear={purchaseYear} />
+                  <Masthead t={t} size={48} /><TopStrip accent={t.accent} dark vol={vol} issue={issue} purchaseYear={purchaseYear} />
                 </div>
-              : <div style={{ position:'absolute', top:0, left:0, right:0, padding:'52px 16px 10px' }}>
-                  <Masthead t={t} size={46} /><TopStrip accent={t.accent} dark={false} vol={vol} issue={issue} purchaseYear={purchaseYear} />
+              : <div style={{ position:'absolute', top:0, left:0, right:0 }}>
+                  <div style={{
+                    background: t.id === 'ink-black' ? '#111' : 'rgba(0,0,0,0.72)',
+                    padding: '10px 0 8px',
+                    marginTop: 44
+                  }}>
+                    <h1 style={{
+                      fontFamily: FONT_MASTHEAD,
+                      color: t.mastColor,
+                      margin: 0,
+                      lineHeight: 0.88,
+                      fontSize: 'clamp(52px, 14.5vw, 72px)',
+                      letterSpacing: '0.01em',
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                      textTransform: 'uppercase',
+                      width: '100%',
+                      display: 'block',
+                      padding: '0 8px',
+                    }}>G-DIMENSION</h1>
+                  </div>
+                  <TopStrip accent={t.accent} dark={t.id==='ink-black'} vol={vol} issue={issue} purchaseYear={purchaseYear} stripStyle={{ padding:'3px 14px' }} />
                 </div>
             }
 
-            <div style={{ position:'absolute', left:16, right:16, bottom:96 }}>
+            <div style={!t.band
+              ? { position:'absolute', left:0, right:0, bottom:90, textAlign:'center', padding:'0 20px' }
+              : { position:'absolute', left:16, right:16, bottom:96 }}>
               <span style={{ display:'inline-block', fontFamily:FONT_DECK, fontWeight:600, fontSize:11, letterSpacing:'0.22em', textTransform:'uppercase', color:'#fff', background:t.accent, padding:'3px 8px', marginBottom:10 }}>Feature Car</span>
               <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:headline.length>12?44:58, textTransform:'uppercase', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{headline}</div>
               <div style={{ fontFamily:FONT_DECK, fontWeight:500, color:bottomColor, opacity:0.92, fontSize:14, letterSpacing:'0.04em', textTransform:'uppercase', marginTop:8 }}>{carName}{car?.trim?` ${car.trim}`:''}</div>
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:13, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:4 }}>{powerLine}</div>}
             </div>
 
-            {/* barcode */}
-            <div style={{ position:'absolute', left:12, bottom:16, background:'#f4f1ea', padding:'5px 6px', display:'flex', flexDirection:'row', alignItems:'stretch', gap:4 }}>
-              <div style={{ display:'flex', flexDirection:'column', width:40 }}>
-                {bars.map((h,i) => <div key={i} style={{ height:h, width:'100%', background:i%2?'#f4f1ea':'#0a0a0a' }} />)}
-              </div>
-              <div style={{ writingMode:'vertical-rl', fontFamily:FONT_DECK, fontSize:7, letterSpacing:'0.12em', color:'#0a0a0a' }}>{barNum}</div>
+            {/* barcode — alternates position by cover template index */}
+            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }) }}>
+              <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={t.textOnPhoto==='dark'} />
             </div>
 
-            <span style={{ position:'absolute', right:12, bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
+            <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
 
             {/* glossy sheen */}
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(120% 60% at 75% 8%, rgba(255,255,255,0.16) 0%, transparent 42%)', mixBlendMode:'screen' }} />
@@ -603,19 +631,58 @@ function CornerCurl({ color }: { color: string }) {
   )
 }
 
+// ─── Barcode ──────────────────────────────────────────────────────────────────
+// Realistic EAN-style barcode: vertical bars of varying widths, number below
+function Barcode({ seed, price, dark }: { seed: number; price: string; dark: boolean }) {
+  // Generate pseudo-random bar widths (1-3px) from seed
+  const rng = mulberry32((seed || 1) ^ 0xdeadbeef)
+  // EAN-13-style: guard bars (3 wide) at edges, data bars in between
+  const barWidths: number[] = []
+  barWidths.push(1, 1, 1) // left guard
+  for (let i = 0; i < 24; i++) barWidths.push(Math.floor(rng() * 2.8) + 1)
+  barWidths.push(1, 1, 1, 1, 1) // center guard
+  for (let i = 0; i < 24; i++) barWidths.push(Math.floor(rng() * 2.8) + 1)
+  barWidths.push(1, 1, 1) // right guard
+
+  const bg = dark ? '#0a0a0a' : '#f4f1ea'
+  const fg = dark ? '#f4f1ea' : '#0a0a0a'
+  const barcodeH = 36
+
+  return (
+    <div style={{ background: bg, padding: '4px 6px 5px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      {/* bars */}
+      <div style={{ display: 'flex', alignItems: 'stretch', height: barcodeH, gap: '1px' }}>
+        {barWidths.map((w, i) => (
+          <div key={i} style={{
+            width: w,
+            background: i % 2 === 0 ? fg : bg,
+            // Guard bars are slightly taller
+            alignSelf: (i < 3 || i > barWidths.length - 4) ? 'stretch' : 'center',
+            height: (i < 3 || i > barWidths.length - 4) ? '100%' : '88%',
+          }} />
+        ))}
+      </div>
+      {/* number below */}
+      <div style={{ fontFamily: FONT_DECK, fontSize: 6.5, letterSpacing: '0.14em', color: fg, textAlign: 'center', lineHeight: 1 }}>
+        {price}
+      </div>
+    </div>
+  )
+}
+
 // ─── Masthead ─────────────────────────────────────────────────────────────────
 function Masthead({ t, size }: { t: Template; size: number }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
       <h1 style={{ fontFamily:FONT_MASTHEAD, color:t.mastColor, margin:0, lineHeight:0.82, fontSize:size, letterSpacing:'-0.01em', fontStyle:'italic', transform:'skewX(-6deg)', textShadow:t.band?'none':'0 2px 16px rgba(0,0,0,0.55)' }}>G-DIMENSION</h1>
-      {t.logo && <img src={gLogo} alt="" style={{ height:size*0.82, width:'auto', flexShrink:0 }} />}
+      {t.logo && <img src={gLogo} alt="" style={{ height:size*0.93, width:'auto', flexShrink:0 }} />}
     </div>
   )
 }
-function TopStrip({ accent, dark, vol, issue, purchaseYear }:{ accent:string; dark:boolean; vol:number; issue:number; purchaseYear:number|null }) {
+function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accent:string; dark:boolean; vol:number; issue:number; purchaseYear:number|null; stripStyle?: React.CSSProperties }) {
   const col = dark ? '#0a0a0a' : '#f5f5f5'
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4, fontFamily:FONT_DECK, fontWeight:600, fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:col, textShadow:dark?'none':'0 1px 6px rgba(0,0,0,0.6)' }}>
+    <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4, padding:'0 14px', fontFamily:FONT_DECK, fontWeight:600, fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:col, textShadow:dark?'none':'0 1px 6px rgba(0,0,0,0.6)', ...stripStyle }}>
       <span style={{ color:accent }}>VOL.{vol} NO.{issue}</span>
       <span>· Your Build. Featured.</span>
       {purchaseYear && <span style={{ marginLeft:'auto' }}>Since {purchaseYear}</span>}
