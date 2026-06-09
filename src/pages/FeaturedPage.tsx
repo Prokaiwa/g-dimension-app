@@ -443,14 +443,17 @@ export default function FeaturedPage() {
               <img src={photo.url} alt=""
                 onLoad={photo.mode==='full' ? (e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) } : undefined}
                 style={photo.mode==='cutout'
-                  ? { position:'absolute', inset:'auto 0 5% 0', width:'100%', height:'68%', objectFit:'contain', objectPosition:'center' }
+                  ? { position:'absolute', top:'2%', left:0, right:0, width:'100%', height:'66%', objectFit:'contain', objectPosition:'center top' }
                   : (() => {
+                      // Landscape: show full car, centered vertically in the frame
+                      // Portrait: taller crop, head-of-car at top
+                      // Square: default
                       const h = photoAspect !== null
-                        ? (photoAspect > 1.3 ? '52%' : photoAspect < 0.85 ? '72%' : '64%')
+                        ? (photoAspect > 1.3 ? '60%' : photoAspect < 0.85 ? '72%' : '64%')
                         : '64%'
                       const pos = photoAspect !== null
-                        ? (photoAspect > 1.3 ? 'center 38%' : photoAspect < 0.85 ? 'center 30%' : 'center 42%')
-                        : 'center 42%'
+                        ? (photoAspect > 1.3 ? 'center 50%' : photoAspect < 0.85 ? 'center 28%' : 'center 40%')
+                        : 'center 40%'
                       return { position:'absolute' as const, top:0, left:0, width:'100%', height:h, objectFit:'cover' as const, objectPosition:pos }
                     })()}
               />
@@ -469,11 +472,7 @@ export default function FeaturedPage() {
                   <Masthead t={t} size={48} /><TopStrip accent={t.accent} dark vol={vol} issue={issue} purchaseYear={purchaseYear} />
                 </div>
               : <div style={{ position:'absolute', top:0, left:0, right:0 }}>
-                  <div style={{
-                    background: t.id === 'ink-black' ? '#111' : 'rgba(0,0,0,0.72)',
-                    padding: '10px 0 8px',
-                    marginTop: 44
-                  }}>
+                  <div style={{ padding: '10px 0 8px', marginTop: 44 }}>
                     <h1 style={{
                       fontFamily: FONT_MASTHEAD,
                       color: t.mastColor,
@@ -487,6 +486,7 @@ export default function FeaturedPage() {
                       width: '100%',
                       display: 'block',
                       padding: '0 8px',
+                      textShadow: t.id === 'knockout-white' ? '0 2px 20px rgba(0,0,0,0.7)' : 'none',
                     }}>G-DIMENSION</h1>
                   </div>
                   <TopStrip accent={t.accent} dark={t.id==='ink-black'} vol={vol} issue={issue} purchaseYear={purchaseYear} stripStyle={{ padding:'3px 14px' }} />
@@ -504,7 +504,7 @@ export default function FeaturedPage() {
 
             {/* barcode — alternates position by cover template index */}
             <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }) }}>
-              <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={t.textOnPhoto==='dark'} />
+              <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={false} />
             </div>
 
             <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
@@ -780,7 +780,7 @@ function SpecSpread({ car, grouped, carName, powerLine, purchaseYear, theme, vol
       <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
         <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>‹ COVER</div>
         <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
-        <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>FULL BUILD ›</div>
+        <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>BUILD SPEC ›</div>
       </div>
 
       <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.025, mixBlendMode:'multiply',
@@ -808,14 +808,14 @@ function ModsSpread({ car, grouped, totalMods, theme, vol, issue, onBack }: Mods
       {/* running head */}
       <div style={{ background:theme.menuHeaderBg, padding:'10px 16px 8px 28px', display:'flex', alignItems:'baseline', justifyContent:'space-between', flexShrink:0 }}>
         <span style={{ fontFamily:FONT_MASTHEAD, color:theme.menuHeaderInk, fontSize:19, fontStyle:'italic', letterSpacing:'-0.01em' }}>G-DIMENSION</span>
-        <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>VOL.{vol} NO.{issue} · BUILD</span>
+        <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>VOL.{vol} NO.{issue} · BUILD SPEC</span>
       </div>
 
       {/* page title */}
       <div style={{ padding:'12px 14px 8px 28px', flexShrink:0, borderBottom:`1px solid ${theme.rule}` }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between' }}>
           <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:26, lineHeight:1, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.02em' }}>
-            FULL BUILD
+            BUILD SPEC
           </div>
           <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:9, letterSpacing:'0.18em', textTransform:'uppercase' }}>
             {totalMods} MOD{totalMods!==1?'S':''} · {carShortName}
