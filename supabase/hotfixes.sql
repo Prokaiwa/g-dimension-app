@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 049_car_original_photo.sql (2026-06-07)
--- Migrations 001–049 applied to production, with corrections:
+-- Last migration applied : 050_nickname_nullable.sql (2026-06-09)
+-- Migrations 001–050 applied to production, with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
@@ -24,6 +24,10 @@
 -- assume a migration ran just because the watermark says so; verify against the
 -- live schema when in doubt.
 -- =============================================================================
+
+-- 050: Allow cars.nickname to be NULL (2026-06-09)
+-- Column was NOT NULL but UX allows leaving it blank; Featured falls back to model name.
+alter table public.cars alter column nickname drop not null;
 
 -- Fix missing grants on job_specs (2026-05-14)
 -- 024_part_spec_system.sql created job_specs but omitted the DML grants.
