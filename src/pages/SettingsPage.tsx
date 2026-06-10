@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import BottomSheet from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
@@ -55,6 +56,10 @@ const POWER_OPTS = [
 const TORQUE_OPTS = [
   { value: 'lbft', label: 'lb-ft' },
   { value: 'nm', label: 'Nm' },
+] as const
+const SOUND_OPTS = [
+  { value: 'off', label: 'Off' },
+  { value: 'on', label: 'On' },
 ] as const
 
 // A labelled segmented control. Tapping a segment commits immediately.
@@ -134,6 +139,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [eggOpen, setEggOpen] = useState(false)
+  const [sound, setSound] = useState(isSoundEnabled())
 
   useEffect(() => {
     let cancelled = false
@@ -163,6 +169,14 @@ export default function SettingsPage() {
     const { error } = await supabase.from('users').update({ [key]: value }).eq('id', uid)
     setSaving(false)
     if (error) setPrefs(prev)
+  }
+
+  // Device-local — sound is a per-phone preference, not a profile column.
+  function pickSound(v: 'on' | 'off') {
+    const on = v === 'on'
+    setSound(on)
+    setSoundEnabled(on)
+    if (on) playConfirm()
   }
 
   return (
@@ -203,6 +217,19 @@ export default function SettingsPage() {
               <UnitRow label="Distance" sub="Mileage, odometer, service intervals" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
               <UnitRow label="Power" sub="Horsepower figures across your builds" value={prefs.power_unit} options={POWER_OPTS} onPick={v => update('power_unit', v)} disabled={saving} />
               <UnitRow label="Torque" sub="Torque figures across your builds" value={prefs.torque_unit} options={TORQUE_OPTS} onPick={v => update('torque_unit', v)} disabled={saving} />
+            </div>
+
+            {/* Sound */}
+            <SectionLabel>Sound</SectionLabel>
+            <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
+              <UnitRow
+                label="Menu Sounds"
+                sub="GT-style ticks on the Home map — synthesized on this device, saved to this device"
+                value={sound ? 'on' : 'off'}
+                options={SOUND_OPTS}
+                onPick={pickSound}
+                disabled={false}
+              />
             </div>
 
             {/* Cars */}

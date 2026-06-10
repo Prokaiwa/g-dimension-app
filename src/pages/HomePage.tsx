@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
+import { playTick, playConfirm } from '../lib/sound'
 import iconFeatured from '../assets/icons/home/home_featured.png'
 import {
   GRADIENT_APP_BG,
@@ -185,6 +186,7 @@ export default function HomePage() {
     if (exitingRef.current) return
     exitingRef.current = true
     setExiting(true)
+    playConfirm()
     const world = worldRef.current
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (world && !reduced) {
@@ -503,7 +505,7 @@ export default function HomePage() {
             <div
               key={dest.id}
               onClick={() => handleSelect(dest)}
-              onPointerDown={() => setPressedNode(dest.id)}
+              onPointerDown={() => { setPressedNode(dest.id); playTick() }}
               onPointerUp={() => setPressedNode(null)}
               onPointerLeave={() => setPressedNode(null)}
               onPointerCancel={() => setPressedNode(null)}
