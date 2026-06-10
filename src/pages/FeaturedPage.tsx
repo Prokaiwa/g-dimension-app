@@ -11,6 +11,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { playBack } from '../lib/sound'
+import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
@@ -696,6 +698,14 @@ export default function FeaturedPage() {
             <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
 
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(120% 60% at 75% 8%, rgba(255,255,255,0.16) 0%, transparent 42%)', mixBlendMode:'screen' }} />
+            {/* one-time gloss sweep on cover mount (re-runs per template flip) */}
+            <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden' }}>
+              <style>{`@keyframes coverGloss { from { transform: translateX(-160%) skewX(-16deg); } to { transform: translateX(420%) skewX(-16deg); } }`}</style>
+              <div style={{ position:'absolute', top:'-10%', left:0, width:'40%', height:'120%', mixBlendMode:'screen',
+                background:'linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+                transform:'translateX(-160%) skewX(-16deg)',
+                animation:'coverGloss 1100ms cubic-bezier(0.4, 0, 0.2, 1) 600ms both' }} />
+            </div>
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.03, mixBlendMode:'screen', backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
             <div style={{ position:'absolute', top:0, right:0, bottom:0, width:28, pointerEvents:'none', background:'linear-gradient(270deg,rgba(0,0,0,0.2) 0%,rgba(0,0,0,0.05) 60%,transparent 100%)' }} />
           </div>
@@ -737,6 +747,7 @@ export default function FeaturedPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      <ArrivalFade />
       {/* ─── perspective stage ─── */}
       <div style={{ position:'absolute', inset:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
 
@@ -763,7 +774,7 @@ export default function FeaturedPage() {
       </div>
 
       {/* ─── chrome (always on top) ─── */}
-      <div onClick={() => navigate('/home')}
+      <div onClick={() => { playBack(); navigate('/home') }}
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
@@ -810,7 +821,16 @@ export default function FeaturedPage() {
 // ─── CornerCurl ───────────────────────────────────────────────────────────────
 function CornerCurl({ color }: { color: string }) {
   return (
-    <div style={{ position:'absolute', bottom:0, right:0, width:52, height:52, pointerEvents:'none', zIndex:8 }}>
+    <div style={{ position:'absolute', bottom:0, right:0, width:52, height:52, pointerEvents:'none', zIndex:8,
+      transformOrigin:'bottom right', animation:'curlBreathe 6s ease-in-out 2.5s infinite' }}>
+      <style>{`
+        @keyframes curlBreathe {
+          0%, 76%, 100% { transform: scale(1); }
+          84%           { transform: scale(1.22); }
+          92%           { transform: scale(1.08); }
+        }
+        @media (prefers-reduced-motion: reduce) { @keyframes curlBreathe { 0%, 100% { transform: scale(1); } } }
+      `}</style>
       <div style={{ position:'absolute', bottom:0, right:0, width:0, height:0,
         borderStyle:'solid', borderWidth:'0 0 52px 52px',
         borderColor:`transparent transparent ${color} transparent` }} />
