@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { playBack } from '../lib/sound'
+import { playBack, playTick } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import { CameraIcon } from '../components/CameraIcon'
 import {
@@ -102,8 +102,8 @@ function entryTitle(e: TLEntry, meta: SessionMeta | undefined): string {
   return base
 }
 
-// ── Scroll-reveal wrapper (Part 7: IntersectionObserver fade-in) ──
-function Reveal({ children }: { children: React.ReactNode }) {
+// ── Scroll-reveal primitives (Part 7: IntersectionObserver fade-in) ──
+function useRevealed(): [React.RefObject<HTMLDivElement>, boolean] {
   const ref = useRef<HTMLDivElement>(null)
   const [shown, setShown] = useState(false)
   useEffect(() => {
@@ -115,6 +115,11 @@ function Reveal({ children }: { children: React.ReactNode }) {
     io.observe(el)
     return () => io.disconnect()
   }, [])
+  return [ref, shown]
+}
+
+function Reveal({ children }: { children: React.ReactNode }) {
+  const [ref, shown] = useRevealed()
   return (
     <div
       ref={ref}
@@ -124,6 +129,29 @@ function Reveal({ children }: { children: React.ReactNode }) {
         transition: `opacity 400ms ${EASING_SETTLE}, transform 400ms ${EASING_SETTLE}`,
       }}
     >
+      {children}
+    </div>
+  )
+}
+
+// Entry block whose spine segment draws downward as it scrolls into view,
+// the node dot popping in once the thread reaches it.
+function EntryBlock({ accent, isLast, children }: { accent: string; isLast: boolean; children: React.ReactNode }) {
+  const [ref, shown] = useRevealed()
+  return (
+    <div ref={ref} style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingBottom: 18 }}>
+      <div style={{
+        position: 'absolute', left: SPINE_LEFT, top: 0, bottom: isLast ? 'auto' : 0, height: isLast ? 22 : undefined,
+        width: 2, background: COLOR_TIMELINE_RULE,
+        transform: `translateX(-50%) scaleY(${shown ? 1 : 0})`, transformOrigin: 'top',
+        transition: 'transform 600ms cubic-bezier(0.25, 1, 0.5, 1)',
+      }} />
+      <div style={{
+        position: 'absolute', left: SPINE_LEFT, top: 16, width: NODE_SIZE, height: NODE_SIZE,
+        borderRadius: '50%', background: accent, border: `2px solid ${COLOR_TIMELINE_BG}`,
+        transform: `translateX(-50%) scale(${shown ? 1 : 0})`,
+        transition: 'transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1) 250ms',
+      }} />
       {children}
     </div>
   )
@@ -297,6 +325,10 @@ export default function TimelinePage() {
       background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative',
     }}>
       <ArrivalFade />
+      <style>{`
+        .tl-press { transition: transform 140ms ease-out; }
+        .tl-press:active { transform: scale(0.97); }
+      `}</style>
       {chevron}
       <input ref={fileRef} type="file" accept="image/*" onChange={onPickOriginPhoto} style={{ display: 'none' }} />
       {children}
@@ -416,13 +448,11 @@ export default function TimelinePage() {
               </div>
             )}
 
-            <div style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingBottom: 18 }}>
-              <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: isLast ? 'auto' : 0, height: isLast ? 22 : undefined, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-              <div style={{ position: 'absolute', left: SPINE_LEFT, top: 16, width: NODE_SIZE, height: NODE_SIZE, borderRadius: '50%', background: accent, border: `2px solid ${COLOR_TIMELINE_BG}`, transform: 'translateX(-50%)' }} />
-
+            <EntryBlock accent={accent} isLast={isLast}>
               <Reveal>
                 <article
-                  onClick={() => navigate(`/timeline/entry/${e.id}`)}
+                  className="tl-press"
+                  onClick={() => { playTick(); navigate(`/timeline/entry/${e.id}`) }}
                   style={{
                     background: COLOR_TIMELINE_CARD,
                     borderRadius: RADIUS_TIMELINE_CARD,
@@ -479,7 +509,7 @@ export default function TimelinePage() {
                   </div>
                 </article>
               </Reveal>
-            </div>
+            </EntryBlock>
           </div>
         )
       })}
@@ -487,7 +517,8 @@ export default function TimelinePage() {
 
     {/* Floating "Add Entry" — free-form note (track day, car show, a story) */}
     <button
-      onClick={() => navigate('/timeline/new')}
+      className="tl-press"
+      onClick={() => { playTick(); navigate('/timeline/new') }}
       style={{
         position: 'fixed', right: 18, bottom: 24, zIndex: 20,
         height: 46, padding: '0 18px', borderRadius: RADIUS_BUTTON,
