@@ -11,7 +11,9 @@ alter table public.cars
 
 -- Extend the public profile view to include new columns plus a few that were
 -- missing (weight_lbs, build_sheet_*_photo).
-create or replace view public.public_car_profiles as
+drop view if exists public.public_car_profiles;
+
+create view public.public_car_profiles as
 select
   c.id,
   c.user_id,
@@ -19,7 +21,6 @@ select
   c.make,
   c.model,
   c.variant,
-  c.variant_id,
   c.trim,
   c.color,
   c.chassis_code,
