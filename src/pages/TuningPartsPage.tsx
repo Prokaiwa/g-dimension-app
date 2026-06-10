@@ -1,5 +1,5 @@
 // Route: /tuning/parts-bin — Owned, not installed
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -428,8 +428,24 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
   const polaroidRot = (seededVal(part.id, 'r') - 0.5) * 6.5   // –3.25 … +3.25 deg
   const nudgeX      = (seededVal(part.id, 'x') - 0.5) * 11    // –5.5 … +5.5 px
 
+  // Drop-settle: the row lands on the pile as it scrolls into view, the
+  // polaroid over-rotating then settling into its seeded tilt.
+  const rowRef = useRef<HTMLButtonElement>(null)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setShown(true); return }
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setShown(true); io.disconnect() }
+    }, { threshold: 0.15, rootMargin: '0px 0px -6% 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
   return (
     <button
+      ref={rowRef}
       onClick={onClick}
       style={{
         width: '100%', background: 'none', border: 'none', padding: 0,
@@ -437,7 +453,9 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
         paddingTop: 14, paddingBottom: 14,
         borderBottom: isLast ? 'none' : `1.5px solid rgba(100,60,20,0.14)`,
         display: 'flex', alignItems: 'center', gap: 14,
-        opacity: dimmed ? 0.45 : part.status === 'planned' ? 0.78 : 1,
+        opacity: shown ? (dimmed ? 0.45 : part.status === 'planned' ? 0.78 : 1) : 0,
+        transform: shown ? 'none' : 'translateY(-12px)',
+        transition: 'opacity 300ms ease-out, transform 480ms cubic-bezier(0.34, 1.4, 0.64, 1)',
       }}
     >
       {/* Polaroid photo frame */}
@@ -447,15 +465,23 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
           background: '#f5eed8',
           padding: '3px 3px 13px 3px',
           boxShadow: '1px 2px 6px rgba(0,0,0,0.22), 0 0 0 0.5px rgba(100,60,20,0.1)',
-          transform: `rotate(${polaroidRot}deg)`,
+          transform: `rotate(${shown ? polaroidRot : polaroidRot * 2.6}deg)`,
           lineHeight: 0,
           opacity: 0,
-          transition: 'opacity 180ms ease',
+          transition: 'opacity 180ms ease, transform 560ms cubic-bezier(0.34, 1.4, 0.64, 1)',
         }}>
           <img
             src={thumb} alt=""
-            style={{ width: 56, height: 56, objectFit: 'cover', display: 'block' }}
-            onLoad={e => { (e.currentTarget.parentElement as HTMLElement).style.opacity = '1' }}
+            style={{
+              width: 56, height: 56, objectFit: 'cover', display: 'block',
+              // develops like instant film once loaded
+              filter: 'contrast(0.55) saturate(0.3) brightness(1.25)',
+              transition: 'filter 1100ms ease',
+            }}
+            onLoad={e => {
+              (e.currentTarget.parentElement as HTMLElement).style.opacity = '1'
+              e.currentTarget.style.filter = 'none'
+            }}
           />
         </div>
       ) : (
