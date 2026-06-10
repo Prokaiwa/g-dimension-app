@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate }          from 'react-router-dom'
 import { supabase }             from '../lib/supabase'
 import { getActiveCarId }       from '../lib/activeCar'
+import { playBack }             from '../lib/sound'
 import garagePlaceholder        from '../assets/garage_placeholder.png'
 import iconEngine      from '../assets/icons/tuning/tuning_engine.png'
 import iconDrivetrain  from '../assets/icons/tuning/tuning_drivetrain.png'
@@ -449,7 +450,7 @@ export default function TuningBuildSheetPage() {
         borderBottom: '1px solid rgba(255,255,255,0.04)',
         position: 'relative', zIndex: 10,
       }}>
-        <button onClick={() => navigate('/tuning')} style={{
+        <button onClick={() => { playBack(); navigate('/tuning') }} style={{
           background: 'none', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 4,
           padding: '4px 8px 4px 4px',

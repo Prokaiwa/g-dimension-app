@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { playTick, playBack } from '../lib/sound'
+import ArrivalFade from '../components/ArrivalFade'
 import garageHero    from '../assets/backgrounds/garage_hero.png'
 import iconMyCars    from '../assets/icons/garage/my_cars.png'
 import iconSnapshot  from '../assets/icons/garage/snapshot.png'
@@ -95,6 +97,7 @@ export default function GaragePage() {
       fontFamily: FONT_UI,
       overflow: 'hidden',
     }}>
+      <ArrivalFade />
       {/* Full-bleed garage photo */}
       <img
         ref={bgRef}
@@ -152,7 +155,7 @@ export default function GaragePage() {
         </svg>
 
         <button
-          onClick={() => navigate('/home')}
+          onClick={() => { playBack(); navigate('/home') }}
           style={{
             position: 'absolute', left: 10, top: 0, height: '100%',
             display: 'flex', alignItems: 'center', gap: 6,
@@ -219,7 +222,7 @@ export default function GaragePage() {
               key={tile.id}
               onClick={() => navigate(tile.route)}
               className="icon-tile"
-              onPointerDown={() => setPressed(tile.id)}
+              onPointerDown={() => { setPressed(tile.id); playTick() }}
               onPointerUp={() => setPressed(null)}
               onPointerLeave={() => setPressed(null)}
               onPointerCancel={() => setPressed(null)}

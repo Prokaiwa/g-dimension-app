@@ -20,6 +20,8 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { playBack } from '../lib/sound'
+import ArrivalFade from '../components/ArrivalFade'
 import { CameraIcon } from '../components/CameraIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
@@ -276,7 +278,7 @@ export default function TimelinePage() {
 
   const chevron = (
     <button
-      onClick={() => navigate('/home')}
+      onClick={() => { playBack(); navigate('/home') }}
       aria-label="Back to home"
       style={{
         position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
@@ -294,6 +296,7 @@ export default function TimelinePage() {
       height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
       background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative',
     }}>
+      <ArrivalFade />
       {chevron}
       <input ref={fileRef} type="file" accept="image/*" onChange={onPickOriginPhoto} style={{ display: 'none' }} />
       {children}
