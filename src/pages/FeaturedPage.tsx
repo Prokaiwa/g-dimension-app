@@ -1,10 +1,11 @@
 // Route: /featured — "Featured" magazine (aesthetic island)
-// 3 pages: Cover → Spec spread → Mods spread
+// Dynamic book: Cover → Photo Spread(s) (0–2) → Spec Sheet (1–2). 2–5 pages total.
 // Page turn: fold-line sweep via clip-path + transformOrigin-at-fold + slight rotateY tilt.
 //   The fold line travels across the page; left of it: original content (clipped, slightly tilting).
 //   Right of it: paper-back overlay (cream with shadow gradient) + bright crease strip.
 //   Arriving page is static below. No full-page rotation — feels like a real paper fold.
-// Swipe L/R on cover = cycle templates. Drag from right-30% = turn forward. Spec/mods: drag right = back.
+// Swipe L/R on cover = cycle templates. Drag from right-30% = turn forward.
+//   Interior: drag right = back, drag left = forward (when a next page exists).
 import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,14 +19,35 @@ import gLogo from '../assets/logo/gdimensionG.png'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Car {
+  id: string
   year: number | null; make: string | null; model: string | null; variant: string | null
-  trim: string | null; nickname: string | null; horsepower: number | null
+  trim: string | null; nickname: string | null; horsepower: number | null; torque: number | null
+  engine_type: string | null; transmission: string | null
   forced_induction: string | null; drivetrain: string | null; purchase_date: string | null
   current_mileage: number | null
   showcase_photo_url: string | null; garage_photo_url: string | null; original_photo_url: string | null
+  build_sheet_power_photo: string | null; build_sheet_chassis_photo: string | null
+  build_sheet_exterior_photo: string | null; build_sheet_interior_photo: string | null
 }
-interface Job { id: string; title: string | null; category: string | null; brand: string | null }
+interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
+type PhotoItem = { url: string; caption: string | null }
+type JobPhoto = { photo_url: string; caption: string | null }
+
+// Spec Sheet data model
+interface SpecRow { label: string; value: string }
+interface SpecSection { title: string; rows: SpecRow[]; moreCount?: number }
+
+// Page descriptor — the book is assembled from these after data load
+type PageKind = 'cover' | 'photo' | 'spec'
+interface PageDesc {
+  kind: PageKind
+  label: string                  // folio short label
+  photos?: PhotoItem[]
+  arrangement?: number           // seed-derived collage variant (dominant top/bottom)
+  sections?: SpecSection[]       // spec-sheet sections on this page
+  isCont?: boolean               // continuation spec page
+}
 
 // ─── seeded RNG ───────────────────────────────────────────────────────────────
 function seedFrom(str: string): number {
@@ -71,7 +93,7 @@ const INTERIOR_THEMES: Record<string, InteriorTheme> = {
   'ink-black':     { pageBg: '#f8f7f4', ink: '#111',    subInk: '#666',    accent: '#1a1a1a',   rule: '#ddd',    menuBorder: '#1a1a1a',   menuHeaderBg: '#1a1a1a',  menuHeaderInk: '#f8f7f4' },
 }
 
-// ─── build-sheet grouping ─────────────────────────────────────────────────────
+// ─── build-sheet grouping (frontend display logic ONLY — no DB column) ──────────
 const CAT_TO_GROUP: Record<string, 'power' | 'chassis' | 'exterior' | 'interior'> = {
   'Engine':'power','Drivetrain':'power','Forced Induction':'power','Exhaust':'power','Cooling':'power','Fuel System':'power','Electrical':'power',
   'Suspension':'chassis','Brakes':'chassis','Wheels & Tires':'chassis',
@@ -80,12 +102,57 @@ const CAT_TO_GROUP: Record<string, 'power' | 'chassis' | 'exterior' | 'interior'
 }
 const GROUP_ORDER = ['power','chassis','exterior','interior'] as const
 const GROUP_LABELS: Record<string,string> = { power:'POWER', chassis:'CHASSIS', exterior:'EXTERIOR', interior:'INTERIOR' }
+const MAX_ROWS_PER_GROUP = 8
 
-const NUM_PAGES = 3 // cover, spec, mods
+// ─── spec-sheet section builder ─────────────────────────────────────────────────
+function buildSpecSections(car: Car | null, grouped: Record<string,Job[]>, purchaseYear: number | null): SpecSection[] {
+  const info: SpecRow[] = []
+  const ymm = [car?.year, car?.make, car?.model].filter(Boolean).join(' ')
+  if (ymm)                                                            info.push({ label:'Year / Make / Model', value: ymm })
+  if (car?.trim)                                                      info.push({ label:'Trim', value: car.trim })
+  if (car?.engine_type)                                              info.push({ label:'Engine', value: car.engine_type })
+  if (car?.horsepower)                                               info.push({ label:'Peak Horsepower', value:`${car.horsepower} HP` })
+  if (car?.torque)                                                   info.push({ label:'Peak Torque', value:`${car.torque} lb-ft` })
+  if (car?.forced_induction && car.forced_induction !== 'none')      info.push({ label:'Forced Induction', value: car.forced_induction.replace('-',' ') })
+  if (car?.drivetrain)                                               info.push({ label:'Drivetrain', value: car.drivetrain.toUpperCase() })
+  if (car?.transmission)                                             info.push({ label:'Transmission', value: car.transmission })
+  if (car?.current_mileage != null)                                  info.push({ label:'Mileage', value:`${car.current_mileage.toLocaleString()} mi` })
+  if (purchaseYear)                                                  info.push({ label:'Owned Since', value: String(purchaseYear) })
 
-// ─── tagline generator ────────────────────────────────────────────────────────
-// Produces a two-part cover tagline from car data + build stats.
-// Uses a seeded RNG so the same car always gets the same tagline.
+  const sections: SpecSection[] = [{ title:'VEHICLE INFORMATION', rows: info }]
+  for (const g of GROUP_ORDER) {
+    const js = grouped[g]
+    if (!js || js.length === 0) continue
+    const all = js.map(j => ({
+      label: j.part_type_name || j.category || 'Part',
+      value: [j.brand, j.title].filter(Boolean).join(' ') || '—',
+    }))
+    const rows = all.slice(0, MAX_ROWS_PER_GROUP)
+    sections.push({ title: GROUP_LABELS[g], rows, moreCount: all.length - rows.length })
+  }
+  return sections
+}
+
+// Greedy pagination — splits sections into at most two Spec Sheet pages at section
+// boundaries. Estimates row heights against the fixed page height; overflow:hidden
+// on the page is the safety net so nothing ever scrolls.
+const SEC_HEADER_H = 26, SEC_ROW_H = 18, SEC_GAP = 11
+function sectionHeight(s: SpecSection): number {
+  return SEC_HEADER_H + s.rows.length * SEC_ROW_H + (s.moreCount ? SEC_ROW_H : 0) + SEC_GAP
+}
+function paginateSpec(sections: SpecSection[], availFirst: number, availCont: number): SpecSection[][] {
+  const pages: SpecSection[][] = [[]]
+  let used = 0, pi = 0
+  for (const s of sections) {
+    const avail = pi === 0 ? availFirst : availCont
+    const need  = sectionHeight(s)
+    if (pages[pi].length > 0 && used + need > avail && pi < 1) { pi = 1; pages.push([]); used = 0 }
+    pages[pi].push(s); used += need
+  }
+  return pages
+}
+
+// ─── tagline generator (cover — unchanged; kept for a later editorial session) ──
 const LUXURY_MAKES = new Set(['lexus','bmw','mercedes','mercedes-benz','cadillac','audi','infiniti','acura','genesis','porsche','maserati','rolls-royce','bentley','jaguar'])
 
 function generateTagline(
@@ -165,20 +232,21 @@ function generateTagline(
 export default function FeaturedPage() {
   const navigate = useNavigate()
   const [car, setCar]       = useState<Car | null>(null)
-  const [photos, setPhotos] = useState<Photo[]>([])
+  const [photos, setPhotos] = useState<Photo[]>([])       // cover photo candidates (original / no-bg)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [jobs, setJobs]     = useState<Job[]>([])
+  const [jobPhotos, setJobPhotos] = useState<JobPhoto[]>([])
   const [loading, setLoading] = useState(true)
   const [coverIdx, setCoverIdx] = useState(0)
-  const [pageIdx, setPageIdx]   = useState(0) // 0=cover, 1=spec, 2=mods
+  const [pageIdx, setPageIdx]   = useState(0) // 0=cover
   const [isTurning, setIsTurning] = useState(false)
   const [photoAspect, setPhotoAspect] = useState<number|null>(null)
 
-  // ── DOM refs: one per page ────────────────────────────────────────────────────
-  const pageEls   = useRef<(HTMLDivElement | null)[]>(Array(NUM_PAGES).fill(null))
-  const shadowEls = useRef<(HTMLDivElement | null)[]>(Array(NUM_PAGES).fill(null))
+  // ── DOM refs: one per page (sized dynamically) ────────────────────────────────
+  const pageEls   = useRef<(HTMLDivElement | null)[]>([])
+  const shadowEls = useRef<(HTMLDivElement | null)[]>([])
   // fold-line elements (shared, not per-page)
-  const foldOverlayRef = useRef<HTMLDivElement>(null)  // paper-back cream face
+  const foldOverlayRef = useRef<HTMLDivElement>(null)  // paper-back face
   const foldLineRef    = useRef<HTMLDivElement>(null)  // bright crease strip
 
   // ── turn state refs ───────────────────────────────────────────────────────────
@@ -187,6 +255,7 @@ export default function FeaturedPage() {
   const turnDirRef   = useRef<'fwd'|'back'>('fwd')
   const progressRef  = useRef(0)
   const rafRef       = useRef<number|null>(null)
+  const pagesLenRef  = useRef(1)   // live page count for the non-passive touch handler
 
   // ── touch refs ────────────────────────────────────────────────────────────────
   const touchStartXRef  = useRef<number|null>(null)
@@ -199,12 +268,14 @@ export default function FeaturedPage() {
     ;(async () => {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
-      const [carRes, jobsRes] = await Promise.all([
+      const [carRes, jobsRes, jobPhotosRes] = await Promise.all([
         supabase.from('cars')
-          .select('year,make,model,variant,trim,nickname,horsepower,forced_induction,drivetrain,purchase_date,current_mileage,showcase_photo_url,garage_photo_url,original_photo_url')
+          .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
           .eq('id', carId).is('deleted_at', null).single(),
-        supabase.from('jobs').select('id,title,category,brand')
+        supabase.from('jobs').select('id,title,category,brand,part_types(name)')
           .eq('car_id', carId).eq('status','installed').order('created_at',{ascending:true}),
+        supabase.from('job_photos').select('photo_url,caption')
+          .eq('car_id', carId).order('created_at',{ascending:false}),
       ])
       if (!alive) return
       const c = (carRes.data as unknown as Car) ?? null
@@ -213,25 +284,111 @@ export default function FeaturedPage() {
       if (c?.original_photo_url) cands.push({ url: c.original_photo_url, mode:'full',   label:'Original' })
       if (c?.garage_photo_url)   cands.push({ url: c.garage_photo_url,   mode:'cutout', label:'No BG'    })
       setPhotos(cands)
-      setJobs((jobsRes.data as unknown as Job[]) ?? [])
+      // jobs — flatten the embedded part_types(name) (PostgREST may return obj or array)
+      const jobRows = (jobsRes.data as unknown as Array<{ id:string; title:string|null; category:string|null; brand:string|null; part_types: { name:string|null } | { name:string|null }[] | null }>) ?? []
+      setJobs(jobRows.map(r => {
+        const pt = Array.isArray(r.part_types) ? r.part_types[0] : r.part_types
+        return { id:r.id, title:r.title, category:r.category, brand:r.brand, part_type_name: pt?.name ?? null }
+      }))
+      setJobPhotos((jobPhotosRes.data as unknown as JobPhoto[]) ?? [])
       if (carRes.data) setCoverIdx(seedFrom(carId) % TEMPLATES.length)
       setLoading(false)
     })()
     return () => { alive = false }
   }, [])
 
+  // ── derived: seed from car.id so renames never reshuffle the issue ─────────────
+  const seed       = useMemo(() => seedFrom(car?.id ?? ''), [car?.id])
+  const rng        = useMemo(() => mulberry32(seed || 1), [seed])
+  const purchaseYear = car?.purchase_date ? new Date(car.purchase_date).getFullYear() : null
+  const vol        = purchaseYear ? Math.max(1, new Date().getFullYear() - purchaseYear + 1) : 1
+  const issue      = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
+  const carName    = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
+  const carShortName = [car?.make, car?.model].filter(Boolean).join(' ') || 'BUILD'
+  const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-',' ') : null
+  const powerLine  = [car?.horsepower ? `${car.horsepower} HP` : null, fi, car?.drivetrain ? car.drivetrain.toUpperCase() : null].filter(Boolean).join(' · ')
+  const t          = TEMPLATES[coverIdx]
+  const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
+  const photo      = photos[photoIdx] ?? null
+  const cycleCover = (dir: number) => setCoverIdx(p => (p + dir + TEMPLATES.length) % TEMPLATES.length)
+  const bottomColor = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
+
+  const grouped = useMemo(() => {
+    const g: Record<string,Job[]> = { power:[], chassis:[], exterior:[], interior:[] }
+    for (const job of jobs) {
+      const grp = job.category ? CAT_TO_GROUP[job.category] : undefined
+      if (grp) g[grp].push(job)
+    }
+    return g
+  }, [jobs])
+
+  // Tagline — cover only (separate RNG seed; engine fills this later)
+  const tagline = useMemo(() => {
+    if (!car) return ''
+    const tRng = mulberry32((seed || 1) ^ 0xf00dcafe)
+    return generateTagline(car, jobs.length, grouped, purchaseYear, tRng)
+  }, [car, jobs.length, grouped, purchaseYear, seed])
+
+  // ── photo pool (priority: build-group photos, then job photos newest-first) ────
+  const photoPool = useMemo<PhotoItem[]>(() => {
+    if (!car) return []
+    const used = new Set<string>()
+    if (car.original_photo_url) used.add(car.original_photo_url)   // cover photo
+    if (car.garage_photo_url)   used.add(car.garage_photo_url)     // cover photo (cutout)
+    const pool: PhotoItem[] = []
+    const groupPhotos = [car.build_sheet_power_photo, car.build_sheet_chassis_photo, car.build_sheet_exterior_photo, car.build_sheet_interior_photo]
+    for (const u of groupPhotos) if (u && !used.has(u)) { pool.push({ url:u, caption:null }); used.add(u) }
+    for (const jp of jobPhotos) {
+      if (jp.photo_url && !used.has(jp.photo_url)) { pool.push({ url: jp.photo_url, caption: jp.caption?.trim() || null }); used.add(jp.photo_url) }
+    }
+    return pool
+  }, [car, jobPhotos])
+
+  // ── photo spreads: 0 / 1 / 2 pages, deterministic collage arrangement ──────────
+  const photoSpreads = useMemo(() => {
+    const capped = photoPool.slice(0, 8)
+    if (capped.length === 0) return [] as { photos: PhotoItem[]; arrangement: number }[]
+    const lrng = mulberry32((seed || 1) ^ 0xa17de51)
+    const chunks: PhotoItem[][] = capped.length <= 4
+      ? [capped]
+      : [capped.slice(0, Math.ceil(capped.length / 2)), capped.slice(Math.ceil(capped.length / 2))]
+    return chunks.map(ph => ({ photos: ph, arrangement: Math.floor(lrng() * 2) }))
+  }, [photoPool, seed])
+
+  // ── spec-sheet pages (1–2, split at a section boundary) ────────────────────────
+  const specPages = useMemo(() => {
+    const sections = buildSpecSections(car, grouped, purchaseYear)
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 780
+    const availFirst = vh - 149   // running head + title block + folio + body padding
+    const availCont  = vh - 115   // running head + small cont header + folio + body padding
+    return paginateSpec(sections, availFirst, availCont)
+  }, [car, grouped, purchaseYear])
+
+  // ── assemble the book ──────────────────────────────────────────────────────────
+  const pages = useMemo<PageDesc[]>(() => {
+    const arr: PageDesc[] = [{ kind:'cover', label:'COVER' }]
+    photoSpreads.forEach(ps => arr.push({ kind:'photo', label:'PHOTOS', photos: ps.photos, arrangement: ps.arrangement }))
+    specPages.forEach((secs, i) => arr.push({ kind:'spec', label:'SPEC SHEET', sections: secs, isCont: i > 0 }))
+    return arr
+  }, [photoSpreads, specPages])
+
+  useEffect(() => { pagesLenRef.current = pages.length }, [pages.length])
+
+  // Clamp current page if the book shrank (e.g. data reloaded smaller)
+  useEffect(() => {
+    if (pageIdx > pages.length - 1) { const n = Math.max(0, pages.length - 1); pageIdxRef.current = n; setPageIdx(n) }
+  }, [pages.length, pageIdx])
+
   // ── z-index at rest ───────────────────────────────────────────────────────────
   useLayoutEffect(() => {
     if (isTurningRef.current) return
     pageEls.current.forEach((el, i) => { if (el) el.style.zIndex = i === pageIdx ? '3' : '1' })
-  }, [pageIdx])
+  }, [pageIdx, pages.length])
 
   // ── turn helpers ──────────────────────────────────────────────────────────────
 
   // Fold-line sweep: clip-path reveals/hides pages; transformOrigin tracks the fold;
   // slight rotateY tilt makes the kept slice recede at the crease.
-  // foldOverlayRef = cream paper-back fills the folded-over region
-  // foldLineRef    = thin bright crease strip at the fold edge
   function applyTransforms(p: number, dir: 'fwd'|'back') {
     const fromIdx = pageIdxRef.current
     const toIdx   = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
@@ -245,18 +402,15 @@ export default function FeaturedPage() {
     const s = Math.sin(p * Math.PI)
     const cA = Math.min(1, Math.max(0, (1 - p) / 0.15))
     // Paper-back color matches the interior page background so dark themes don't show cream
-    const pb  = theme.pageBg  // e.g. '#111116' for knockout-white, '#faf8f4' for top-band
+    const pb  = theme.pageBg
     const pr  = parseInt(pb.slice(1,3),16), pg2 = parseInt(pb.slice(3,5),16), pbl = parseInt(pb.slice(5,7),16)
     const paperRgba = (a: number) => `rgba(${pr},${pg2},${pbl},${a})`
 
     if (dir === 'fwd') {
-      // Fold line moves right→left: at p=0 it's at 100% (right edge), at p=1 it's at 0% (left)
       const foldPct = (1 - p) * 100
-      // Front face: clip away everything right of the fold line; tilt the remaining slice
       fromEl.style.clipPath        = `inset(0 ${p * 100}% 0 0)`
       fromEl.style.transformOrigin = `${foldPct}% 50%`
       fromEl.style.transform       = `perspective(${W * 2.5}px) rotateY(${-p * 14}deg)`
-      // Paper-back: cream fill right of fold line (shadow at crease edge, cream further right)
       if (overlay) {
         overlay.style.left       = `${foldPct}%`
         overlay.style.right      = '0'
@@ -278,18 +432,11 @@ export default function FeaturedPage() {
         stripe.style.opacity    = '1'
       }
     } else {
-      // Back turn: clean reverse-wipe — current page clips away left-to-right,
-      // previous page shows through directly underneath. No paper-back overlay
-      // (you never see the back of the page going backward; that's forward-turn physics).
-      // A cast shadow from the folding edge falls on the arriving page for depth.
       const foldPct = p * 100
       fromEl.style.clipPath        = `inset(0 0 0 ${p * 100}%)`
       fromEl.style.transform       = 'none'
       fromEl.style.transformOrigin = ''
-      // Hide the cream overlay — cover shows through cleanly
       if (overlay) overlay.style.opacity = '0'
-      // Cast shadow on the arriving page: a gradient that follows the fold edge
-      // and peaks at mid-turn, giving depth to the wipe without a cream wall
       if (stripe) {
         stripe.style.left       = `calc(${foldPct}% - 18px)`
         stripe.style.width      = '18px'
@@ -310,7 +457,6 @@ export default function FeaturedPage() {
     const dir     = turnDirRef.current
     const fromIdx = pageIdxRef.current
 
-    // Hide fold elements first (cream is already transparent at p=1 due to cA fade)
     if (foldOverlayRef.current) {
       const o = foldOverlayRef.current
       o.style.opacity = '0'; o.style.left = '0'; o.style.right = '0'; o.style.width = 'auto'
@@ -322,22 +468,16 @@ export default function FeaturedPage() {
       const nxt   = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
       const nxtEl = pageEls.current[nxt]
       const fromEl = pageEls.current[fromIdx]
-      // 1. Promote arriving page to front BEFORE clearing leaving page's clip-path
-      //    so there's never a frame where the leaving page is unclipped and on top.
       if (nxtEl) { nxtEl.style.zIndex = '4'; nxtEl.style.clipPath = ''; nxtEl.style.transform = 'none'; nxtEl.style.transformOrigin = '' }
-      // 2. Now safe to reset leaving page (it's behind the arriving page)
       if (fromEl) { fromEl.style.zIndex = '1'; fromEl.style.clipPath = ''; fromEl.style.transform = 'none'; fromEl.style.transformOrigin = '' }
-      // 3. Reset all other pages
       pageEls.current.forEach((el, i) => {
         if (el && i !== nxt && i !== fromIdx) { el.style.clipPath = ''; el.style.transform = 'none'; el.style.transformOrigin = ''; el.style.zIndex = '1' }
       })
       pageIdxRef.current = nxt
       setPageIdx(nxt)
     } else {
-      // Snap back — just reset the leaving page
       const fromEl = pageEls.current[fromIdx]
       if (fromEl) { fromEl.style.clipPath = ''; fromEl.style.transform = 'none'; fromEl.style.transformOrigin = ''; fromEl.style.zIndex = '3' }
-      // Reset arriving page (it was armed but never completed)
       const abortIdx = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
       const abortEl  = pageEls.current[abortIdx]
       if (abortEl) { abortEl.style.clipPath = ''; abortEl.style.transform = 'none'; abortEl.style.transformOrigin = ''; abortEl.style.zIndex = '1' }
@@ -348,21 +488,18 @@ export default function FeaturedPage() {
   }
 
   function animateTo(from: number, to: number, dir: 'fwd'|'back', cb: (done: boolean) => void) {
-    // Completing (to=1): ease-out cubic — physical deceleration, no hard snap.
-    // Aborting (to=0): ease-in so it accelerates back quickly.
     const completing = to >= 1
     const dist = Math.abs(to - from)
-    const dur  = Math.max(240, dist * 540) // 540ms full turn feels like real paper
+    const dur  = Math.max(240, dist * 540)
     const t0 = performance.now(), delta = to - from
     const run = (now: number) => {
-      const t = Math.min((now - t0) / dur, 1)
-      // Ease-out cubic when completing, ease-in-out when snapping back
+      const tt = Math.min((now - t0) / dur, 1)
       const e = completing
-        ? 1 - Math.pow(1 - t, 3)
-        : t < 0.5 ? 2*t*t : -1+(4-2*t)*t
+        ? 1 - Math.pow(1 - tt, 3)
+        : tt < 0.5 ? 2*tt*tt : -1+(4-2*tt)*tt
       progressRef.current = from + delta * e
       applyTransforms(progressRef.current, dir)
-      if (t < 1) { rafRef.current = requestAnimationFrame(run) } else { cb(to >= 1) }
+      if (tt < 1) { rafRef.current = requestAnimationFrame(run) } else { cb(to >= 1) }
     }
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(run)
@@ -372,15 +509,13 @@ export default function FeaturedPage() {
     if (isTurningRef.current) return
     const fromIdx = pageIdxRef.current
     const toIdx   = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
-    if (toIdx < 0 || toIdx >= NUM_PAGES) return
+    if (toIdx < 0 || toIdx >= pagesLenRef.current) return
     isTurningRef.current = true
     turnDirRef.current   = dir
     setIsTurning(true)
-    // Leaving page on top (z=4), arriving page reveals below (z=2), fold elements on z=3/5
     const fromEl = pageEls.current[fromIdx], toEl = pageEls.current[toIdx]
     if (fromEl) fromEl.style.zIndex = '4'
     if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
-    // Arm fold elements
     if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
     if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     applyTransforms(0, dir)
@@ -398,6 +533,18 @@ export default function FeaturedPage() {
   useEffect(() => {
     const container = document.getElementById('feat-container')
     if (!container) return
+    const armTurn = (dir: 'fwd'|'back', fromIdx: number) => {
+      isDragTurnRef.current = true
+      isTurningRef.current  = true
+      turnDirRef.current    = dir
+      setIsTurning(true)
+      const toIdx  = dir === 'fwd' ? fromIdx + 1 : fromIdx - 1
+      const fromEl = pageEls.current[fromIdx], toEl = pageEls.current[toIdx]
+      if (fromEl) fromEl.style.zIndex = '4'
+      if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
+      if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
+      if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
+    }
     const onMove = (e: TouchEvent) => {
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
@@ -407,30 +554,18 @@ export default function FeaturedPage() {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
         if (Math.abs(dy) > Math.abs(dx) * 0.85) { touchStartXRef.current = null; return }
         const pg = pageIdxRef.current
+        const last = pagesLenRef.current - 1
         const startX = touchStartXRef.current!
         const W = window.innerWidth
-        // Cover: right-30% zone dragging left = page turn forward
         if (pg === 0 && dx < 0 && startX >= W * 0.70) {
-          isDragTurnRef.current = true
-          isTurningRef.current  = true
-          turnDirRef.current    = 'fwd'
-          setIsTurning(true)
-          const fromEl = pageEls.current[0], toEl = pageEls.current[1]
-          if (fromEl) fromEl.style.zIndex = '4'
-          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
-          if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
-          if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
+          // Cover: drag left from the right-30% zone = turn forward
+          armTurn('fwd', 0)
         } else if (pg > 0 && dx > 0) {
-          // Spec/Mods: drag right = go back
-          isDragTurnRef.current = true
-          isTurningRef.current  = true
-          turnDirRef.current    = 'back'
-          setIsTurning(true)
-          const fromEl = pageEls.current[pg], toEl = pageEls.current[pg - 1]
-          if (fromEl) fromEl.style.zIndex = '4'
-          if (toEl)   { toEl.style.zIndex = '2'; toEl.style.transform = 'none'; toEl.style.clipPath = '' }
-          if (foldOverlayRef.current) { foldOverlayRef.current.style.zIndex = '3'; foldOverlayRef.current.style.opacity = '0' }
-          if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
+          // Interior: drag right = go back
+          armTurn('back', pg)
+        } else if (pg > 0 && dx < 0 && pg < last) {
+          // Interior: drag left = go forward (when a next page exists)
+          armTurn('fwd', pg)
         } else {
           touchStartXRef.current = null; return
         }
@@ -473,54 +608,17 @@ export default function FeaturedPage() {
     touchStartXRef.current = null
   }
 
-  // ── derived values ────────────────────────────────────────────────────────────
-  const seed       = useMemo(() => seedFrom((car?.nickname ?? '') + (car?.year ?? '')), [car])
-  const rng        = useMemo(() => mulberry32(seed || 1), [seed])
-  const purchaseYear = car?.purchase_date ? new Date(car.purchase_date).getFullYear() : null
-  const vol        = purchaseYear ? Math.max(1, new Date().getFullYear() - purchaseYear + 1) : 1
-  const issue      = useMemo(() => 1 + Math.floor(rng() * 12), [rng])
-  const carName    = [car?.year, car?.make, car?.model, car?.variant].filter(Boolean).join(' ') || 'YOUR BUILD'
-  const fi         = car?.forced_induction && car.forced_induction !== 'none' ? car.forced_induction.replace('-',' ') : null
-  const powerLine  = [car?.horsepower ? `${car.horsepower} HP` : null, fi, car?.drivetrain ? car.drivetrain.toUpperCase() : null].filter(Boolean).join(' · ')
-  const t          = TEMPLATES[coverIdx]
-  const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
-  const photo      = photos[photoIdx] ?? null
-  const cycleCover = (dir: number) => setCoverIdx(p => (p + dir + TEMPLATES.length) % TEMPLATES.length)
-  const bottomColor = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
-
-  const grouped = useMemo(() => {
-    const g: Record<string,Job[]> = { power:[], chassis:[], exterior:[], interior:[] }
-    for (const job of jobs) {
-      const grp = job.category ? CAT_TO_GROUP[job.category] : undefined
-      if (grp) g[grp].push(job)
-    }
-    return g
-  }, [jobs])
-
-  // Tagline — after grouped so generateTagline can use it; separate RNG seed
-  const tagline = useMemo(() => {
-    if (!car) return ''
-    const tRng = mulberry32((seed || 1) ^ 0xf00dcafe)
-    return generateTagline(car, jobs.length, grouped, purchaseYear, tRng)
-  }, [car, jobs.length, grouped, purchaseYear, seed])
-
   if (loading) return <div style={{ position:'fixed', inset:0, background:'#08080a' }} />
 
-  return (
-    <div
-      id="feat-container"
-      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', userSelect:'none', WebkitUserSelect:'none' }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* ─── perspective stage ─── */}
-      <div style={{ position:'absolute', inset:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
+  // ── page renderer (closes over component scope) ────────────────────────────────
+  const renderPageInner = (pg: PageDesc, i: number) => {
+    const prev = pages[i - 1], next = pages[i + 1]
+    const onBack = prev ? () => runTurn('back') : undefined
+    const onNext = next ? () => runTurn('fwd')  : undefined
 
-        {/* ══ PAGE 0: COVER ══ */}
-        <div
-          ref={el => { pageEls.current[0] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:3 }}
-        >
+    if (pg.kind === 'cover') {
+      return (
+        <>
           {/* Cover content — key triggers the fade-in on template change */}
           <div key={t.id} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
@@ -530,9 +628,6 @@ export default function FeaturedPage() {
                 style={photo.mode==='cutout'
                   ? { position:'absolute', top:'2%', left:0, right:0, width:'100%', height:'66%', objectFit:'contain', objectPosition:'center top' }
                   : (() => {
-                      // Landscape: show full car, centered vertically in the frame
-                      // Portrait: taller crop, head-of-car at top
-                      // Square: default
                       const h = photoAspect !== null
                         ? (photoAspect > 1.3 ? '60%' : photoAspect < 0.85 ? '72%' : '64%')
                         : '64%'
@@ -559,18 +654,9 @@ export default function FeaturedPage() {
               : <div style={{ position:'absolute', top:0, left:0, right:0 }}>
                   <div style={{ padding: '10px 0 8px', marginTop: 44 }}>
                     <h1 style={{
-                      fontFamily: FONT_MASTHEAD,
-                      color: t.mastColor,
-                      margin: 0,
-                      lineHeight: 0.88,
-                      fontSize: 'clamp(52px, 14.5vw, 72px)',
-                      letterSpacing: '0.01em',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                      textTransform: 'uppercase',
-                      width: '100%',
-                      display: 'block',
-                      padding: '0 8px',
+                      fontFamily: FONT_MASTHEAD, color: t.mastColor, margin: 0, lineHeight: 0.88,
+                      fontSize: 'clamp(52px, 14.5vw, 72px)', letterSpacing: '0.01em', fontStyle: 'italic',
+                      textAlign: 'center', textTransform: 'uppercase', width: '100%', display: 'block', padding: '0 8px',
                       textShadow: t.id === 'knockout-white' ? '0 2px 20px rgba(0,0,0,0.7)' : 'none',
                     }}>G-DIMENSION</h1>
                   </div>
@@ -582,11 +668,9 @@ export default function FeaturedPage() {
               ? { position:'absolute', left:0, right:0, bottom:90, textAlign:'center', padding:'0 20px' }
               : { position:'absolute', left:16, right:16, bottom:96 }}>
               <span style={{ display:'inline-block', fontFamily:FONT_DECK, fontWeight:600, fontSize:11, letterSpacing:'0.22em', textTransform:'uppercase', color:'#fff', background:t.accent, padding:'3px 8px', marginBottom:10 }}>Feature Car</span>
-              {/* Big headline only when there's a real custom nickname */}
               {car?.nickname && (
                 <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:car.nickname.length>12?44:58, textTransform:'uppercase', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{car.nickname}</div>
               )}
-              {/* Full car name — bigger/bolder when no nickname to take headline role */}
               <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.95,
                 fontSize: car?.nickname ? 14 : (carName.length > 18 ? 22 : 28),
                 fontStyle: car?.nickname ? 'normal' : 'italic',
@@ -595,7 +679,6 @@ export default function FeaturedPage() {
                 marginTop: car?.nickname ? 8 : 4 }}>
                 {carName}{car?.trim ? ` ${car.trim}` : ''}
               </div>
-              {/* Auto-generated personality tagline */}
               {tagline && (
                 <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.88,
                   fontSize:13.5, lineHeight:1.35, marginTop:7,
@@ -606,70 +689,76 @@ export default function FeaturedPage() {
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
-            {/* barcode — alternates position by cover template index */}
             <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }) }}>
               <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={false} />
             </div>
 
             <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
 
-            {/* glossy sheen */}
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(120% 60% at 75% 8%, rgba(255,255,255,0.16) 0%, transparent 42%)', mixBlendMode:'screen' }} />
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.03, mixBlendMode:'screen', backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
-            {/* right-edge spine gutter */}
             <div style={{ position:'absolute', top:0, right:0, bottom:0, width:28, pointerEvents:'none', background:'linear-gradient(270deg,rgba(0,0,0,0.2) 0%,rgba(0,0,0,0.05) 60%,transparent 100%)' }} />
           </div>
 
           {/* "INSIDE ▸" chip — outside keyed wrapper so it doesn't flash on template change */}
-          {!isTurning && (
-            <div
-              onClick={() => runTurn('fwd')}
+          {!isTurning && next && (
+            <div onClick={() => runTurn('fwd')}
               style={{ position:'absolute', right:12, bottom:50, zIndex:9, fontFamily:FONT_DECK, fontWeight:700, fontSize:9.5, letterSpacing:'0.24em', textTransform:'uppercase', color:'#f5f5f5', background:'rgba(0,0,0,0.58)', border:'1px solid rgba(245,245,245,0.38)', padding:'7px 12px', cursor:'pointer' }}>
               INSIDE ▸
             </div>
           )}
 
-          {/* corner curl — static hint that grows during drag from right zone */}
           <CornerCurl color={t.textOnPhoto==='light' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} />
+        </>
+      )
+    }
 
-          {/* fold shadow — AFTER all content */}
-          <div ref={el => { shadowEls.current[0] = el }}
-            style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0,
-              background:'linear-gradient(270deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)' }} />
-        </div>
+    if (pg.kind === 'photo') {
+      return (
+        <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme} vol={vol} issue={issue}
+          backLabel={prev?.label ?? 'COVER'} nextLabel={next?.label} pageNum={i + 1}
+          onBack={onBack} onNext={onNext} />
+      )
+    }
 
-        {/* ══ PAGE 1: SPEC SPREAD ══ */}
-        <div
-          ref={el => { pageEls.current[1] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:1 }}
-        >
-          <SpecSpread car={car} grouped={grouped} carName={carName} powerLine={powerLine}
-            purchaseYear={purchaseYear} theme={theme} vol={vol} issue={issue}
-            onNext={() => runTurn('fwd')} onBack={() => runTurn('back')} />
-          <div ref={el => { shadowEls.current[1] = el }}
-            style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0,
-              background:'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)' }} />
-        </div>
+    // spec
+    return (
+      <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme} vol={vol} issue={issue}
+        totalMods={jobs.length} carShortName={carShortName}
+        backLabel={prev?.label ?? 'COVER'} nextLabel={next?.label} pageNum={i + 1}
+        onBack={onBack} onNext={onNext} />
+    )
+  }
 
-        {/* ══ PAGE 2: MODS SPREAD ══ */}
-        <div
-          ref={el => { pageEls.current[2] = el }}
-          style={{ position:'absolute', inset:0, willChange:'transform', zIndex:1 }}
-        >
-          <ModsSpread car={car} grouped={grouped} totalMods={jobs.length} theme={theme} vol={vol} issue={issue}
-            onBack={() => runTurn('back')} />
-          <div ref={el => { shadowEls.current[2] = el }}
-            style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0,
-              background:'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)' }} />
-        </div>
+  return (
+    <div
+      id="feat-container"
+      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', userSelect:'none', WebkitUserSelect:'none' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* ─── perspective stage ─── */}
+      <div style={{ position:'absolute', inset:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
 
-        {/* ── paper-back overlay — cream face of the folding leaf ── */}
-        <div ref={foldOverlayRef}
-          style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
+        {pages.map((pg, i) => (
+          <div key={i}
+            ref={el => { pageEls.current[i] = el }}
+            style={{ position:'absolute', inset:0, willChange:'transform', zIndex: i === pageIdx ? 3 : 1 }}
+          >
+            {renderPageInner(pg, i)}
+            {/* fold shadow — AFTER content; cover casts to the left, interiors to the right */}
+            <div ref={el => { shadowEls.current[i] = el }}
+              style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0,
+                background: i === 0
+                  ? 'linear-gradient(270deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)'
+                  : 'linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 35%, transparent 70%)' }} />
+          </div>
+        ))}
 
+        {/* ── paper-back overlay — face of the folding leaf ── */}
+        <div ref={foldOverlayRef} style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
         {/* ── fold crease strip — bright edge highlight ── */}
-        <div ref={foldLineRef}
-          style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
+        <div ref={foldLineRef} style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
 
       </div>
 
@@ -702,10 +791,10 @@ export default function FeaturedPage() {
         </>
       )}
 
-      {/* Page progress dots on spread pages */}
-      {pageIdx > 0 && !isTurning && (
+      {/* Page progress dots on interior pages */}
+      {pageIdx > 0 && !isTurning && pages.length > 1 && (
         <div style={{ position:'absolute', bottom:52, left:0, right:0, display:'flex', justifyContent:'center', gap:5, zIndex:20, pointerEvents:'none' }}>
-          {Array.from({length:NUM_PAGES},(_,i) => (
+          {pages.map((_,i) => (
             <div key={i} style={{ width:i===pageIdx?14:5, height:5, borderRadius:3, background:i===pageIdx?theme.accent:'rgba(0,0,0,0.2)', transition:`all 200ms ${EASING_SETTLE}` }} />
           ))}
         </div>
@@ -719,15 +808,12 @@ export default function FeaturedPage() {
 }
 
 // ─── CornerCurl ───────────────────────────────────────────────────────────────
-// Static visual hint at bottom-right that the page is turnable
 function CornerCurl({ color }: { color: string }) {
   return (
     <div style={{ position:'absolute', bottom:0, right:0, width:52, height:52, pointerEvents:'none', zIndex:8 }}>
-      {/* Triangular fold shadow */}
       <div style={{ position:'absolute', bottom:0, right:0, width:0, height:0,
         borderStyle:'solid', borderWidth:'0 0 52px 52px',
         borderColor:`transparent transparent ${color} transparent` }} />
-      {/* Bright highlight on the fold edge */}
       <div style={{ position:'absolute', bottom:2, right:2, width:0, height:0,
         borderStyle:'solid', borderWidth:'0 0 22px 22px',
         borderColor:'transparent transparent rgba(255,255,255,0.22) transparent' }} />
@@ -736,17 +822,14 @@ function CornerCurl({ color }: { color: string }) {
 }
 
 // ─── Barcode ──────────────────────────────────────────────────────────────────
-// Realistic EAN-style barcode: vertical bars of varying widths, number below
 function Barcode({ seed, price, dark }: { seed: number; price: string; dark: boolean }) {
-  // Generate pseudo-random bar widths (1-3px) from seed
   const rng = mulberry32((seed || 1) ^ 0xdeadbeef)
-  // EAN-13-style: guard bars (3 wide) at edges, data bars in between
   const barWidths: number[] = []
-  barWidths.push(1, 1, 1) // left guard
+  barWidths.push(1, 1, 1)
   for (let i = 0; i < 24; i++) barWidths.push(Math.floor(rng() * 2.8) + 1)
-  barWidths.push(1, 1, 1, 1, 1) // center guard
+  barWidths.push(1, 1, 1, 1, 1)
   for (let i = 0; i < 24; i++) barWidths.push(Math.floor(rng() * 2.8) + 1)
-  barWidths.push(1, 1, 1) // right guard
+  barWidths.push(1, 1, 1)
 
   const bg = dark ? '#0a0a0a' : '#f4f1ea'
   const fg = dark ? '#f4f1ea' : '#0a0a0a'
@@ -754,19 +837,16 @@ function Barcode({ seed, price, dark }: { seed: number; price: string; dark: boo
 
   return (
     <div style={{ background: bg, padding: '4px 6px 5px', display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      {/* bars */}
       <div style={{ display: 'flex', alignItems: 'stretch', height: barcodeH, gap: '1px' }}>
         {barWidths.map((w, i) => (
           <div key={i} style={{
             width: w,
             background: i % 2 === 0 ? fg : bg,
-            // Guard bars are slightly taller
             alignSelf: (i < 3 || i > barWidths.length - 4) ? 'stretch' : 'center',
             height: (i < 3 || i > barWidths.length - 4) ? '100%' : '88%',
           }} />
         ))}
       </div>
-      {/* number below */}
       <div style={{ fontFamily: FONT_DECK, fontSize: 6.5, letterSpacing: '0.14em', color: fg, textAlign: 'center', lineHeight: 1 }}>
         {price}
       </div>
@@ -774,7 +854,7 @@ function Barcode({ seed, price, dark }: { seed: number; price: string; dark: boo
   )
 }
 
-// ─── Masthead ─────────────────────────────────────────────────────────────────
+// ─── Masthead / TopStrip (cover) ────────────────────────────────────────────────
 function Masthead({ t, size }: { t: Template; size: number }) {
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
@@ -794,179 +874,171 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
   )
 }
 
-// ─── SpecSpread (Page 1) ──────────────────────────────────────────────────────
-// Fixed layout — all content fits on screen, no scrolling
-interface SpecSpreadProps {
-  car:Car|null; grouped:Record<string,Job[]>; carName:string; powerLine:string
-  purchaseYear:number|null; theme:InteriorTheme; vol:number; issue:number
-  onNext:()=>void; onBack:()=>void
-}
-function SpecSpread({ car, grouped, carName, powerLine, purchaseYear, theme, vol, issue, onNext, onBack }: SpecSpreadProps) {
-  const stats = [
-    car?.horsepower    ? { label:'POWER',          value:`${car.horsepower} HP` } : null,
-    car?.drivetrain    ? { label:'DRIVETRAIN',      value:car.drivetrain.toUpperCase() } : null,
-    (car?.forced_induction&&car.forced_induction!=='none') ? { label:'FORCED INDUCTION', value:car.forced_induction!.replace('-',' ').toUpperCase() } : null,
-    car?.year          ? { label:'YEAR',            value:String(car.year) } : null,
-    car?.trim          ? { label:'TRIM',            value:car.trim.toUpperCase() } : null,
-    purchaseYear       ? { label:'SINCE',           value:String(purchaseYear) } : null,
-  ].filter(Boolean) as { label:string; value:string }[]
-
-  const activeGroups = GROUP_ORDER.filter(k => grouped[k].length > 0)
-
+// ─── shared interior furniture ──────────────────────────────────────────────────
+// Running head — masthead + VOL/NO strip. Interior pages carry no title here; the
+// only page with a visible title is the Spec Sheet (rendered separately below).
+function RunningHead({ theme, vol, issue, suffix }: { theme: InteriorTheme; vol: number; issue: number; suffix?: string }) {
   return (
-    <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
-      {/* left spine gutter */}
-      <div style={{ position:'absolute', top:0, left:0, bottom:0, width:28, pointerEvents:'none', zIndex:4,
-        background:`linear-gradient(90deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)` }} />
-
-      {/* running head */}
-      <div style={{ background:theme.menuHeaderBg, padding:'10px 16px 8px 28px', display:'flex', alignItems:'baseline', justifyContent:'space-between', flexShrink:0 }}>
-        <span style={{ fontFamily:FONT_MASTHEAD, color:theme.menuHeaderInk, fontSize:19, fontStyle:'italic', letterSpacing:'-0.01em' }}>G-DIMENSION</span>
-        <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>VOL.{vol} NO.{issue} · SPEC</span>
-      </div>
-
-      {/* body — flex column, fills remaining height exactly */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'14px 14px 0 28px', minHeight:0 }}>
-
-        {/* car identity */}
-        <div style={{ flexShrink:0, marginBottom:10 }}>
-          <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:32, lineHeight:0.9, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.02em' }}>
-            {[car?.year,car?.make,car?.model].filter(Boolean).join(' ')||carName}
-          </div>
-          {car?.variant && <div style={{ fontFamily:FONT_DECK, color:theme.accent, fontWeight:600, fontSize:10, letterSpacing:'0.18em', textTransform:'uppercase', marginTop:4 }}>{car.variant}</div>}
-          {car?.nickname && <div style={{ fontFamily:FONT_TITLE, color:theme.accent, fontSize:18, fontStyle:'italic', marginTop:2, letterSpacing:'0.01em' }}>"{car.nickname}"</div>}
-          <div style={{ height:1, background:theme.rule, margin:'8px 0' }} />
-          <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:theme.subInk, fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase' }}>{powerLine||carName}</div>
-        </div>
-
-        {/* two-column body: stats left, mods right */}
-        <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, minHeight:0 }}>
-
-          {/* left: stats grid */}
-          <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
-            <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:7.5, letterSpacing:'0.3em', textTransform:'uppercase', marginBottom:6 }}>SPECS</div>
-            {stats.map(s => (
-              <div key={s.label} style={{ background:`${theme.ink}08`, padding:'7px 10px', marginBottom:2 }}>
-                <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:7, letterSpacing:'0.22em', textTransform:'uppercase', marginBottom:1 }}>{s.label}</div>
-                <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:16, lineHeight:1, fontStyle:'italic' }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* right: mod highlights (2 per group) */}
-          <div style={{ display:'flex', flexDirection:'column' }}>
-            <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:7.5, letterSpacing:'0.3em', textTransform:'uppercase', marginBottom:6 }}>BUILD HIGHLIGHTS</div>
-            {activeGroups.length === 0
-              ? <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.5, marginTop:8 }}>No mods logged yet</div>
-              : activeGroups.map(grpKey => (
-                <div key={grpKey} style={{ marginBottom:8 }}>
-                  <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:7, letterSpacing:'0.26em', textTransform:'uppercase', marginBottom:3 }}>{GROUP_LABELS[grpKey]}</div>
-                  {grouped[grpKey].slice(0,2).map(job => (
-                    <div key={job.id} style={{ fontFamily:FONT_DECK, color:theme.ink, fontSize:11, lineHeight:1.5, paddingLeft:10, position:'relative' }}>
-                      <span style={{ position:'absolute', left:0, top:0, color:theme.accent, fontSize:10 }}>·</span>
-                      {[job.brand,job.title].filter(Boolean).join(' ')||'—'}
-                    </div>
-                  ))}
-                  {grouped[grpKey].length > 2 && (
-                    <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, letterSpacing:'0.1em', textTransform:'uppercase', paddingLeft:10, opacity:0.5 }}>+{grouped[grpKey].length-2} more</div>
-                  )}
-                </div>
-              ))
-            }
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* folio */}
-      <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
-        <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>‹ COVER</div>
-        <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
-        <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>BUILD SPEC ›</div>
-      </div>
-
-      <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.025, mixBlendMode:'multiply',
-        backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
+    <div style={{ background:theme.menuHeaderBg, padding:'10px 16px 8px 28px', display:'flex', alignItems:'baseline', justifyContent:'space-between', flexShrink:0 }}>
+      <span style={{ fontFamily:FONT_MASTHEAD, color:theme.menuHeaderInk, fontSize:19, fontStyle:'italic', letterSpacing:'-0.01em' }}>G-DIMENSION</span>
+      <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>
+        VOL.{vol} NO.{issue}{suffix ? ` ${suffix}` : ''}
+      </span>
     </div>
   )
 }
 
-// ─── ModsSpread (Page 2) ──────────────────────────────────────────────────────
-interface ModsSpreadProps {
-  car:Car|null; grouped:Record<string,Job[]>; totalMods:number; theme:InteriorTheme; vol:number; issue:number
-  onBack:()=>void
+// Folio bar — back/forward labels derived from neighbor pages; last page shows the
+// page number instead of a forward link.
+function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext }:
+  { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void }) {
+  return (
+    <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
+      <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onBack?'pointer':'default', padding:'4px 0' }}>‹ {backLabel}</div>
+      <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
+      {nextLabel
+        ? <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onNext?'pointer':'default', padding:'4px 0' }}>{nextLabel} ›</div>
+        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6 }}>{String(pageNum).padStart(2,'0')}</span>}
+    </div>
+  )
 }
-function ModsSpread({ car, grouped, totalMods, theme, vol, issue, onBack }: ModsSpreadProps) {
-  const activeGroups = GROUP_ORDER.filter(k => grouped[k].length > 0)
-  const carShortName = [car?.make, car?.model].filter(Boolean).join(' ') || 'BUILD'
 
+const NOISE_OVERLAY: React.CSSProperties = {
+  position:'absolute', inset:0, pointerEvents:'none', opacity:0.025, mixBlendMode:'multiply',
+  backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+}
+const SPINE_GUTTER: React.CSSProperties = {
+  position:'absolute', top:0, left:0, bottom:0, width:28, pointerEvents:'none', zIndex:4,
+  background:'linear-gradient(90deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)',
+}
+
+// ─── PhotoSpread (interior, untitled) ───────────────────────────────────────────
+// Editorial collage: one dominant photo + 1–3 supporting, arranged deterministically.
+// Caption slot under each photo is always present (renders text only when written).
+interface PhotoSpreadProps {
+  photos: PhotoItem[]; arrangement: number; theme: InteriorTheme; vol: number; issue: number
+  backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
+}
+function PhotoCell({ item, theme }: { item: PhotoItem; theme: InteriorTheme }) {
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
+      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:`${theme.ink}0a` }}>
+        <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+      </div>
+      {/* caption slot — present in markup so the editorial engine can fill it later */}
+      <div style={{ flexShrink:0 }}>
+        {item.caption && (
+          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:3,
+            overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
+            {item.caption}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+function Collage({ photos, arrangement, theme }: { photos: PhotoItem[]; arrangement: number; theme: InteriorTheme }) {
+  const dominantTop = arrangement === 0
+  const col = (children: React.ReactNode) => <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>{children}</div>
+
+  if (photos.length <= 1) {
+    return <div style={{ flex:1, display:'flex', minHeight:0 }}>{photos[0] && <PhotoCell item={photos[0]} theme={theme} />}</div>
+  }
+  if (photos.length === 2) {
+    const big   = <div style={{ flex:'1 1 58%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
+    const small = <div style={{ flex:'1 1 42%', display:'flex', minHeight:0 }}><PhotoCell item={photos[1]} theme={theme} /></div>
+    return col(dominantTop ? <>{big}{small}</> : <>{small}{big}</>)
+  }
+  if (photos.length === 3) {
+    const big = <div style={{ flex:'1 1 56%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
+    const row = (
+      <div style={{ flex:'1 1 44%', display:'flex', gap:8, minHeight:0 }}>
+        <div style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={photos[1]} theme={theme} /></div>
+        <div style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={photos[2]} theme={theme} /></div>
+      </div>
+    )
+    return col(dominantTop ? <>{big}{row}</> : <>{row}{big}</>)
+  }
+  // 4
+  const big = <div style={{ flex:'1 1 54%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
+  const row = (
+    <div style={{ flex:'1 1 46%', display:'flex', gap:7, minHeight:0 }}>
+      {[photos[1], photos[2], photos[3]].map((p, i) => (
+        <div key={i} style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={p} theme={theme} /></div>
+      ))}
+    </div>
+  )
+  return col(dominantTop ? <>{big}{row}</> : <>{row}{big}</>)
+}
+function PhotoSpread({ photos, arrangement, theme, vol, issue, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
-      {/* left spine gutter */}
-      <div style={{ position:'absolute', top:0, left:0, bottom:0, width:28, pointerEvents:'none', zIndex:4,
-        background:`linear-gradient(90deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)` }} />
-
-      {/* running head */}
-      <div style={{ background:theme.menuHeaderBg, padding:'10px 16px 8px 28px', display:'flex', alignItems:'baseline', justifyContent:'space-between', flexShrink:0 }}>
-        <span style={{ fontFamily:FONT_MASTHEAD, color:theme.menuHeaderInk, fontSize:19, fontStyle:'italic', letterSpacing:'-0.01em' }}>G-DIMENSION</span>
-        <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>VOL.{vol} NO.{issue} · BUILD SPEC</span>
+      <div style={SPINE_GUTTER} />
+      <RunningHead theme={theme} vol={vol} issue={issue} />
+      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'12px 14px 10px 30px', minHeight:0 }}>
+        <Collage photos={photos} arrangement={arrangement} theme={theme} />
       </div>
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
+      <div style={NOISE_OVERLAY} />
+    </div>
+  )
+}
 
-      {/* page title */}
-      <div style={{ padding:'12px 14px 8px 28px', flexShrink:0, borderBottom:`1px solid ${theme.rule}` }}>
-        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between' }}>
-          <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:26, lineHeight:1, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.02em' }}>
-            BUILD SPEC
-          </div>
-          <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:9, letterSpacing:'0.18em', textTransform:'uppercase' }}>
-            {totalMods} MOD{totalMods!==1?'S':''} · {carShortName}
-          </div>
-        </div>
-      </div>
+// ─── SpecSheet (interior, the one titled page — D'Sport vehicle spec sheet) ──────
+interface SpecSheetProps {
+  sections: SpecSection[]; isCont: boolean; theme: InteriorTheme; vol: number; issue: number
+  totalMods: number; carShortName: string
+  backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
+}
+function SpecSheet({ sections, isCont, theme, vol, issue, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: SpecSheetProps) {
+  return (
+    <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div style={SPINE_GUTTER} />
+      <RunningHead theme={theme} vol={vol} issue={issue} suffix={isCont ? '· SPEC SHEET (CONT.)' : undefined} />
 
-      {/* 2-column mods grid */}
-      <div style={{ flex:1, padding:'10px 14px 0 28px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px', alignContent:'start', minHeight:0, overflow:'hidden' }}>
-        {activeGroups.length === 0
-          ? <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:FONT_DECK, color:theme.subInk, fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', opacity:0.5 }}>
-              Add mods in Tuning to fill this spread
-            </div>
-          : activeGroups.map(grpKey => (
-            <div key={grpKey} style={{ marginBottom:12 }}>
-              {/* group header */}
-              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:5 }}>
-                <div style={{ flex:1, height:1, background:theme.rule }} />
-                <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:7.5, letterSpacing:'0.3em', textTransform:'uppercase' }}>{GROUP_LABELS[grpKey]}</div>
-                <div style={{ flex:1, height:1, background:theme.rule }} />
+      {/* title block — D'Sport masthead, reversed on the ink panel. First page only. */}
+      {isCont
+        ? <div style={{ background:theme.ink, padding:'7px 14px 6px 28px', flexShrink:0 }}>
+            <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontStyle:'italic', color:theme.pageBg, fontSize:11, letterSpacing:'0.06em', textTransform:'uppercase' }}>Vehicle Spec Sheet <span style={{ opacity:0.6 }}>· Continued</span></div>
+          </div>
+        : <div style={{ background:theme.ink, padding:'10px 14px 9px 28px', flexShrink:0 }}>
+            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
+              <div style={{ fontFamily:FONT_MASTHEAD, color:theme.pageBg, fontSize:25, lineHeight:0.95, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.01em' }}>
+                VEHICLE SPEC SHEET
               </div>
-              {/* items — max 6 per group in this compact format */}
-              {grouped[grpKey].slice(0,6).map(job => (
-                <div key={job.id} style={{ fontFamily:FONT_DECK, color:theme.ink, fontSize:11, lineHeight:1.6, paddingLeft:10, position:'relative', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  <span style={{ position:'absolute', left:0, top:0, color:theme.accent, fontSize:10 }}>·</span>
-                  {[job.brand,job.title].filter(Boolean).join(' ')||'—'}
-                </div>
-              ))}
-              {grouped[grpKey].length>6 && (
-                <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, letterSpacing:'0.1em', textTransform:'uppercase', paddingLeft:10, opacity:0.5, marginTop:1 }}>
-                  +{grouped[grpKey].length-6} more
-                </div>
-              )}
+              <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'right', flexShrink:0 }}>
+                {totalMods} MOD{totalMods!==1?'S':''} · {carShortName}
+              </div>
             </div>
-          ))
-        }
+          </div>}
+
+      {/* sections — fixed height, clipped (never scrolls) */}
+      <div style={{ flex:1, padding:'12px 16px 0 28px', minHeight:0, overflow:'hidden' }}>
+        {sections.map((sec, si) => (
+          <div key={si} style={{ marginBottom:SEC_GAP }}>
+            {/* section header — italic label + trailing rule line (D'Sport style) */}
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, height:SEC_HEADER_H - 11, boxSizing:'border-box' }}>
+              <span style={{ fontFamily:FONT_DECK, fontWeight:700, fontStyle:'italic', color:theme.ink, fontSize:13, letterSpacing:'0.02em', textTransform:'uppercase', flexShrink:0 }}>{sec.title}</span>
+              <div style={{ flex:1, height:2, background:theme.ink }} />
+            </div>
+            {sec.rows.map((r, ri) => (
+              <div key={ri} style={{ display:'flex', alignItems:'baseline', gap:8, height:SEC_ROW_H, boxSizing:'border-box' }}>
+                <span style={{ width:'45%', flexShrink:0, fontFamily:FONT_DECK, color:theme.subInk, fontSize:10, letterSpacing:'0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</span>
+                <span style={{ flex:1, fontFamily:FONT_DECK, color:theme.ink, fontSize:10.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.value}</span>
+              </div>
+            ))}
+            {sec.rows.length === 0 && (
+              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:10, letterSpacing:'0.01em', opacity:0.5 }}>—</div>
+            )}
+            {sec.moreCount ? (
+              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', opacity:0.55, marginTop:1 }}>+{sec.moreCount} more</div>
+            ) : null}
+          </div>
+        ))}
       </div>
 
-      {/* folio */}
-      <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
-        <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:'pointer', padding:'4px 0' }}>‹ SPECS</div>
-        <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
-        <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6 }}>03</span>
-      </div>
-
-      <div style={{ position:'absolute', inset:0, pointerEvents:'none', opacity:0.025, mixBlendMode:'multiply',
-        backgroundImage:"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")" }} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
+      <div style={NOISE_OVERLAY} />
     </div>
   )
 }
