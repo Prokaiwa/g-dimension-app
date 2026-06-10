@@ -461,6 +461,11 @@ export default function HomePage() {
           overflow: 'hidden',
           perspective: '1400px',
           perspectiveOrigin: '50% 40%',
+          // The map has nothing to scroll — claim every touch so the browser
+          // never hijacks a tap as a pan/overscroll (which fires pointercancel
+          // and eats the tap)
+          touchAction: 'none',
+          overscrollBehavior: 'none',
         }}
       >
         {/* Header cast shadow */}
@@ -660,7 +665,7 @@ export default function HomePage() {
                 cursor: 'pointer',
                 animation: `destIn 700ms ${EASING_SETTLE} ${STAGGER_MS[i]}ms both`,
                 WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation', userSelect: 'none',
+                touchAction: 'none', userSelect: 'none',
               }}
             >
               {/* Focal amber halo — outside scale wrapper so it doesn't shrink on press */}
