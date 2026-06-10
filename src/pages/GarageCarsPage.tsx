@@ -136,6 +136,25 @@ function CarStage({ src, placeholder, onAddPhoto }: { src: string; placeholder?:
           transition: 'opacity 180ms ease',
         }}
       />
+      {/* Showroom light pass — masked to the cutout's own pixels so the light
+          only catches the car, sweeping slowly every 14s */}
+      {!placeholder && loaded && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
+          WebkitMaskImage: `url(${src})`, maskImage: `url(${src})`,
+          WebkitMaskSize: 'contain', maskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'bottom', maskPosition: 'bottom',
+          overflow: 'hidden',
+        }}>
+          <div className="gdim-ambient" style={{
+            position: 'absolute', top: '-15%', left: 0, width: '45%', height: '130%',
+            background: 'linear-gradient(100deg, transparent 0%, rgba(255,250,235,0.05) 30%, rgba(255,250,235,0.22) 50%, rgba(255,250,235,0.05) 70%, transparent 100%)',
+            transform: 'translateX(-160%) skewX(-14deg)',
+            animation: 'showroomSweep 14s ease-in-out 4s infinite',
+          }} />
+        </div>
+      )}
       {placeholder && (
         <button
           onClick={onAddPhoto}
@@ -740,6 +759,11 @@ export default function GarageCarsPage() {
           50%     { transform: scale(1.04); box-shadow: 0 0 12px rgba(200,102,26,0.45); border-color: rgba(200,102,26,0.85); }
         }
         @keyframes addPhotoTextBeat { 0%,100%{text-shadow:0 0 4px rgba(200,102,26,0.2)} 50%{text-shadow:0 0 9px rgba(200,102,26,0.45)} }
+        @keyframes showroomSweep {
+          0%, 88% { transform: translateX(-160%) skewX(-14deg); }
+          100%    { transform: translateX(420%) skewX(-14deg); }
+        }
+        @media (prefers-reduced-motion: reduce) { .gdim-ambient { animation: none !important; } }
         .hide-scrollbar{scrollbar-width:none}
         .hide-scrollbar::-webkit-scrollbar{display:none}
         .form-scroll{-webkit-overflow-scrolling:touch;scrollbar-width:none}
