@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 050_nickname_nullable.sql (2026-06-09)
--- Migrations 001–050 applied to production, with corrections:
+-- Last migration applied : 051_usage_type_engine_origin.sql (2026-06-10)
+-- Migrations 001–051 applied to production, with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.

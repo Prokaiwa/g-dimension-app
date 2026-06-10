@@ -164,7 +164,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `050_nickname_nullable.sql` — run in order.
+`supabase/migrations/001_users.sql` → `051_usage_type_engine_origin.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -196,6 +196,7 @@ const carId = await getActiveCarId()
 | `048_session_timeline_fields.sql` | `sessions.timeline_title` (text) — custom Timeline-card title for session-derived entries (mod/service/detail), distinct from the dry record; the `handle_timeline_entry()` trigger now copies it → `timeline_entries.title` (and keeps it synced). The story already had a home (`sessions.journal_entry`, copied by the trigger). Both surface in the six session forms (mod add/edit, service new/edit, detail new/edit) under the Add-to-Timeline toggle. Empty title → card falls back to the derived name. No frontend rendering changes (Timeline + Entry Detail already read `timeline_entries.title` first). Function-only + idempotent column add |
 | `049_car_original_photo.sql` | `cars.original_photo_url` (text, nullable) — stores the **original** uploaded car photo (compressed JPEG, `car-photos` bucket, path `original-{ts}.jpg`) *before* background removal; `garage_photo_url` remains the PNG cutout derived from it. Lets the **Featured** magazine cover use the full photo, and lets background removal be re-run later (see `CAR_PHOTO_HANDOFF.md`). Saved on add/edit-car upload via `uploadCarOriginal()` in `carPhoto.ts` (best-effort — never blocks the car save; written as a *separate* update so a pre-migration gap can't break edits). Existing cars stay NULL until re-upload. Additive nullable column — no policy/grant changes (cars RLS already covers it). Applied 2026-06-07. |
 | `050_nickname_nullable.sql` | `cars.nickname` — drops `NOT NULL` constraint. Nickname is optional personal branding; Featured falls back to `model + variant` when null. Applied 2026-06-09. |
+| `051_usage_type_engine_origin.sql` | `cars.usage_type` (street/daily/track/drift/drag/show/vip/offroad) + `cars.engine_origin` (original/swapped) — primary-use category and engine provenance for the Featured archetype engine. Also refreshes `public_car_profiles` view to include both new columns plus previously-missing `build_sheet_*_photo` columns. |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 

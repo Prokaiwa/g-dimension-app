@@ -47,7 +47,7 @@ type CarMeta = { year: number | null; make: string | null; model: string | null;
 type Details = Record<string, string>
 
 const DETAIL_COLUMNS =
-  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url'
+  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url'
 
 export default function GarageCarsEditPage() {
   const navigate = useNavigate()
@@ -85,8 +85,10 @@ export default function GarageCarsEditPage() {
           chassisCode:       row.chassis_code       ?? '',
           vin:               row.vin                ?? '',
           licensePlate:      row.license_plate      ?? '',
-          engineType:        row.engine_type        ?? '',
-          forcedInduction:   row.forced_induction   ?? 'none',
+          engineType:        row.engine_type         ?? '',
+          engineOrigin:      row.engine_origin       ?? '',
+          usageType:         row.usage_type          ?? '',
+          forcedInduction:   row.forced_induction    ?? 'none',
           horsepower:        row.horsepower         != null ? String(row.horsepower) : '',
           torque:            row.torque             != null ? String(row.torque) : '',
           transmission:      row.transmission       ?? '',
@@ -131,6 +133,8 @@ export default function GarageCarsEditPage() {
       vin:               data.vin?.trim()             || null,
       license_plate:     data.licensePlate?.trim()    || null,
       engine_type:       data.engineType?.trim()      || null,
+      engine_origin:     data.engineOrigin            || null,
+      usage_type:        data.usageType               || null,
       forced_induction:  data.forcedInduction         || 'none',
       horsepower:        parseInt(data.horsepower)    || null,
       torque:            parseInt(data.torque)        || null,
@@ -267,8 +271,30 @@ export default function GarageCarsEditPage() {
                 <input type="text" autoCapitalize="characters" value={data.licensePlate ?? ''} onChange={upd('licensePlate')} style={INPUT} />
               </div>
               <div style={FIELD}>
-                <span style={LABEL}>Engine Type <span style={OPT}>opt</span></span>
+                <span style={LABEL}>Engine <span style={OPT}>opt</span></span>
                 <input type="text" autoCapitalize="characters" placeholder="e.g. SR20DET, 2JZ-GTE, RB26" value={data.engineType ?? ''} onChange={upd('engineType')} style={INPUT} />
+              </div>
+              <div style={FIELD}>
+                <span style={LABEL}>Engine Origin <span style={OPT}>opt</span></span>
+                <select value={data.engineOrigin ?? ''} onChange={upd('engineOrigin')} style={SELECT}>
+                  <option value="">— select —</option>
+                  <option value="original">Original</option>
+                  <option value="swapped">Swapped</option>
+                </select>
+              </div>
+              <div style={FIELD}>
+                <span style={LABEL}>Primary Use <span style={OPT}>opt</span></span>
+                <select value={data.usageType ?? ''} onChange={upd('usageType')} style={SELECT}>
+                  <option value="">— select —</option>
+                  <option value="street">Street</option>
+                  <option value="daily">Daily Driver</option>
+                  <option value="track">Track</option>
+                  <option value="drift">Drift</option>
+                  <option value="drag">Drag</option>
+                  <option value="show">Show / Stance</option>
+                  <option value="vip">VIP</option>
+                  <option value="offroad">Off-Road</option>
+                </select>
               </div>
               <div style={FIELD}>
                 <span style={LABEL}>Forced Induction</span>
