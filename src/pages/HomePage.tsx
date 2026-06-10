@@ -78,6 +78,7 @@ export default function HomePage() {
   const [exiting, setExiting] = useState(false)
   const exitingRef = useRef(false)
   const parallaxRef = useRef({ px: 0, py: 0 })
+  const compassRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
@@ -159,6 +160,10 @@ export default function HomePage() {
         const shY  = (-currentPY * 4).toFixed(2)
         world.style.transform =
           `rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(${shX}px, ${shY}px, 0)`
+        // The compass leans a touch with the gyro/mouse, like a dash instrument
+        if (compassRef.current && !reduced) {
+          compassRef.current.style.transform = `rotate(${(currentPX * 4).toFixed(2)}deg)`
+        }
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -227,6 +232,28 @@ export default function HomePage() {
           from { stroke-dashoffset: 0; }
           to   { stroke-dashoffset: -60; }
         }
+        @keyframes compassSettle {
+          0%   { transform: rotate(-140deg); }
+          55%  { transform: rotate(14deg); }
+          78%  { transform: rotate(-6deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes wmTrack {
+          from { opacity: 0; letter-spacing: 0.02em; }
+          to   { opacity: 1; letter-spacing: -0.1em; }
+        }
+        @keyframes tagTrack {
+          from { opacity: 0; letter-spacing: 0.7em; }
+          to   { opacity: 1; letter-spacing: 0.4em; }
+        }
+        @keyframes sheenSweep {
+          from { transform: translateX(-160%) skewX(-18deg); }
+          to   { transform: translateX(420%) skewX(-18deg); }
+        }
+        @keyframes glintSweep {
+          0%, 84% { transform: translateX(-160%) skewX(-18deg); }
+          100%    { transform: translateX(400%) skewX(-18deg); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .gdim-ambient { animation: none !important; }
         }
@@ -236,6 +263,7 @@ export default function HomePage() {
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: HEADER_HEIGHT, zIndex: 10,
+        overflow: 'hidden',
       }}>
         <svg
           viewBox="0 0 390 44"
@@ -295,6 +323,15 @@ export default function HomePage() {
             {displayName}
           </span>
         </div>
+
+        {/* One-time light sweep across the header on entry */}
+        <div style={{
+          position: 'absolute', top: '-20%', left: 0, width: '36%', height: '140%',
+          background: 'linear-gradient(105deg, transparent 0%, rgba(255,248,230,0.05) 30%, rgba(255,248,230,0.20) 50%, rgba(255,248,230,0.05) 70%, transparent 100%)',
+          transform: 'translateX(-160%) skewX(-18deg)',
+          animation: 'sheenSweep 900ms cubic-bezier(0.4, 0, 0.2, 1) 1300ms both',
+          pointerEvents: 'none',
+        }} />
       </div>
 
       {/* ── Stage ── */}
@@ -345,7 +382,7 @@ export default function HomePage() {
           }} />
 
           {/* Compass */}
-          <div style={{
+          <div ref={compassRef} style={{
             position: 'absolute', top: 14, right: 14,
             width: 46, height: 46,
             opacity: 0.9,
@@ -354,16 +391,23 @@ export default function HomePage() {
             <svg viewBox="0 0 64 64" style={{ width: '100%', height: '100%' }}>
               <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(20,30,42,0.45)" strokeWidth="0.8"/>
               <circle cx="32" cy="32" r="22" fill="none" stroke="rgba(20,30,42,0.30)" strokeWidth="0.5"/>
-              <path d="M 32 4 L 36 32 L 32 28 L 28 32 Z" fill="rgba(20,30,42,0.65)"/>
-              <path d="M 32 60 L 36 32 L 32 36 L 28 32 Z" fill="rgba(20,30,42,0.35)"/>
-              <path d="M 4 32 L 32 28 L 28 32 L 32 36 Z" fill="rgba(20,30,42,0.35)"/>
-              <path d="M 60 32 L 32 28 L 36 32 L 32 36 Z" fill="rgba(20,30,42,0.35)"/>
+              {/* Needle over-rotates past N on entry, then springs back and settles */}
+              <g style={{
+                transformOrigin: '32px 32px',
+                transformBox: 'view-box',
+                animation: `compassSettle 1100ms ${EASING_SETTLE} 500ms both`,
+              }}>
+                <path d="M 32 4 L 36 32 L 32 28 L 28 32 Z" fill="rgba(20,30,42,0.65)"/>
+                <path d="M 32 60 L 36 32 L 32 36 L 28 32 Z" fill="rgba(20,30,42,0.35)"/>
+                <path d="M 4 32 L 32 28 L 28 32 L 32 36 Z" fill="rgba(20,30,42,0.35)"/>
+                <path d="M 60 32 L 32 28 L 36 32 L 32 36 Z" fill="rgba(20,30,42,0.35)"/>
+              </g>
               <text x="32" y="3" fontFamily="Hanken Grotesk, sans-serif" fontWeight="800" fontSize="7"
                 fill="rgba(20,30,42,0.65)" textAnchor="middle">N</text>
             </svg>
           </div>
 
-          {/* Watermark */}
+          {/* Watermark — letters track in from wide to tight on entry */}
           <div style={{
             position: 'absolute', top: 14, left: '50%',
             transform: 'translateX(-50%)',
@@ -371,6 +415,7 @@ export default function HomePage() {
             fontSize: 38, color: 'rgba(20,30,42,0.22)',
             letterSpacing: '-0.1em', whiteSpace: 'nowrap',
             pointerEvents: 'none',
+            animation: `wmTrack 1100ms ${EASING_SETTLE} 250ms both`,
           }}>
             G‑Dimension
           </div>
@@ -380,6 +425,7 @@ export default function HomePage() {
             fontFamily: FONT_UI, fontWeight: 800, fontSize: 9,
             color: 'rgba(20,30,42,0.4)', letterSpacing: '0.4em',
             whiteSpace: 'nowrap', pointerEvents: 'none',
+            animation: `tagTrack 1100ms ${EASING_SETTLE} 420ms both`,
           }}>
             YOUR BUILD · DOCUMENTED
           </div>
@@ -510,6 +556,28 @@ export default function HomePage() {
                     }}
                     draggable={false}
                   />
+                  {/* Periodic glint — sweeps the icon's opaque pixels only,
+                      via an alpha mask of the icon itself */}
+                  {dest.focal && (
+                    <div style={{
+                      position: 'absolute', top: '50%', left: '50%',
+                      width: dest.size * 0.85, height: dest.size * 0.85,
+                      transform: 'translate(-50%, -50%)',
+                      WebkitMaskImage: `url(${dest.icon})`, maskImage: `url(${dest.icon})`,
+                      WebkitMaskSize: 'contain', maskSize: 'contain',
+                      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+                      WebkitMaskPosition: 'center', maskPosition: 'center',
+                      overflow: 'hidden', pointerEvents: 'none',
+                    }}>
+                      <div className="gdim-ambient" style={{
+                        position: 'absolute', top: '-20%', left: 0,
+                        width: '55%', height: '140%',
+                        background: 'linear-gradient(105deg, transparent 0%, rgba(255,248,230,0.06) 30%, rgba(255,248,230,0.45) 50%, rgba(255,248,230,0.06) 70%, transparent 100%)',
+                        transform: 'translateX(-160%) skewX(-18deg)',
+                        animation: 'glintSweep 7s ease-in-out 3200ms infinite',
+                      }} />
+                    </div>
+                  )}
                 </div>
 
                 {/* Ground shadow — flow element, sits between icon and label */}
