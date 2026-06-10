@@ -51,6 +51,24 @@ const ROAD_TUNING_MAINT    = 'M 296 420 C 350 460, 345 550, 310 590 C 295 610, 2
 const ROAD_TIMELINE_PHOTOS = 'M 92 420 C 72 470, 60 520, 90 570 C 105 600, 115 612, 120 622'
 const ROAD_MAINT_PHOTOS    = 'M 256 636 C 215 650, 170 645, 134 638'
 
+// The roads form a small graph; the wandering driver dot travels it,
+// parking at each destination for a moment before picking the next leg.
+type RoadId = 'gt' | 'gl' | 'tm' | 'lp' | 'mp'
+const ROADS: Record<RoadId, { d: string; from: string; to: string }> = {
+  gt: { d: ROAD_GARAGE_TUNING,   from: 'home',        to: 'tuning' },
+  gl: { d: ROAD_GARAGE_TIMELINE, from: 'home',        to: 'timeline' },
+  tm: { d: ROAD_TUNING_MAINT,    from: 'tuning',      to: 'maintenance' },
+  lp: { d: ROAD_TIMELINE_PHOTOS, from: 'timeline',    to: 'featured' },
+  mp: { d: ROAD_MAINT_PHOTOS,    from: 'maintenance', to: 'featured' },
+}
+const ROAD_ADJ: Record<string, RoadId[]> = {
+  home:        ['gt', 'gl'],
+  tuning:      ['gt', 'tm'],
+  timeline:    ['gl', 'lp'],
+  maintenance: ['tm', 'mp'],
+  featured:    ['lp', 'mp'],
+}
+
 const DESTINATIONS = [
   { id: 'home',        label: 'Home',        icon: ICON_HOME,        pos: MAP_NODE_HOME,        size: ICON_WRAPPER_FOCAL,    route: '/garage',      focal: true  },
   { id: 'tuning',      label: 'Tuning',      icon: ICON_TUNING,      pos: MAP_NODE_TUNING,      size: ICON_WRAPPER_STANDARD, route: '/tuning',      focal: false },
@@ -80,6 +98,8 @@ export default function HomePage() {
   const exitingRef = useRef(false)
   const parallaxRef = useRef({ px: 0, py: 0 })
   const compassRef = useRef<HTMLDivElement>(null)
+  const roadElsRef = useRef<Partial<Record<RoadId, SVGPathElement>>>({})
+  const driverRef = useRef<SVGGElement>(null)
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
@@ -145,7 +165,26 @@ export default function HomePage() {
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+    // Wandering driver — a little dot running errands between destinations.
+    // Eases away from the curb, cruises at a per-leg speed, brakes into the
+    // node, parks a few seconds (faded out), then picks the next road.
+    const driver = {
+      mode: 'dwell' as 'dwell' | 'drive',
+      node: 'home',
+      until: 0, // 0 = seeded on first frame
+      edge: null as RoadId | null,
+      lastEdge: null as RoadId | null,
+      dir: 1 as 1 | -1,
+      dist: 0,
+      len: 0,
+      cruise: 0,
+      opacity: 0,
+    }
+    let lastT = 0
+
     const tick = (t: number) => {
+      const dt = lastT === 0 ? 0 : Math.min(0.05, (t - lastT) / 1000)
+      lastT = t
       // Idle sway — the camera never sits perfectly still, even with no input.
       // Two unsynced periods (11s / 17s) so the drift never visibly loops.
       const swayX = reduced ? 0 : Math.sin((t / 11000) * Math.PI * 2) * 0.22
@@ -166,6 +205,54 @@ export default function HomePage() {
           compassRef.current.style.transform = `rotate(${(currentPX * 4).toFixed(2)}deg)`
         }
       }
+
+      const dot = driverRef.current
+      if (dot && !reduced) {
+        if (driver.mode === 'dwell') {
+          if (driver.until === 0) driver.until = t + 2600
+          if (isEntered && t >= driver.until) {
+            const options = ROAD_ADJ[driver.node]
+            const pool = options.length > 1 && driver.lastEdge
+              ? options.filter(e => e !== driver.lastEdge)
+              : options
+            const edge = pool[Math.floor(Math.random() * pool.length)]
+            const el = roadElsRef.current[edge]
+            if (el) {
+              driver.edge = edge
+              driver.dir = ROADS[edge].from === driver.node ? 1 : -1
+              driver.len = el.getTotalLength()
+              driver.dist = 0
+              driver.cruise = 30 + Math.random() * 26 // viewBox px/s, varies per leg
+              driver.mode = 'drive'
+            } else {
+              driver.until = t + 1000
+            }
+          }
+        } else if (driver.edge) {
+          const el = roadElsRef.current[driver.edge]
+          const rampIn  = Math.min(1, driver.dist / 36)
+          const rampOut = Math.min(1, (driver.len - driver.dist) / 52)
+          driver.dist += driver.cruise * Math.max(0.12, Math.min(rampIn, rampOut)) * dt
+          if (driver.dist >= driver.len) {
+            driver.dist = driver.len
+            const road = ROADS[driver.edge]
+            driver.node = driver.dir === 1 ? road.to : road.from
+            driver.lastEdge = driver.edge
+            driver.edge = null
+            driver.mode = 'dwell'
+            driver.until = t + 1800 + Math.random() * 3400
+          }
+          if (el) {
+            const s = driver.dir === 1 ? driver.dist : driver.len - driver.dist
+            const p = el.getPointAtLength(s)
+            dot.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`)
+          }
+        }
+        // Fade out while parked at a destination, back in when departing
+        driver.opacity += ((driver.mode === 'drive' ? 1 : 0) - driver.opacity) * 0.07
+        dot.setAttribute('opacity', driver.opacity.toFixed(3))
+      }
+
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
@@ -446,7 +533,8 @@ export default function HomePage() {
             </defs>
             {/* Garage → Tuning */}
             <g fill="none" stroke="rgba(255,250,232,0.52)" strokeLinecap="round" filter="url(#roadGlow)">
-              <path d={ROAD_GARAGE_TUNING} strokeWidth="2.8" pathLength={1}
+              <path ref={el => { roadElsRef.current.gt = el ?? undefined }}
+                d={ROAD_GARAGE_TUNING} strokeWidth="2.8" pathLength={1}
                 style={{ strokeDasharray: 1, animation: 'roadDraw 650ms ease-out 380ms both' }}/>
             </g>
             <g fill="none" stroke="rgba(255,250,232,0.25)" strokeWidth="1.2" strokeDasharray="4 6" strokeLinecap="round">
@@ -455,7 +543,8 @@ export default function HomePage() {
             </g>
             {/* Garage → Timeline */}
             <g fill="none" stroke="rgba(255,250,232,0.42)" strokeLinecap="round" filter="url(#roadGlow)">
-              <path d={ROAD_GARAGE_TIMELINE} strokeWidth="2.2" pathLength={1}
+              <path ref={el => { roadElsRef.current.gl = el ?? undefined }}
+                d={ROAD_GARAGE_TIMELINE} strokeWidth="2.2" pathLength={1}
                 style={{ strokeDasharray: 1, animation: 'roadDraw 650ms ease-out 430ms both' }}/>
             </g>
             <g fill="none" stroke="rgba(255,250,232,0.22)" strokeWidth="1.0" strokeDasharray="6 9" strokeLinecap="round">
@@ -464,7 +553,8 @@ export default function HomePage() {
             </g>
             {/* Tuning → Maintenance */}
             <g fill="none" stroke="rgba(255,250,232,0.48)" strokeLinecap="round" filter="url(#roadGlow)">
-              <path d={ROAD_TUNING_MAINT} strokeWidth="2.5" pathLength={1}
+              <path ref={el => { roadElsRef.current.tm = el ?? undefined }}
+                d={ROAD_TUNING_MAINT} strokeWidth="2.5" pathLength={1}
                 style={{ strokeDasharray: 1, animation: 'roadDraw 650ms ease-out 560ms both' }}/>
             </g>
             <g fill="none" stroke="rgba(255,250,232,0.24)" strokeWidth="1.2" strokeDasharray="4 8" strokeLinecap="round">
@@ -473,7 +563,8 @@ export default function HomePage() {
             </g>
             {/* Timeline → Photos */}
             <g fill="none" stroke="rgba(255,250,232,0.46)" strokeLinecap="round" filter="url(#roadGlow)">
-              <path d={ROAD_TIMELINE_PHOTOS} strokeWidth="2.4" pathLength={1}
+              <path ref={el => { roadElsRef.current.lp = el ?? undefined }}
+                d={ROAD_TIMELINE_PHOTOS} strokeWidth="2.4" pathLength={1}
                 style={{ strokeDasharray: 1, animation: 'roadDraw 650ms ease-out 600ms both' }}/>
             </g>
             <g fill="none" stroke="rgba(255,250,232,0.22)" strokeWidth="1.1" strokeDasharray="5 7" strokeLinecap="round">
@@ -482,7 +573,8 @@ export default function HomePage() {
             </g>
             {/* Maintenance → Photos connector */}
             <g fill="none" stroke="rgba(255,250,232,0.30)" strokeLinecap="round" filter="url(#roadGlow)">
-              <path d={ROAD_MAINT_PHOTOS} strokeWidth="1.6" pathLength={1}
+              <path ref={el => { roadElsRef.current.mp = el ?? undefined }}
+                d={ROAD_MAINT_PHOTOS} strokeWidth="1.6" pathLength={1}
                 style={{ strokeDasharray: 1, animation: 'roadDraw 600ms ease-out 760ms both' }}/>
             </g>
 
@@ -497,6 +589,12 @@ export default function HomePage() {
               <text><textPath href="#rlC" startOffset="30">To Maintenance</textPath></text>
               <path id="rlD" d="M 120 622 C 115 612, 105 600, 90 570 C 60 520, 72 470, 92 420" fill="none"/>
               <text><textPath href="#rlD" startOffset="125">To Featured</textPath></text>
+            </g>
+
+            {/* Wandering driver — positioned each frame by the RAF loop */}
+            <g ref={driverRef} opacity="0">
+              <circle r="6" fill="rgba(200,102,26,0.20)" />
+              <circle r="2.3" fill="rgba(255,250,232,0.95)" filter="url(#roadGlow)" />
             </g>
           </svg>
 
