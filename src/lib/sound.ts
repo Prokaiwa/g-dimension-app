@@ -75,28 +75,28 @@ export function playSequence(notes: BlipNote[]): void {
   }
 }
 
-/** Cursor-move tick — short high blip with a fast pitch drop. */
+/** Cursor-move tick — two tiny micro-blips 35ms apart (T5 on /sound-test). */
 export function playTick(): void {
   if (!isSoundEnabled()) return
   const c = audioCtx()
   if (!c) return
-  blip(c, c.currentTime, 2100, 1400, 0.06, 0.15, 'sine')
+  const t = c.currentTime
+  blip(c, t, 2000, 2000, 0.03, 0.1, 'sine')
+  blip(c, t + 0.035, 2600, 2600, 0.03, 0.1, 'sine')
 }
 
-/** Enter-section confirm — quick rising two-note blip. */
+/** Enter-section confirm — single bright G6 ping with a long tail (C5). */
 export function playConfirm(): void {
   if (!isSoundEnabled()) return
   const c = audioCtx()
   if (!c) return
-  const t = c.currentTime
-  blip(c, t, 1100, 1100, 0.12, 0.14, 'triangle')
-  blip(c, t + 0.07, 1650, 1650, 0.12, 0.14, 'triangle')
+  blip(c, c.currentTime, 1568, 1568, 0.3, 0.12, 'sine')
 }
 
-/** Cancel / go-back — single falling note. */
+/** Cancel / go-back — gentle falling sine (B2). */
 export function playBack(): void {
   if (!isSoundEnabled()) return
   const c = audioCtx()
   if (!c) return
-  blip(c, c.currentTime, 1300, 620, 0.13, 0.14, 'triangle')
+  blip(c, c.currentTime, 990, 740, 0.11, 0.13, 'sine')
 }

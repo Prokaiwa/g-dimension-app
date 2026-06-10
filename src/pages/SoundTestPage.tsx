@@ -27,7 +27,7 @@ const FAINT = 'rgba(240,228,200,0.32)'
 type Variant = { id: string; name: string; desc: string; notes: BlipNote[]; current?: boolean }
 
 const TICKS: Variant[] = [
-  { id: 'T1', name: 'Current Tick', desc: 'Sine 2100→1400, 60ms — what ships today', current: true,
+  { id: 'T1', name: 'Pitch-Drop Tick', desc: 'Sine 2100→1400, 60ms',
     notes: [{ freqFrom: 2100, freqTo: 1400, dur: 0.06, peak: 0.15, type: 'sine' }] },
   { id: 'T2', name: 'Soft High', desc: 'Plain 2000Hz sine, very short',
     notes: [{ freqFrom: 2000, dur: 0.045, peak: 0.12, type: 'sine' }] },
@@ -35,7 +35,7 @@ const TICKS: Variant[] = [
     notes: [{ freqFrom: 2400, dur: 0.035, peak: 0.09, type: 'square' }] },
   { id: 'T4', name: 'Wood Knock', desc: 'Triangle 1150→850, knocks like a menu cursor',
     notes: [{ freqFrom: 1150, freqTo: 850, dur: 0.07, peak: 0.16, type: 'triangle' }] },
-  { id: 'T5', name: 'Double Micro', desc: 'Two tiny blips 35ms apart',
+  { id: 'T5', name: 'Double Micro', desc: 'Two tiny blips 35ms apart — what ships today', current: true,
     notes: [{ freqFrom: 2000, dur: 0.03, peak: 0.1, type: 'sine' },
             { freqFrom: 2600, at: 0.035, dur: 0.03, peak: 0.1, type: 'sine' }] },
   { id: 'T6', name: 'Low Tap', desc: 'Triangle 880→660, warmer and rounder',
@@ -43,7 +43,7 @@ const TICKS: Variant[] = [
 ]
 
 const CONFIRMS: Variant[] = [
-  { id: 'C1', name: 'Current Confirm', desc: 'Two triangles 1100 + 1650 — what ships today', current: true,
+  { id: 'C1', name: 'Two-Note Rise', desc: 'Two triangles 1100 + 1650',
     notes: [{ freqFrom: 1100, dur: 0.12, peak: 0.14, type: 'triangle' },
             { freqFrom: 1650, at: 0.07, dur: 0.12, peak: 0.14, type: 'triangle' }] },
   { id: 'C2', name: 'Major Third', desc: 'C6 → E6, musical and sweet',
@@ -56,16 +56,16 @@ const CONFIRMS: Variant[] = [
     notes: [{ freqFrom: 880, dur: 0.1, peak: 0.12, type: 'triangle' },
             { freqFrom: 1175, at: 0.07, dur: 0.1, peak: 0.12, type: 'triangle' },
             { freqFrom: 1568, at: 0.14, dur: 0.13, peak: 0.12, type: 'triangle' }] },
-  { id: 'C5', name: 'Bright Ping', desc: 'Single G6 sine with a long tail',
+  { id: 'C5', name: 'Bright Ping', desc: 'Single G6 sine with a long tail — what ships today', current: true,
     notes: [{ freqFrom: 1568, dur: 0.3, peak: 0.12, type: 'sine' }] },
   { id: 'C6', name: 'Octave Sweep', desc: 'One note sweeping up an octave',
     notes: [{ freqFrom: 740, freqTo: 1480, dur: 0.12, peak: 0.14, type: 'triangle' }] },
 ]
 
 const BACKS: Variant[] = [
-  { id: 'B1', name: 'Current Back', desc: 'Triangle falling 1300→620 — what ships today', current: true,
+  { id: 'B1', name: 'Falling Triangle', desc: 'Triangle falling 1300→620',
     notes: [{ freqFrom: 1300, freqTo: 620, dur: 0.13, peak: 0.14, type: 'triangle' }] },
-  { id: 'B2', name: 'Soft Drop', desc: 'Gentler sine fall',
+  { id: 'B2', name: 'Soft Drop', desc: 'Gentler sine fall — what ships today', current: true,
     notes: [{ freqFrom: 990, freqTo: 740, dur: 0.11, peak: 0.13, type: 'sine' }] },
   { id: 'B3', name: 'Two-Note Down', desc: 'Reverse of the confirm pair',
     notes: [{ freqFrom: 1320, dur: 0.1, peak: 0.13, type: 'triangle' },

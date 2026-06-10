@@ -190,8 +190,8 @@ export const HEADER_HEIGHT      = 44;
 
 // Home map destination coordinates (center-anchored via translate(-50%,-50%)) — Part 10
 export const MAP_NODE_HOME        = { left: 195, top: 220 };
-export const MAP_NODE_TUNING      = { left: 295, top: 417 }; // nudged down to sit over the road ends
-export const MAP_NODE_TIMELINE    = { left: 95,  top: 417 }; // nudged down to sit over the road ends
+export const MAP_NODE_TUNING      = { left: 295, top: 428 }; // nudged down to sit over the road ends
+export const MAP_NODE_TIMELINE    = { left: 95,  top: 428 }; // nudged down to sit over the road ends
 export const MAP_NODE_MAINTENANCE = { left: 270, top: 625 };
 export const MAP_NODE_PHOTOS      = { left: 120, top: 625 };
 
