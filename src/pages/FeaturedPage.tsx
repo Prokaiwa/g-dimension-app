@@ -136,7 +136,7 @@ function buildSpecSections(car: Car | null, grouped: Record<string,Job[]>, purch
 // Greedy pagination — splits sections into at most two Spec Sheet pages at section
 // boundaries. Estimates row heights against the fixed page height; overflow:hidden
 // on the page is the safety net so nothing ever scrolls.
-const SEC_HEADER_H = 30, SEC_ROW_H = 19, SEC_GAP = 10
+const SEC_HEADER_H = 26, SEC_ROW_H = 18, SEC_GAP = 11
 function sectionHeight(s: SpecSection): number {
   return SEC_HEADER_H + s.rows.length * SEC_ROW_H + (s.moreCount ? SEC_ROW_H : 0) + SEC_GAP
 }
@@ -996,41 +996,42 @@ function SpecSheet({ sections, isCont, theme, vol, issue, totalMods, carShortNam
       <div style={SPINE_GUTTER} />
       <RunningHead theme={theme} vol={vol} issue={issue} suffix={isCont ? '· SPEC SHEET (CONT.)' : undefined} />
 
-      {/* title block — first page only */}
+      {/* title block — D'Sport masthead, reversed on the ink panel. First page only. */}
       {isCont
-        ? <div style={{ padding:'9px 14px 7px 28px', flexShrink:0, borderBottom:`1px solid ${theme.rule}` }}>
-            <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.subInk, fontSize:8, letterSpacing:'0.28em', textTransform:'uppercase' }}>Vehicle Spec Sheet · Continued</div>
+        ? <div style={{ background:theme.ink, padding:'7px 14px 6px 28px', flexShrink:0 }}>
+            <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontStyle:'italic', color:theme.pageBg, fontSize:11, letterSpacing:'0.06em', textTransform:'uppercase' }}>Vehicle Spec Sheet <span style={{ opacity:0.6 }}>· Continued</span></div>
           </div>
-        : <div style={{ padding:'12px 14px 8px 28px', flexShrink:0, borderBottom:`1px solid ${theme.rule}` }}>
+        : <div style={{ background:theme.ink, padding:'10px 14px 9px 28px', flexShrink:0 }}>
             <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
-              <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:26, lineHeight:1, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.02em' }}>
+              <div style={{ fontFamily:FONT_MASTHEAD, color:theme.pageBg, fontSize:25, lineHeight:0.95, textTransform:'uppercase', fontStyle:'italic', letterSpacing:'-0.01em' }}>
                 VEHICLE SPEC SHEET
               </div>
-              <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', textAlign:'right', flexShrink:0 }}>
+              <div style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', textAlign:'right', flexShrink:0 }}>
                 {totalMods} MOD{totalMods!==1?'S':''} · {carShortName}
               </div>
             </div>
           </div>}
 
       {/* sections — fixed height, clipped (never scrolls) */}
-      <div style={{ flex:1, padding:'10px 14px 0 28px', minHeight:0, overflow:'hidden' }}>
+      <div style={{ flex:1, padding:'12px 16px 0 28px', minHeight:0, overflow:'hidden' }}>
         {sections.map((sec, si) => (
           <div key={si} style={{ marginBottom:SEC_GAP }}>
-            {/* black section header bar — reversed text (inverts naturally on dark themes) */}
-            <div style={{ background:theme.ink, color:theme.pageBg, fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.24em', textTransform:'uppercase', padding:'5px 8px' }}>
-              {sec.title}
+            {/* section header — italic label + trailing rule line (D'Sport style) */}
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, height:SEC_HEADER_H - 11, boxSizing:'border-box' }}>
+              <span style={{ fontFamily:FONT_DECK, fontWeight:700, fontStyle:'italic', color:theme.ink, fontSize:13, letterSpacing:'0.02em', textTransform:'uppercase', flexShrink:0 }}>{sec.title}</span>
+              <div style={{ flex:1, height:2, background:theme.ink }} />
             </div>
             {sec.rows.map((r, ri) => (
-              <div key={ri} style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:10, padding:'2px 8px', borderBottom:`1px solid ${theme.rule}88`, height:SEC_ROW_H, boxSizing:'border-box' }}>
-                <span style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', flexShrink:0, maxWidth:'46%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</span>
-                <span style={{ fontFamily:FONT_DECK, color:theme.ink, fontSize:11, textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.value}</span>
+              <div key={ri} style={{ display:'flex', alignItems:'baseline', gap:8, height:SEC_ROW_H, boxSizing:'border-box' }}>
+                <span style={{ width:'45%', flexShrink:0, fontFamily:FONT_DECK, color:theme.subInk, fontSize:10, letterSpacing:'0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</span>
+                <span style={{ flex:1, fontFamily:FONT_DECK, color:theme.ink, fontSize:10.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.value}</span>
               </div>
             ))}
             {sec.rows.length === 0 && (
-              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.5, padding:'4px 8px' }}>—</div>
+              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:10, letterSpacing:'0.01em', opacity:0.5 }}>—</div>
             )}
             {sec.moreCount ? (
-              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, letterSpacing:'0.1em', textTransform:'uppercase', opacity:0.55, padding:'2px 8px' }}>+{sec.moreCount} more</div>
+              <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', opacity:0.55, marginTop:1 }}>+{sec.moreCount} more</div>
             ) : null}
           </div>
         ))}
