@@ -70,6 +70,7 @@ import ErrorBanner from './components/ErrorBanner'
 
 // Dev tools
 import SpecTestPage from './pages/SpecTestPage'
+import SoundTestPage from './pages/SoundTestPage'
 
 // Auth + onboarding gate. 'loading' until resolved, then one of:
 //   'anon'       — no session → /login
@@ -195,6 +196,7 @@ export default function App() {
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
+      <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
       </Routes>
     </>
   )

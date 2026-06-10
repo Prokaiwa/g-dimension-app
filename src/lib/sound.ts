@@ -56,6 +56,25 @@ function blip(
   o.stop(at + dur + 0.02)
 }
 
+export type BlipNote = {
+  freqFrom: number
+  freqTo?: number
+  at?: number   // seconds offset from now
+  dur?: number  // seconds
+  peak?: number // 0..1
+  type?: OscillatorType
+}
+
+/** Audition helper for the /sound-test dev page — bypasses the enabled toggle. */
+export function playSequence(notes: BlipNote[]): void {
+  const c = audioCtx()
+  if (!c) return
+  const t = c.currentTime
+  for (const n of notes) {
+    blip(c, t + (n.at ?? 0), n.freqFrom, n.freqTo ?? n.freqFrom, n.dur ?? 0.08, n.peak ?? 0.15, n.type ?? 'sine')
+  }
+}
+
 /** Cursor-move tick — short high blip with a fast pitch drop. */
 export function playTick(): void {
   if (!isSoundEnabled()) return

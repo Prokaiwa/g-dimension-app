@@ -79,6 +79,16 @@ const DESTINATIONS = [
 
 const STAGGER_MS = [400, 540, 580, 720, 760]
 
+// Glint timing per node (matches DESTINATIONS order) — co-prime periods and
+// offset delays so the shines never sync up and read as random.
+const GLINT_ANIMS = [
+  'glintA 7s ease-in-out 3200ms infinite',
+  'glintB 11s ease-in-out 5600ms infinite',
+  'glintC 13s ease-in-out 9200ms infinite',
+  'glintD 17s ease-in-out 7400ms infinite',
+  'glintE 19s ease-in-out 11800ms infinite',
+]
+
 // Noise texture SVG (inlined, no network request)
 const TEXTURE_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='a'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='5' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.18 -0.04'/></filter><rect width='100%' height='100%' filter='url(#a)'/></svg>`
 const TEXTURE_URL = `url("data:image/svg+xml,${encodeURIComponent(TEXTURE_SVG)}")`
@@ -96,6 +106,7 @@ export default function HomePage() {
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [exiting, setExiting] = useState(false)
   const exitingRef = useRef(false)
+  const pressStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const parallaxRef = useRef({ px: 0, py: 0 })
   const compassRef = useRef<HTMLDivElement>(null)
   const roadElsRef = useRef<Partial<Record<RoadId, SVGPathElement>>>({})
@@ -339,8 +350,26 @@ export default function HomePage() {
           from { transform: translateX(-160%) skewX(-18deg); }
           to   { transform: translateX(420%) skewX(-18deg); }
         }
-        @keyframes glintSweep {
+        /* Glint variants: same ~1.2s sweep across different total periods,
+           so every icon catches the light at its own unsynced interval */
+        @keyframes glintA {
           0%, 84% { transform: translateX(-160%) skewX(-18deg); }
+          100%    { transform: translateX(400%) skewX(-18deg); }
+        }
+        @keyframes glintB {
+          0%, 89% { transform: translateX(-160%) skewX(-18deg); }
+          100%    { transform: translateX(400%) skewX(-18deg); }
+        }
+        @keyframes glintC {
+          0%, 91% { transform: translateX(-160%) skewX(-18deg); }
+          100%    { transform: translateX(400%) skewX(-18deg); }
+        }
+        @keyframes glintD {
+          0%, 93% { transform: translateX(-160%) skewX(-18deg); }
+          100%    { transform: translateX(400%) skewX(-18deg); }
+        }
+        @keyframes glintE {
+          0%, 94% { transform: translateX(-160%) skewX(-18deg); }
           100%    { transform: translateX(400%) skewX(-18deg); }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -602,11 +631,26 @@ export default function HomePage() {
           {DESTINATIONS.map((dest, i) => (
             <div
               key={dest.id}
-              onClick={() => handleSelect(dest)}
-              onPointerDown={() => { setPressedNode(dest.id); playTick() }}
-              onPointerUp={() => setPressedNode(null)}
-              onPointerLeave={() => setPressedNode(null)}
-              onPointerCancel={() => setPressedNode(null)}
+              // Navigation runs on pointerup, not click: the press-scale and the
+              // gyro parallax move the node under a resting finger, which makes
+              // native click hit-testing drop taps. Touch pointer events are
+              // implicitly captured by the pointerdown target, so pointerup
+              // always lands here — we just gate on finger travel distance.
+              onPointerDown={e => {
+                pressStartRef.current = { id: dest.id, x: e.clientX, y: e.clientY }
+                setPressedNode(dest.id)
+                playTick()
+              }}
+              onPointerUp={e => {
+                const s = pressStartRef.current
+                pressStartRef.current = null
+                setPressedNode(null)
+                if (s && s.id === dest.id && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 14) {
+                  handleSelect(dest)
+                }
+              }}
+              onPointerLeave={() => { pressStartRef.current = null; setPressedNode(null) }}
+              onPointerCancel={() => { pressStartRef.current = null; setPressedNode(null) }}
               style={{
                 position: 'absolute',
                 left: `${(dest.pos.left / 390 * 100).toFixed(2)}%`,
@@ -658,26 +702,24 @@ export default function HomePage() {
                   />
                   {/* Periodic glint — sweeps the icon's opaque pixels only,
                       via an alpha mask of the icon itself */}
-                  {dest.focal && (
-                    <div style={{
-                      position: 'absolute', top: '50%', left: '50%',
-                      width: dest.size * 0.85, height: dest.size * 0.85,
-                      transform: 'translate(-50%, -50%)',
-                      WebkitMaskImage: `url(${dest.icon})`, maskImage: `url(${dest.icon})`,
-                      WebkitMaskSize: 'contain', maskSize: 'contain',
-                      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
-                      WebkitMaskPosition: 'center', maskPosition: 'center',
-                      overflow: 'hidden', pointerEvents: 'none',
-                    }}>
-                      <div className="gdim-ambient" style={{
-                        position: 'absolute', top: '-20%', left: 0,
-                        width: '55%', height: '140%',
-                        background: 'linear-gradient(105deg, transparent 0%, rgba(255,248,230,0.06) 30%, rgba(255,248,230,0.45) 50%, rgba(255,248,230,0.06) 70%, transparent 100%)',
-                        transform: 'translateX(-160%) skewX(-18deg)',
-                        animation: 'glintSweep 7s ease-in-out 3200ms infinite',
-                      }} />
-                    </div>
-                  )}
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '50%',
+                    width: dest.size * 0.85, height: dest.size * 0.85,
+                    transform: 'translate(-50%, -50%)',
+                    WebkitMaskImage: `url(${dest.icon})`, maskImage: `url(${dest.icon})`,
+                    WebkitMaskSize: 'contain', maskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center', maskPosition: 'center',
+                    overflow: 'hidden', pointerEvents: 'none',
+                  }}>
+                    <div className="gdim-ambient" style={{
+                      position: 'absolute', top: '-20%', left: 0,
+                      width: '55%', height: '140%',
+                      background: `linear-gradient(105deg, transparent 0%, rgba(255,248,230,0.06) 30%, rgba(255,248,230,${dest.focal ? 0.45 : 0.30}) 50%, rgba(255,248,230,0.06) 70%, transparent 100%)`,
+                      transform: 'translateX(-160%) skewX(-18deg)',
+                      animation: GLINT_ANIMS[i],
+                    }} />
+                  </div>
                 </div>
 
                 {/* Ground shadow — flow element, sits between icon and label */}
