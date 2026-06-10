@@ -273,7 +273,7 @@ export default function FeaturedPage() {
           .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
           .eq('id', carId).is('deleted_at', null).single(),
         supabase.from('jobs').select('id,title,category,brand,part_types(name)')
-          .eq('car_id', carId).eq('status','installed').order('created_at',{ascending:true}),
+          .eq('car_id', carId).eq('type','modification').eq('status','installed').order('created_at',{ascending:true}),
         supabase.from('job_photos').select('photo_url,caption')
           .eq('car_id', carId).order('created_at',{ascending:false}),
       ])
