@@ -642,6 +642,10 @@ export default function HomePage() {
               // implicitly captured by the pointerdown target, so pointerup
               // always lands here — we just gate on finger travel distance.
               onPointerDown={e => {
+                // Explicit capture: Safari doesn't reliably apply implicit
+                // touch capture, so a thumb pad rolling off the node mid-press
+                // fired pointerleave and dropped the tap
+                e.currentTarget.setPointerCapture(e.pointerId)
                 pressStartRef.current = { id: dest.id, x: e.clientX, y: e.clientY }
                 setPressedNode(dest.id)
                 playTick()
@@ -650,7 +654,9 @@ export default function HomePage() {
                 const s = pressStartRef.current
                 pressStartRef.current = null
                 setPressedNode(null)
-                if (s && s.id === dest.id && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 14) {
+                // Generous slop — the map can't scroll, so a rolling/sliding
+                // thumb is still a tap
+                if (s && s.id === dest.id && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 30) {
                   handleSelect(dest)
                 }
               }}
