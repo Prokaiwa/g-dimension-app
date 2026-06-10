@@ -6,6 +6,25 @@ const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
 import { useState, useEffect } from 'react'
+
+// Dyno-readout count-up for the hero stat figures: ticks from 0 to the real
+// value with a cubic ease-out, like a gauge settling.
+function CountUp({ value, delay = 0 }: { value: number; delay?: number }) {
+  const [shown, setShown] = useState(0)
+  useEffect(() => {
+    let raf = 0
+    const start = performance.now() + delay
+    const dur = 700
+    const step = (t: number) => {
+      const k = Math.min(1, Math.max(0, (t - start) / dur))
+      setShown(Math.round(value * (1 - Math.pow(1 - k, 3))))
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [value, delay])
+  return <>{shown}</>
+}
 import { useNavigate }          from 'react-router-dom'
 import { supabase }             from '../lib/supabase'
 import { getActiveCarId }       from '../lib/activeCar'
@@ -519,19 +538,19 @@ export default function TuningBuildSheetPage() {
                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {car?.horsepower != null && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                      {car.horsepower}{' '}
+                      <CountUp value={car.horsepower} delay={350} />{' '}
                       <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>hp</span>
                     </span>
                   )}
                   {car?.torque != null && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                      {car.torque}{' '}
+                      <CountUp value={car.torque} delay={450} />{' '}
                       <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb-ft</span>
                     </span>
                   )}
                   {car?.weight_lbs != null && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                      {car.weight_lbs}{' '}
+                      <CountUp value={car.weight_lbs} delay={550} />{' '}
                       <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb</span>
                     </span>
                   )}
