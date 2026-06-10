@@ -93,6 +93,10 @@ const GLINT_ANIMS = [
 const TEXTURE_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='a'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' seed='5' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.18 -0.04'/></filter><rect width='100%' height='100%' filter='url(#a)'/></svg>`
 const TEXTURE_URL = `url("data:image/svg+xml,${encodeURIComponent(TEXTURE_SVG)}")`
 
+// Tap diagnostics overlay — open /home?tapdebug to see the raw pointer
+// sequence for any press that doesn't navigate.
+const TAP_DEBUG = typeof window !== 'undefined' && window.location.search.includes('tapdebug')
+
 export default function HomePage() {
   const navigate = useNavigate()
   const worldRef = useRef<HTMLDivElement>(null)
@@ -107,6 +111,7 @@ export default function HomePage() {
   const [exiting, setExiting] = useState(false)
   const exitingRef = useRef(false)
   const pressStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const [tapLog, setTapLog] = useState<string[]>([])
   const parallaxRef = useRef({ px: 0, py: 0 })
   const compassRef = useRef<HTMLDivElement>(null)
   const roadElsRef = useRef<Partial<Record<RoadId, SVGPathElement>>>({})
@@ -298,6 +303,39 @@ export default function HomePage() {
     }
     window.setTimeout(() => navigate(dest.route), reduced ? 200 : 380)
   }
+  const handleSelectRef = useRef(handleSelect)
+  handleSelectRef.current = handleSelect
+
+  // Complete node presses at the DOCUMENT level: pointerdown on a node arms
+  // the press, and any pointerup on the page finishes it (within slop). This
+  // removes every dependency on iOS delivering pointerup/click to the node
+  // itself — which it dropped under thumb roll-off, gyro movement, and
+  // gesture heuristics. pointercancel disarms without navigating.
+  useEffect(() => {
+    const onUp = (e: PointerEvent) => {
+      const s = pressStartRef.current
+      pressStartRef.current = null
+      setPressedNode(null)
+      if (!s) return
+      const dist = Math.hypot(e.clientX - s.x, e.clientY - s.y)
+      if (TAP_DEBUG) setTapLog(l => [...l.slice(-7), `up ${s.id} ${dist.toFixed(0)}px ${dist < 34 ? '→ GO' : '→ too far'}`])
+      if (dist < 34) {
+        const dest = DESTINATIONS.find(d => d.id === s.id)
+        if (dest) handleSelectRef.current(dest)
+      }
+    }
+    const onCancel = () => {
+      if (TAP_DEBUG && pressStartRef.current) setTapLog(l => [...l.slice(-7), `CANCEL ${pressStartRef.current?.id}`])
+      pressStartRef.current = null
+      setPressedNode(null)
+    }
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
+    return () => {
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
+    }
+  }, [])
 
   const avatarLetter = displayName === '...' ? '?' : displayName.charAt(0).toUpperCase()
 
@@ -636,32 +674,17 @@ export default function HomePage() {
           {DESTINATIONS.map((dest, i) => (
             <div
               key={dest.id}
-              // Navigation runs on pointerup, not click: the press-scale and the
-              // gyro parallax move the node under a resting finger, which makes
-              // native click hit-testing drop taps. Touch pointer events are
-              // implicitly captured by the pointerdown target, so pointerup
-              // always lands here — we just gate on finger travel distance.
+              // Arms the press — the document-level pointerup listener
+              // completes it, and native click is a redundant fallback path
+              // (exitingRef dedupes if both fire).
               onPointerDown={e => {
-                // Explicit capture: Safari doesn't reliably apply implicit
-                // touch capture, so a thumb pad rolling off the node mid-press
-                // fired pointerleave and dropped the tap
-                e.currentTarget.setPointerCapture(e.pointerId)
                 pressStartRef.current = { id: dest.id, x: e.clientX, y: e.clientY }
                 setPressedNode(dest.id)
                 playTick()
+                if (TAP_DEBUG) setTapLog(l => [...l.slice(-7), `down ${dest.id}`])
+                try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* non-critical */ }
               }}
-              onPointerUp={e => {
-                const s = pressStartRef.current
-                pressStartRef.current = null
-                setPressedNode(null)
-                // Generous slop — the map can't scroll, so a rolling/sliding
-                // thumb is still a tap
-                if (s && s.id === dest.id && Math.hypot(e.clientX - s.x, e.clientY - s.y) < 30) {
-                  handleSelect(dest)
-                }
-              }}
-              onPointerLeave={() => { pressStartRef.current = null; setPressedNode(null) }}
-              onPointerCancel={() => { pressStartRef.current = null; setPressedNode(null) }}
+              onClick={() => handleSelect(dest)}
               style={{
                 position: 'absolute',
                 left: `${(dest.pos.left / 390 * 100).toFixed(2)}%`,
@@ -806,6 +829,18 @@ export default function HomePage() {
           </span>
         </div>
       </div>
+
+      {/* Tap diagnostics — only with ?tapdebug in the URL */}
+      {TAP_DEBUG && (
+        <div style={{
+          position: 'fixed', bottom: 48, left: 10, right: 10, zIndex: 99,
+          pointerEvents: 'none', fontFamily: 'monospace', fontSize: 11,
+          color: '#7CFC00', textShadow: '0 1px 2px #000', whiteSpace: 'pre-line',
+          lineHeight: 1.5,
+        }}>
+          {tapLog.join('\n')}
+        </div>
+      )}
 
       {/* Exit fade — cut to black while the camera dives into the destination */}
       <div style={{
