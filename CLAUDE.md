@@ -288,6 +288,9 @@ src/pages/TimelinePage.tsx          — Timeline scroll (parchment, NO header, f
 src/pages/TimelineEntryNewPage.tsx  — Compose AND edit a free-form note (/timeline/new, /timeline/entry/:id/edit). Title, date, story (Cormorant), multiple photos + links
 src/pages/EntryDetailPage.tsx       — Entry Detail (/timeline/entry/:id): hero + gallery + links; "View in Tuning/Maintenance" for session entries; Edit/Delete for notes
 src/components/CameraIcon.tsx       — Shared stroked camera glyph (matches the Garage carousel camera)
+src/lib/sound.ts                    — GT-style UI sounds (playTick/playConfirm/playBack), synthesized on-device via Web Audio — no audio assets, no network. Device-local on/off in Settings (localStorage 'gdim_sound_enabled', default OFF). Audition board at /sound-test (dev route, bypasses the toggle)
+src/components/ArrivalFade.tsx      — 280ms fade-from-dark used by the five Home-map destinations (/garage /tuning /maintenance /timeline /featured) to complete the Home zoom-exit transition
+src/pages/SoundTestPage.tsx         — Dev tool at /sound-test — audition board for candidate UI sounds
 src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
