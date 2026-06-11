@@ -685,7 +685,8 @@ export default function FeaturedPage() {
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
-            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }) }}>
+            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }),
+              transform:'scale(0.85)', transformOrigin: coverIdx % 2 === 0 ? 'bottom left' : 'bottom right' }}>
               <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={false} />
             </div>
 
@@ -898,7 +899,7 @@ function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext }:
       <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
       {nextLabel
         ? <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onNext?'pointer':'default', padding:'4px 0' }}>{nextLabel} ›</div>
-        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6 }}>{String(pageNum).padStart(2,'0')}</span>}
+        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>}
     </div>
   )
 }
