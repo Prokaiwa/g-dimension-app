@@ -719,17 +719,17 @@ export default function FeaturedPage() {
 
     if (pg.kind === 'photo') {
       return (
-        <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme} vol={vol} issue={issue}
-          backLabel={prev?.label ?? 'COVER'} nextLabel={next?.label} pageNum={i + 1}
+        <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
           onBack={onBack} onNext={onNext} />
       )
     }
 
     // spec
     return (
-      <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme} vol={vol} issue={issue}
+      <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
         totalMods={jobs.length} carShortName={carShortName}
-        backLabel={prev?.label ?? 'COVER'} nextLabel={next?.label} pageNum={i + 1}
+        backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
         onBack={onBack} onNext={onNext} />
     )
   }
@@ -888,20 +888,6 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
   )
 }
 
-// ─── shared interior furniture ──────────────────────────────────────────────────
-// Running head — masthead + VOL/NO strip. Interior pages carry no title here; the
-// only page with a visible title is the Spec Sheet (rendered separately below).
-function RunningHead({ theme, vol, issue, suffix }: { theme: InteriorTheme; vol: number; issue: number; suffix?: string }) {
-  return (
-    <div style={{ background:theme.menuHeaderBg, padding:'10px 16px 8px 28px', display:'flex', alignItems:'baseline', justifyContent:'space-between', flexShrink:0 }}>
-      <span style={{ fontFamily:FONT_MASTHEAD, color:theme.menuHeaderInk, fontSize:19, fontStyle:'italic', letterSpacing:'-0.01em' }}>G-DIMENSION</span>
-      <span style={{ fontFamily:FONT_DECK, color:theme.menuHeaderInk, opacity:0.6, fontSize:8, letterSpacing:'0.26em', textTransform:'uppercase' }}>
-        VOL.{vol} NO.{issue}{suffix ? ` ${suffix}` : ''}
-      </span>
-    </div>
-  )
-}
-
 // Folio bar — back/forward labels derived from neighbor pages; last page shows the
 // page number instead of a forward link.
 function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext }:
@@ -930,7 +916,7 @@ const SPINE_GUTTER: React.CSSProperties = {
 // Editorial collage: one dominant photo + 1–3 supporting, arranged deterministically.
 // Caption slot under each photo is always present (renders text only when written).
 interface PhotoSpreadProps {
-  photos: PhotoItem[]; arrangement: number; theme: InteriorTheme; vol: number; issue: number
+  photos: PhotoItem[]; arrangement: number; theme: InteriorTheme
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
 }
 function PhotoCell({ item, theme }: { item: PhotoItem; theme: InteriorTheme }) {
@@ -984,11 +970,10 @@ function Collage({ photos, arrangement, theme }: { photos: PhotoItem[]; arrangem
   )
   return col(dominantTop ? <>{big}{row}</> : <>{row}{big}</>)
 }
-function PhotoSpread({ photos, arrangement, theme, vol, issue, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+function PhotoSpread({ photos, arrangement, theme, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
-      <RunningHead theme={theme} vol={vol} issue={issue} />
       <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'12px 14px 10px 30px', minHeight:0 }}>
         <Collage photos={photos} arrangement={arrangement} theme={theme} />
       </div>
@@ -1000,15 +985,14 @@ function PhotoSpread({ photos, arrangement, theme, vol, issue, backLabel, nextLa
 
 // ─── SpecSheet (interior, the one titled page — D'Sport vehicle spec sheet) ──────
 interface SpecSheetProps {
-  sections: SpecSection[]; isCont: boolean; theme: InteriorTheme; vol: number; issue: number
+  sections: SpecSection[]; isCont: boolean; theme: InteriorTheme
   totalMods: number; carShortName: string
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
 }
-function SpecSheet({ sections, isCont, theme, vol, issue, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: SpecSheetProps) {
+function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: SpecSheetProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
-      <RunningHead theme={theme} vol={vol} issue={issue} suffix={isCont ? '· SPEC SHEET (CONT.)' : undefined} />
 
       {/* title block — D'Sport masthead, reversed on the ink panel. First page only. */}
       {isCont
