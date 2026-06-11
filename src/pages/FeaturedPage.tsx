@@ -18,6 +18,8 @@ import {
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
 } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.png'
+import { generateFeature } from '../features/featured/engine/generate'
+import type { PhotoSlot } from '../features/featured/engine/generate'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Car {
@@ -26,7 +28,8 @@ interface Car {
   trim: string | null; nickname: string | null; horsepower: number | null; torque: number | null
   engine_type: string | null; transmission: string | null
   forced_induction: string | null; drivetrain: string | null; purchase_date: string | null
-  current_mileage: number | null
+  current_mileage: number | null; color: string | null; is_import: boolean
+  usage_type: string | null; engine_origin: string | null
   showcase_photo_url: string | null; garage_photo_url: string | null; original_photo_url: string | null
   build_sheet_power_photo: string | null; build_sheet_chassis_photo: string | null
   build_sheet_exterior_photo: string | null; build_sheet_interior_photo: string | null
@@ -34,7 +37,7 @@ interface Car {
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
 type PhotoItem = { url: string; caption: string | null }
-type JobPhoto = { photo_url: string; caption: string | null }
+type JobPhoto = { photo_url: string; caption: string | null; job_id: string | null }
 
 // Spec Sheet data model
 interface SpecRow { label: string; value: string }
@@ -154,82 +157,6 @@ function paginateSpec(sections: SpecSection[], availFirst: number, availCont: nu
   return pages
 }
 
-// ─── tagline generator (cover — unchanged; kept for a later editorial session) ──
-const LUXURY_MAKES = new Set(['lexus','bmw','mercedes','mercedes-benz','cadillac','audi','infiniti','acura','genesis','porsche','maserati','rolls-royce','bentley','jaguar'])
-
-function generateTagline(
-  car: Car, totalMods: number,
-  grouped: Record<string, { length: number }>,
-  purchaseYear: number | null,
-  rng: () => number
-): string {
-  const hp          = car.horsepower ?? 0
-  const fi          = car.forced_induction && car.forced_induction !== 'none'
-  const fiLabel     = fi ? car.forced_induction!.replace('-', ' ') : ''
-  const dr          = (car.drivetrain ?? '').toUpperCase()
-  const powerMods   = grouped.power?.length  ?? 0
-  const chassisMods = grouped.chassis?.length ?? 0
-  const mi          = car.current_mileage ?? 0
-  const yearsOwned  = purchaseYear ? Math.max(0, new Date().getFullYear() - purchaseYear) : 0
-  const isLuxury    = LUXURY_MAKES.has((car.make ?? '').toLowerCase())
-
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rng() * arr.length)]
-
-  let p1: string, p2: string
-
-  if (fi && hp >= 400) {
-    p1 = pick(['Boost-fed build', 'Forced induction machine', `${fiLabel} equipped`])
-    p2 = `${hp}hp through ${dr || 'the wheels'}`
-  } else if (fi && powerMods >= 3) {
-    p1 = pick([`${fiLabel} powered`, 'Forced induction build', 'Boosted and built'])
-    p2 = pick(['Maximum power, street registered', 'Built for the long pull', `${hp > 0 ? hp+'hp' : 'Tuned'} and street ready`])
-  } else if (fi) {
-    p1 = pick([`${fiLabel} equipped`, 'Boost on demand'])
-    p2 = pick(['Streetable power delivery', 'Daily driven, boost fed'])
-  } else if (hp >= 400) {
-    p1 = pick(['All-motor performance', 'Naturally aspirated build', 'Breathing free, pulling hard'])
-    p2 = `${hp}hp of pure intent`
-  } else if (isLuxury && mi > 100000 && chassisMods >= 2) {
-    p1 = pick(['High mileage, high standards', `${Math.round(mi/1000)}k miles, still earning it`])
-    p2 = pick(['Luxury smooth meets sporty handling', 'Pampered and performance-tuned'])
-  } else if (isLuxury && totalMods >= 5) {
-    p1 = pick(['Luxury meets performance', 'Where refinement meets speed', 'Beyond factory spec'])
-    p2 = pick(['Grand touring, reimagined', 'Built beyond the showroom', 'Elevated in every detail'])
-  } else if (isLuxury) {
-    p1 = pick(['Refined grand tourer', 'Luxury smooth', 'Elegance with intent'])
-    p2 = pick(['Built for the distance', 'Meticulously maintained', 'Every detail considered'])
-  } else if (mi > 150000) {
-    p1 = `${Math.round(mi/1000)}k miles and still going strong`
-    p2 = pick(['Routinely pampered', 'Meticulously maintained', 'Every mile well earned'])
-  } else if (mi > 100000) {
-    p1 = pick(['High mileage, high standards', `${Math.round(mi/1000)}k on the clock`])
-    p2 = pick(['Built to outlast expectations', 'Routinely pampered, always ready'])
-  } else if (totalMods >= 14) {
-    p1 = pick(['Nothing left stock', 'Built from the ground up', 'Comprehensive modification list'])
-    p2 = `${totalMods} modifications and counting`
-  } else if (chassisMods >= 3 && powerMods <= 1) {
-    p1 = pick(['Corner-carver setup', 'Chassis-first build', 'Suspension dialed in'])
-    p2 = pick(['Handling before horsepower', 'Built for the twisties', 'Precision over power'])
-  } else if (powerMods >= 4 && chassisMods >= 2) {
-    p1 = pick(['Power and chassis in balance', 'All-around performance build'])
-    p2 = pick(['Built fast, set up right', 'Every system upgraded'])
-  } else if (totalMods >= 6) {
-    p1 = pick(['Thoughtfully modified', 'Carefully curated build', 'Built with purpose'])
-    p2 = pick(['Style meets substance', 'Every mod chosen carefully', 'Quality over quantity'])
-  } else if (totalMods > 0) {
-    p1 = pick(['Tastefully modified', 'Subtly upgraded', 'Restrained but purposeful'])
-    p2 = pick(['Less is more, done right', 'Clean build, clear vision'])
-  } else if (yearsOwned >= 8) {
-    p1 = pick([`${yearsOwned} years of ownership`, 'Long-term relationship'])
-    p2 = pick(['Preserved with pride', 'Original and proud of it'])
-  } else {
-    p1 = pick(['As the factory intended', 'Stock specification'])
-    p2 = pick(['Preserved in original condition', 'Clean and unmolested'])
-  }
-
-  return `${p1} · ${p2}`
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function FeaturedPage() {
   const navigate = useNavigate()
@@ -238,6 +165,7 @@ export default function FeaturedPage() {
   const [photoIdx, setPhotoIdx] = useState(0)
   const [jobs, setJobs]     = useState<Job[]>([])
   const [jobPhotos, setJobPhotos] = useState<JobPhoto[]>([])
+  const [userUnits, setUserUnits] = useState<{ distance_unit: 'mi'|'km'; power_unit: 'hp'|'ps'|'kw' }>({ distance_unit: 'mi', power_unit: 'hp' })
   const [loading, setLoading] = useState(true)
   const [coverIdx, setCoverIdx] = useState(0)
   const [pageIdx, setPageIdx]   = useState(0) // 0=cover
@@ -270,18 +198,27 @@ export default function FeaturedPage() {
     ;(async () => {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
-      const [carRes, jobsRes, jobPhotosRes] = await Promise.all([
+      const { data: { user } } = await supabase.auth.getUser()
+      const [carRes, jobsRes, jobPhotosRes, unitsRes] = await Promise.all([
         supabase.from('cars')
-          .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
+          .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
           .eq('id', carId).is('deleted_at', null).single(),
         supabase.from('jobs').select('id,title,category,brand,part_types(name)')
           .eq('car_id', carId).eq('type','modification').eq('status','installed').order('created_at',{ascending:true}),
-        supabase.from('job_photos').select('photo_url,caption')
+        supabase.from('job_photos').select('photo_url,caption,job_id')
           .eq('car_id', carId).order('created_at',{ascending:false}),
+        user ? supabase.from('users').select('distance_unit,power_unit').eq('id', user.id).single() : Promise.resolve({ data: null }),
       ])
       if (!alive) return
       const c = (carRes.data as unknown as Car) ?? null
       setCar(c)
+      if (unitsRes.data) {
+        const u = unitsRes.data as { distance_unit?: string; power_unit?: string }
+        setUserUnits({
+          distance_unit: (u.distance_unit === 'km' ? 'km' : 'mi') as 'mi'|'km',
+          power_unit: (u.power_unit === 'ps' ? 'ps' : u.power_unit === 'kw' ? 'kw' : 'hp') as 'hp'|'ps'|'kw',
+        })
+      }
       const cands: Photo[] = []
       if (c?.original_photo_url) cands.push({ url: c.original_photo_url, mode:'full',   label:'Original' })
       if (c?.garage_photo_url)   cands.push({ url: c.garage_photo_url,   mode:'cutout', label:'No BG'    })
@@ -324,12 +261,48 @@ export default function FeaturedPage() {
     return g
   }, [jobs])
 
-  // Tagline — cover only (separate RNG seed; engine fills this later)
-  const tagline = useMemo(() => {
-    if (!car) return ''
-    const tRng = mulberry32((seed || 1) ^ 0xf00dcafe)
-    return generateTagline(car, jobs.length, grouped, purchaseYear, tRng)
-  }, [car, jobs.length, grouped, purchaseYear, seed])
+  // Editorial engine — deterministic feature copy keyed to car.id
+  const engineFeature = useMemo(() => {
+    if (!car || !car.year || !car.make || !car.model) return null
+    const modData = jobs.map(j => ({ category: j.category ?? 'Unknown', status: 'installed' as const }))
+    const groupKeys = ['power', 'chassis', 'exterior', 'interior'] as const
+    const groupCols = ['build_sheet_power_photo', 'build_sheet_chassis_photo', 'build_sheet_exterior_photo', 'build_sheet_interior_photo'] as const
+    const slots: PhotoSlot[] = []
+    for (let i = 0; i < groupKeys.length; i++) {
+      const url = car[groupCols[i]]
+      if (url) slots.push({ id: url, type: 'build_group', group: groupKeys[i] })
+    }
+    for (const jp of jobPhotos) {
+      if (!jp.photo_url) continue
+      const job = jp.job_id ? jobs.find(j => j.id === jp.job_id) : null
+      const partName = job ? (job.part_type_name || job.title || undefined) : undefined
+      slots.push({ id: jp.photo_url, type: 'job', partName, existingCaption: jp.caption?.trim() || undefined })
+    }
+    return generateFeature(
+      {
+        id: car.id,
+        year: car.year,
+        make: car.make,
+        model: car.model,
+        trim: car.trim,
+        color: car.color,
+        is_import: car.is_import ?? false,
+        engine_type: car.engine_type,
+        engine_origin: car.engine_origin as 'original' | 'swapped' | null,
+        forced_induction: car.forced_induction as 'none' | 'turbo' | 'supercharged' | 'twin-turbo' | 'e-boost' | 'other' | null,
+        horsepower: car.horsepower,
+        current_mileage: car.current_mileage,
+        drivetrain: car.drivetrain as 'rwd' | 'fwd' | 'awd' | '4wd' | null,
+        purchase_date: car.purchase_date,
+        usage_type: car.usage_type,
+        chassis_code: null,
+      },
+      modData,
+      null,
+      { distance_unit: userUnits.distance_unit, power_unit: userUnits.power_unit },
+      slots,
+    )
+  }, [car, jobs, jobPhotos, userUnits])
 
   // ── photo pool (priority: build-group photos, then job photos newest-first) ────
   const photoPool = useMemo<PhotoItem[]>(() => {
@@ -346,16 +319,25 @@ export default function FeaturedPage() {
     return pool
   }, [car, jobPhotos])
 
+  // ── merge engine-generated captions into empty photo slots ────────────────────
+  const photoPoolFinal = useMemo<PhotoItem[]>(() => {
+    if (!engineFeature) return photoPool
+    return photoPool.map(item => ({
+      ...item,
+      caption: item.caption ?? (engineFeature.captions[item.url] ?? null),
+    }))
+  }, [photoPool, engineFeature])
+
   // ── photo spreads: 0 / 1 / 2 pages, deterministic collage arrangement ──────────
   const photoSpreads = useMemo(() => {
-    const capped = photoPool.slice(0, 8)
+    const capped = photoPoolFinal.slice(0, 8)
     if (capped.length === 0) return [] as { photos: PhotoItem[]; arrangement: number }[]
     const lrng = mulberry32((seed || 1) ^ 0xa17de51)
     const chunks: PhotoItem[][] = capped.length <= 4
       ? [capped]
       : [capped.slice(0, Math.ceil(capped.length / 2)), capped.slice(Math.ceil(capped.length / 2))]
     return chunks.map(ph => ({ photos: ph, arrangement: Math.floor(lrng() * 2) }))
-  }, [photoPool, seed])
+  }, [photoPoolFinal, seed])
 
   // ── spec-sheet pages (1–2, split at a section boundary) ────────────────────────
   const specPages = useMemo(() => {
@@ -670,22 +652,34 @@ export default function FeaturedPage() {
               ? { position:'absolute', left:0, right:0, bottom:90, textAlign:'center', padding:'0 20px' }
               : { position:'absolute', left:16, right:16, bottom:96 }}>
               <span style={{ display:'inline-block', fontFamily:FONT_DECK, fontWeight:600, fontSize:11, letterSpacing:'0.22em', textTransform:'uppercase', color:'#fff', background:t.accent, padding:'3px 8px', marginBottom:10 }}>Feature Car</span>
-              {car?.nickname && (
-                <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:car.nickname.length>12?44:58, textTransform:'uppercase', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{car.nickname}</div>
-              )}
-              <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.95,
-                fontSize: car?.nickname ? 14 : (carName.length > 18 ? 22 : 28),
-                fontStyle: car?.nickname ? 'normal' : 'italic',
-                textTransform:'uppercase', letterSpacing:'-0.01em',
-                textShadow:t.textOnPhoto==='light'?'0 2px 10px rgba(0,0,0,0.5)':'none',
-                marginTop: car?.nickname ? 8 : 4 }}>
+              {/* Engine headline — big masthead slot */}
+              {(() => {
+                const hl = engineFeature?.headline ?? carName
+                const fs = hl.length > 22 ? 28 : hl.length > 14 ? 36 : 44
+                return (
+                  <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:fs, textTransform:'uppercase', letterSpacing:'-0.01em', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{hl}</div>
+                )
+              })()}
+              {/* Car identification line */}
+              <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.95, fontSize:14,
+                fontStyle:'normal', textTransform:'uppercase', letterSpacing:'-0.01em',
+                textShadow:t.textOnPhoto==='light'?'0 2px 10px rgba(0,0,0,0.5)':'none', marginTop:8 }}>
                 {carName}{car?.trim ? ` ${car.trim}` : ''}
               </div>
-              {tagline && (
-                <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.88,
-                  fontSize:13.5, lineHeight:1.35, marginTop:7,
+              {/* Nickname in Cormorant italic — only when present */}
+              {car?.nickname && (
+                <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.92,
+                  fontSize:15, lineHeight:1.25, marginTop:6,
                   textShadow:t.textOnPhoto==='light'?'0 1px 8px rgba(0,0,0,0.5)':'none' }}>
-                  {tagline}
+                  {car.nickname}
+                </div>
+              )}
+              {/* Engine deck */}
+              {engineFeature?.deck && (
+                <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.82,
+                  fontSize:12.5, lineHeight:1.35, marginTop:5,
+                  textShadow:t.textOnPhoto==='light'?'0 1px 8px rgba(0,0,0,0.5)':'none' }}>
+                  {engineFeature.deck}
                 </div>
               )}
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}

@@ -390,7 +390,7 @@ function getChassisCaptions(ctx: GateContext): PoolLine[] {
 
 // ─── Caption generation ───────────────────────────────────────────────────────
 
-interface PhotoSlot {
+export interface PhotoSlot {
   id: string
   type: 'job' | 'build_group' | 'full_body'
   partName?: string   // for job photos
