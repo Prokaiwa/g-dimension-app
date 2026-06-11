@@ -1895,4 +1895,105 @@ All files produced during the Supabase setup session (Step 4):
 
 ---
 
+---
+
+## PART 32 — EDITORIAL ENGINE
+
+### Overview
+
+A **deterministic, zero-LLM editorial engine** (`src/features/featured/engine/`) that generates the Feature's headline, deck, and photo captions from structured car data. Pure rules + curated pools + seeded RNG. No runtime API calls. Output reads like an automotive editor wrote it; when data is thin, output degrades to dignified restraint, never to hype or false claims.
+
+### Module Map
+
+```
+src/features/featured/engine/
+  types.ts        — Archetype, Tier, GateContext, GeneratedFeature, pool interfaces
+  rng.ts          — mulberry32 PRNG; seedFrom(car.id); per-slot XOR salts
+  gates.ts        — all gate predicates; resolveSubaruEye(); allGatesPass()
+  resolve.ts      — buildContext(profile, mods, variant, ownerUnits) → GateContext
+  archetypes.ts   — 12 archetypes + HighMileage overlay; cascade constants
+  matrix.ts       — unlockedTemplates(ctx) → HeadlineTemplate[]; pool weights
+  generate.ts     — generateFeature(profile, mods, variant, ownerUnits, photos?) → GeneratedFeature
+  pools/
+    universal.ts  — Batch 1: T1–T7 templates, deck pools, caption system
+    engines.ts    — Batch 2 §1–3: engine family registry + swap/donor frames
+    makes.ts      — Batch 2 §2: make heritage layers
+    chassis.ts    — Batch 3: chassis DB with nicknames, epithets, slang gates
+  __tests__/
+    engine.test.ts — all 9 acceptance tests (60 assertions)
+```
+
+### Public API
+
+```typescript
+import { generateFeature } from 'src/features/featured/engine/generate'
+
+const feature = generateFeature(
+  carProfile,     // cars row fields + usage_type + chassis_code
+  modRows,        // public_build_sheet rows (status='installed' filtered inside)
+  variantData,    // vehicle_variants row or null
+  ownerUnits,     // { distance_unit, power_unit }
+  photoSlots?,    // optional photo binding for caption generation
+)
+// Returns: { headline, headlineTemplate, cormorantLine, deck, captions, archetype, tier }
+```
+
+### Cascade Constants (§3 — locked)
+
+| Constant | Value |
+|---|---|
+| Mod-tier restraint | 0–3 mods |
+| Mod-tier street | 4–12 mods |
+| Mod-tier full | 13+ mods |
+| HighMileage threshold | ≥ 200,000 stored miles + engine_origin = 'original' |
+| Survivor age min | 20 years |
+| Survivor mod max | 3 mods |
+| OEM+ age cap | < 20 years |
+| Muscle year cutoff | ≤ 1993 |
+
+### Archetype Cascade (first match wins)
+
+1. `usage_type` direct: track→TimeAttack · drift→Drift · drag→Drag · show→ShowStance · vip→VIP · offroad→OffRoad · daily→Daily
+2. Derived (usage = 'street' or null):
+   - Exotic — make ∈ {Ferrari, Lamborghini, McLaren, Aston Martin, Lotus, Maserati, Pagani, Koenigsegg}
+   - Muscle — make ∈ {Ford, Chevrolet, Dodge, Plymouth, Pontiac, Buick, Oldsmobile} AND year ≤ 1993
+   - Survivor — age ≥ 20 AND modCount ≤ 3
+   - OEMPlus — age < 20 AND modCount 1–3
+   - StreetBuild — modCount ≥ 4
+   - Daily — fallback
+
+**HighMileage overlay** (merges, never primary): currentMileage ≥ 200,000 mi AND engine_origin = 'original'. Claims headline via T6 when active.
+
+### Tier Rules
+
+| Tier | Condition | Pool access |
+|---|---|---|
+| 1 | chassis code matched in chassis DB | full stack: chassis + engine + heritage + archetype |
+| 2 | make known, chassis unmatched | engine family + heritage + archetype; no epithets/chassis slang |
+| 3 | make unmatched | archetype + Tier-3 degradation only; "icon/weapon" tokens blocked |
+
+### Per-Slot RNG Salts
+
+```
+Headline:  seed ^ 0x48454144
+Deck:      seed ^ 0xDECC0DE5
+Caption n: seed ^ (0xCAB0 + n)
+```
+
+Seed = `mulberry32(seedFrom(car.id))`. Output is byte-identical for the same inputs; changes only when car data changes (new mods, new hp, etc.).
+
+### Key Gate Rules
+
+- **VTEC (※):** engine code ∈ {B16*, B17A, B18C, H22*, F20C, F22C, K20*, K24*}. Hard-blocked on B18A/B18B/B20. "kicked in" is banned vocabulary (tested).
+- **GT-R:** chassis ∈ {BNR32, BCNR33, BNR34} OR model contains "GT-R". R32 GTS/GTS-t (HCR32) NEVER qualifies.
+- **Subaru eye nicknames:** bugeye/blobeye/hawkeye keyed on year × is_import. JDM 2002 and 2005 produce null (restraint beats reach).
+- **engine_origin null:** fires neither originality nor swap language.
+
+### Invariants (enforced by tests)
+
+- The archetype label is NEVER displayed in UI — it is plumbing only.
+- User-written captions are never overwritten (existingCaption check).
+- No LLM/API calls, no runtime fetches, no new database columns.
+- `generateTagline` has been superseded by the deck; the cormorantLine field carries the nickname when present.
+
 *End of G-Dimension Master Architecture v3.0*
