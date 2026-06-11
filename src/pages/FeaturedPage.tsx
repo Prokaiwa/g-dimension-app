@@ -910,20 +910,31 @@ const SPINE_GUTTER: React.CSSProperties = {
   background:'linear-gradient(90deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.05) 60%, transparent 100%)',
 }
 
-// ─── PhotoSpread (interior, untitled) ───────────────────────────────────────────
-// Editorial collage: one dominant photo + 1–3 supporting, arranged deterministically.
-// Caption slot under each photo is always present (renders text only when written).
+// ─── PhotoSpread (interior) ───────────────────────────────────────────────────
+// Layout strategy: measure each image's natural aspect ratio on load, then give
+// each cell flex: aspect in a horizontal row (or flex: 1/aspect in a column).
+// When the container matches the image's natural ratio, objectFit:cover fills it
+// perfectly with zero cropping and zero letterboxing.
 interface PhotoSpreadProps {
   photos: PhotoItem[]; arrangement: number; theme: InteriorTheme
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
 }
-function PhotoCell({ item, theme }: { item: PhotoItem; theme: InteriorTheme }) {
+
+interface PhotoCellProps {
+  item: PhotoItem; theme: InteriorTheme
+  flexVal?: string | number  // flex shorthand for the outer wrapper
+  onAspect?: (ratio: number) => void
+}
+function PhotoCell({ item, theme, flexVal, onAspect }: PhotoCellProps) {
   return (
-    <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:`${theme.ink}0a` }}>
-        <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+    <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
+      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:`${theme.ink}14` }}>
+        <img
+          src={item.url} alt=""
+          onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
+          style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+        />
       </div>
-      {/* caption slot — present in markup so the editorial engine can fill it later */}
       <div style={{ flexShrink:0 }}>
         {item.caption && (
           <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:3,
@@ -935,45 +946,95 @@ function PhotoCell({ item, theme }: { item: PhotoItem; theme: InteriorTheme }) {
     </div>
   )
 }
-function Collage({ photos, arrangement, theme }: { photos: PhotoItem[]; arrangement: number; theme: InteriorTheme }) {
-  const dominantTop = arrangement === 0
-  const col = (children: React.ReactNode) => <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>{children}</div>
 
-  if (photos.length <= 1) {
-    return <div style={{ flex:1, display:'flex', minHeight:0 }}>{photos[0] && <PhotoCell item={photos[0]} theme={theme} />}</div>
-  }
-  if (photos.length === 2) {
-    const big   = <div style={{ flex:'1 1 58%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
-    const small = <div style={{ flex:'1 1 42%', display:'flex', minHeight:0 }}><PhotoCell item={photos[1]} theme={theme} /></div>
-    return col(dominantTop ? <>{big}{small}</> : <>{small}{big}</>)
-  }
-  if (photos.length === 3) {
-    const big = <div style={{ flex:'1 1 56%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
-    const row = (
-      <div style={{ flex:'1 1 44%', display:'flex', gap:8, minHeight:0 }}>
-        <div style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={photos[1]} theme={theme} /></div>
-        <div style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={photos[2]} theme={theme} /></div>
-      </div>
-    )
-    return col(dominantTop ? <>{big}{row}</> : <>{row}{big}</>)
-  }
-  // 4
-  const big = <div style={{ flex:'1 1 54%', display:'flex', minHeight:0 }}><PhotoCell item={photos[0]} theme={theme} /></div>
-  const row = (
-    <div style={{ flex:'1 1 46%', display:'flex', gap:7, minHeight:0 }}>
-      {[photos[1], photos[2], photos[3]].map((p, i) => (
-        <div key={i} style={{ flex:1, display:'flex', minWidth:0 }}><PhotoCell item={p} theme={theme} /></div>
+function PhotoSpread({ photos, arrangement, theme, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+  const [aspects, setAspects] = useState<number[]>(() => photos.map(() => 1.5))
+  const onAspect = (i: number) => (r: number) =>
+    setAspects(prev => { const n = [...prev]; n[i] = r; return n })
+
+  const dominantTop = arrangement === 0
+
+  // A horizontal flex row where each child gets flex:aspect fills the row with
+  // zero cropping. A vertical flex col uses flex:1/aspect for the same result.
+  const hRow = (items: PhotoItem[], idxOffset = 0, colFlex?: string | number) => (
+    <div style={{ flex: colFlex ?? 1, display:'flex', flexDirection:'row', gap:8, minHeight:0 }}>
+      {items.map((p, i) => (
+        <PhotoCell key={p.url} item={p} theme={theme}
+          flexVal={aspects[idxOffset + i]}
+          onAspect={onAspect(idxOffset + i)} />
       ))}
     </div>
   )
-  return col(dominantTop ? <>{big}{row}</> : <>{row}{big}</>)
-}
-function PhotoSpread({ photos, arrangement, theme, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+
+  const n = photos.length
+
+  let layout: React.ReactNode
+
+  if (n <= 1) {
+    layout = (
+      <div style={{ flex:1, display:'flex', minHeight:0 }}>
+        {photos[0] && <PhotoCell item={photos[0]} theme={theme} onAspect={onAspect(0)} />}
+      </div>
+    )
+  } else if (n === 2) {
+    // Both very landscape (> 1.4 avg)? Stack vertically so each gets full width.
+    // Otherwise side-by-side so each gets natural width ratio.
+    const avgAspect = (aspects[0] + aspects[1]) / 2
+    if (avgAspect > 1.4) {
+      layout = (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>
+          <PhotoCell item={photos[0]} theme={theme} onAspect={onAspect(0)} />
+          <PhotoCell item={photos[1]} theme={theme} onAspect={onAspect(1)} />
+        </div>
+      )
+    } else {
+      layout = hRow(photos, 0)
+    }
+  } else if (n === 3) {
+    // Feature photo (full row) + pair below, or pair above + feature
+    const feature = (
+      <PhotoCell item={photos[0]} theme={theme} onAspect={onAspect(0)} />
+    )
+    const pair = hRow([photos[1], photos[2]], 1)
+    layout = (
+      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>
+        {dominantTop
+          ? <><div style={{ flex: Math.max(0.45, Math.min(0.65, aspects[0] > 1.3 ? 0.55 : 0.5)), display:'flex', minHeight:0 }}>{feature}</div><div style={{ flex:1, display:'flex', minHeight:0 }}>{pair}</div></>
+          : <><div style={{ flex:1, display:'flex', minHeight:0 }}>{pair}</div><div style={{ flex: Math.max(0.45, Math.min(0.65, aspects[0] > 1.3 ? 0.55 : 0.5)), display:'flex', minHeight:0 }}>{feature}</div></>
+        }
+      </div>
+    )
+  } else {
+    // 4 photos: 2×2 grid when photos skew portrait/square,
+    // or feature row + supporting row when first photo is notably wider
+    const firstWide = aspects[0] > 1.6 && (aspects[1] + aspects[2] + aspects[3]) / 3 < 1.2
+    if (firstWide) {
+      layout = (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>
+          <div style={{ flex: 0.55, display:'flex', minHeight:0 }}>
+            {hRow([photos[0]], 0)}
+          </div>
+          <div style={{ flex: 0.45, display:'flex', minHeight:0 }}>
+            {hRow([photos[1], photos[2], photos[3]], 1)}
+          </div>
+        </div>
+      )
+    } else {
+      // 2×2
+      layout = (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, minHeight:0 }}>
+          {hRow(dominantTop ? [photos[0], photos[1]] : [photos[2], photos[3]], dominantTop ? 0 : 2)}
+          {hRow(dominantTop ? [photos[2], photos[3]] : [photos[0], photos[1]], dominantTop ? 2 : 0)}
+        </div>
+      )
+    }
+  }
+
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
       <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'12px 14px 10px 30px', minHeight:0 }}>
-        <Collage photos={photos} arrangement={arrangement} theme={theme} />
+        {layout}
       </div>
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
       <div style={NOISE_OVERLAY} />
