@@ -610,15 +610,12 @@ export default function FeaturedPage() {
               <img src={photo.url} alt=""
                 onLoad={photo.mode==='full' ? (e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) } : undefined}
                 style={photo.mode==='cutout'
-                  ? { position:'absolute', top:'2%', left:0, right:0, width:'100%', height:'66%', objectFit:'contain', objectPosition:'center top' }
+                  ? { position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }
                   : (() => {
                       const h = photoAspect !== null
-                        ? (photoAspect > 1.3 ? '60%' : photoAspect < 0.85 ? '72%' : '64%')
-                        : '64%'
-                      const pos = photoAspect !== null
-                        ? (photoAspect > 1.3 ? 'center 50%' : photoAspect < 0.85 ? 'center 28%' : 'center 40%')
-                        : 'center 40%'
-                      return { position:'absolute' as const, top:0, left:0, width:'100%', height:h, objectFit:'cover' as const, objectPosition:pos }
+                        ? (photoAspect > 1.3 ? '56%' : photoAspect < 0.85 ? '70%' : '62%')
+                        : '62%'
+                      return { position:'absolute' as const, top:'12%', left:0, right:0, width:'100%', height:h, objectFit:'contain' as const, objectPosition:'center' }
                     })()}
               />
             )}
