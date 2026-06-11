@@ -11,6 +11,8 @@ Car build journal PWA. React + Vite + Supabase. Live at gdimension.app.
 - **Always commit and push directly to `main`.** Never create a feature branch. Never push to any other branch.
 - Do not open pull requests. Commit to `main` and push.
 - Vercel auto-deploys on every push to `main` — that is the deployment pipeline.
+- **Never force-push to `main`.** History on `main` is append-only. Reconcile divergence with a normal merge or a fresh commit — never `--force`, never a history rewrite that drops published commits.
+- **Every session must land its work on `main` before ending.** If anything is left unmerged for any reason, the session's final message MUST explicitly name the branch the work is parked on, so it can never be silently stranded.
 
 ---
 
@@ -295,7 +297,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–050
+supabase/migrations/                — Numbered SQL files 001–051
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
