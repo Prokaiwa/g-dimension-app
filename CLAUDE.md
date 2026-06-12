@@ -199,7 +199,7 @@ const carId = await getActiveCarId()
 | `049_car_original_photo.sql` | `cars.original_photo_url` (text, nullable) — stores the **original** uploaded car photo (compressed JPEG, `car-photos` bucket, path `original-{ts}.jpg`) *before* background removal; `garage_photo_url` remains the PNG cutout derived from it. Lets the **Featured** magazine cover use the full photo, and lets background removal be re-run later (see `CAR_PHOTO_HANDOFF.md`). Saved on add/edit-car upload via `uploadCarOriginal()` in `carPhoto.ts` (best-effort — never blocks the car save; written as a *separate* update so a pre-migration gap can't break edits). Existing cars stay NULL until re-upload. Additive nullable column — no policy/grant changes (cars RLS already covers it). Applied 2026-06-07. |
 | `050_nickname_nullable.sql` | `cars.nickname` — drops `NOT NULL` constraint. Nickname is optional personal branding; Featured falls back to `model + variant` when null. Applied 2026-06-09. |
 | `051_usage_type_engine_origin.sql` | `cars.usage_type` (street/daily/track/drift/drag/show/vip/offroad) + `cars.engine_origin` (original/swapped) — primary-use category and engine provenance for the Featured archetype engine. Also refreshes `public_car_profiles` view to include both new columns plus previously-missing `build_sheet_*_photo` columns. |
-| `052_featured_cover_story.sql` | **⚠️ NOT YET APPLIED to live DB.** `cars.cover_focus_x/y` + `cars.cover_zoom` (all nullable, NO default — NULL = never framed → legacy contain cover layout) for the Featured cover drag/pinch framing, and `cars.featured_story` (text) — the user-written **magazine-voice** feature article (deliberately separate from `purchase_story`, the first-person Timeline Origin voice). Refreshes `public_car_profiles` appending `original_photo_url` + the four new framing/story columns. Frontend is guarded: car select falls back to the pre-052 column list; framing/story saves surface a "run migration 052" error until applied. |
+| `052_featured_cover_story.sql` | `cars.cover_focus_x/y` + `cars.cover_zoom` (all nullable, NO default — NULL = never framed → legacy contain cover layout) for the Featured cover drag/pinch framing, and `cars.featured_story` (text) — the user-written **magazine-voice** feature article (deliberately separate from `purchase_story`, the first-person Timeline Origin voice). Refreshes `public_car_profiles` appending `original_photo_url` + the four new framing/story columns. Frontend stays guarded (pre-052 column-list fallback) as harmless belt-and-suspenders. Applied 2026-06-12. |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -298,7 +298,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–051
+supabase/migrations/                — Numbered SQL files 001–052
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
