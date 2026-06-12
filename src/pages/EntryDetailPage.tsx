@@ -10,7 +10,7 @@
 //   origin   → single photo_url
 //   session  → the session's job_photos / job_links
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
@@ -41,12 +41,12 @@ const TYPE_META: Record<EntryType, { label: string; color: string }> = {
 }
 
 // Supabase photo that fades in on load (matches the CarStage idiom).
-function FadeImg({ src, style }: { src: string; style?: React.CSSProperties }) {
+function FadeImg({ src, style, onLoaded }: { src: string; style?: React.CSSProperties; onLoaded?: () => void }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <img
       src={src} alt="" aria-hidden decoding="async"
-      onLoad={() => setLoaded(true)}
+      onLoad={() => { setLoaded(true); onLoaded?.() }}
       style={{ ...style, opacity: loaded ? 1 : 0, transition: 'opacity 200ms ease' }}
     />
   )
@@ -79,6 +79,16 @@ export default function EntryDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [delErr, setDelErr] = useState<string | null>(null)
+
+  // Gallery carousel + fullscreen viewer
+  const [viewerOpen, setViewerOpen]       = useState(false)
+  const [viewerIdx, setViewerIdx]         = useState(0)
+  const [viewerDragY, setViewerDragY]     = useState(0)
+  const [viewerDragX, setViewerDragX]     = useState(0)
+  const [viewerDragging, setViewerDragging] = useState(false)
+  const viewerTouchStartY = useRef<number>(0)
+  const viewerTouchStartX = useRef<number>(0)
+  const viewerDragLock    = useRef<'h' | 'v' | null>(null)
 
   useEffect(() => {
     if (!entryId) return
@@ -155,6 +165,48 @@ export default function EntryDetailPage() {
     })()
     return () => { active = false }
   }, [entryId])
+
+  const openViewer = (idx: number) => { setViewerIdx(idx); setViewerDragY(0); setViewerDragX(0); setViewerOpen(true) }
+  const closeViewer = () => { setViewerOpen(false); setViewerDragY(0); setViewerDragX(0) }
+
+  const onViewerTouchStart = (e: React.TouchEvent) => {
+    viewerTouchStartY.current = e.touches[0].clientY
+    viewerTouchStartX.current = e.touches[0].clientX
+    viewerDragLock.current = null
+    setViewerDragging(true)
+  }
+  const onViewerTouchMove = (e: React.TouchEvent) => {
+    const dy = e.touches[0].clientY - viewerTouchStartY.current
+    const dx = e.touches[0].clientX - viewerTouchStartX.current
+    if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
+    }
+    if (viewerDragLock.current === 'v') setViewerDragY(dy)
+    else if (viewerDragLock.current === 'h') {
+      const galleryLen = photos.slice(1).length
+      const atStart = viewerIdx === 0 && dx > 0
+      const atEnd   = viewerIdx === galleryLen - 1 && dx < 0
+      setViewerDragX(atStart || atEnd ? dx * 0.25 : dx)
+    }
+  }
+  const onViewerTouchEnd = (e: React.TouchEvent) => {
+    setViewerDragging(false)
+    const dy = e.changedTouches[0].clientY - viewerTouchStartY.current
+    const dx = e.changedTouches[0].clientX - viewerTouchStartX.current
+    const lock = viewerDragLock.current
+    viewerDragLock.current = null
+    if (lock === 'v' && Math.abs(dy) > 80) {
+      closeViewer()
+    } else if (lock === 'h') {
+      const galleryLen = photos.slice(1).length
+      if (dx < -50) setViewerIdx(i => Math.min(i + 1, galleryLen - 1))
+      else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
+      setViewerDragX(0)
+    } else {
+      setViewerDragY(0)
+      setViewerDragX(0)
+    }
+  }
 
   const handleDelete = async () => {
     if (!entry || deleting) return
@@ -240,13 +292,52 @@ export default function EntryDetailPage() {
           </p>
         )}
 
-        {/* Gallery (photos beyond the hero) */}
+        {/* Gallery carousel (photos beyond the hero) */}
         {gallery.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
-            {gallery.map((src, i) => (
-              <FadeImg key={i} src={src}
-                style={{ display: 'block', width: '100%', borderRadius: RADIUS_TIMELINE_CARD, border: `1px solid ${COLOR_TIMELINE_RULE}` }} />
-            ))}
+          <div style={{ marginBottom: 22, marginLeft: -20, marginRight: -20 }}>
+            <div style={{
+              display: 'flex',
+              overflowX: 'scroll',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+              gap: 8,
+              paddingLeft: 20,
+              paddingRight: 20,
+              paddingBottom: 4,
+              // hide scrollbar
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+            } as React.CSSProperties}>
+              {gallery.map((src, i) => (
+                <div
+                  key={i}
+                  onClick={() => openViewer(i)}
+                  style={{
+                    scrollSnapAlign: 'start',
+                    flexShrink: 0,
+                    height: 240,
+                    width: 'auto',
+                    maxWidth: '85vw',
+                    cursor: 'zoom-in',
+                    border: `1px solid ${COLOR_TIMELINE_RULE}`,
+                    borderRadius: RADIUS_TIMELINE_CARD,
+                    overflow: 'hidden',
+                    background: 'rgba(0,0,0,0.04)',
+                  }}
+                >
+                  <FadeImg
+                    src={src}
+                    style={{
+                      display: 'block',
+                      height: '100%',
+                      width: 'auto',
+                      maxWidth: '85vw',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -352,6 +443,104 @@ export default function EntryDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Fullscreen gallery viewer */}
+      {viewerOpen && (() => {
+        const backdropAlpha = Math.max(0, 1 - Math.abs(viewerDragY) / 260)
+        const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
+        const isVDrag       = viewerDragging && viewerDragLock.current === 'v'
+        const isHDrag       = viewerDragging && viewerDragLock.current === 'h'
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 200,
+              background: `rgba(0,0,0,${backdropAlpha})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              touchAction: 'none', overflow: 'hidden',
+            }}
+            onClick={closeViewer}
+          >
+            {/* Outer — vertical dismiss */}
+            <div
+              style={{
+                width: '100%',
+                transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
+                transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform',
+              }}
+              onTouchStart={onViewerTouchStart}
+              onTouchMove={onViewerTouchMove}
+              onTouchEnd={onViewerTouchEnd}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              {/* Inner strip — horizontal navigation */}
+              <div style={{
+                display: 'flex',
+                transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
+                transition: isHDrag ? 'none' : 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
+                willChange: 'transform',
+              }}>
+                {gallery.map((src, i) => (
+                  <div key={i} style={{ width: '100%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img
+                      src={src}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: '100%', maxHeight: '90dvh',
+                        objectFit: 'contain', display: 'block',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Close × */}
+            <button
+              onClick={closeViewer}
+              style={{
+                position: 'absolute', top: 16, right: 16,
+                width: 36, height: 36, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                WebkitTapHighlightColor: 'transparent',
+                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+              }}
+            >
+              <span style={{ color: COLOR_ACCENT, fontSize: 20, lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Counter */}
+            {gallery.length > 1 && (
+              <p style={{
+                position: 'absolute', bottom: 20,
+                fontFamily: FONT_UI, fontSize: 11,
+                letterSpacing: '0.08em',
+                color: 'rgba(245,240,228,0.45)',
+                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+                margin: 0, pointerEvents: 'none',
+              }}>
+                {viewerIdx + 1} / {gallery.length} · swipe down to close
+              </p>
+            )}
+            {gallery.length === 1 && (
+              <p style={{
+                position: 'absolute', bottom: 20,
+                fontFamily: FONT_UI, fontSize: 11,
+                letterSpacing: '0.08em',
+                color: 'rgba(245,240,228,0.45)',
+                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
+                margin: 0, pointerEvents: 'none',
+              }}>
+                swipe down to close
+              </p>
+            )}
+          </div>
+        )
+      })()}
     </div>,
   )
 }

@@ -186,6 +186,7 @@ export default function GarageDocumentsPage() {
   const [docs, setDocs]     = useState<Doc[]>([])             // doc_type !== 'receipt'
   const [receiptDocs, setReceiptDocs] = useState<Doc[]>([])   // doc_type === 'receipt'
   const [buildReceipts, setBuildReceipts] = useState<BuildReceipt[]>([])
+  const [jobTitleMap, setJobTitleMap] = useState<Record<string, string>>({})
   const [thumbs, setThumbs] = useState<Record<string, string>>({})  // car_documents id → signed image URL
   const [loading, setLoading] = useState(true)
   const [noCar, setNoCar]   = useState(false)
@@ -232,7 +233,15 @@ export default function GarageDocumentsPage() {
     if (car) setCarInfo([car.year, car.model].filter(Boolean).join(' '))
     const all = (docRows ?? []) as Doc[]
     setDocs(all.filter(d => d.doc_type !== 'receipt'))
-    setReceiptDocs(all.filter(d => d.doc_type === 'receipt'))
+    const sorted = all
+      .filter(d => d.doc_type === 'receipt')
+      .sort((a, b) =>
+        (b.issued_date ?? '').localeCompare(a.issued_date ?? '') ||
+        ((b as unknown as { created_at?: string }).created_at ?? '').localeCompare(
+          (a as unknown as { created_at?: string }).created_at ?? ''
+        )
+      )
+    setReceiptDocs(sorted)
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
@@ -266,6 +275,27 @@ export default function GarageDocumentsPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  // Fix 3 — fetch job titles for build receipts that have a job_id
+  useEffect(() => {
+    const jobIds = buildReceipts.map(r => r.job_id).filter((id): id is string => !!id)
+    if (jobIds.length === 0) { setJobTitleMap({}); return }
+    let cancelled = false
+    supabase
+      .from('jobs')
+      .select('id, title, part_types(name)')
+      .in('id', jobIds)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const map: Record<string, string> = {}
+        for (const j of data) {
+          const pt = (j.part_types as { name?: string } | null)?.name
+          map[j.id] = (j.title as string | null) || pt || ''
+        }
+        setJobTitleMap(map)
+      })
+    return () => { cancelled = true }
+  }, [buildReceipts])
 
   function openNewDoc(prefillType?: DocType) { setError(null); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
   function openNewReceipt() { setError(null); setDraft({ ...EMPTY_RECEIPT }) }
@@ -610,6 +640,7 @@ export default function GarageDocumentsPage() {
                         boxShadow: '0 2px 5px rgba(0,0,0,0.5), 0 10px 22px rgba(0,0,0,0.32)',
                         animation: `docIn 420ms ${EASING_SETTLE} ${i * 50}ms both`,
                       }}>
+                        {/* Left file thumbnail — always opens the file */}
                         <button
                           onClick={() => openSigned('car-documents', d.file_url)}
                           disabled={!d.file_url}
@@ -629,10 +660,17 @@ export default function GarageDocumentsPage() {
                                 : <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.06em', color: 'rgba(31,26,18,0.3)', textAlign: 'center', lineHeight: 1.3 }}>NO<br/>FILE</span>
                           )}
                         </button>
-                        <div style={{ flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px` }}>
+                        {/* Card body — tapping opens file if present, else edit sheet */}
+                        <button
+                          onClick={() => d.file_url ? openSigned('car-documents', d.file_url) : openEdit(d)}
+                          style={{
+                            flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px`,
+                            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
                           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACE_SM }}>
                             <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>Receipt</span>
-                            <button onClick={() => openEdit(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: PAPER_MUTED }}>Edit</button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: SPACE_SM, marginTop: 3 }}>
                             <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15.5, color: PAPER_INK, margin: 0, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -645,7 +683,18 @@ export default function GarageDocumentsPage() {
                           {d.issued_date && (
                             <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: PAPER_MUTED, margin: '6px 0 0' }}>{fmtDate(d.issued_date)}</p>
                           )}
-                        </div>
+                        </button>
+                        {/* Edit button — independent, top-right corner */}
+                        <button
+                          onClick={e => { e.stopPropagation(); openEdit(d) }}
+                          style={{
+                            position: 'absolute', top: SPACE_SM + 2, right: SPACE_MD,
+                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                            fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em',
+                            textTransform: 'uppercase', color: PAPER_MUTED, WebkitTapHighlightColor: 'transparent',
+                            minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+                          }}
+                        >Edit</button>
                       </div>
                     ))}
                   </div>
@@ -679,6 +728,9 @@ export default function GarageDocumentsPage() {
                             }}>{r.job_id ? 'Part' : 'Service'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
+                              {r.job_id && jobTitleMap[r.job_id] && (
+                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{jobTitleMap[r.job_id]}</p>
+                              )}
                               {r.receipt_date && (
                                 <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>{fmtDate(r.receipt_date)}</p>
                               )}

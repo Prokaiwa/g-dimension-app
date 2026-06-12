@@ -24,6 +24,23 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
+// Always parse a date-only string as local midnight, never UTC.
+function fmtDate(d: string | null | undefined): string | null {
+  if (!d) return null
+  const dt = new Date(d.slice(0, 10) + 'T00:00:00')
+  if (Number.isNaN(dt.getTime())) return null
+  return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`
+}
+
+// Whole days from local-midnight today to a due date (negative = overdue).
+function daysUntil(d: string | null | undefined): number | null {
+  if (!d) return null
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const due = new Date(d.slice(0, 10) + 'T00:00:00')
+  if (Number.isNaN(due.getTime())) return null
+  return Math.round((due.getTime() - today.getTime()) / 86400000)
+}
+
 // Page palette — light grey, dark text
 const BG         = '#e8e8e6'
 const CARD_BG    = '#f4f4f2'
@@ -75,6 +92,40 @@ function Cell({ label, value, wide }: { label: string; value: string | null | un
   )
 }
 
+// A cell whose value carries an upcoming/overdue status badge (renewal dates).
+function DateCell({ label, due, wide, route }: { label: string; due: string | null | undefined; wide?: boolean; route: string }) {
+  const navigate = useNavigate()
+  const formatted = fmtDate(due)
+  const days = daysUntil(due)
+  const overdue = days != null && days < 0
+  return (
+    <button onClick={() => navigate(route)} style={{ display: 'flex', flexDirection: 'column', padding: '10px 12px', background: CARD_BG, border: `1px solid ${BORDER}`, gridColumn: wide ? '1 / -1' : undefined, cursor: 'pointer', textAlign: 'left' }}>
+      <span style={LABEL_S}>{label}</span>
+      {formatted ? (
+        <span style={{ display: 'flex', alignItems: 'center', gap: SPACE_SM, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, lineHeight: 1.2, color: TEXT }}>{formatted}</span>
+          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '2px 5px', color: overdue ? '#fff' : COLOR_ACCENT, background: overdue ? COLOR_BURGUNDY_M : 'transparent', border: `1px solid ${overdue ? COLOR_BURGUNDY_M : COLOR_ACCENT}` }}>
+            {overdue ? 'Overdue' : 'Upcoming'}
+          </span>
+        </span>
+      ) : (
+        <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: TEXT_EMPTY }}>—</span>
+      )}
+    </button>
+  )
+}
+
+// Contact cell — name + phone, taps through to the contact book.
+function ContactCell({ name, phone, wide }: { name: string; phone: string | null; wide?: boolean }) {
+  const navigate = useNavigate()
+  return (
+    <button onClick={() => navigate('/garage/contacts')} style={{ display: 'flex', flexDirection: 'column', padding: '10px 12px', background: CARD_BG, border: `1px solid ${BORDER}`, gridColumn: wide ? '1 / -1' : undefined, cursor: 'pointer', textAlign: 'left' }}>
+      <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, lineHeight: 1.2, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+      <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>{phone || '—'}</span>
+    </button>
+  )
+}
+
 function StubCell({ label, route, wide }: { label: string; route: string; wide?: boolean }) {
   const navigate = useNavigate()
   return (
@@ -98,11 +149,21 @@ function SectionHeader({ label }: { label: string }) {
   )
 }
 
+type LastService = { title: string | null; created_at: string }
+type ReminderLite = { title: string; category: string | null; due_date: string | null }
+type ContactLite = { id: string; name: string | null; label: string | null; phone: string | null }
+
 export default function GarageSnapshotPage() {
   const navigate = useNavigate()
   const [car, setCar]         = useState<SnapshotCar | null>(null)
   const [loading, setLoading] = useState(true)
   const [noCar, setNoCar]     = useState(false)
+
+  const [lastService, setLastService]   = useState<LastService | null>(null)
+  const [nextReminder, setNextReminder] = useState<ReminderLite | null>(null)
+  const [registration, setRegistration] = useState<ReminderLite | null>(null)
+  const [insurance, setInsurance]       = useState<ReminderLite | null>(null)
+  const [contacts, setContacts]         = useState<ContactLite[]>([])
 
   useEffect(() => {
     async function load() {
@@ -119,20 +180,59 @@ export default function GarageSnapshotPage() {
 
       const base = supabase.from('cars').select(COLS).is('deleted_at', null).eq('user_id', session.user.id)
 
-      const { data } = chosenId
-        ? await base.eq('id', chosenId)
-        : await base.order('created_at').limit(1)
+      // user_contacts is a cross-car contact book (scoped by user_id, no car_id).
+      const [{ data }, { data: contactRows }] = await Promise.all([
+        chosenId ? base.eq('id', chosenId) : base.order('created_at').limit(1),
+        supabase.from('user_contacts')
+          .select('id, name, label, phone')
+          .eq('user_id', session.user.id)
+          .order('display_order', { ascending: true })
+          .limit(4),
+      ])
 
+      let resolvedCar: SnapshotCar | null = null
       if (data && data.length > 0) {
-        setCar(data[0] as unknown as SnapshotCar)
+        resolvedCar = data[0] as unknown as SnapshotCar
       } else if (chosenId) {
         localStorage.removeItem('gdim_chosen_car_id')
         const { data: fb } = await base.order('created_at').limit(1)
-        if (fb && fb.length > 0) setCar(fb[0] as unknown as SnapshotCar)
-        else setNoCar(true)
-      } else {
-        setNoCar(true)
+        if (fb && fb.length > 0) resolvedCar = fb[0] as unknown as SnapshotCar
       }
+
+      setContacts((contactRows ?? []) as ContactLite[])
+
+      if (!resolvedCar) {
+        setNoCar(true)
+        setLoading(false)
+        return
+      }
+      setCar(resolvedCar)
+
+      // Per-car data — last service, upcoming reminders, renewal dates.
+      const [{ data: svc }, { data: nextRem }, { data: dateRems }] = await Promise.all([
+        supabase.from('sessions')
+          .select('title, created_at, type')
+          .eq('car_id', resolvedCar.id)
+          .in('type', ['maintenance', 'detail'])
+          .order('created_at', { ascending: false })
+          .limit(1),
+        supabase.from('car_reminders')
+          .select('title, category, due_date')
+          .eq('car_id', resolvedCar.id)
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .limit(1),
+        supabase.from('car_reminders')
+          .select('title, category, due_date')
+          .eq('car_id', resolvedCar.id)
+          .in('category', ['registration', 'insurance'])
+          .order('due_date', { ascending: true, nullsFirst: false }),
+      ])
+
+      if (svc && svc.length > 0) setLastService(svc[0] as unknown as LastService)
+      if (nextRem && nextRem.length > 0) setNextReminder(nextRem[0] as unknown as ReminderLite)
+      const rems = (dateRems ?? []) as unknown as ReminderLite[]
+      setRegistration(rems.find(r => r.category === 'registration') ?? null)
+      setInsurance(rems.find(r => r.category === 'insurance') ?? null)
 
       setLoading(false)
     }
@@ -252,24 +352,43 @@ export default function GarageSnapshotPage() {
             {/* SERVICE */}
             <SectionHeader label="Service" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-              <StubCell label="Next Oil Change" route="/garage/reminders" wide />
-              <StubCell label="Last Service"    route="/garage/reminders" wide />
+              {lastService ? (
+                <Cell label="Last Service" value={`${lastService.title ? lastService.title + ' · ' : ''}${fmtDate(lastService.created_at) ?? ''}`.trim()} wide />
+              ) : (
+                <StubCell label="Last Service" route="/garage/reminders" wide />
+              )}
+              {nextReminder ? (
+                <Cell label="Next Reminder" value={`${nextReminder.title}${fmtDate(nextReminder.due_date) ? ' · ' + fmtDate(nextReminder.due_date) : ''}`} wide />
+              ) : (
+                <StubCell label="Next Reminder" route="/garage/reminders" wide />
+              )}
             </div>
 
             {/* IMPORTANT DATES */}
             <SectionHeader label="Important Dates" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-              <StubCell label="Registration Renewal" route="/garage/reminders" />
-              <StubCell label="Insurance Renewal"    route="/garage/reminders" />
+              {registration ? (
+                <DateCell label="Registration" due={registration.due_date} route="/garage/reminders" />
+              ) : (
+                <StubCell label="Registration" route="/garage/reminders" />
+              )}
+              {insurance ? (
+                <DateCell label="Insurance" due={insurance.due_date} route="/garage/reminders" />
+              ) : (
+                <StubCell label="Insurance" route="/garage/reminders" />
+              )}
             </div>
 
             {/* CONTACTS */}
             <SectionHeader label="Contacts" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-              <StubCell label="Roadside Assistance" route="/garage/contacts" wide />
-              <StubCell label="Local Mechanic"      route="/garage/contacts" wide />
-              <StubCell label="Autobody Shop"        route="/garage/contacts" wide />
-              <StubCell label="Dealership"           route="/garage/contacts" wide />
+              {contacts.length > 0 ? (
+                contacts.map(c => (
+                  <ContactCell key={c.id} name={(c.name && c.name.trim()) || c.label || 'Contact'} phone={c.phone} wide />
+                ))
+              ) : (
+                <StubCell label="Contacts" route="/garage/contacts" wide />
+              )}
             </div>
 
             {/* Edit link */}

@@ -37,7 +37,6 @@ interface Car {
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
 type PhotoItem = { url: string; caption: string | null }
-type JobPhoto = { photo_url: string; caption: string | null; job_id: string | null }
 
 // Spec Sheet data model
 interface SpecRow { label: string; value: string }
@@ -164,7 +163,7 @@ export default function FeaturedPage() {
   const [photos, setPhotos] = useState<Photo[]>([])       // cover photo candidates (original / no-bg)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [jobs, setJobs]     = useState<Job[]>([])
-  const [jobPhotos, setJobPhotos] = useState<JobPhoto[]>([])
+  const [timelinePhotos, setTimelinePhotos] = useState<{photo_url: string; title: string | null}[]>([])
   const [userUnits, setUserUnits] = useState<{ distance_unit: 'mi'|'km'; power_unit: 'hp'|'ps'|'kw' }>({ distance_unit: 'mi', power_unit: 'hp' })
   const [loading, setLoading] = useState(true)
   const [coverIdx, setCoverIdx] = useState(0)
@@ -199,14 +198,18 @@ export default function FeaturedPage() {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
       const { data: { user } } = await supabase.auth.getUser()
-      const [carRes, jobsRes, jobPhotosRes, unitsRes] = await Promise.all([
+      const [carRes, jobsRes, timelineRes, unitsRes] = await Promise.all([
         supabase.from('cars')
           .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
           .eq('id', carId).is('deleted_at', null).single(),
         supabase.from('jobs').select('id,title,category,brand,part_types(name)')
           .eq('car_id', carId).eq('type','modification').eq('status','installed').order('created_at',{ascending:true}),
-        supabase.from('job_photos').select('photo_url,caption,job_id')
-          .eq('car_id', carId).order('created_at',{ascending:false}),
+        supabase.from('timeline_entries')
+          .select('id,photo_url,title')
+          .eq('car_id', carId)
+          .not('photo_url', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(6),
         user ? supabase.from('users').select('distance_unit,power_unit').eq('id', user.id).single() : Promise.resolve({ data: null }),
       ])
       if (!alive) return
@@ -229,7 +232,7 @@ export default function FeaturedPage() {
         const pt = Array.isArray(r.part_types) ? r.part_types[0] : r.part_types
         return { id:r.id, title:r.title, category:r.category, brand:r.brand, part_type_name: pt?.name ?? null }
       }))
-      setJobPhotos((jobPhotosRes.data as unknown as JobPhoto[]) ?? [])
+      setTimelinePhotos((timelineRes.data as unknown as {photo_url: string; title: string | null}[]) ?? [])
       if (carRes.data) setCoverIdx(seedFrom(carId) % TEMPLATES.length)
       setLoading(false)
     })()
@@ -272,26 +275,8 @@ export default function FeaturedPage() {
       const url = car[groupCols[i]]
       if (url) slots.push({ id: url, type: 'build_group', group: groupKeys[i] })
     }
-    // Editorial part naming: generic part-type names read lowercase mid-sentence
-    // ("coilovers", "cold air intake"), acronym-like tokens keep caps ("ECU"),
-    // and the brand — a proper noun — keeps its casing and leads when known:
-    // "Tein coilovers". Falls back to the job title (proper casing preserved).
-    const editorialName = (job: Job): string | undefined => {
-      const typeName = job.part_type_name
-        ? job.part_type_name.split(' ').map(w => (/[A-Z]{2,}|\d/.test(w) ? w : w.toLowerCase())).join(' ')
-        : null
-      if (typeName && job.brand) return `${job.brand} ${typeName}`
-      return typeName ?? job.title ?? undefined
-    }
-    for (const jp of jobPhotos) {
-      if (!jp.photo_url) continue
-      const job = jp.job_id ? jobs.find(j => j.id === jp.job_id) : null
-      slots.push({
-        id: jp.photo_url, type: 'job',
-        partName: job ? editorialName(job) : undefined,
-        subjectKey: job?.id,
-        existingCaption: jp.caption?.trim() || undefined,
-      })
+    for (const tp of timelinePhotos) {
+      if (tp.photo_url) slots.push({ id: tp.photo_url, type: 'full_body' })
     }
     return generateFeature(
       {
@@ -317,9 +302,9 @@ export default function FeaturedPage() {
       { distance_unit: userUnits.distance_unit, power_unit: userUnits.power_unit },
       slots,
     )
-  }, [car, jobs, jobPhotos, userUnits])
+  }, [car, jobs, timelinePhotos, userUnits])
 
-  // ── photo pool (priority: build-group photos, then job photos newest-first) ────
+  // ── photo pool (priority: build-group photos, then timeline photos) ────
   const photoPool = useMemo<PhotoItem[]>(() => {
     if (!car) return []
     const used = new Set<string>()
@@ -328,11 +313,11 @@ export default function FeaturedPage() {
     const pool: PhotoItem[] = []
     const groupPhotos = [car.build_sheet_power_photo, car.build_sheet_chassis_photo, car.build_sheet_exterior_photo, car.build_sheet_interior_photo]
     for (const u of groupPhotos) if (u && !used.has(u)) { pool.push({ url:u, caption:null }); used.add(u) }
-    for (const jp of jobPhotos) {
-      if (jp.photo_url && !used.has(jp.photo_url)) { pool.push({ url: jp.photo_url, caption: jp.caption?.trim() || null }); used.add(jp.photo_url) }
+    for (const tp of timelinePhotos) {
+      if (tp.photo_url && !used.has(tp.photo_url)) { pool.push({ url: tp.photo_url, caption: tp.title ?? null }); used.add(tp.photo_url) }
     }
     return pool
-  }, [car, jobPhotos])
+  }, [car, timelinePhotos])
 
   // ── merge engine-generated captions into empty photo slots ────────────────────
   const photoPoolFinal = useMemo<PhotoItem[]>(() => {

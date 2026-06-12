@@ -93,13 +93,14 @@ export default function TuningModDetailPage() {
   const [links,         setLinks]         = useState<JobLink[]>([])
 
   // Carousel + fullscreen viewer
-  const [photoIndex,      setPhotoIndex]      = useState(0)
-  const [viewerOpen,      setViewerOpen]      = useState(false)
-  const [viewerIdx,       setViewerIdx]       = useState(0)
-  const [viewerDragY,     setViewerDragY]     = useState(0)
-  const [viewerDragX,     setViewerDragX]     = useState(0)
-  const [viewerDragging,  setViewerDragging]  = useState(false)
-  const [loadedUrls,      setLoadedUrls]      = useState<Set<string>>(new Set())
+  const [photoIndex,        setPhotoIndex]        = useState(0)
+  const [viewerOpen,        setViewerOpen]        = useState(false)
+  const [viewerIdx,         setViewerIdx]         = useState(0)
+  const [viewerDragY,       setViewerDragY]       = useState(0)
+  const [viewerDragX,       setViewerDragX]       = useState(0)
+  const [viewerDragging,    setViewerDragging]    = useState(false)
+  const [viewerSnapBack,    setViewerSnapBack]    = useState(false)
+  const [loadedUrls,        setLoadedUrls]        = useState<Set<string>>(new Set())
 
   // ── idle preload: warm the previous + next carousel photos ───────────────────
   useEffect(() => {
@@ -284,8 +285,11 @@ export default function TuningModDetailPage() {
     if (lock === 'v' && Math.abs(dy) > 90) {
       closeViewer()
     } else if (lock === 'h') {
-      if (dx < -50) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
-      else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
+      const threshold = window.innerWidth * 0.35
+      setViewerSnapBack(false)
+      if (dx < -threshold) setViewerIdx(i => Math.min(i + 1, photos.length - 1))
+      else if (dx > threshold) setViewerIdx(i => Math.max(i - 1, 0))
+      else setViewerSnapBack(true)
       setViewerDragX(0)
     } else {
       setViewerDragY(0)
@@ -633,20 +637,26 @@ export default function TuningModDetailPage() {
         const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
         const isVDrag       = viewerDragging && viewerDragLock.current === 'v'
         const isHDrag       = viewerDragging && viewerDragLock.current === 'h'
+        const hTransition   = isHDrag
+          ? 'none'
+          : viewerSnapBack
+            ? 'transform 280ms cubic-bezier(0.34,1.56,0.64,1)'
+            : 'transform 300ms cubic-bezier(0.25,0.46,0.45,0.94)'
         return (
           <div
             style={{
               position: 'fixed', inset: 0, zIndex: 200,
               background: `rgba(0,0,0,${backdropAlpha})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              touchAction: 'none', overflow: 'hidden',
+              touchAction: 'pan-y', overflow: 'hidden',
             }}
             onClick={closeViewer}
           >
             {/* Outer — vertical dismiss */}
             <div
               style={{
-                width: '100%',
+                width: '100%', height: '100dvh',
+                display: 'flex', alignItems: 'center',
                 transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
                 transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
                 willChange: 'transform',
@@ -659,18 +669,20 @@ export default function TuningModDetailPage() {
               {/* Inner strip — horizontal navigation */}
               <div style={{
                 display: 'flex',
+                width: '100%',
                 transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
-                transition: isHDrag ? 'none' : 'transform 400ms cubic-bezier(0.25,0.46,0.45,0.94)',
+                transition: hTransition,
                 willChange: 'transform',
               }}>
                 {photos.map(photo => (
-                  <div key={photo.id} style={{ width: '100%', flexShrink: 0 }}>
+                  <div key={photo.id} style={{ width: '100%', flexShrink: 0, height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <img
                       src={photo.photo_url}
                       alt=""
                       draggable={false}
                       style={{
-                        width: '100%', maxHeight: '90dvh',
+                        maxWidth: '100%', maxHeight: '90dvh',
+                        width: 'auto', height: 'auto',
                         objectFit: 'contain', display: 'block',
                         userSelect: 'none',
                         WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],

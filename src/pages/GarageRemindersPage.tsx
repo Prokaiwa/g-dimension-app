@@ -94,10 +94,12 @@ function urgencyOf(r: Reminder, currentMileage: number | null): { level: Urgency
     const due = new Date(r.due_date + 'T00:00:00')
     const days = Math.round((due.getTime() - today.getTime()) / 86400000)
     // Custom lead time (e.g. "remind 3 months before") widens the soon window.
+    // remind_days_before is a lead time for *alerting* — never subtract it from
+    // due_date when computing whether the reminder is actually overdue.
     const soonDays = r.remind_days_before ?? DUE_SOON_DAYS
-    if (days < 0) { bump('overdue'); readouts.push(`${Math.abs(days)}d overdue`) }
-    else if (days === 0) { bump('soon'); readouts.push('due today') }
-    else { if (days <= soonDays) bump('soon'); readouts.push(`in ${days}d`) }
+    if (days < 0) { bump('overdue'); readouts.push(`Overdue ${Math.abs(days)}d`) }
+    else if (days === 0) { bump('soon'); readouts.push('Due today') }
+    else { if (days <= soonDays) bump('soon'); readouts.push(`Due in ${days}d`) }
   }
 
   if (r.due_mileage != null) {
