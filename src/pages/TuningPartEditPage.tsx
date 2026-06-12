@@ -362,7 +362,7 @@ export default function TuningPartEditPage() {
           const { error: uploadErr } = await supabase.storage.from('job-photos').upload(path, compressed, { contentType: 'image/jpeg' })
           if (uploadErr) continue
           const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
-          await supabase.from('job_photos').insert({ job_id: partId, photo_url: urlData.publicUrl, display_order: null })
+          await supabase.from('job_photos').insert({ job_id: partId, car_id: carId, photo_url: urlData.publicUrl })
         } catch { /* skip failed photo */ }
       }
     }

@@ -207,6 +207,7 @@ export default function FeaturedPage() {
         supabase.from('timeline_entries')
           .select('id,photo_url,title')
           .eq('car_id', carId)
+          .eq('entry_type', 'note')
           .not('photo_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6),

@@ -5,7 +5,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // Dyno-readout count-up for the hero stat figures: ticks from 0 to the real
 // value with a cubic ease-out, like a gauge settling.
@@ -305,8 +305,33 @@ export default function TuningBuildSheetPage() {
   const openLightbox = (url: string, groupId: string) => {
     setLightboxUrl(url)
     setLightboxGroup(groupId)
+    setLbDragY(0)
+    setLbDragging(false)
   }
   const closeLightbox = () => { setLightboxUrl(null); setLightboxGroup(null) }
+
+  // Lightbox swipe-to-dismiss state
+  const [lbDragY,    setLbDragY]    = useState(0)
+  const [lbDragging, setLbDragging] = useState(false)
+  const lbTouchStartY = useRef(0)
+
+  const onLbTouchStart = (e: React.TouchEvent) => {
+    lbTouchStartY.current = e.touches[0].clientY
+    setLbDragging(true)
+  }
+  const onLbTouchMove = (e: React.TouchEvent) => {
+    const dy = e.touches[0].clientY - lbTouchStartY.current
+    setLbDragY(dy)
+  }
+  const onLbTouchEnd = (e: React.TouchEvent) => {
+    setLbDragging(false)
+    const dy = e.changedTouches[0].clientY - lbTouchStartY.current
+    if (Math.abs(dy) > 80) {
+      closeLightbox()
+    } else {
+      setLbDragY(0)
+    }
+  }
 
   // Photo picker
   const [pickerGroup,   setPickerGroup]   = useState<string | null>(null)
@@ -652,8 +677,9 @@ export default function TuningBuildSheetPage() {
           onClick={closeLightbox}
           style={{
             position: 'fixed', inset: 0, zIndex: 70,
-            background: 'rgba(0,0,0,0.96)',
+            background: `rgba(0,0,0,${Math.max(0, 0.96 - Math.abs(lbDragY) / 260)})`,
             display: 'flex', flexDirection: 'column',
+            transition: lbDragging ? 'none' : 'background 300ms ease',
           }}
         >
           {/* Close */}
@@ -663,6 +689,7 @@ export default function TuningBuildSheetPage() {
             padding: '0 16px',
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.65), transparent)',
             zIndex: 10, pointerEvents: 'none',
+            opacity: Math.max(0, 1 - Math.abs(lbDragY) / 180),
           }}>
             <button
               onClick={e => { e.stopPropagation(); closeLightbox() }}
@@ -676,12 +703,15 @@ export default function TuningBuildSheetPage() {
             </button>
           </div>
 
-          {/* Photo — full natural dimensions, pinch-zoomable */}
+          {/* Photo — draggable for swipe-to-dismiss */}
           <div
             onClick={e => e.stopPropagation()}
+            onTouchStart={onLbTouchStart}
+            onTouchMove={onLbTouchMove}
+            onTouchEnd={onLbTouchEnd}
             style={{
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              overflow: 'auto', touchAction: 'pinch-zoom',
+              overflow: 'hidden', touchAction: 'pan-x pinch-zoom',
               padding: '60px 0 80px',
             }}
           >
@@ -694,6 +724,8 @@ export default function TuningBuildSheetPage() {
                 maxHeight: '100%',
                 objectFit: 'contain',
                 display: 'block',
+                transform: `translateY(${lbDragY}px) scale(${Math.max(0.82, 1 - Math.abs(lbDragY) / 900)})`,
+                transition: lbDragging ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
               }}
             />
           </div>

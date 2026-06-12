@@ -117,6 +117,7 @@ type Doc = {
 type BuildReceipt = {
   id: string
   job_id: string | null        // null = session/service-level, set = part-level
+  session_id: string | null
   file_url: string | null      // storage PATH (private `receipts` bucket)
   file_type: 'image' | 'pdf' | null
   file_name: string | null
@@ -124,6 +125,7 @@ type BuildReceipt = {
   currency: string | null
   vendor: string | null
   receipt_date: string | null
+  created_at: string | null
 }
 
 type Draft = {
@@ -155,7 +157,10 @@ function expiryStatus(expiry: string | null): ExpiryStatus {
 
 function fmtDate(d: string | null): string | null {
   if (!d) return null
-  const dt = new Date(d + 'T00:00:00')
+  // If it looks like a plain date (YYYY-MM-DD), append time to avoid UTC shift.
+  // Full ISO timestamps (created_at) are parsed directly.
+  const dt = /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T00:00:00') : new Date(d)
+  if (isNaN(dt.getTime())) return null
   return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`
 }
 
@@ -187,7 +192,9 @@ export default function GarageDocumentsPage() {
   const [receiptDocs, setReceiptDocs] = useState<Doc[]>([])   // doc_type === 'receipt'
   const [buildReceipts, setBuildReceipts] = useState<BuildReceipt[]>([])
   const [jobTitleMap, setJobTitleMap] = useState<Record<string, string>>({})
-  const [thumbs, setThumbs] = useState<Record<string, string>>({})  // car_documents id → signed image URL
+  const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null }>>({}) // session_id → display label + date
+  const [thumbs, setThumbs] = useState<Record<string, string>>({})        // car_documents id → signed image URL
+  const [thumbLoaded, setThumbLoaded] = useState<Set<string>>(new Set())  // ids whose thumb has finished loading
   const [loading, setLoading] = useState(true)
   const [noCar, setNoCar]   = useState(false)
 
@@ -197,6 +204,19 @@ export default function GarageDocumentsPage() {
   // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Helper: sign a thumbnail URL with image transform (144×144 cover for 72px @2x).
+  // Falls back to plain signed URL if the transform call errors or returns no URL.
+  async function signThumb(path: string): Promise<string | null> {
+    try {
+      const { data: t } = await supabase.storage
+        .from('car-documents')
+        .createSignedUrl(path, 600, { transform: { width: 144, height: 144, resize: 'cover' } })
+      if (t?.signedUrl) return t.signedUrl
+    } catch { /* transform not supported on this tier */ }
+    const { data: plain } = await supabase.storage.from('car-documents').createSignedUrl(path, 600)
+    return plain?.signedUrl ?? null
+  }
 
   async function loadData() {
     const id = await getActiveCarId()
@@ -208,7 +228,7 @@ export default function GarageDocumentsPage() {
     const carP = supabase.from('cars').select('year, model').eq('id', id).is('deleted_at', null).single()
     const recP = supabase
       .from('receipts')
-      .select('id, job_id, file_url, file_type, file_name, amount, currency, vendor, receipt_date')
+      .select('id, job_id, session_id, file_url, file_type, file_name, amount, currency, vendor, receipt_date, created_at')
       .eq('car_id', id)
       .order('receipt_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -245,6 +265,14 @@ export default function GarageDocumentsPage() {
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
+    // Kick off thumbnail signing and reminders query in parallel — thumbnails
+    // no longer wait for the reminders round-trip.
+    const imageRows = all.filter(d => d.file_type === 'image' && d.file_url)
+    const thumbP = Promise.all(imageRows.map(async d => {
+      const url = await signThumb(d.file_url as string)
+      return [d.id, url] as const
+    }))
+
     // Map document-linked expiry reminders (lead time) so the edit sheet can prefill.
     // Resilient to the pre-038 schema (remind_days_before may not exist yet).
     let remRows: { document_id: string; remind_days_before: number | null }[] | null = null
@@ -263,37 +291,59 @@ export default function GarageDocumentsPage() {
     for (const r of remRows ?? []) remMap[r.document_id] = snapPreset(r.remind_days_before)
     setDocReminders(remMap)
 
-    // Sign thumbnails for image docs (PDFs use a glyph).
-    const imageRows = all.filter(d => d.file_type === 'image' && d.file_url)
-    const signed = await Promise.all(imageRows.map(async d => {
-      const { data } = await supabase.storage.from('car-documents').createSignedUrl(d.file_url as string, 600)
-      return [d.id, data?.signedUrl] as const
-    }))
-    const map: Record<string, string> = {}
-    for (const [docId, url] of signed) if (url) map[docId] = url
-    setThumbs(prev => ({ ...prev, ...map }))
+    // Apply thumbnails when ready (parallel with reminders — resolves independently).
+    // Preload each image so we only reveal when the browser has the pixels — prevents
+    // the background-image pop. Fade-in is handled by opacity transition on each thumb.
+    const signed = await thumbP
+    for (const [docId, url] of signed) {
+      if (!url) continue
+      const img = new Image()
+      img.onload = () => {
+        setThumbs(prev => ({ ...prev, [docId]: url }))
+        setThumbLoaded(prev => { const n = new Set(prev); n.add(docId); return n })
+      }
+      img.onerror = () => {
+        // Still set the URL so background renders (network may succeed later)
+        setThumbs(prev => ({ ...prev, [docId]: url }))
+        setThumbLoaded(prev => { const n = new Set(prev); n.add(docId); return n })
+      }
+      img.src = url
+    }
   }
 
   useEffect(() => { loadData() }, [])
 
-  // Fix 3 — fetch job titles for build receipts that have a job_id
+  // Fetch job titles + session info for build receipts
   useEffect(() => {
-    const jobIds = buildReceipts.map(r => r.job_id).filter((id): id is string => !!id)
-    if (jobIds.length === 0) { setJobTitleMap({}); return }
     let cancelled = false
-    supabase
-      .from('jobs')
-      .select('id, title, part_types(name)')
-      .in('id', jobIds)
-      .then(({ data }) => {
-        if (cancelled || !data) return
-        const map: Record<string, string> = {}
-        for (const j of data) {
-          const pt = (j.part_types as { name?: string } | null)?.name
-          map[j.id] = (j.title as string | null) || pt || ''
-        }
-        setJobTitleMap(map)
-      })
+    const jobIds = buildReceipts.map(r => r.job_id).filter((id): id is string => !!id)
+    const sessionIds = buildReceipts.map(r => r.session_id).filter((id): id is string => !!id)
+
+    const jobP = jobIds.length > 0
+      ? supabase.from('jobs').select('id, title, part_types(name)').in('id', jobIds)
+      : Promise.resolve({ data: [] as { id: string; title: unknown; part_types: unknown }[] })
+
+    const sessP = sessionIds.length > 0
+      ? supabase.from('sessions').select('id, title, type, date_performed').in('id', sessionIds)
+      : Promise.resolve({ data: [] as { id: string; title: unknown; type: unknown; date_performed: unknown }[] })
+
+    Promise.all([jobP, sessP]).then(([{ data: jobs }, { data: sessions }]) => {
+      if (cancelled) return
+      const jMap: Record<string, string> = {}
+      for (const j of jobs ?? []) {
+        const pt = (j.part_types as { name?: string } | null)?.name
+        jMap[j.id] = (j.title as string | null) || pt || ''
+      }
+      setJobTitleMap(jMap)
+
+      const sMap: Record<string, { label: string; date: string | null }> = {}
+      for (const s of sessions ?? []) {
+        const typeLabel = (s.type as string | null) === 'modification' ? 'Mod' : 'Service'
+        const label = (s.title as string | null) || typeLabel
+        sMap[s.id as string] = { label, date: (s.date_performed as string | null) ?? null }
+      }
+      setSessionInfoMap(sMap)
+    })
     return () => { cancelled = true }
   }, [buildReceipts])
 
@@ -543,6 +593,8 @@ export default function GarageDocumentsPage() {
                           style={{
                             flexShrink: 0, width: 72, alignSelf: 'stretch',
                             background: thumbs[d.id] ? `center/cover no-repeat url(${thumbs[d.id]})` : 'rgba(31,26,18,0.06)',
+                            opacity: thumbs[d.id] ? (thumbLoaded.has(d.id) ? 1 : 0) : 1,
+                            transition: 'opacity 300ms ease',
                             border: 'none', borderRight: `1px solid ${PAPER_LINE}`,
                             cursor: d.file_url ? 'pointer' : 'default',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -647,6 +699,8 @@ export default function GarageDocumentsPage() {
                           style={{
                             flexShrink: 0, width: 72, alignSelf: 'stretch',
                             background: thumbs[d.id] ? `center/cover no-repeat url(${thumbs[d.id]})` : 'rgba(31,26,18,0.06)',
+                            opacity: thumbs[d.id] ? (thumbLoaded.has(d.id) ? 1 : 0) : 1,
+                            transition: 'opacity 300ms ease',
                             border: 'none', borderRight: `1px solid ${PAPER_LINE}`,
                             cursor: d.file_url ? 'pointer' : 'default',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent',
@@ -680,9 +734,10 @@ export default function GarageDocumentsPage() {
                               <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, color: PAPER_INK }}>{fmtMoney(d.amount, d.currency)}</span>
                             )}
                           </div>
-                          {d.issued_date && (
-                            <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: PAPER_MUTED, margin: '6px 0 0' }}>{fmtDate(d.issued_date)}</p>
-                          )}
+                          {/* Always show a date — issued_date first, fall back to created_at */}
+                          <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: PAPER_MUTED, margin: '6px 0 0' }}>
+                            {fmtDate(d.issued_date ?? (d as unknown as { created_at?: string }).created_at ?? null) ?? ''}
+                          </p>
                         </button>
                         {/* Edit button — independent, top-right corner */}
                         <button
@@ -709,6 +764,17 @@ export default function GarageDocumentsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
                       {buildReceipts.map((r, i) => {
                         const title = r.vendor || r.file_name || 'Receipt'
+                        // Connection line: part-level shows job title; service-level shows session label
+                        const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
+                        const connectionLine = r.job_id
+                          ? (jobTitleMap[r.job_id] || null)
+                          : (sessionInfo
+                              ? `${sessionInfo.label}${sessionInfo.date ? ' · ' + fmtDate(sessionInfo.date) : ''}`
+                              : null)
+                        // Always show a date — receipt_date → session date → created_at
+                        const displayDate = r.receipt_date
+                          ?? sessionInfo?.date
+                          ?? r.created_at
                         return (
                           <button
                             key={r.id}
@@ -728,12 +794,13 @@ export default function GarageDocumentsPage() {
                             }}>{r.job_id ? 'Part' : 'Service'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
-                              {r.job_id && jobTitleMap[r.job_id] && (
-                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{jobTitleMap[r.job_id]}</p>
+                              {connectionLine && (
+                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{connectionLine}</p>
                               )}
-                              {r.receipt_date && (
-                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>{fmtDate(r.receipt_date)}</p>
-                              )}
+                              {/* Always render a date line */}
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>
+                                {fmtDate(displayDate) ?? ''}
+                              </p>
                             </div>
                             {fmtMoney(r.amount, r.currency) && (
                               <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(r.amount, r.currency)}</span>

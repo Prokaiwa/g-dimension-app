@@ -183,7 +183,7 @@ export default function EntryDetailPage() {
     }
     if (viewerDragLock.current === 'v') setViewerDragY(dy)
     else if (viewerDragLock.current === 'h') {
-      const galleryLen = photos.slice(1).length
+      const galleryLen = photos.length
       const atStart = viewerIdx === 0 && dx > 0
       const atEnd   = viewerIdx === galleryLen - 1 && dx < 0
       setViewerDragX(atStart || atEnd ? dx * 0.25 : dx)
@@ -198,7 +198,7 @@ export default function EntryDetailPage() {
     if (lock === 'v' && Math.abs(dy) > 80) {
       closeViewer()
     } else if (lock === 'h') {
-      const galleryLen = photos.slice(1).length
+      const galleryLen = photos.length
       if (dx < -50) setViewerIdx(i => Math.min(i + 1, galleryLen - 1))
       else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
       setViewerDragX(0)
@@ -249,19 +249,53 @@ export default function EntryDetailPage() {
   }
 
   const meta = TYPE_META[entry.entry_type] ?? TYPE_META.note
-  const hero = photos[0] ?? null
-  const gallery = photos.slice(1)
   const isNote = entry.entry_type === 'note'
 
   return page(
     <div style={{ paddingBottom: isNote ? 96 : 40 }}>
-      {/* Hero */}
-      {hero && (
-        <FadeImg src={hero}
-          style={{ display: 'block', width: '100%', height: 300, objectFit: 'cover' }} />
+      {/* Photo carousel — all photos, hero first */}
+      {photos.length > 0 && (
+        <div style={{ marginBottom: 0 }}>
+          <div style={{
+            display: 'flex',
+            overflowX: 'scroll',
+            scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch',
+            gap: 0,
+            paddingBottom: 0,
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          } as React.CSSProperties}>
+            {photos.map((src, i) => (
+              <div
+                key={i}
+                onClick={() => openViewer(i)}
+                style={{
+                  scrollSnapAlign: 'start',
+                  flexShrink: 0,
+                  width: '100%',
+                  height: 300,
+                  cursor: 'zoom-in',
+                  overflow: 'hidden',
+                  background: 'rgba(0,0,0,0.04)',
+                }}
+              >
+                <FadeImg
+                  src={src}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
-      <div style={{ maxWidth: 390, margin: '0 auto', padding: hero ? '22px 20px 0' : '64px 20px 0' }}>
+      <div style={{ maxWidth: 390, margin: '0 auto', padding: photos.length > 0 ? '22px 20px 0' : '64px 20px 0' }}>
         {/* Type + date */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <span style={{ width: 18, height: 3, background: meta.color, borderRadius: 2, display: 'inline-block' }} />
@@ -290,55 +324,6 @@ export default function EntryDetailPage() {
           }}>
             {entry.journal_entry}
           </p>
-        )}
-
-        {/* Gallery carousel (photos beyond the hero) */}
-        {gallery.length > 0 && (
-          <div style={{ marginBottom: 22, marginLeft: -20, marginRight: -20 }}>
-            <div style={{
-              display: 'flex',
-              overflowX: 'scroll',
-              scrollSnapType: 'x mandatory',
-              WebkitOverflowScrolling: 'touch',
-              gap: 8,
-              paddingLeft: 20,
-              paddingRight: 20,
-              paddingBottom: 4,
-              // hide scrollbar
-              msOverflowStyle: 'none',
-              scrollbarWidth: 'none',
-            } as React.CSSProperties}>
-              {gallery.map((src, i) => (
-                <div
-                  key={i}
-                  onClick={() => openViewer(i)}
-                  style={{
-                    scrollSnapAlign: 'start',
-                    flexShrink: 0,
-                    height: 240,
-                    width: 'auto',
-                    maxWidth: '85vw',
-                    cursor: 'zoom-in',
-                    border: `1px solid ${COLOR_TIMELINE_RULE}`,
-                    borderRadius: RADIUS_TIMELINE_CARD,
-                    overflow: 'hidden',
-                    background: 'rgba(0,0,0,0.04)',
-                  }}
-                >
-                  <FadeImg
-                    src={src}
-                    style={{
-                      display: 'block',
-                      height: '100%',
-                      width: 'auto',
-                      maxWidth: '85vw',
-                      objectFit: 'contain',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
         )}
 
         {/* Links */}
@@ -480,7 +465,7 @@ export default function EntryDetailPage() {
                 transition: isHDrag ? 'none' : 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
                 willChange: 'transform',
               }}>
-                {gallery.map((src, i) => (
+                {photos.map((src, i) => (
                   <div key={i} style={{ width: '100%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <img
                       src={src}
@@ -514,7 +499,7 @@ export default function EntryDetailPage() {
             </button>
 
             {/* Counter */}
-            {gallery.length > 1 && (
+            {photos.length > 1 && (
               <p style={{
                 position: 'absolute', bottom: 20,
                 fontFamily: FONT_UI, fontSize: 11,
@@ -523,10 +508,10 @@ export default function EntryDetailPage() {
                 opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
                 margin: 0, pointerEvents: 'none',
               }}>
-                {viewerIdx + 1} / {gallery.length} · swipe down to close
+                {viewerIdx + 1} / {photos.length} · swipe down to close
               </p>
             )}
-            {gallery.length === 1 && (
+            {photos.length === 1 && (
               <p style={{
                 position: 'absolute', bottom: 20,
                 fontFamily: FONT_UI, fontSize: 11,
