@@ -27,6 +27,17 @@ export function avatarPathFromUrl(url: string | null | undefined): string | null
   return i === -1 ? null : url.slice(i + marker.length)
 }
 
+// Tiny-render URL for header/list avatars — routes a public avatars URL through
+// the Supabase image-transform endpoint so the browser downloads ~a few KB
+// instead of the full 512px upload. Non-avatar URLs pass through unchanged;
+// callers should onError-fallback to the original URL (transform may be
+// unavailable on some plans).
+export function avatarThumbUrl(url: string, size = 56): string {
+  const marker = '/storage/v1/object/public/'
+  if (!url.includes(`${marker}${BUCKET}/`)) return url
+  return url.replace(marker, '/storage/v1/render/image/public/') + `?width=${size}&height=${size}&resize=cover&quality=80`
+}
+
 // Compress, upload under the user's own folder, prune the old file, and return
 // the new public URL. Throws on upload failure (caller surfaces the error).
 export async function uploadAvatar(

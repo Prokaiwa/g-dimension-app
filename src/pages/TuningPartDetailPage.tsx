@@ -209,9 +209,14 @@ export default function TuningPartDetailPage() {
     setActionError(null)
   }
 
-  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
-  const onTouchEnd   = (e: React.TouchEvent) => {
-    const diff = touchStartX.current - e.changedTouches[0].clientX
+  // Commit on touchend AND touchcancel — pan-y lets the browser steal drifting
+  // swipes for scroll (touchcancel), which used to drop the carousel swipe.
+  const carouselDx   = useRef<number>(0)
+  const onTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; carouselDx.current = 0 }
+  const onTouchMove  = (e: React.TouchEvent) => { carouselDx.current = touchStartX.current - e.touches[0].clientX }
+  const onTouchEnd   = () => {
+    const diff = carouselDx.current
+    carouselDx.current = 0
     if (diff > 40)       setPhotoIndex(i => Math.min(i + 1, photos.length - 1))
     else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
   }
@@ -351,7 +356,9 @@ export default function TuningPartDetailPage() {
             <div
               style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
               onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
+              onTouchCancel={onTouchEnd}
               onClick={() => openViewer(photoIndex)}
             >
               <div style={{

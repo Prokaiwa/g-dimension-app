@@ -950,28 +950,32 @@ interface PhotoCellProps {
   flexVal?: string | number
   figureNum?: number
   near?: boolean
+  /** Horizontal placement within the cell — solo rows alternate for editorial variety. */
+  justify?: 'flex-start' | 'flex-end' | 'center'
+  aspect: number
   onAspect?: (ratio: number) => void
 }
 const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
 
-function PhotoCell({ item, theme, flexVal, figureNum, near = true, onAspect }: PhotoCellProps) {
+function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', aspect, onAspect }: PhotoCellProps) {
   return (
-    <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      {/* Img centered at natural fitted size — border wraps the photo, not the letterbox. */}
-      <div style={{ flex:1, minHeight:0, position:'relative' }}>
-        <img
-          src={near ? item.url : undefined} alt=""
-          decoding="async"
-          onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
-          style={{ position:'absolute', inset:0, margin:'auto', maxWidth:'100%', maxHeight:'100%',
-            width:'auto', height:'auto', boxSizing:'border-box', display:'block',
-            border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
-            filter: PHOTO_FILTER }}
-        />
-      </div>
-      <div style={{ flexShrink:0 }}>
+    <div style={{ flex: flexVal ?? 1, display:'flex', justifyContent: justify, minWidth:0, minHeight:0 }}>
+      {/* Figure column shrink-wraps to the photo's rendered width — the caption
+          sits directly under the image, never at the page margin. */}
+      <div style={{ display:'flex', flexDirection:'column', minWidth:0, maxWidth:'100%' }}>
+        <div style={{ flex:1, minHeight:0, aspectRatio: String(aspect), maxWidth:'100%', position:'relative' }}>
+          <img
+            src={near ? item.url : undefined} alt=""
+            decoding="async"
+            onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
+            style={{ position:'absolute', inset:0, width:'100%', height:'100%',
+              objectFit:'cover', boxSizing:'border-box', display:'block',
+              border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
+              filter: PHOTO_FILTER }}
+          />
+        </div>
         {item.caption && (
-          <div style={{ display:'flex', alignItems:'flex-start', gap:3, marginTop:4 }}>
+          <div style={{ width:0, minWidth:'100%', flexShrink:0, display:'flex', alignItems:'flex-start', gap:3, marginTop:4 }}>
             {figureNum !== undefined && (
               <span style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', lineHeight:'13px' }}>
                 {String(figureNum).padStart(2, '0')}
@@ -1042,18 +1046,19 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
         </div>
       </div>
 
-      {/* Hero photo — full-bleed, no border, caption scrim overlay. Left edge aligns
-          with the spine gutter (30px) via img left offset; right edge fills the page. */}
+      {/* Hero photo — aligned to the content column: 30px spine gutter left,
+          14px margin right (matches the support photo area, so it never reads
+          as bleeding off the page edge). */}
       {heroPhoto && (
         <div style={{ flex:'0 0 52%', position:'relative', overflow:'hidden' }}>
           <img
             src={near ? heroPhoto.url : undefined} alt=""
             decoding="async"
-            style={{ position:'absolute', top:0, bottom:0, left:30, right:0, width:'calc(100% - 30px)', height:'100%',
+            style={{ position:'absolute', top:0, bottom:0, left:30, width:'calc(100% - 44px)', height:'100%',
               objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
           />
           {heroPhoto.caption && (
-            <div style={{ position:'absolute', bottom:0, left:30, right:0,
+            <div style={{ position:'absolute', bottom:0, left:30, right:14,
               background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
               padding:'24px 10px 8px' }}>
               <div style={{ display:'flex', alignItems:'flex-start', gap:3 }}>
@@ -1081,6 +1086,8 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
                   flexVal={aspectOf(p)}
                   figureNum={figureNums[p.url]}
                   near={near}
+                  aspect={aspectOf(p)}
+                  justify={row.length === 1 ? ((ri + arrangement) % 2 === 0 ? 'flex-start' : 'flex-end') : 'center'}
                   onAspect={onAspect(p.url)} />
               ))}
             </div>

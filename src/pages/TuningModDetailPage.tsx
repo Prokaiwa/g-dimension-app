@@ -120,6 +120,7 @@ export default function TuningModDetailPage() {
   }, [photoIndex, photos])
 
   const touchStartX       = useRef<number>(0)
+  const carouselDx        = useRef<number>(0)
   const viewerTouchStartY = useRef<number>(0)
   const viewerTouchStartX = useRef<number>(0)
   const viewerDragLock    = useRef<'h' | 'v' | null>(null)
@@ -237,9 +238,14 @@ export default function TuningModDetailPage() {
 
   // ── Carousel handlers ────────────────────────────────────────────────────
 
-  const onCarouselTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX }
-  const onCarouselTouchEnd   = (e: React.TouchEvent) => {
-    const diff = touchStartX.current - e.changedTouches[0].clientX
+  // Track dx on touchmove and commit on BOTH touchend and touchcancel — with
+  // touchAction:'pan-y' the browser claims any vertically-drifting gesture for
+  // page scroll and fires touchcancel, which used to silently drop the swipe.
+  const onCarouselTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; carouselDx.current = 0 }
+  const onCarouselTouchMove  = (e: React.TouchEvent) => { carouselDx.current = touchStartX.current - e.touches[0].clientX }
+  const commitCarouselSwipe  = () => {
+    const diff = carouselDx.current
+    carouselDx.current = 0
     if (diff > 40)       setPhotoIndex(i => Math.min(i + 1, photos.length - 1))
     else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
   }
@@ -377,7 +383,9 @@ export default function TuningModDetailPage() {
             <div
               style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
               onTouchStart={onCarouselTouchStart}
-              onTouchEnd={onCarouselTouchEnd}
+              onTouchMove={onCarouselTouchMove}
+              onTouchEnd={commitCarouselSwipe}
+              onTouchCancel={commitCarouselSwipe}
               onClick={() => openViewer(photoIndex)}
             >
               <div style={{

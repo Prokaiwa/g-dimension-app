@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
+import { avatarThumbUrl } from '../lib/avatar'
 import { playTick, playConfirm } from '../lib/sound'
 import iconFeatured from '../assets/icons/home/home_featured.png'
 import {
@@ -337,7 +338,14 @@ export default function HomePage() {
     }
   }, [])
 
-  const avatarLetter = displayName === '...' ? '?' : displayName.charAt(0).toUpperCase()
+  // Header avatar: try the tiny transform render first (~few KB), fall back to
+  // the full public URL if the transform endpoint isn't available.
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
+  const [avatarLoaded, setAvatarLoaded] = useState(false)
+  useEffect(() => {
+    setAvatarLoaded(false)
+    setAvatarSrc(avatarUrl ? avatarThumbUrl(avatarUrl, 56) : null)
+  }, [avatarUrl])
 
   return (
     <div style={{ minHeight: '100dvh', background: GRADIENT_APP_BG, position: 'relative', overflow: 'hidden' }}>
@@ -461,14 +469,27 @@ export default function HomePage() {
           <div style={{
             width: 28, height: 28,
             borderRadius: RADIUS_AVATAR,
-            background: avatarUrl ? `center / cover no-repeat url(${avatarUrl})` : COLOR_ACCENT,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
-            color: '#fff',
+            background: '#101013',
+            position: 'relative', overflow: 'hidden',
             flexShrink: 0,
             boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
           }}>
-            {!avatarUrl && avatarLetter}
+            {/* Grey person silhouette — shows while loading and when no avatar is set */}
+            <svg viewBox="0 0 24 24" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+              <circle cx="12" cy="9.2" r="4.1" fill="#55565c" />
+              <path d="M12 14.6c-4.5 0-7.6 2.7-7.6 6.2V24h15.2v-3.2c0-3.5-3.1-6.2-7.6-6.2z" fill="#55565c" />
+            </svg>
+            {avatarSrc && (
+              <img
+                src={avatarSrc} alt="" decoding="async"
+                onLoad={() => setAvatarLoaded(true)}
+                onError={() => { if (avatarUrl && avatarSrc !== avatarUrl) setAvatarSrc(avatarUrl) }}
+                style={{
+                  position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+                  opacity: avatarLoaded ? 1 : 0, transition: 'opacity 180ms ease',
+                }}
+              />
+            )}
           </div>
           <span style={{
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
