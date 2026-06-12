@@ -750,6 +750,7 @@ export default function FeaturedPage() {
         <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
           carShortName={carShortName}
+          near={Math.abs(i - pageIdx) <= 1}
           onBack={onBack} onNext={onNext} />
       )
     }
@@ -949,6 +950,10 @@ const SPINE_GUTTER: React.CSSProperties = {
 interface PhotoSpreadProps {
   photos: PhotoItem[]; arrangement: number; theme: InteriorTheme
   carShortName: string
+  /** Page is current or adjacent — only then do images get a src. All pages are
+   *  stacked full-viewport, so loading="lazy" alone never defers; distant pages
+   *  stay dormant until the idle preloader / page turn brings them near. */
+  near?: boolean
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
 }
 
@@ -956,17 +961,18 @@ interface PhotoCellProps {
   item: PhotoItem; theme: InteriorTheme
   flexVal?: string | number
   figureNum?: number
+  near?: boolean
   onAspect?: (ratio: number) => void
 }
 const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
 
-function PhotoCell({ item, theme, flexVal, figureNum, onAspect }: PhotoCellProps) {
+function PhotoCell({ item, theme, flexVal, figureNum, near = true, onAspect }: PhotoCellProps) {
   return (
     <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
       {/* Img centered at natural fitted size — border wraps the photo, not the letterbox. */}
       <div style={{ flex:1, minHeight:0, position:'relative' }}>
         <img
-          src={item.url} alt=""
+          src={near ? item.url : undefined} alt=""
           decoding="async"
           onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
           style={{ position:'absolute', inset:0, margin:'auto', maxWidth:'100%', maxHeight:'100%',
@@ -992,7 +998,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, onAspect }: PhotoCellProps
   )
 }
 
-function PhotoSpread({ photos, arrangement, theme, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const onAspect = (url: string) => (r: number) =>
     setAspects(prev => (prev[url] === r ? prev : { ...prev, [url]: r }))
@@ -1050,7 +1056,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, backLabel, next
       {heroPhoto && (
         <div style={{ flex:'0 0 52%', position:'relative', marginLeft:30, overflow:'hidden' }}>
           <img
-            src={heroPhoto.url} alt=""
+            src={near ? heroPhoto.url : undefined} alt=""
             decoding="async"
             style={{ position:'absolute', inset:0, width:'100%', height:'100%',
               objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
@@ -1081,6 +1087,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, backLabel, next
                 <PhotoCell key={p.url} item={p} theme={theme}
                   flexVal={aspectOf(p)}
                   figureNum={figureNums[p.url]}
+                  near={near}
                   onAspect={onAspect(p.url)} />
               ))}
             </div>
