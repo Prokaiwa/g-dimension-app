@@ -373,6 +373,21 @@ export default function FeaturedPage() {
 
   useEffect(() => { pagesLenRef.current = pages.length }, [pages.length])
 
+  // ── idle preload: next page images during browser downtime ───────────────────
+  useEffect(() => {
+    const nextPage = pages[pageIdx + 1]
+    if (!nextPage || nextPage.kind !== 'photo' || !nextPage.photos) return
+    const urls = nextPage.photos.map(p => p.url)
+    const doPreload = () => { for (const u of urls) { const img = new Image(); img.src = u } }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = (window as typeof window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
+        .requestIdleCallback(doPreload, { timeout: 2000 })
+      return () => (window as typeof window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id)
+    }
+    const id = setTimeout(doPreload, 350)
+    return () => clearTimeout(id)
+  }, [pageIdx, pages])
+
   // Clamp current page if the book shrank (e.g. data reloaded smaller)
   useEffect(() => {
     if (pageIdx > pages.length - 1) { const n = Math.max(0, pages.length - 1); pageIdxRef.current = n; setPageIdx(n) }
@@ -734,6 +749,7 @@ export default function FeaturedPage() {
       return (
         <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          carShortName={carShortName}
           onBack={onBack} onNext={onNext} />
       )
     }
@@ -926,41 +942,48 @@ const SPINE_GUTTER: React.CSSProperties = {
 }
 
 // ─── PhotoSpread (interior) ───────────────────────────────────────────────────
-// Layout strategy: measure each image's natural aspect ratio on load, then pack
-// photos into rows. Within a row each cell gets flex:aspect (width proportional
-// to natural ratio); each row gets vertical flex 1/sum(aspects) — the row's true
-// rendered height when every image keeps its natural ratio. The geometry is
-// therefore exact, and objectFit:contain guarantees the full image is always
-// visible even while ratios are still loading.
+// Layout: first photo (when ≥2 present) is a full-bleed hero at 52% height —
+// objectFit:cover, no border, caption overlaid. The rest pack into rows below
+// using the aspect-ratio geometry (flex:aspect for width, 1/Σ for row height).
+// All images get a subtle unified filter + decoding=async for smooth page turns.
 interface PhotoSpreadProps {
   photos: PhotoItem[]; arrangement: number; theme: InteriorTheme
+  carShortName: string
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
 }
 
 interface PhotoCellProps {
   item: PhotoItem; theme: InteriorTheme
-  flexVal?: string | number  // flex shorthand for the outer wrapper
+  flexVal?: string | number
+  figureNum?: number
   onAspect?: (ratio: number) => void
 }
-function PhotoCell({ item, theme, flexVal, onAspect }: PhotoCellProps) {
+const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
+
+function PhotoCell({ item, theme, flexVal, figureNum, onAspect }: PhotoCellProps) {
   return (
     <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      {/* The img is centered at its natural fitted size (maxWidth/maxHeight),
-          so the border and print shadow wrap the actual photo — never the
-          letterbox area around it. */}
+      {/* Img centered at natural fitted size — border wraps the photo, not the letterbox. */}
       <div style={{ flex:1, minHeight:0, position:'relative' }}>
         <img
           src={item.url} alt=""
+          decoding="async"
           onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
           style={{ position:'absolute', inset:0, margin:'auto', maxWidth:'100%', maxHeight:'100%',
             width:'auto', height:'auto', boxSizing:'border-box', display:'block',
-            border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)' }}
+            border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
+            filter: PHOTO_FILTER }}
         />
       </div>
       <div style={{ flexShrink:0 }}>
         {item.caption && (
-          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:4, textAlign:'center',
+          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:4,
             overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
+            {figureNum !== undefined && (
+              <span style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', marginRight:4 }}>
+                {String(figureNum).padStart(2, '0')}
+              </span>
+            )}
             {item.caption}
           </div>
         )}
@@ -969,55 +992,102 @@ function PhotoCell({ item, theme, flexVal, onAspect }: PhotoCellProps) {
   )
 }
 
-function PhotoSpread({ photos, arrangement, theme, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+function PhotoSpread({ photos, arrangement, theme, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const onAspect = (url: string) => (r: number) =>
     setAspects(prev => (prev[url] === r ? prev : { ...prev, [url]: r }))
   const aspectOf = (p: PhotoItem) => aspects[p.url] ?? 1.5
 
-  // ── partition photos into rows based on measured shapes ──────────────────────
-  // Returns an array of rows (each row = array of PhotoItems).
+  // Hero = first photo when there are ≥2; single-photo spread skips hero treatment.
+  const hasHero = photos.length >= 2
+  const heroPhoto = hasHero ? photos[0] : null
+  const supportPhotos = hasHero ? photos.slice(1) : photos
+
+  // Assign sequential figure numbers to photos that have captions.
+  const allOrdered = heroPhoto ? [heroPhoto, ...supportPhotos] : supportPhotos
+  let figCounter = 1
+  const figureNums: Record<string, number> = {}
+  for (const p of allOrdered) {
+    if (p.caption) figureNums[p.url] = figCounter++
+  }
+
+  // ── partition support photos into rows ────────────────────────────────────────
   const rows: PhotoItem[][] = (() => {
-    const n = photos.length
-    if (n <= 1) return [photos]
+    const n = supportPhotos.length
+    if (n <= 1) return [supportPhotos]
     if (n === 2) {
-      // Two landscapes side by side go tiny — stack them. Otherwise share a row.
-      const avg = (aspectOf(photos[0]) + aspectOf(photos[1])) / 2
-      return avg > 1.3 ? [[photos[0]], [photos[1]]] : [photos]
+      const avg = (aspectOf(supportPhotos[0]) + aspectOf(supportPhotos[1])) / 2
+      return avg > 1.3 ? [[supportPhotos[0]], [supportPhotos[1]]] : [supportPhotos]
     }
     if (n === 3) {
-      // Solo the widest photo (it deserves the full-width row); pair the rest.
-      const sorted = [...photos].sort((a, b) => aspectOf(b) - aspectOf(a))
+      const sorted = [...supportPhotos].sort((a, b) => aspectOf(b) - aspectOf(a))
       const solo = sorted[0]
-      const pair = photos.filter(p => p !== solo)
+      const pair = supportPhotos.filter(p => p !== solo)
       return arrangement === 0 ? [[solo], pair] : [pair, [solo]]
     }
-    // 4 photos: pair them to balance row shapes — widest with narrowest.
-    const sorted = [...photos].sort((a, b) => aspectOf(b) - aspectOf(a))
+    const sorted = [...supportPhotos].sort((a, b) => aspectOf(b) - aspectOf(a))
     const rowA = [sorted[0], sorted[3]]
     const rowB = [sorted[1], sorted[2]]
     return arrangement === 0 ? [rowA, rowB] : [rowB, rowA]
   })()
 
-  // Row height weight = the row's rendered height at fixed width when every
-  // image keeps its natural ratio: 1 / sum(aspect ratios in the row).
   const rowWeight = (row: PhotoItem[]) =>
     1 / Math.max(0.2, row.reduce((s, p) => s + aspectOf(p), 0))
 
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
-      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, padding:'12px 14px 10px 30px', minHeight:0 }}>
-        {rows.map((row, ri) => (
-          <div key={ri} style={{ flex: rowWeight(row), display:'flex', flexDirection:'row', gap:8, minHeight:0 }}>
-            {row.map(p => (
-              <PhotoCell key={p.url} item={p} theme={theme}
-                flexVal={aspectOf(p)}
-                onAspect={onAspect(p.url)} />
-            ))}
-          </div>
-        ))}
+
+      {/* Hairline kicker — single rule + section label */}
+      <div style={{ flexShrink:0, padding:'8px 14px 5px 30px' }}>
+        <div style={{ height:'0.5px', background:theme.rule, marginBottom:5 }} />
+        <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
+          THE DETAILS · {carShortName.toUpperCase()}
+        </div>
       </div>
+
+      {/* Hero photo — full-bleed, no border, caption scrim overlay */}
+      {heroPhoto && (
+        <div style={{ flex:'0 0 52%', position:'relative', marginLeft:30, overflow:'hidden' }}>
+          <img
+            src={heroPhoto.url} alt=""
+            decoding="async"
+            style={{ position:'absolute', inset:0, width:'100%', height:'100%',
+              objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
+          />
+          {heroPhoto.caption && (
+            <div style={{ position:'absolute', bottom:0, left:0, right:0,
+              background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
+              padding:'24px 10px 8px' }}>
+              <div style={{ fontFamily:FONT_DECK, color:'#f0ede8', fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em' }}>
+                {figureNums[heroPhoto.url] !== undefined && (
+                  <span style={{ fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', marginRight:4 }}>
+                    {String(figureNums[heroPhoto.url]).padStart(2, '0')}
+                  </span>
+                )}
+                {heroPhoto.caption}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Support photos */}
+      {supportPhotos.length > 0 && (
+        <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8, padding:'8px 14px 8px 30px', minHeight:0 }}>
+          {rows.map((row, ri) => (
+            <div key={ri} style={{ flex: rowWeight(row), display:'flex', flexDirection:'row', gap:8, minHeight:0 }}>
+              {row.map(p => (
+                <PhotoCell key={p.url} item={p} theme={theme}
+                  flexVal={aspectOf(p)}
+                  figureNum={figureNums[p.url]}
+                  onAspect={onAspect(p.url)} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
       <div style={NOISE_OVERLAY} />
     </div>
