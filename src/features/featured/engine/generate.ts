@@ -406,39 +406,66 @@ function buildCaptions(
 ): Record<string, string> {
   const result: Record<string, string> = {}
 
+  // Pre-shuffle each template pool once with a deterministic seed so that
+  // draw-without-replacement guarantees no template text is reused across slots.
+  const poolSeed = makeRng(ctx.carId, SALT_CAPTION(0xfff))
+  const shuffle = <T>(arr: T[]): T[] => {
+    const a = [...arr]
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(poolSeed() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]]
+    }
+    return a
+  }
+
+  // Mutable per-type queues — each template can only be drawn once per issue.
+  const detailQueue  = shuffle(eligible(CAPTIONS_DETAIL_POINTER, ctx))
+  const groupQueue   = shuffle([
+    ...(ctx.hpInBounds ? eligible(CAPTIONS_SPEC_FACT, ctx) : []),
+    ...getEngineFamilyCaptions(ctx),
+    ...getMakeHeritageCaptions(ctx),
+    ...getChassisCaptions(ctx),
+  ])
+  const identityQueue = shuffle([
+    ...(CAPTIONS_IDENTITY[ctx.archetype] ?? CAPTIONS_IDENTITY['Universal']),
+    ...(ctx.engineOrigin === 'swapped' ? eligible(SWAP_CAPTIONS, ctx) : []),
+    ...CAPTIONS_IDENTITY['Universal'],
+  ])
+
+  // Draw the first queue entry whose filled text doesn't overlap usedWords.
+  // Falls back to the first entry regardless if all overlap.
+  const drawFromQueue = (queue: PoolLine[], partName?: string): string | null => {
+    if (queue.length === 0) return null
+    let fallbackIdx = 0
+    for (let i = 0; i < queue.length; i++) {
+      const filled = fillTemplate(queue[i].text, ctx, partName)
+      if (!overlapsRepeatSet(filled, usedWords)) {
+        addToRepeatSet(filled, usedWords)
+        queue.splice(i, 1)
+        return filled
+      }
+      // Track the best fallback (earliest in shuffled order)
+      fallbackIdx = i === 0 ? 0 : fallbackIdx
+    }
+    // All overlap — use fallback at front of queue (consume it)
+    const filled = fillTemplate(queue[fallbackIdx].text, ctx, partName)
+    addToRepeatSet(filled, usedWords)
+    queue.splice(fallbackIdx, 1)
+    return filled
+  }
+
   for (let n = 0; n < photos.length; n++) {
     const photo = photos[n]
-    // User caption always wins
     if (photo.existingCaption && photo.existingCaption.trim() !== '') continue
-
-    const captionRng = makeRng(ctx.carId, SALT_CAPTION(n))
 
     let text: string | null = null
 
     if (photo.type === 'job' && photo.partName) {
-      // §3a detail-pointer — only for that job's own part
-      text = drawNoRepeat(CAPTIONS_DETAIL_POINTER, ctx, usedWords, captionRng, photo.partName)
+      text = drawFromQueue(detailQueue, photo.partName)
     } else if (photo.type === 'build_group') {
-      // §3b spec-fact or engine-family captions (if power group) or identity
-      const specPool: PoolLine[] = ctx.hpInBounds
-        ? eligible(CAPTIONS_SPEC_FACT, ctx)
-        : []
-      const engineCaps = getEngineFamilyCaptions(ctx)
-      const makeCaps = getMakeHeritageCaptions(ctx)
-      const chassisCaps = getChassisCaptions(ctx)
-      const combined = [...specPool, ...engineCaps, ...makeCaps, ...chassisCaps]
-      text = drawNoRepeat(combined, ctx, usedWords, captionRng)
+      text = drawFromQueue(groupQueue)
     } else if (photo.type === 'full_body') {
-      // §3c identity reframes
-      const identityPool =
-        CAPTIONS_IDENTITY[ctx.archetype] ??
-        CAPTIONS_IDENTITY['Universal']
-      const universalPool = CAPTIONS_IDENTITY['Universal']
-      const swapPool = ctx.engineOrigin === 'swapped'
-        ? eligible(SWAP_CAPTIONS, ctx)
-        : []
-      const combined = [...identityPool, ...swapPool, ...universalPool]
-      text = drawNoRepeat(combined, ctx, usedWords, captionRng)
+      text = drawFromQueue(identityQueue)
     }
 
     if (text) result[photo.id] = text

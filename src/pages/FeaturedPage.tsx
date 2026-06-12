@@ -930,7 +930,7 @@ interface PhotoCellProps {
 function PhotoCell({ item, theme, flexVal, onAspect }: PhotoCellProps) {
   return (
     <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:`${theme.ink}14`, display:'flex' }}>
+      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:theme.pageBg, display:'flex' }}>
         <img
           src={item.url} alt=""
           onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
