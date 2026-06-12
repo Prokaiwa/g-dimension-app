@@ -395,8 +395,20 @@ export interface PhotoSlot {
   type: 'job' | 'build_group' | 'full_body'
   partName?: string   // for job photos
   group?: string      // mod category for build_group photos (e.g. 'Engine')
+  /** Stable subject identity (e.g. job id). Photos sharing a subjectKey get at
+   *  most ONE engine caption between them — a second shot of the same part runs
+   *  clean, like a real magazine spread. */
+  subjectKey?: string
   existingCaption?: string
 }
+
+/** Plural part names ("coilovers", "lowering springs") take plural verbs.
+ *  Used to skip templates whose grammar hard-codes a singular verb. */
+function isPluralPartName(name: string): boolean {
+  const lastWord = name.trim().split(/\s+/).pop() ?? ''
+  return /s$/i.test(lastWord) && !/ss$/i.test(lastWord)
+}
+const SINGULAR_VERB_RE = /\b(does|wasn't|was|is|isn't|has)\b/i
 
 function buildCaptions(
   ctx: GateContext,
@@ -432,31 +444,49 @@ function buildCaptions(
     ...CAPTIONS_IDENTITY['Universal'],
   ])
 
-  // Draw the first queue entry whose filled text doesn't overlap usedWords.
-  // Falls back to the first entry regardless if all overlap.
+  // Draw the first queue entry whose filled text doesn't overlap usedWords and
+  // whose grammar agrees with the part name. Falls back to the first
+  // grammar-safe entry if all overlap.
   const drawFromQueue = (queue: PoolLine[], partName?: string): string | null => {
     if (queue.length === 0) return null
-    let fallbackIdx = 0
+    const plural = partName ? isPluralPartName(partName) : false
+    const grammarOk = (line: PoolLine) => !(plural && SINGULAR_VERB_RE.test(line.text))
+    let fallbackIdx = -1
     for (let i = 0; i < queue.length; i++) {
+      if (!grammarOk(queue[i])) continue
+      if (fallbackIdx === -1) fallbackIdx = i
       const filled = fillTemplate(queue[i].text, ctx, partName)
       if (!overlapsRepeatSet(filled, usedWords)) {
         addToRepeatSet(filled, usedWords)
         queue.splice(i, 1)
         return filled
       }
-      // Track the best fallback (earliest in shuffled order)
-      fallbackIdx = i === 0 ? 0 : fallbackIdx
     }
-    // All overlap — use fallback at front of queue (consume it)
+    if (fallbackIdx === -1) return null   // no grammar-safe template left
+    // All grammar-safe lines overlap — consume the first one anyway
     const filled = fillTemplate(queue[fallbackIdx].text, ctx, partName)
     addToRepeatSet(filled, usedWords)
     queue.splice(fallbackIdx, 1)
     return filled
   }
 
-  for (let n = 0; n < photos.length; n++) {
-    const photo = photos[n]
+  // One caption per subject per issue. A user-written caption also claims its
+  // subject (pre-pass, so order doesn't matter) — the engine never re-captions
+  // a part the owner already covered.
+  const seenSubjects = new Set<string>()
+  const subjectOf = (p: PhotoSlot) =>
+    p.subjectKey ?? (p.type === 'job' ? p.partName : p.type === 'build_group' ? p.group : undefined)
+  for (const photo of photos) {
+    if (photo.existingCaption && photo.existingCaption.trim() !== '') {
+      const s = subjectOf(photo)
+      if (s) seenSubjects.add(s)
+    }
+  }
+
+  for (const photo of photos) {
+    const subject = subjectOf(photo)
     if (photo.existingCaption && photo.existingCaption.trim() !== '') continue
+    if (subject && seenSubjects.has(subject)) continue
 
     let text: string | null = null
 
@@ -468,7 +498,10 @@ function buildCaptions(
       text = drawFromQueue(identityQueue)
     }
 
-    if (text) result[photo.id] = text
+    if (text) {
+      result[photo.id] = text
+      if (subject) seenSubjects.add(subject)
+    }
   }
 
   return result

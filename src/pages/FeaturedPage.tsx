@@ -272,11 +272,26 @@ export default function FeaturedPage() {
       const url = car[groupCols[i]]
       if (url) slots.push({ id: url, type: 'build_group', group: groupKeys[i] })
     }
+    // Editorial part naming: generic part-type names read lowercase mid-sentence
+    // ("coilovers", "cold air intake"), acronym-like tokens keep caps ("ECU"),
+    // and the brand — a proper noun — keeps its casing and leads when known:
+    // "Tein coilovers". Falls back to the job title (proper casing preserved).
+    const editorialName = (job: Job): string | undefined => {
+      const typeName = job.part_type_name
+        ? job.part_type_name.split(' ').map(w => (/[A-Z]{2,}|\d/.test(w) ? w : w.toLowerCase())).join(' ')
+        : null
+      if (typeName && job.brand) return `${job.brand} ${typeName}`
+      return typeName ?? job.title ?? undefined
+    }
     for (const jp of jobPhotos) {
       if (!jp.photo_url) continue
       const job = jp.job_id ? jobs.find(j => j.id === jp.job_id) : null
-      const partName = job ? (job.part_type_name || job.title || undefined) : undefined
-      slots.push({ id: jp.photo_url, type: 'job', partName, existingCaption: jp.caption?.trim() || undefined })
+      slots.push({
+        id: jp.photo_url, type: 'job',
+        partName: job ? editorialName(job) : undefined,
+        subjectKey: job?.id,
+        existingCaption: jp.caption?.trim() || undefined,
+      })
     }
     return generateFeature(
       {
@@ -930,16 +945,21 @@ interface PhotoCellProps {
 function PhotoCell({ item, theme, flexVal, onAspect }: PhotoCellProps) {
   return (
     <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      <div style={{ flex:1, minHeight:0, border:`1px solid ${theme.rule}`, overflow:'hidden', background:theme.pageBg, display:'flex' }}>
+      {/* The img is centered at its natural fitted size (maxWidth/maxHeight),
+          so the border and print shadow wrap the actual photo — never the
+          letterbox area around it. */}
+      <div style={{ flex:1, minHeight:0, position:'relative' }}>
         <img
           src={item.url} alt=""
           onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
-          style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }}
+          style={{ position:'absolute', inset:0, margin:'auto', maxWidth:'100%', maxHeight:'100%',
+            width:'auto', height:'auto', boxSizing:'border-box', display:'block',
+            border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)' }}
         />
       </div>
       <div style={{ flexShrink:0 }}>
         {item.caption && (
-          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:3,
+          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:4, textAlign:'center',
             overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
             {item.caption}
           </div>
