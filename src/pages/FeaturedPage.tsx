@@ -33,6 +33,9 @@ interface Car {
   showcase_photo_url: string | null; garage_photo_url: string | null; original_photo_url: string | null
   build_sheet_power_photo: string | null; build_sheet_chassis_photo: string | null
   build_sheet_exterior_photo: string | null; build_sheet_interior_photo: string | null
+  // 052 — may be absent until the migration runs (guarded select falls back)
+  cover_focus_x?: number | null; cover_focus_y?: number | null; cover_zoom?: number | null
+  featured_story?: string | null
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -43,7 +46,7 @@ interface SpecRow { label: string; value: string }
 interface SpecSection { title: string; rows: SpecRow[]; moreCount?: number }
 
 // Page descriptor — the book is assembled from these after data load
-type PageKind = 'cover' | 'photo' | 'spec'
+type PageKind = 'cover' | 'photo' | 'story' | 'spec'
 interface PageDesc {
   kind: PageKind
   label: string                  // folio short label
@@ -95,6 +98,12 @@ const INTERIOR_THEMES: Record<string, InteriorTheme> = {
   'burgundy':      { pageBg: '#f5eed8', ink: '#1a0a0c', subInk: '#7a5a5e', accent: COLOR_BRAND,  rule: '#c8b0b3', menuBorder: COLOR_BRAND, menuHeaderBg: COLOR_BRAND, menuHeaderInk: '#f5eed8' },
   'knockout-white':{ pageBg: '#111116', ink: '#f0ede8', subInk: '#8a8880', accent: COLOR_ACCENT, rule: '#2e2e36', menuBorder: '#444',      menuHeaderBg: '#f0ede8',  menuHeaderInk: '#111116' },
   'ink-black':     { pageBg: '#f8f7f4', ink: '#111',    subInk: '#666',    accent: '#1a1a1a',   rule: '#ddd',    menuBorder: '#1a1a1a',   menuHeaderBg: '#1a1a1a',  menuHeaderInk: '#f8f7f4' },
+}
+
+// Cover chrome chip (Photo / Frame / Story)
+const COVER_CHIP: React.CSSProperties = {
+  fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase',
+  color:'#f5f5f5', background:'rgba(0,0,0,0.55)', border:'1px solid rgba(245,245,245,0.35)', padding:'5px 9px', cursor:'pointer',
 }
 
 // ─── build-sheet grouping (frontend display logic ONLY — no DB column) ──────────
@@ -171,6 +180,26 @@ export default function FeaturedPage() {
   const [isTurning, setIsTurning] = useState(false)
   const [photoAspect, setPhotoAspect] = useState<number|null>(null)
 
+  // ── cover framing (052): pan/pinch adjust mode, persisted on the car ─────────
+  const [adjusting, setAdjusting]   = useState(false)
+  const adjustingRef                = useRef(false)
+  const [fx, setFx]                 = useState(50)   // object-position X %
+  const [fy, setFy]                 = useState(50)   // object-position Y %
+  const [zoom, setZoom]             = useState(1)
+  const [savingFrame, setSavingFrame] = useState(false)
+  const [frameErr, setFrameErr]     = useState<string | null>(null)
+  const adjTouches = useRef<{ x: number; y: number }[]>([])
+  const adjPinch   = useRef<{ dist: number; zoom: number } | null>(null)
+
+  // ── feature story compose sheet ───────────────────────────────────────────────
+  const [storyOpen, setStoryOpen]   = useState(false)
+  const [storyDraft, setStoryDraft] = useState('')
+  const [savingStory, setSavingStory] = useState(false)
+  const [storyErr, setStoryErr]     = useState<string | null>(null)
+
+  // True once the user manually picks a template — blocks the brightness auto-pick.
+  const userPickedCoverRef = useRef(false)
+
   // ── DOM refs: one per page (sized dynamically) ────────────────────────────────
   const pageEls   = useRef<(HTMLDivElement | null)[]>([])
   const shadowEls = useRef<(HTMLDivElement | null)[]>([])
@@ -198,10 +227,16 @@ export default function FeaturedPage() {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
       const { data: { user } } = await supabase.auth.getUser()
+      const CAR_COLS_BASE = 'id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo'
+      const CAR_COLS_052  = CAR_COLS_BASE + ',cover_focus_x,cover_focus_y,cover_zoom,featured_story'
+      // Try the post-052 columns first; fall back if the migration isn't applied yet.
+      const fetchCar = async () => {
+        const full = await supabase.from('cars').select(CAR_COLS_052).eq('id', carId).is('deleted_at', null).single()
+        if (!full.error) return full
+        return supabase.from('cars').select(CAR_COLS_BASE).eq('id', carId).is('deleted_at', null).single()
+      }
       const [carRes, jobsRes, timelineRes, unitsRes] = await Promise.all([
-        supabase.from('cars')
-          .select('id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo')
-          .eq('id', carId).is('deleted_at', null).single(),
+        fetchCar(),
         supabase.from('jobs').select('id,title,category,brand,part_types(name)')
           .eq('car_id', carId).eq('type','modification').eq('status','installed').order('created_at',{ascending:true}),
         supabase.from('timeline_entries')
@@ -216,6 +251,9 @@ export default function FeaturedPage() {
       if (!alive) return
       const c = (carRes.data as unknown as Car) ?? null
       setCar(c)
+      if (c?.cover_zoom != null) {
+        setFx(c.cover_focus_x ?? 50); setFy(c.cover_focus_y ?? 50); setZoom(c.cover_zoom)
+      }
       if (unitsRes.data) {
         const u = unitsRes.data as { distance_unit?: string; power_unit?: string }
         setUserUnits({
@@ -253,8 +291,110 @@ export default function FeaturedPage() {
   const t          = TEMPLATES[coverIdx]
   const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
   const photo      = photos[photoIdx] ?? null
-  const cycleCover = (dir: number) => setCoverIdx(p => (p + dir + TEMPLATES.length) % TEMPLATES.length)
+  const cycleCover = (dir: number) => { userPickedCoverRef.current = true; setCoverIdx(p => (p + dir + TEMPLATES.length) % TEMPLATES.length) }
   const bottomColor = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
+
+  // Framed = a saved (or in-progress) framing exists → cover-fit + focus/zoom.
+  // Unframed full photos keep the legacy aspect-heuristic contain layout.
+  const framed = adjusting || car?.cover_zoom != null
+
+  // ── cover brightness → default masthead pick (runs once, never over a user choice)
+  useEffect(() => {
+    if (!car || !photo || photo.mode !== 'full' || userPickedCoverRef.current) return
+    let alive = true
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      if (!alive || userPickedCoverRef.current) return
+      try {
+        const w = 40, h = 40
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        ctx.drawImage(img, 0, 0, w, h)
+        // Masthead region = top 40% of the photo
+        const d = ctx.getImageData(0, 0, w, Math.round(h * 0.4)).data
+        let lum = 0
+        for (let i = 0; i < d.length; i += 4) lum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]
+        lum /= (d.length / 4) * 255
+        if (lum < 0.40)      setCoverIdx(2)  // dark photo → Knockout White masthead
+        else if (lum > 0.62) setCoverIdx(3)  // bright photo → Ink Black masthead
+        // mid-range keeps the seeded template
+      } catch { /* canvas tainted or unavailable — keep seeded template */ }
+    }
+    img.src = photo.url
+    return () => { alive = false }
+  }, [car, photo])
+
+  // ── adjust-mode gestures: one finger pans the focus, two fingers pinch-zoom ───
+  const coverRectH = () => window.innerHeight * 0.62
+  const onAdjTouchStart = (e: React.TouchEvent) => {
+    adjTouches.current = Array.from(e.touches).map(tt => ({ x: tt.clientX, y: tt.clientY }))
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      adjPinch.current = { dist: Math.hypot(dx, dy), zoom }
+    }
+  }
+  const onAdjTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && adjPinch.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const d  = Math.hypot(dx, dy)
+      setZoom(Math.min(2.5, Math.max(1, adjPinch.current.zoom * (d / adjPinch.current.dist))))
+    } else if (e.touches.length === 1 && adjTouches.current.length >= 1) {
+      const prev = adjTouches.current[0]
+      const dx = e.touches[0].clientX - prev.x
+      const dy = e.touches[0].clientY - prev.y
+      // Dragging the photo right reveals more of its left side → focus % decreases.
+      setFx(v => Math.min(100, Math.max(0, v - (dx / window.innerWidth) * 100 / zoom)))
+      setFy(v => Math.min(100, Math.max(0, v - (dy / coverRectH()) * 100 / zoom)))
+    }
+    adjTouches.current = Array.from(e.touches).map(tt => ({ x: tt.clientX, y: tt.clientY }))
+  }
+  const onAdjTouchEnd = (e: React.TouchEvent) => {
+    adjTouches.current = Array.from(e.touches).map(tt => ({ x: tt.clientX, y: tt.clientY }))
+    if (e.touches.length < 2) adjPinch.current = null
+  }
+  const enterAdjust = () => {
+    setFrameErr(null)
+    if (car?.cover_zoom == null) { setFx(50); setFy(50); setZoom(1) }
+    adjustingRef.current = true
+    setAdjusting(true)
+  }
+  const cancelAdjust = () => {
+    if (car?.cover_zoom != null) { setFx(car.cover_focus_x ?? 50); setFy(car.cover_focus_y ?? 50); setZoom(car.cover_zoom) }
+    else { setFx(50); setFy(50); setZoom(1) }
+    adjustingRef.current = false
+    setAdjusting(false)
+  }
+  const saveAdjust = async () => {
+    if (!car || savingFrame) return
+    setSavingFrame(true)
+    setFrameErr(null)
+    const vals = { cover_focus_x: Math.round(fx), cover_focus_y: Math.round(fy), cover_zoom: Math.round(zoom * 100) / 100 }
+    const { error } = await supabase.from('cars').update(vals).eq('id', car.id)
+    setSavingFrame(false)
+    if (error) { setFrameErr('Couldn’t save framing — run migration 052.'); return }
+    setCar(prev => prev ? { ...prev, ...vals } : prev)
+    adjustingRef.current = false
+    setAdjusting(false)
+  }
+
+  // ── feature story save ─────────────────────────────────────────────────────────
+  const openStory = () => { setStoryErr(null); setStoryDraft(car?.featured_story ?? ''); setStoryOpen(true) }
+  const saveStory = async () => {
+    if (!car || savingStory) return
+    setSavingStory(true)
+    setStoryErr(null)
+    const text = storyDraft.trim() || null
+    const { error } = await supabase.from('cars').update({ featured_story: text }).eq('id', car.id)
+    setSavingStory(false)
+    if (error) { setStoryErr('Couldn’t save — run migration 052.'); return }
+    setCar(prev => prev ? { ...prev, featured_story: text } : prev)
+    setStoryOpen(false)
+  }
 
   const grouped = useMemo(() => {
     const g: Record<string,Job[]> = { power:[], chassis:[], exterior:[], interior:[] }
@@ -353,9 +493,10 @@ export default function FeaturedPage() {
   const pages = useMemo<PageDesc[]>(() => {
     const arr: PageDesc[] = [{ kind:'cover', label:'COVER' }]
     photoSpreads.forEach(ps => arr.push({ kind:'photo', label:'PHOTOS', photos: ps.photos, arrangement: ps.arrangement }))
+    if (car?.featured_story?.trim()) arr.push({ kind:'story', label:'THE STORY' })
     specPages.forEach((secs, i) => arr.push({ kind:'spec', label:'SPEC SHEET', sections: secs, isCont: i > 0 }))
     return arr
-  }, [photoSpreads, specPages])
+  }, [photoSpreads, specPages, car?.featured_story])
 
   useEffect(() => { pagesLenRef.current = pages.length }, [pages.length])
 
@@ -546,6 +687,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
+      if (adjustingRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -583,13 +725,14 @@ export default function FeaturedPage() {
   }, [])
 
   function handleTouchStart(e: React.TouchEvent) {
-    if (isTurningRef.current) return
+    if (isTurningRef.current || adjustingRef.current || storyOpen) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
     isDragTurnRef.current  = false
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
+    if (adjustingRef.current) return
     const endX = e.changedTouches[0].clientX
     if (isDragTurnRef.current) {
       isDragTurnRef.current  = false
@@ -622,17 +765,29 @@ export default function FeaturedPage() {
           {/* Cover content — key triggers the fade-in on template change */}
           <div key={t.id} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
-            {photo && (
+            {photo && photo.mode === 'cutout' && (
               <img src={photo.url} alt=""
-                onLoad={photo.mode==='full' ? (e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) } : undefined}
-                style={photo.mode==='cutout'
-                  ? { position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }
-                  : (() => {
-                      const h = photoAspect !== null
-                        ? (photoAspect > 1.3 ? '56%' : photoAspect < 0.85 ? '70%' : '62%')
-                        : '62%'
-                      return { position:'absolute' as const, top:'12%', left:0, right:0, width:'100%', height:h, objectFit:'contain' as const, objectPosition:'center' }
-                    })()}
+                style={{ position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }} />
+            )}
+            {photo && photo.mode === 'full' && framed && (
+              // User-framed (052): cover-fit + saved focus/zoom, clipped to the cover rect.
+              <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', overflow:'hidden' }}>
+                <img src={photo.url} alt=""
+                  onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
+                  style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:`${fx}% ${fy}%`,
+                    transform:`scale(${zoom})`, transformOrigin:`${fx}% ${fy}%`, display:'block' }} />
+              </div>
+            )}
+            {photo && photo.mode === 'full' && !framed && (
+              // Unframed legacy: contain with aspect heuristics.
+              <img src={photo.url} alt=""
+                onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
+                style={(() => {
+                  const h = photoAspect !== null
+                    ? (photoAspect > 1.3 ? '56%' : photoAspect < 0.85 ? '70%' : '62%')
+                    : '62%'
+                  return { position:'absolute' as const, top:'12%', left:0, right:0, width:'100%', height:h, objectFit:'contain' as const, objectPosition:'center' }
+                })()}
               />
             )}
             {!photo && (
@@ -743,6 +898,15 @@ export default function FeaturedPage() {
       )
     }
 
+    if (pg.kind === 'story') {
+      return (
+        <StoryPage story={car?.featured_story ?? ''} headline={engineFeature?.headline ?? carName}
+          carShortName={carShortName} theme={theme}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          onBack={onBack} onNext={onNext} dots={dotsProps} />
+      )
+    }
+
     // spec
     return (
       <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
@@ -792,26 +956,96 @@ export default function FeaturedPage() {
       </div>
 
       {/* Cover chrome — template switcher + dots */}
-      {pageIdx === 0 && !isTurning && (
+      {pageIdx === 0 && !isTurning && !adjusting && (
         <>
           <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
             Cover {coverIdx+1}/{TEMPLATES.length} · {t.name}
           </div>
-          {photos.length > 1 && (
-            <div onClick={() => setPhotoIdx(p=>(p+1)%photos.length)}
-              style={{ position:'absolute', top:48, right:12, zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'#f5f5f5', background:'rgba(0,0,0,0.55)', border:'1px solid rgba(245,245,245,0.35)', padding:'5px 9px', cursor:'pointer' }}>
-              Photo ▸ {photo?.label??'—'}
-            </div>
-          )}
+          <div style={{ position:'absolute', top:48, right:12, zIndex:20, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
+            {photos.length > 1 && (
+              <div onClick={() => setPhotoIdx(p=>(p+1)%photos.length)} style={COVER_CHIP}>
+                Photo ▸ {photo?.label??'—'}
+              </div>
+            )}
+            {photo?.mode === 'full' && (
+              <div onClick={enterAdjust} style={COVER_CHIP}>Frame ⤢</div>
+            )}
+            {car && (
+              <div onClick={openStory} style={COVER_CHIP}>{car.featured_story?.trim() ? 'Story ✎' : 'Write Story ✎'}</div>
+            )}
+          </div>
           <div onClick={() => cycleCover(-1)} style={{ position:'absolute', top:'30%', bottom:'22%', left:0, width:'26%', zIndex:15 }} />
           <div onClick={() => cycleCover(1)}  style={{ position:'absolute', top:'30%', bottom:'22%', right:0, width:'22%', zIndex:15 }} />
           <div style={{ position:'absolute', bottom:6, left:0, right:0, display:'flex', justifyContent:'center', gap:6, zIndex:20 }}>
             {TEMPLATES.map((tp,i) => (
-              <div key={tp.id} onClick={() => setCoverIdx(i)}
+              <div key={tp.id} onClick={() => { userPickedCoverRef.current = true; setCoverIdx(i) }}
                 style={{ width:i===coverIdx?16:6, height:6, borderRadius:3, background:i===coverIdx?COLOR_ACCENT:'rgba(245,245,245,0.4)', transition:`all 200ms ${EASING_SETTLE}`, cursor:'pointer' }} />
             ))}
           </div>
         </>
+      )}
+
+      {/* ── Cover framing adjust mode ── */}
+      {adjusting && (
+        <div
+          style={{ position:'absolute', inset:0, zIndex:25, touchAction:'none' }}
+          onTouchStart={onAdjTouchStart}
+          onTouchMove={onAdjTouchMove}
+          onTouchEnd={onAdjTouchEnd}
+        >
+          {/* cover-rect outline */}
+          <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', border:`1.5px dashed ${COLOR_ACCENT}`, boxSizing:'border-box', pointerEvents:'none' }} />
+          <div style={{ position:'absolute', top:16, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
+            Drag to position · pinch to zoom
+          </div>
+          <div style={{ position:'absolute', top:36, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.12em', color:'rgba(245,245,245,0.6)', pointerEvents:'none' }}>
+            {Math.round(zoom * 100)}%
+          </div>
+          {frameErr && (
+            <div style={{ position:'absolute', bottom:96, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontSize:11, color:'#e08a6e', textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>{frameErr}</div>
+          )}
+          <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', justifyContent:'center', gap:12 }}>
+            <button onClick={cancelAdjust}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:'#f5f5f5', background:'rgba(0,0,0,0.6)', border:'1px solid rgba(245,245,245,0.4)', padding:'11px 22px', cursor:'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={saveAdjust} disabled={savingFrame}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'11px 26px', cursor:'pointer', opacity:savingFrame?0.6:1 }}>
+              {savingFrame ? 'Saving…' : 'Save Framing'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Feature story compose sheet ── */}
+      {storyOpen && (
+        <div style={{ position:'absolute', inset:0, zIndex:60, background:'rgba(0,0,0,0.72)', display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <div style={{ background:'#15151a', padding:'20px 18px calc(18px + env(safe-area-inset-bottom))', maxHeight:'86dvh', display:'flex', flexDirection:'column' }}>
+            <div style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:'#f0ede8', fontSize:20, textTransform:'uppercase', letterSpacing:'0.01em', marginBottom:4 }}>The Feature Story</div>
+            <p style={{ fontFamily:FONT_DECK, fontWeight:500, fontSize:11, color:'rgba(240,237,232,0.55)', lineHeight:1.5, margin:'0 0 12px' }}>
+              Written like a magazine would write about the car — third person, present tense.
+              Your first-person story lives on the Timeline; this is the editorial version.
+            </p>
+            <textarea
+              value={storyDraft}
+              onChange={e => setStoryDraft(e.target.value)}
+              placeholder="Park next to it and the first thing you notice is the stance…"
+              style={{ flex:1, minHeight:'34dvh', resize:'none', background:'rgba(240,237,232,0.06)', border:'1px solid rgba(240,237,232,0.16)',
+                color:'#f0ede8', fontFamily:FONT_TITLE, fontStyle:'italic', fontSize:16, lineHeight:1.55, padding:'12px 14px', outline:'none', boxSizing:'border-box' }}
+            />
+            {storyErr && <p style={{ fontFamily:FONT_DECK, fontSize:11, color:'#e08a6e', margin:'10px 0 0' }}>{storyErr}</p>}
+            <div style={{ display:'flex', gap:10, marginTop:14 }}>
+              <button onClick={() => setStoryOpen(false)} disabled={savingStory}
+                style={{ flex:1, fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.16em', textTransform:'uppercase', color:'#f0ede8', background:'transparent', border:'1px solid rgba(240,237,232,0.3)', padding:'13px 0', cursor:'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={saveStory} disabled={savingStory}
+                style={{ flex:2, fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.16em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'13px 0', cursor:'pointer', opacity:savingStory?0.6:1 }}>
+                {savingStory ? 'Saving…' : 'Publish to the Issue'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
 
@@ -998,6 +1232,10 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
 
 function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
+  const [heroAspect, setHeroAspect] = useState<number | null>(null)
+  // Ultra-wide hero → "double truck": full-bleed edge to edge with a center
+  // fold crease, like a car running across the gutter of facing pages.
+  const doubleTruck = (heroAspect ?? 0) >= 1.9
   const onAspect = (url: string) => (r: number) =>
     setAspects(prev => (prev[url] === r ? prev : { ...prev, [url]: r }))
   const aspectOf = (p: PhotoItem) => aspects[p.url] ?? 1.5
@@ -1052,17 +1290,33 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
 
       {/* Hero photo — aligned to the content column: 30px spine gutter left,
           14px margin right (matches the support photo area, so it never reads
-          as bleeding off the page edge). */}
+          as bleeding off the page edge). Ultra-wide photos instead go full
+          bleed with a center fold crease (double-truck spread). */}
       {heroPhoto && (
         <div style={{ flex:'0 0 52%', position:'relative', overflow:'hidden' }}>
           <img
             src={near ? heroPhoto.url : undefined} alt=""
             decoding="async"
-            style={{ position:'absolute', top:0, bottom:0, left:30, width:'calc(100% - 44px)', height:'100%',
-              objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
+            onLoad={(e) => { const img = e.currentTarget; setHeroAspect(img.naturalWidth / img.naturalHeight) }}
+            style={doubleTruck
+              ? { position:'absolute', inset:0, width:'100%', height:'100%',
+                  objectFit:'cover', display:'block', filter: PHOTO_FILTER }
+              : { position:'absolute', top:0, bottom:0, left:30, width:'calc(100% - 44px)', height:'100%',
+                  objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
           />
+          {doubleTruck && (
+            <>
+              {/* center fold crease — shadow into the gutter, highlight off it */}
+              <div style={{ position:'absolute', top:0, bottom:0, left:'50%', width:44, transform:'translateX(-50%)', pointerEvents:'none',
+                background:'linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.16) 38%, rgba(0,0,0,0.34) 50%, rgba(255,255,255,0.10) 56%, transparent 100%)' }} />
+              <span style={{ position:'absolute', top:7, right:8, fontFamily:FONT_DECK, fontWeight:700, fontSize:6.5, letterSpacing:'0.26em', textTransform:'uppercase',
+                color:'rgba(245,245,245,0.85)', background:'rgba(0,0,0,0.4)', padding:'3px 6px', pointerEvents:'none' }}>
+                Full Spread
+              </span>
+            </>
+          )}
           {heroPhoto.caption && (
-            <div style={{ position:'absolute', bottom:0, left:30, right:14,
+            <div style={{ position:'absolute', bottom:0, left:doubleTruck ? 0 : 30, right:doubleTruck ? 0 : 14,
               background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
               padding:'24px 10px 8px' }}>
               <div style={{ display:'flex', alignItems:'flex-start', gap:3 }}>
@@ -1097,6 +1351,65 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
           ))}
         </div>
       )}
+
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
+      <div style={NOISE_OVERLAY} />
+    </div>
+  )
+}
+
+// ─── StoryPage (interior) — the user-written feature article ─────────────────────
+// Magazine voice, written by the owner via the cover "Story ✎" chip. Drop cap,
+// Cormorant body, byline. Fixed height with a bottom fade if the text overruns.
+interface StoryPageProps {
+  story: string; headline: string; carShortName: string; theme: InteriorTheme
+  backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
+  dots?: { count: number; active: number }
+}
+function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }: StoryPageProps) {
+  const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
+  const first = paras[0] ?? ''
+  const rest  = paras.slice(1)
+  return (
+    <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div style={SPINE_GUTTER} />
+
+      {/* Hairline kicker — mirrors the photo spread */}
+      <div style={{ flexShrink:0, padding:'8px 14px 5px 30px' }}>
+        <div style={{ height:'0.5px', background:theme.rule, marginBottom:5 }} />
+        <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
+          THE FEATURE · {carShortName.toUpperCase()}
+        </div>
+      </div>
+
+      {/* Headline */}
+      <div style={{ flexShrink:0, padding:'6px 16px 0 30px' }}>
+        <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontStyle:'italic', textTransform:'uppercase',
+          fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em' }}>
+          {headline}
+        </div>
+        <div style={{ height:2, background:theme.accent, width:44, margin:'10px 0 0' }} />
+      </div>
+
+      {/* Body — drop cap on the opening paragraph */}
+      <div style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
+        <p style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>
+          <span style={{ float:'left', fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:theme.accent,
+            fontSize:46, lineHeight:0.78, paddingRight:7, paddingTop:3 }}>
+            {first.charAt(0)}
+          </span>
+          {first.slice(1)}
+        </p>
+        {rest.map((p, i) => (
+          <p key={i} style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>{p}</p>
+        ))}
+        <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.subInk, margin:'16px 0 18px' }}>
+          — As told to G-Dimension
+        </div>
+        {/* bottom fade so an overrun clips gracefully */}
+        <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
+          background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
+      </div>
 
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />

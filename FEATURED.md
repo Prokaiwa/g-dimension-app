@@ -1,6 +1,12 @@
 # Featured — Magazine Section (Plan & Handoff)
 
-**Status:** Cover prototype built and iterating. Interior spreads + page-turn feel not built yet.
+**Status:** Cover + interior book BUILT (Cover → Photo Spreads → Story → Spec Sheet) with the fold-line page turn, folio dots, editorial engine captions/headlines. Cover framing (drag/pinch, migration 052), user-written feature story (052), brightness-based masthead auto-pick, and the double-truck centerfold hero are in. §2 of "Scrapped/updated decisions" below supersedes parts of §4.
+
+**Scrapped/updated decisions (2026-06-12):**
+1. **Auto-pulled Story spread is SCRAPPED.** Timeline prose (first-person diary voice) must never be auto-typeset into the magazine — wrong register. Instead `cars.featured_story` (migration 052) holds an optional **user-written magazine-voice article**; the book only gets a Story page when it's written (cover "Story ✎" chip → compose sheet).
+2. **Cover framing shipped as §4.5 layer 1** (reposition + zoom, persisted as `cover_focus_x/y` + `cover_zoom`, NULL = unframed → legacy contain heuristics). Layer 2 (bbox seed) not done — bbox isn't persisted at upload yet. Layer 3 exists as the "No BG" cutout toggle.
+3. **feDisplacementMap gutter warp SKIPPED** — feImage+displacement is unreliable on iOS Safari (the primary device). The binding depth shipped instead: fold-line page turn, spine gutter shading, and the **double-truck centerfold** (hero photos with aspect ≥ 1.9 go full-bleed with a center fold crease + "Full Spread" tag).
+4. **Public Featured (on /builds/:username) DEFERRED** — `/builds/:username` itself is still an unbuilt stub; open product question: is the public profile a page *containing* the magazine, or IS the magazine the public profile? Migration 052 already exposes everything the public cover/story needs via `public_car_profiles`.
 **Route:** `/featured` (replaced the old `/photos` stub on the Home map).
 **Read this before touching:** `src/pages/FeaturedPage.tsx`, the Home "Featured" node in `HomePage.tsx`, or the car-photo upload pipeline (`carPhoto.ts` / `CarPhotoUpload.tsx`).
 
