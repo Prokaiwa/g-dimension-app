@@ -79,6 +79,8 @@ export default function EntryDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [delErr, setDelErr] = useState<string | null>(null)
+  const [carouselIdx, setCarouselIdx] = useState(0)
+  const carouselRef = useRef<HTMLDivElement>(null)
 
   // Gallery carousel + fullscreen viewer
   const [viewerOpen, setViewerOpen]       = useState(false)
@@ -255,17 +257,23 @@ export default function EntryDetailPage() {
     <div style={{ paddingBottom: isNote ? 96 : 40 }}>
       {/* Photo carousel — all photos, hero first */}
       {photos.length > 0 && (
-        <div style={{ marginBottom: 0 }}>
-          <div style={{
-            display: 'flex',
-            overflowX: 'scroll',
-            scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            gap: 0,
-            paddingBottom: 0,
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'none',
-          } as React.CSSProperties}>
+        <div style={{ marginBottom: 0, position: 'relative' }}>
+          <div
+            ref={carouselRef}
+            onScroll={() => {
+              const el = carouselRef.current
+              if (el) setCarouselIdx(Math.round(el.scrollLeft / el.clientWidth))
+            }}
+            style={{
+              display: 'flex',
+              overflowX: 'scroll',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+              gap: 0,
+              paddingBottom: 0,
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+            } as React.CSSProperties}>
             {photos.map((src, i) => (
               <div
                 key={i}
@@ -292,6 +300,14 @@ export default function EntryDetailPage() {
               </div>
             ))}
           </div>
+          {/* Dot indicators — only shown when there are multiple photos */}
+          {photos.length > 1 && (
+            <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
+              {photos.map((_, i) => (
+                <div key={i} style={{ width: i === carouselIdx ? 14 : 5, height: 5, borderRadius: 3, background: i === carouselIdx ? 'rgba(245,240,230,0.9)' : 'rgba(245,240,230,0.35)', transition: 'all 200ms ease' }} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

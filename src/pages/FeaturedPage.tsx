@@ -129,7 +129,7 @@ function buildSpecSections(car: Car | null, grouped: Record<string,Job[]>, purch
     if (!js || js.length === 0) continue
     const all = js.map(j => ({
       label: j.part_type_name || j.category || 'Part',
-      value: [j.brand, j.title].filter(Boolean).join(' ') || '—',
+      value: j.title || '—',
     }))
     const rows = all.slice(0, MAX_ROWS_PER_GROUP)
     sections.push({ title: GROUP_LABELS[g], rows, moreCount: all.length - rows.length })
@@ -731,13 +731,15 @@ export default function FeaturedPage() {
       )
     }
 
+    const dotsProps = pages.length > 1 ? { count: pages.length, active: i } : undefined
+
     if (pg.kind === 'photo') {
       return (
         <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
-          onBack={onBack} onNext={onNext} />
+          onBack={onBack} onNext={onNext} dots={dotsProps} />
       )
     }
 
@@ -746,7 +748,7 @@ export default function FeaturedPage() {
       <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
         totalMods={jobs.length} carShortName={carShortName}
         backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
-        onBack={onBack} onNext={onNext} />
+        onBack={onBack} onNext={onNext} dots={dotsProps} />
     )
   }
 
@@ -812,14 +814,6 @@ export default function FeaturedPage() {
         </>
       )}
 
-      {/* Page progress dots on interior pages */}
-      {pageIdx > 0 && !isTurning && pages.length > 1 && (
-        <div style={{ position:'absolute', bottom:52, left:0, right:0, display:'flex', justifyContent:'center', gap:5, zIndex:20, pointerEvents:'none' }}>
-          {pages.map((_,i) => (
-            <div key={i} style={{ width:i===pageIdx?14:5, height:5, borderRadius:3, background:i===pageIdx?theme.accent:'rgba(0,0,0,0.2)', transition:`all 200ms ${EASING_SETTLE}` }} />
-          ))}
-        </div>
-      )}
 
       <style>{`
         @keyframes featFade { from { opacity:0 } to { opacity:1 } }
@@ -905,13 +899,20 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
 }
 
 // Folio bar — back/forward labels derived from neighbor pages; last page shows the
-// page number instead of a forward link.
-function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext }:
-  { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void }) {
+// page number instead of a forward link. When dots are provided the center slot
+// shows page progress indicators instead of the GDIMENSION.APP watermark.
+function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }:
+  { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
   return (
     <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
       <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onBack?'pointer':'default', padding:'4px 0' }}>‹ {backLabel}</div>
-      <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>
+      {dots && dots.count > 1
+        ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+            {Array.from({ length: dots.count }, (_, i) => (
+              <div key={i} style={{ width: i === dots.active ? 12 : 4, height: 4, borderRadius: 2, background: i === dots.active ? theme.accent : theme.rule, transition:`all 200ms ${EASING_SETTLE}` }} />
+            ))}
+          </div>
+        : <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>}
       {nextLabel
         ? <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onNext?'pointer':'default', padding:'4px 0' }}>{nextLabel} ›</div>
         : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>}
@@ -941,6 +942,7 @@ interface PhotoSpreadProps {
    *  stay dormant until the idle preloader / page turn brings them near. */
   near?: boolean
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
+  dots?: { count: number; active: number }
 }
 
 interface PhotoCellProps {
@@ -969,14 +971,16 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, onAspect }: P
       </div>
       <div style={{ flexShrink:0 }}>
         {item.caption && (
-          <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', marginTop:4,
-            overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:3, marginTop:4 }}>
             {figureNum !== undefined && (
-              <span style={{ fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', marginRight:4 }}>
+              <span style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', lineHeight:'13px' }}>
                 {String(figureNum).padStart(2, '0')}
               </span>
             )}
-            {item.caption}
+            <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em',
+              overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
+              {item.caption}
+            </div>
           </div>
         )}
       </div>
@@ -984,7 +988,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, onAspect }: P
   )
 }
 
-function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext }: PhotoSpreadProps) {
+function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const onAspect = (url: string) => (r: number) =>
     setAspects(prev => (prev[url] === r ? prev : { ...prev, [url]: r }))
@@ -1038,26 +1042,29 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
         </div>
       </div>
 
-      {/* Hero photo — full-bleed, no border, caption scrim overlay */}
+      {/* Hero photo — full-bleed, no border, caption scrim overlay. Left edge aligns
+          with the spine gutter (30px) via img left offset; right edge fills the page. */}
       {heroPhoto && (
-        <div style={{ flex:'0 0 52%', position:'relative', marginLeft:30, overflow:'hidden' }}>
+        <div style={{ flex:'0 0 52%', position:'relative', overflow:'hidden' }}>
           <img
             src={near ? heroPhoto.url : undefined} alt=""
             decoding="async"
-            style={{ position:'absolute', inset:0, width:'100%', height:'100%',
+            style={{ position:'absolute', top:0, bottom:0, left:30, right:0, width:'calc(100% - 30px)', height:'100%',
               objectFit:'cover', display:'block', filter: PHOTO_FILTER }}
           />
           {heroPhoto.caption && (
-            <div style={{ position:'absolute', bottom:0, left:0, right:0,
+            <div style={{ position:'absolute', bottom:0, left:30, right:0,
               background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
               padding:'24px 10px 8px' }}>
-              <div style={{ fontFamily:FONT_DECK, color:'#f0ede8', fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em' }}>
+              <div style={{ display:'flex', alignItems:'flex-start', gap:3 }}>
                 {figureNums[heroPhoto.url] !== undefined && (
-                  <span style={{ fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', marginRight:4 }}>
+                  <span style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', lineHeight:'13px' }}>
                     {String(figureNums[heroPhoto.url]).padStart(2, '0')}
                   </span>
                 )}
-                {heroPhoto.caption}
+                <span style={{ fontFamily:FONT_DECK, color:'#f0ede8', fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em' }}>
+                  {heroPhoto.caption}
+                </span>
               </div>
             </div>
           )}
@@ -1081,7 +1088,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
         </div>
       )}
 
-      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />
     </div>
   )
@@ -1092,8 +1099,9 @@ interface SpecSheetProps {
   sections: SpecSection[]; isCont: boolean; theme: InteriorTheme
   totalMods: number; carShortName: string
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
+  dots?: { count: number; active: number }
 }
-function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext }: SpecSheetProps) {
+function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext, dots }: SpecSheetProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
@@ -1139,7 +1147,7 @@ function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel
         ))}
       </div>
 
-      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />
     </div>
   )

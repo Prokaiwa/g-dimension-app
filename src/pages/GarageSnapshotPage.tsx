@@ -115,11 +115,14 @@ function DateCell({ label, due, wide, route }: { label: string; due: string | nu
   )
 }
 
-// Contact cell — name + phone, taps through to the contact book.
-function ContactCell({ name, phone, wide }: { name: string; phone: string | null; wide?: boolean }) {
+// Contact cell — role/label + name + phone, taps through to the contact book.
+function ContactCell({ name, label, phone, wide }: { name: string; label: string | null; phone: string | null; wide?: boolean }) {
   const navigate = useNavigate()
   return (
     <button onClick={() => navigate('/garage/contacts')} style={{ display: 'flex', flexDirection: 'column', padding: '10px 12px', background: CARD_BG, border: `1px solid ${BORDER}`, gridColumn: wide ? '1 / -1' : undefined, cursor: 'pointer', textAlign: 'left' }}>
+      {label && (
+        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: TEXT_MUTED, marginBottom: 2 }}>{label}</span>
+      )}
       <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, lineHeight: 1.2, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
       <span style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>{phone || '—'}</span>
     </button>
@@ -384,7 +387,7 @@ export default function GarageSnapshotPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
               {contacts.length > 0 ? (
                 contacts.map(c => (
-                  <ContactCell key={c.id} name={(c.name && c.name.trim()) || c.label || 'Contact'} phone={c.phone} wide />
+                  <ContactCell key={c.id} name={(c.name && c.name.trim()) || 'Contact'} label={c.label} phone={c.phone} wide />
                 ))
               ) : (
                 <StubCell label="Contacts" route="/garage/contacts" wide />

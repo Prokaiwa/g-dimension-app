@@ -763,27 +763,28 @@ export default function GarageDocumentsPage() {
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
                       {buildReceipts.map((r, i) => {
-                        const title = r.vendor || r.file_name || 'Receipt'
-                        // Connection line: part-level shows job title; service-level shows session label
                         const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
-                        const connectionLine = r.job_id
-                          ? (jobTitleMap[r.job_id] || null)
-                          : (sessionInfo
-                              ? `${sessionInfo.label}${sessionInfo.date ? ' · ' + fmtDate(sessionInfo.date) : ''}`
-                              : null)
-                        // Always show a date — receipt_date → session date → created_at
-                        const displayDate = r.receipt_date
-                          ?? sessionInfo?.date
-                          ?? r.created_at
+                        // Service receipt: show the service name as primary title.
+                        // Part receipt: show the job/part title as primary title.
+                        const primaryTitle = r.job_id
+                          ? (jobTitleMap[r.job_id] || r.vendor || r.file_name || 'Part Receipt')
+                          : (sessionInfo?.label || r.vendor || r.file_name || 'Service Receipt')
+                        // Secondary line: vendor name (if different from primary)
+                        const secondaryLine = r.vendor && r.vendor !== primaryTitle ? r.vendor : null
+                        // Date: receipt_date → session date → created_at
+                        const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
                         return (
                           <button
                             key={r.id}
-                            onClick={() => openSigned('receipts', r.file_url)}
-                            disabled={!r.file_url}
+                            onClick={() => {
+                              if (r.file_url) openSigned('receipts', r.file_url)
+                              else if (!r.job_id && r.session_id) navigate(`/maintenance/${r.session_id}`)
+                              else if (r.job_id) navigate(`/tuning/mods/${r.job_id}`)
+                            }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: SPACE_MD, width: '100%', textAlign: 'left',
                               background: 'rgba(240,228,200,0.04)', border: `1px solid ${FAINT}`,
-                              padding: `${SPACE_SM}px ${SPACE_MD}px`, cursor: r.file_url ? 'pointer' : 'default',
+                              padding: `${SPACE_SM}px ${SPACE_MD}px`, cursor: 'pointer',
                               WebkitTapHighlightColor: 'transparent',
                               animation: `docIn 420ms ${EASING_SETTLE} ${i * 40}ms both`,
                             }}
@@ -793,13 +794,13 @@ export default function GarageDocumentsPage() {
                               color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '3px 6px',
                             }}>{r.job_id ? 'Part' : 'Service'}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</p>
-                              {connectionLine && (
-                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{connectionLine}</p>
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryTitle}</p>
+                              {secondaryLine && (
+                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{secondaryLine}</p>
                               )}
-                              {/* Always render a date line */}
+                              {/* Date + file indicator */}
                               <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>
-                                {fmtDate(displayDate) ?? ''}
+                                {fmtDate(displayDate) ?? ''}{r.file_url ? ' · tap to view file' : ' · tap to view'}
                               </p>
                             </div>
                             {fmtMoney(r.amount, r.currency) && (
