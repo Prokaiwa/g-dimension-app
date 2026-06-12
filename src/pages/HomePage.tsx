@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
-import { avatarThumbUrl } from '../lib/avatar'
+import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
 import { playTick, playConfirm } from '../lib/sound'
 import iconFeatured from '../assets/icons/home/home_featured.png'
 import {
@@ -122,7 +122,7 @@ export default function HomePage() {
     getCurrentUserProfile().then(p => {
       if (!p) return
       setDisplayName(profileName(p))
-      setAvatarUrl(p.avatar_url)
+      setAvatarUrl(p.avatar_url ?? '')  // '' = loaded, no avatar (null = still loading)
     })
     getActiveCarId().then(carId => {
       if (!carId) return
@@ -338,13 +338,19 @@ export default function HomePage() {
     }
   }, [])
 
-  // Header avatar: try the tiny transform render first (~few KB), fall back to
-  // the full public URL if the transform endpoint isn't available.
-  const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
+  // Header avatar: render the device-cached thumbnail immediately (even before
+  // the profile query returns), then reconcile once avatar_url is known. First
+  // visit fetches the full image and caches a ~3KB downscaled copy for next time.
+  const [avatarSrc, setAvatarSrc] = useState<string | null>(() => getCachedAvatarThumb()?.dataUrl ?? null)
   const [avatarLoaded, setAvatarLoaded] = useState(false)
   useEffect(() => {
-    setAvatarLoaded(false)
-    setAvatarSrc(avatarUrl ? avatarThumbUrl(avatarUrl, 56) : null)
+    if (avatarUrl === null) return  // profile not loaded yet — keep optimistic cache
+    if (!avatarUrl) { setAvatarSrc(null); clearAvatarThumbCache(); return }
+    const cached = getCachedAvatarThumb()
+    if (cached?.url === avatarUrl) { setAvatarSrc(cached.dataUrl); return }
+    // New/changed avatar: show the full URL now, cache the tiny copy for next open.
+    setAvatarSrc(avatarUrl)
+    cacheAvatarThumb(avatarUrl)
   }, [avatarUrl])
 
   return (

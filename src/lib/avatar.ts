@@ -38,6 +38,45 @@ export function avatarThumbUrl(url: string, size = 56): string {
   return url.replace(marker, '/storage/v1/render/image/public/') + `?width=${size}&height=${size}&resize=cover&quality=80`
 }
 
+// ── Device-local thumbnail cache ─────────────────────────────────────────────
+// The header avatar should be instant, not a network round-trip on every app
+// open. After the first load we downscale the avatar to a ~3KB JPEG data URL
+// and keep it in localStorage keyed by the source URL; subsequent renders pull
+// straight from there. Reconciled against users.avatar_url whenever the
+// profile loads, so a changed avatar refreshes itself.
+const THUMB_CACHE_KEY = 'gdim_avatar_thumb_v1'
+const THUMB_SIZE = 112  // 2x the 56px header circle
+
+export function getCachedAvatarThumb(): { url: string; dataUrl: string } | null {
+  try {
+    const raw = localStorage.getItem(THUMB_CACHE_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw) as { url?: string; dataUrl?: string }
+    return c?.url && c?.dataUrl ? { url: c.url, dataUrl: c.dataUrl } : null
+  } catch { return null }
+}
+
+export async function cacheAvatarThumb(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const bmp = await createImageBitmap(await res.blob())
+    const canvas = document.createElement('canvas')
+    canvas.width = THUMB_SIZE; canvas.height = THUMB_SIZE
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    const s = Math.min(bmp.width, bmp.height)  // cover-crop from center
+    ctx.drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, THUMB_SIZE, THUMB_SIZE)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+    localStorage.setItem(THUMB_CACHE_KEY, JSON.stringify({ url, dataUrl }))
+    return dataUrl
+  } catch { return null }
+}
+
+export function clearAvatarThumbCache() {
+  try { localStorage.removeItem(THUMB_CACHE_KEY) } catch { /* ignore */ }
+}
+
 // Compress, upload under the user's own folder, prune the old file, and return
 // the new public URL. Throws on upload failure (caller surfaces the error).
 export async function uploadAvatar(

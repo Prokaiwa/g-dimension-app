@@ -952,36 +952,40 @@ interface PhotoCellProps {
   near?: boolean
   /** Horizontal placement within the cell — solo rows alternate for editorial variety. */
   justify?: 'flex-start' | 'flex-end' | 'center'
-  aspect: number
   onAspect?: (ratio: number) => void
 }
 const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
 
-function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', aspect, onAspect }: PhotoCellProps) {
+function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', onAspect }: PhotoCellProps) {
+  // Image letterboxes at natural fitted size (absolute + margin auto — proven
+  // layout); the horizontal margin and the caption row share the same edge so
+  // the label always hugs its photo instead of the page margin.
+  const imgMargin = justify === 'flex-start' ? 'auto auto auto 0'
+                  : justify === 'flex-end'   ? 'auto 0 auto auto'
+                  : 'auto'
   return (
-    <div style={{ flex: flexVal ?? 1, display:'flex', justifyContent: justify, minWidth:0, minHeight:0 }}>
-      {/* Figure column shrink-wraps to the photo's rendered width — the caption
-          sits directly under the image, never at the page margin. */}
-      <div style={{ display:'flex', flexDirection:'column', minWidth:0, maxWidth:'100%' }}>
-        <div style={{ flex:1, minHeight:0, aspectRatio: String(aspect), maxWidth:'100%', position:'relative' }}>
-          <img
-            src={near ? item.url : undefined} alt=""
-            decoding="async"
-            onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
-            style={{ position:'absolute', inset:0, width:'100%', height:'100%',
-              objectFit:'cover', boxSizing:'border-box', display:'block',
-              border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
-              filter: PHOTO_FILTER }}
-          />
-        </div>
+    <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
+      <div style={{ flex:1, minHeight:0, position:'relative' }}>
+        <img
+          src={near ? item.url : undefined} alt=""
+          decoding="async"
+          onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
+          style={{ position:'absolute', inset:0, margin:imgMargin, maxWidth:'100%', maxHeight:'100%',
+            width:'auto', height:'auto', boxSizing:'border-box', display:'block',
+            border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
+            filter: PHOTO_FILTER }}
+        />
+      </div>
+      <div style={{ flexShrink:0 }}>
         {item.caption && (
-          <div style={{ width:0, minWidth:'100%', flexShrink:0, display:'flex', alignItems:'flex-start', gap:3, marginTop:4 }}>
+          <div style={{ display:'flex', justifyContent:justify, alignItems:'flex-start', gap:3, marginTop:4 }}>
             {figureNum !== undefined && (
               <span style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', lineHeight:'13px' }}>
                 {String(figureNum).padStart(2, '0')}
               </span>
             )}
             <div style={{ fontFamily:FONT_DECK, color:theme.subInk, fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em',
+              textAlign: justify === 'flex-end' ? 'right' : 'left',
               overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const }}>
               {item.caption}
             </div>
@@ -1086,7 +1090,6 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
                   flexVal={aspectOf(p)}
                   figureNum={figureNums[p.url]}
                   near={near}
-                  aspect={aspectOf(p)}
                   justify={row.length === 1 ? ((ri + arrangement) % 2 === 0 ? 'flex-start' : 'flex-end') : 'center'}
                   onAspect={onAspect(p.url)} />
               ))}
