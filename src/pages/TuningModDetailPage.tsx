@@ -99,6 +99,24 @@ export default function TuningModDetailPage() {
   const [viewerDragY,     setViewerDragY]     = useState(0)
   const [viewerDragX,     setViewerDragX]     = useState(0)
   const [viewerDragging,  setViewerDragging]  = useState(false)
+  const [loadedUrls,      setLoadedUrls]      = useState<Set<string>>(new Set())
+
+  // ── idle preload: warm the previous + next carousel photos ───────────────────
+  useEffect(() => {
+    if (photos.length < 2) return
+    const neighbors = [photos[photoIndex - 1], photos[photoIndex + 1]]
+      .filter(Boolean)
+      .map(p => p!.photo_url)
+    if (neighbors.length === 0) return
+    const doPreload = () => { for (const u of neighbors) { const img = new Image(); img.src = u } }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = (window as typeof window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
+        .requestIdleCallback(doPreload, { timeout: 2000 })
+      return () => (window as typeof window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id)
+    }
+    const id = setTimeout(doPreload, 300)
+    return () => clearTimeout(id)
+  }, [photoIndex, photos])
 
   const touchStartX       = useRef<number>(0)
   const viewerTouchStartY = useRef<number>(0)
@@ -368,7 +386,13 @@ export default function TuningModDetailPage() {
                     key={photo.id}
                     src={photo.photo_url}
                     alt=""
-                    style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }}
+                    decoding="async"
+                    onLoad={() => setLoadedUrls(prev => prev.has(photo.photo_url) ? prev : new Set(prev).add(photo.photo_url))}
+                    style={{
+                      width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block',
+                      opacity: loadedUrls.has(photo.photo_url) ? 1 : 0,
+                      transition: 'opacity 200ms ease',
+                    }}
                   />
                 ))}
               </div>

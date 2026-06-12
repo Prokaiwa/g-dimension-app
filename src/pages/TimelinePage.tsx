@@ -134,6 +134,26 @@ function Reveal({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Photo-print thumbnail that fades in once its (full-size) image decodes —
+// a slow thumbnail no longer pops in inside an already-revealed card.
+function ThumbImg({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <img
+      src={src} alt="" aria-hidden decoding="async"
+      onLoad={() => setLoaded(true)}
+      onError={ev => {
+        const el = ev.currentTarget.parentElement as HTMLElement | null
+        if (el) el.style.display = 'none'
+      }}
+      style={{
+        display: 'block', width: '100%', height: '100%', objectFit: 'cover',
+        opacity: loaded ? 1 : 0, transition: 'opacity 260ms ease',
+      }}
+    />
+  )
+}
+
 // Entry block whose spine segment draws downward as it scrolls into view,
 // the node dot popping in once the thread reaches it.
 function EntryBlock({ accent, isLast, children }: { accent: string; isLast: boolean; children: React.ReactNode }) {
@@ -496,14 +516,7 @@ export default function TimelinePage() {
                         boxShadow: '0 1px 5px rgba(0,0,0,0.14)',
                         background: '#fff',
                       }}>
-                        <img
-                          src={img} alt="" aria-hidden
-                          onError={ev => {
-                            const el = ev.currentTarget.parentElement as HTMLElement | null
-                            if (el) el.style.display = 'none'
-                          }}
-                          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
+                        <ThumbImg src={img} />
                       </div>
                     )}
                   </div>

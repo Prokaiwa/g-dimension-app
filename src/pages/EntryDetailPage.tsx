@@ -40,6 +40,18 @@ const TYPE_META: Record<EntryType, { label: string; color: string }> = {
   note:         { label: 'Note',          color: COLOR_TIMELINE_NOTE },
 }
 
+// Supabase photo that fades in on load (matches the CarStage idiom).
+function FadeImg({ src, style }: { src: string; style?: React.CSSProperties }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <img
+      src={src} alt="" aria-hidden decoding="async"
+      onLoad={() => setLoaded(true)}
+      style={{ ...style, opacity: loaded ? 1 : 0, transition: 'opacity 200ms ease' }}
+    />
+  )
+}
+
 type Entry = {
   id: string
   car_id: string
@@ -193,7 +205,7 @@ export default function EntryDetailPage() {
     <div style={{ paddingBottom: isNote ? 96 : 40 }}>
       {/* Hero */}
       {hero && (
-        <img src={hero} alt="" aria-hidden
+        <FadeImg src={hero}
           style={{ display: 'block', width: '100%', height: 300, objectFit: 'cover' }} />
       )}
 
@@ -232,7 +244,7 @@ export default function EntryDetailPage() {
         {gallery.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 22 }}>
             {gallery.map((src, i) => (
-              <img key={i} src={src} alt="" aria-hidden
+              <FadeImg key={i} src={src}
                 style={{ display: 'block', width: '100%', borderRadius: RADIUS_TIMELINE_CARD, border: `1px solid ${COLOR_TIMELINE_RULE}` }} />
             ))}
           </div>

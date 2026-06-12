@@ -16,6 +16,7 @@
 //
 // Coordinates (center-anchored) from MAP_NODE_* tokens — Part 8
 
+import { useState } from 'react'
 import {
   ICON_WRAPPER_STANDARD,
   ICON_WRAPPER_FOCAL,
@@ -61,6 +62,10 @@ export default function DestinationNode({
   position,
 }: DestinationNodeProps) {
   const size = isFocal ? ICON_WRAPPER_FOCAL : ICON_WRAPPER_STANDARD
+  // Safety-net fade so the icon never hard-pops in mid-zoom (cached PNGs load
+  // synchronously, so this is imperceptible normally). Does not touch the
+  // drop-shadow filter — only opacity animates.
+  const [loaded, setLoaded] = useState(false)
 
   return (
     <div
@@ -81,7 +86,15 @@ export default function DestinationNode({
         <img
           src={iconSrc}
           alt={label}
-          style={{ maxWidth: '100%', maxHeight: '100%', filter: SHADOW_ICON_STANDARD }}
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            filter: SHADOW_ICON_STANDARD,
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 180ms ease-out',
+          }}
         />
       </div>
       <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
