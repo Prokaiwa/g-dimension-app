@@ -11,7 +11,7 @@ import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import iconService    from '../assets/icons/maintenance/service.png'
 import iconDetail     from '../assets/icons/maintenance/maintenance_detail.png'
-import maintenanceHero from '../assets/backgrounds/maintenance_hero.png'
+import maintenanceHero from '../assets/backgrounds/maintenance_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import garagePlaceholder from '../assets/garage_placeholder.png'
+import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,

@@ -9,7 +9,7 @@ import imageCompression from 'browser-image-compression'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import carwashIcon from '../assets/icons/maintenance/carwash_icon.png'
+import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_TIMELINE_DETAIL,

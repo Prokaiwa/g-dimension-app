@@ -17,7 +17,7 @@ import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
 } from '../tokens'
-import gLogo from '../assets/logo/gdimensionG.png'
+import gLogo from '../assets/logo/gdimensionG.webp'
 import { generateFeature } from '../features/featured/engine/generate'
 import type { PhotoSlot } from '../features/featured/engine/generate'
 

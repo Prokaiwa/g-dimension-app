@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
-import tuningHero     from '../assets/backgrounds/tuning_hero.png'
+import tuningHero     from '../assets/backgrounds/tuning_hero.webp'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
 import iconPartsBin   from '../assets/icons/tuning-dashboard/tuning_partsbin.png'
 import {

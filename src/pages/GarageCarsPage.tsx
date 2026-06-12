@@ -1,6 +1,6 @@
 // Route: /garage/cars — My Cars carousel + inline Add Car flow
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import garagePlaceholder from '../assets/garage_placeholder.png'
+import garagePlaceholder from '../assets/garage_placeholder.webp'
 import iconChoose from '../assets/icons/car-carousel/choose.png'
 import iconDetails from '../assets/icons/car-carousel/details.png'
 import { useNavigate, useLocation } from 'react-router-dom'

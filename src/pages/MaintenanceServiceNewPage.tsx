@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import gIcon from '../assets/logo/gdimensionG.png'
+import gIcon from '../assets/logo/gdimensionG.webp'
 import imageCompression from 'browser-image-compression'
 
 const JOB_CATS = ['Oil Change', 'Tires', 'Brakes', 'Fluids', 'Filters', 'Battery', 'Inspection', 'Custom']

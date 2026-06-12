@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import detailHero from '../assets/backgrounds/detail_hero.png'
+import detailHero from '../assets/backgrounds/detail_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_TIMELINE_DETAIL, COLOR_BURGUNDY_L,

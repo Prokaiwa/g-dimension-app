@@ -6,8 +6,8 @@ const DAY_LABEL   = String(_now.getDate())
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import gLogo from '../assets/logo/gdimensionG.png'
-import carwashIcon from '../assets/icons/maintenance/carwash_icon.png'
+import gLogo from '../assets/logo/gdimensionG.webp'
+import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_BURGUNDY_L,

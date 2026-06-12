@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import serviceHero from '../assets/backgrounds/service_hero.png'
+import serviceHero from '../assets/backgrounds/service_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_TIMELINE_SERVICE, COLOR_BURGUNDY_L,
