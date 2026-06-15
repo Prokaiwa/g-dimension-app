@@ -135,6 +135,7 @@ export default function PublicProfilePage() {
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [debug, setDebug] = useState<string>('')
 
   const stageRef   = useRef<HTMLDivElement>(null)
   const worldRef   = useRef<HTMLDivElement>(null)
@@ -164,6 +165,17 @@ export default function PublicProfilePage() {
           .eq('car_id', row.id),
       ])
       if (cancelled) return
+
+      // eslint-disable-next-line no-console
+      console.log('[pub] car_id', row.id, 'jobs', jobs.count, jobs.error, 'tl', tl.count, tl.error)
+      if (new URLSearchParams(window.location.search).get('debug') === '1') {
+        setDebug(
+          `car_id=${row.id}\n` +
+          `jobs.count=${jobs.count} err=${jobs.error ? jobs.error.message : '-'}\n` +
+          `tl.count=${tl.count} err=${tl.error ? tl.error.message : '-'}\n` +
+          `featured_flag=${row.show_featured_publicly}`,
+        )
+      }
 
       // Build Sheet / Timeline auto-hide via RLS (their count returns 0 when the
       // section is private). Featured has no count query, so gate it on the flag
@@ -605,6 +617,17 @@ export default function PublicProfilePage() {
           }}>G‑DIMENSION</span>
         </div>
       </div>
+
+      {/* Debug overlay (?debug=1 only) */}
+      {debug && (
+        <pre style={{
+          position: 'fixed', top: 50, left: 8, zIndex: 50,
+          background: 'rgba(10,12,16,0.92)', color: '#9fe6a0',
+          padding: '8px 10px', borderRadius: 6, fontSize: 10.5, lineHeight: 1.5,
+          fontFamily: 'ui-monospace, monospace', margin: 0, whiteSpace: 'pre-wrap',
+          maxWidth: '92vw',
+        }}>{debug}</pre>
+      )}
 
       {/* Toast (until read-only sub-screens land) */}
       {toast && (
