@@ -58,6 +58,18 @@ create policy "timeline_entries_public_read"
   );
 grant select on public.timeline_entries to anon;
 
+-- ── anon needs to read cars within the policy subqueries above ───────────────
+-- The jobs / timeline_entries anon policies each reference public.cars in a
+-- subquery, which is itself subject to cars RLS + table grants for the anon
+-- role. anon had NO grant on cars (only authenticated did) — so those subqueries
+-- silently returned nothing and the Build Sheet / Timeline nodes never appeared.
+-- A COLUMN-level grant (not the whole table) lets the gate columns be read while
+-- keeping VIN / plate / purchase price unreadable to anon at the table level.
+-- Row visibility is still limited to public cars by the existing
+-- cars_select_public policy.
+grant select (id, is_public, deleted_at, show_buildsheet_publicly, show_timeline_publicly)
+  on public.cars to anon;
+
 -- ── Refresh the public view: expose the flags, and hide the Featured story
 -- text when the Featured room is private (append-only column list) ──
 create or replace view public.public_car_profiles as
