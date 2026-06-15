@@ -1,18 +1,13 @@
 // Route: /builds/:username — Public Profile (the ONLY non-authenticated route).
 //
 // "Stepping into someone's world": a read-only mirror of the owner's Home map,
-// deliberately re-skinned so a visitor knows they're a guest — light paper
-// background, dark road, burgundy driver dot, graphite header, a "Leave" button
-// where the back chevron lives, and a "VISITING" tag instead of the date.
+// deliberately re-skinned so a visitor knows they're a guest — cool slate
+// background, graphite wedge header, burgundy driver dot, "Leave" top-left,
+// date chip + "Visiting @username" top-right. Maintenance is never exposed.
 //
-// The map is ADAPTIVE: a node only appears when the owner has content behind it
-// (a build sheet with mods, a timeline with entries, a Featured cover). The
-// layout template is chosen by how many nodes survive that filter (1–5), so a
-// bare car reads as an intentional short road, never an empty room. Maintenance
-// is never exposed here (sale-context data lives in the build PDF). A future
-// Guides node slots in as the 5th.
-//
-// Node taps are stubbed for now (read-only sub-screens are the next build).
+// ADAPTIVE map: a node only appears when the owner has content behind it.
+// One designed layout template per node count (1–5).
+// Node taps are stubbed — read-only sub-screens are the next build.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -23,55 +18,75 @@ import {
   COLOR_BRAND,
   FONT_UI,
   HEADER_HEIGHT,
+  HEADER_WEDGE_LEFT,
+  HEADER_WEDGE_RIGHT,
+  COLOR_HEADER_BLACK,
   ICON_WRAPPER_FOCAL,
   ICON_WRAPPER_STANDARD,
   FOCAL_UNDERLINE_W,
   FOCAL_UNDERLINE_H,
-  RADIUS_AVATAR,
   EASING_SETTLE,
 } from '../tokens'
 
+const _now        = new Date()
+const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTH_LABEL = MONTHS[_now.getMonth()]
+const DAY_LABEL   = String(_now.getDate())
+
 // ── Map geometry ────────────────────────────────────────────────────────────
-// A windy S-curve road between two points, bowed perpendicular by `bend` so the
-// dashed centreline reads like a mountain pass rather than a straight line.
+// Roads originate from the EDGE of each node circle (not the centre) so they
+// don't pass through the icon or label underneath. Offset = half icon size + margin.
 type Pt = { x: number; y: number }
+
+// Offset from node centre toward another point by `r` pixels.
+function edge(from: Pt, to: Pt, r: number): Pt {
+  const dx = to.x - from.x, dy = to.y - from.y
+  const len = Math.hypot(dx, dy) || 1
+  return { x: from.x + (dx / len) * r, y: from.y + (dy / len) * r }
+}
+
 function road(a: Pt, b: Pt, bend: number): string {
   const dx = b.x - a.x, dy = b.y - a.y
   const len = Math.hypot(dx, dy) || 1
-  const nx = -dy / len, ny = dx / len // unit perpendicular
+  const nx = -dy / len, ny = dx / len
   const c1 = { x: a.x + dx * 0.33 + nx * bend, y: a.y + dy * 0.33 + ny * bend }
   const c2 = { x: a.x + dx * 0.66 - nx * bend, y: a.y + dy * 0.66 - ny * bend }
-  return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} C ${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`
 }
 
-type Edge = { a: number; b: number; bend: number }
-type Template = { nodes: Pt[]; edges: Edge[] }
+// Icon radii used for road-edge offsets (focal node is larger)
+const R_FOCAL = (ICON_WRAPPER_FOCAL  * 0.85) / 2 + 6   // ~57px
+const R_STD   = (ICON_WRAPPER_STANDARD * 0.85) / 2 + 6 // ~43px
 
-// One designed layout per node count (390×800 viewBox). Slot 0 is always the
-// Garage (the focal entry point). Each is intentional on its own — a 2-node
-// "pass" should feel exclusive, not broken.
+type Edge = { a: number; b: number; bend: number }
+type Template = { nodes: Pt[]; radii: number[]; edges: Edge[] }
+
 const TEMPLATES: Record<number, Template> = {
-  1: { nodes: [{ x: 195, y: 408 }], edges: [] },
+  1: { nodes: [{ x: 195, y: 408 }], radii: [R_FOCAL], edges: [] },
   2: {
-    nodes: [{ x: 142, y: 256 }, { x: 256, y: 558 }],
-    edges: [{ a: 0, b: 1, bend: 74 }],
+    nodes: [{ x: 148, y: 248 }, { x: 252, y: 560 }],
+    radii: [R_FOCAL, R_STD],
+    edges: [{ a: 0, b: 1, bend: 70 }],
   },
   3: {
-    nodes: [{ x: 195, y: 236 }, { x: 96, y: 560 }, { x: 296, y: 560 }],
-    edges: [{ a: 0, b: 1, bend: 52 }, { a: 0, b: 2, bend: -52 }, { a: 1, b: 2, bend: 42 }],
+    nodes: [{ x: 195, y: 232 }, { x: 96, y: 556 }, { x: 298, y: 556 }],
+    radii: [R_FOCAL, R_STD, R_STD],
+    edges: [{ a: 0, b: 1, bend: 54 }, { a: 0, b: 2, bend: -54 }, { a: 1, b: 2, bend: 44 }],
   },
   4: {
-    nodes: [{ x: 150, y: 242 }, { x: 296, y: 322 }, { x: 94, y: 566 }, { x: 290, y: 586 }],
+    nodes: [{ x: 152, y: 244 }, { x: 298, y: 330 }, { x: 96, y: 568 }, { x: 292, y: 584 }],
+    radii: [R_FOCAL, R_STD, R_STD, R_STD],
     edges: [
-      { a: 0, b: 1, bend: 40 }, { a: 0, b: 2, bend: 54 },
-      { a: 1, b: 3, bend: 50 }, { a: 2, b: 3, bend: -44 },
+      { a: 0, b: 1, bend: 40 }, { a: 0, b: 2, bend: 56 },
+      { a: 1, b: 3, bend: 52 }, { a: 2, b: 3, bend: -44 },
     ],
   },
   5: {
     nodes: [
-      { x: 195, y: 230 }, { x: 305, y: 366 }, { x: 80, y: 392 },
-      { x: 292, y: 606 }, { x: 110, y: 600 },
+      { x: 195, y: 230 }, { x: 308, y: 364 }, { x: 82, y: 390 },
+      { x: 294, y: 604 }, { x: 108, y: 598 },
     ],
+    radii: [R_FOCAL, R_STD, R_STD, R_STD, R_STD],
     edges: [
       { a: 0, b: 1, bend: 44 }, { a: 0, b: 2, bend: -44 },
       { a: 1, b: 3, bend: 54 }, { a: 2, b: 4, bend: 50 }, { a: 3, b: 4, bend: -40 },
@@ -81,9 +96,13 @@ const TEMPLATES: Record<number, Template> = {
 
 const STAGGER_MS = [380, 500, 560, 660, 720]
 
-// Dark grain on the light paper (inlined — no network request)
-const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
+// Noise grain (cool-tinted for the slate background)
+const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.1  0 0 0 0 0.14  0 0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
 const GRAIN_URL = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`
+
+// Decorative winding background road — purely visual, matches home page aesthetic
+// Uses the same viewBox 390×800 as the node SVG overlay
+const BG_ROAD = 'M 80 820 C 160 700, 300 640, 260 520 C 220 400, 80 340, 130 220 C 160 140, 240 90, 320 40'
 
 type NodeDef = { id: string; label: string; icon: string; focal?: boolean }
 
@@ -108,25 +127,22 @@ export default function PublicProfilePage() {
   const navigate = useNavigate()
 
   const [state, setState] = useState<'loading' | 'ready' | 'empty'>('loading')
-  const [car, setCar] = useState<CarRow | null>(null)
+  const [_car, setCar] = useState<CarRow | null>(null)
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
-  const stageRef = useRef<HTMLDivElement>(null)
-  const worldRef = useRef<HTMLDivElement>(null)
-  const driverRef = useRef<SVGGElement>(null)
+  const stageRef   = useRef<HTMLDivElement>(null)
+  const worldRef   = useRef<HTMLDivElement>(null)
+  const driverRef  = useRef<SVGGElement>(null)
   const roadElsRef = useRef<(SVGPathElement | null)[]>([])
-  const rafRef = useRef<number>(0)
-  const parallaxRef = useRef({ px: 0, py: 0 })
+  const rafRef     = useRef<number>(0)
 
-  // ── Fetch the build + decide which nodes survive ──
+  // ── Fetch ──
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       if (!username) { setState('empty'); return }
-      // public_car_profiles already enforces is_public + soft-delete + the
-      // privacy boundary (no costs/VIN/receipts). Newest public car wins.
       const { data, error } = await supabase
         .from('public_car_profiles')
         .select('*')
@@ -137,8 +153,6 @@ export default function PublicProfilePage() {
       const row = (data?.[0] as CarRow | undefined) ?? null
       if (error || !row) { setState('empty'); return }
 
-      // Adaptive nodes: only show a room with something in it. Count queries
-      // fail closed (a hidden node beats an empty one).
       const [jobs, tl] = await Promise.all([
         supabase.from('jobs').select('id', { count: 'exact', head: true })
           .eq('car_id', row.id).is('deleted_at', null),
@@ -151,9 +165,9 @@ export default function PublicProfilePage() {
       const built: NodeDef[] = [
         { id: 'garage', label: 'Garage', icon: ICON_HOME, focal: true },
       ]
-      if ((jobs.count ?? 0) > 0) built.push({ id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING })
-      if ((tl.count ?? 0) > 0) built.push({ id: 'timeline', label: 'Timeline', icon: ICON_TIMELINE })
-      if (hasFeatured) built.push({ id: 'featured', label: 'Featured', icon: iconFeatured })
+      if ((jobs.count ?? 0) > 0)  built.push({ id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING })
+      if ((tl.count ?? 0)  > 0)  built.push({ id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE })
+      if (hasFeatured)            built.push({ id: 'featured',   label: 'Featured',    icon: iconFeatured })
 
       setCar(row)
       setNodes(built)
@@ -167,14 +181,23 @@ export default function PublicProfilePage() {
     [nodes.length],
   )
 
-  // Adjacency for the wandering dot: node index → incident edge indices.
   const adjacency = useMemo(() => {
     const adj: number[][] = template.nodes.map(() => [])
     template.edges.forEach((e, i) => { adj[e.a].push(i); adj[e.b].push(i) })
     return adj
   }, [template])
 
-  // ── Parallax tilt + wandering driver dot ──
+  // Pre-compute road paths with edge offsets so roads start/end at icon boundary
+  const roadPaths = useMemo(() =>
+    template.edges.map(e => {
+      const na = template.nodes[e.a], nb = template.nodes[e.b]
+      const ra = template.radii[e.a], rb = template.radii[e.b]
+      return road(edge(na, nb, ra), edge(nb, na, rb), e.bend)
+    }),
+    [template],
+  )
+
+  // ── Parallax + driver dot ──
   useEffect(() => {
     if (state !== 'ready') return
     const world = worldRef.current
@@ -189,7 +212,7 @@ export default function PublicProfilePage() {
     let targetPX = 0, targetPY = 0, curPX = 0, curPY = 0
     const onMove = (e: MouseEvent) => {
       const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2
-      targetPX = Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width / 2)))
+      targetPX = Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width  / 2)))
       targetPY = Math.max(-1, Math.min(1, (e.clientY - cy) / (rect.height / 2)))
     }
     const onLeave = () => { targetPX = 0; targetPY = 0 }
@@ -215,11 +238,8 @@ export default function PublicProfilePage() {
       const swayY = reduced ? 0 : Math.sin((t / 17000) * Math.PI * 2 + 2.1) * 0.16
       curPX += (targetPX + swayX - curPX) * 0.08
       curPY += (targetPY + swayY - curPY) * 0.08
-      parallaxRef.current = { px: curPX, py: curPY }
-      const rotX = (8 + curPY * 2).toFixed(3)
-      const rotY = (-curPX * 3).toFixed(3)
       world.style.transform =
-        `rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
+        `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
 
       const dot = driverRef.current
       if (dot && !reduced && template.edges.length > 0) {
@@ -229,12 +249,12 @@ export default function PublicProfilePage() {
             const opts = adjacency[driver.node] ?? []
             const pool = opts.length > 1 && driver.lastEdge >= 0
               ? opts.filter(e => e !== driver.lastEdge) : opts
-            const edge = pool[Math.floor(Math.random() * pool.length)] ?? opts[0]
-            const el = roadElsRef.current[edge]
-            if (el != null && edge != null) {
-              driver.edge = edge
-              driver.dir = template.edges[edge].a === driver.node ? 1 : -1
-              driver.len = el.getTotalLength()
+            const edgeIdx = pool[Math.floor(Math.random() * pool.length)] ?? opts[0]
+            const el = roadElsRef.current[edgeIdx]
+            if (el != null && edgeIdx != null) {
+              driver.edge = edgeIdx
+              driver.dir  = template.edges[edgeIdx].a === driver.node ? 1 : -1
+              driver.len  = el.getTotalLength()
               driver.dist = 0
               driver.cruise = 30 + Math.random() * 26
               driver.mode = 'drive'
@@ -242,7 +262,7 @@ export default function PublicProfilePage() {
           }
         } else if (driver.edge >= 0) {
           const el = roadElsRef.current[driver.edge]
-          const rampIn = Math.min(1, driver.dist / 36)
+          const rampIn  = Math.min(1, driver.dist / 36)
           const rampOut = Math.min(1, (driver.len - driver.dist) / 52)
           driver.dist += driver.cruise * Math.max(0.12, Math.min(rampIn, rampOut)) * dt
           if (driver.dist >= driver.len) {
@@ -276,44 +296,40 @@ export default function PublicProfilePage() {
     }
   }, [state, template, adjacency])
 
+  const toastTimerRef = useRef<number>(0)
+  const onNodeTap = (n: NodeDef) => {
+    setToast(`${n.label} — opening soon`)
+    window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 1600)
+  }
+
   const leave = () => {
     if (window.history.length > 1) navigate(-1)
     else navigate('/')
   }
 
-  const onNodeTap = (n: NodeDef) => {
-    // Read-only sub-screens are the next build — acknowledge the tap for now.
-    setToast(`${n.label} — opening soon`)
-    window.clearTimeout((onNodeTap as { _t?: number })._t)
-    ;(onNodeTap as { _t?: number })._t = window.setTimeout(() => setToast(null), 1500)
-  }
-
-  const displayName = car?.display_name || (username ? `@${username}` : 'Builder')
-  const place = [car?.city, car?.country].filter(Boolean).join(', ')
-
   // ── Loading / empty states ──
   if (state !== 'ready') {
     return (
       <div style={{
-        minHeight: '100dvh', background: '#ece8e0',
+        minHeight: '100dvh',
+        background: 'radial-gradient(ellipse at center, #2a3040 0%, #181c24 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexDirection: 'column', gap: 14, padding: 24, textAlign: 'center',
       }}>
+        <style>{`@keyframes pubspin{to{transform:rotate(360deg)}}`}</style>
         {state === 'loading' ? (
-          <>
-            <div style={{
-              width: 30, height: 30, borderRadius: '50%',
-              border: `2.5px solid rgba(120,14,18,0.18)`, borderTopColor: COLOR_BRAND,
-              animation: 'pubspin 750ms linear infinite',
-            }} />
-            <style>{`@keyframes pubspin{to{transform:rotate(360deg)}}`}</style>
-          </>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            border: `2.5px solid rgba(200,210,230,0.15)`, borderTopColor: COLOR_BRAND,
+            animation: 'pubspin 750ms linear infinite',
+          }} />
         ) : (
           <>
-            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#2a2a2a' }}>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#c8cdd8' }}>
               No public build here
             </div>
-            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#7a766e', maxWidth: 260, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#7a8099', maxWidth: 260, lineHeight: 1.5 }}>
               {username ? `@${username} hasn't shared a build yet, or this garage is private.` : 'This garage is private.'}
             </div>
             <button onClick={leave} style={{
@@ -328,91 +344,93 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#ece8e0', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', background: '#1e2330', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes pubWorldIn { 0%{opacity:0;transform:rotateX(11deg) scale(0.95)} 100%{opacity:1;transform:rotateX(8deg) scale(1)} }
-        @keyframes pubDestIn { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
+        @keyframes pubDestIn  { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
         @keyframes pubRoadDraw { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
-        @keyframes pubDashIn { from{opacity:0} to{opacity:1} }
+        @keyframes pubDashIn   { from{opacity:0} to{opacity:1} }
         @keyframes pubDashFlow { from{stroke-dashoffset:0} to{stroke-dashoffset:-60} }
-        @keyframes pubPulse { 0%,100%{opacity:0.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.06)} }
+        @keyframes pubPulse    { 0%,100%{opacity:0.45;transform:scale(1)} 50%{opacity:0.9;transform:scale(1.06)} }
         @keyframes pubFooterIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pubSheen    { from{transform:translateX(-160%) skewX(-18deg)} to{transform:translateX(420%) skewX(-18deg)} }
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
       `}</style>
 
-      {/* ── Header (graphite — visitor space, distinct from the owner's burgundy) ── */}
+      {/* ── Header — graphite wedges (same shape as homepage burgundy, different palette) ── */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: HEADER_HEIGHT,
-        zIndex: 10, background: 'linear-gradient(90deg, #26262a 0%, #1c1c1e 60%, #141416 100%)',
-        boxShadow: '0 1px 0 rgba(0,0,0,0.4)',
+        position: 'absolute', top: 0, left: 0, right: 0,
+        height: HEADER_HEIGHT, zIndex: 10, overflow: 'hidden',
       }}>
-        {/* Leave — where the back chevron lives on every sub-screen */}
-        <div
-          onClick={leave}
-          style={{
-            position: 'absolute', left: 6, top: 0, height: '100%',
-            display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px',
-            cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none"
-            stroke="#e8e2d6" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 390 44" preserveAspectRatio="none"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+          <defs>
+            {/* Left wedge: near-black → mid-slate */}
+            <linearGradient id="pubHdrL" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="#111318" />
+              <stop offset="55%"  stopColor="#252b38" />
+              <stop offset="100%" stopColor="#2e3548" />
+            </linearGradient>
+            {/* Right wedge: cool mid-grey → lighter graphite */}
+            <linearGradient id="pubHdrR" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="#313a4c" />
+              <stop offset="100%" stopColor="#4a5568" />
+            </linearGradient>
+          </defs>
+          <rect x="0" y="0" width="390" height="44" fill={COLOR_HEADER_BLACK} />
+          <path d={HEADER_WEDGE_LEFT}  fill="url(#pubHdrL)" />
+          <path d={HEADER_WEDGE_RIGHT} fill="url(#pubHdrR)" />
+        </svg>
+
+        {/* One-time sheen sweep on entry */}
+        <div style={{
+          position: 'absolute', top: '-20%', left: 0, width: '36%', height: '140%',
+          background: 'linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+          transform: 'translateX(-160%) skewX(-18deg)',
+          animation: 'pubSheen 900ms cubic-bezier(0.4,0,0.2,1) 1100ms both',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Leave — top-left, same position as the back chevron on sub-screens */}
+        <div onClick={leave} style={{
+          position: 'absolute', left: 6, top: 0, height: '100%',
+          display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px',
+          cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+        }}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+            stroke="rgba(220,228,240,0.85)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
           <span style={{
-            fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: '#e8e2d6',
-            letterSpacing: '0.04em',
+            fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+            color: 'rgba(220,228,240,0.85)', letterSpacing: '0.04em',
           }}>Leave</span>
         </div>
 
-        {/* Visiting tag (replaces the owner's car + date) */}
+        {/* Right: "Visiting @username" + date chip (same pattern as owner's header) */}
         <div style={{
-          position: 'absolute', right: 12, top: 0, height: '100%',
-          display: 'flex', alignItems: 'center', gap: 8,
+          position: 'absolute', right: 0, top: 0, height: '100%',
+          display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
         }}>
           <span style={{
-            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11.5, color: 'rgba(232,226,214,0.6)',
-            letterSpacing: '0.03em',
-          }}>@{username}</span>
-          <span style={{
-            background: COLOR_BRAND, color: '#f3ece2', padding: '3px 8px',
-            fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-          }}>Visiting</span>
-        </div>
-      </div>
-
-      {/* ── Identity strip — whose world this is ── */}
-      <div style={{
-        position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0, height: 60, zIndex: 9,
-        display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
-        background: 'linear-gradient(180deg, rgba(236,232,224,0.96) 0%, rgba(236,232,224,0) 100%)',
-      }}>
-        <div style={{
-          width: 38, height: 38, borderRadius: RADIUS_AVATAR, background: '#1a1a1c',
-          position: 'relative', overflow: 'hidden', flexShrink: 0,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-        }}>
-          <svg viewBox="0 0 24 24" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-            <circle cx="12" cy="9.2" r="4.1" fill="#5a5b61" />
-            <path d="M12 14.6c-4.5 0-7.6 2.7-7.6 6.2V24h15.2v-3.2c0-3.5-3.1-6.2-7.6-6.2z" fill="#5a5b61" />
-          </svg>
-          {car?.avatar_url && (
-            <img src={car.avatar_url} alt="" decoding="async"
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{
-            fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, color: '#23211d',
-            letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          }}>{displayName}</span>
-          {place && (
-            <span style={{
-              fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: '#8a857b',
-              letterSpacing: '0.05em', textTransform: 'uppercase',
-            }}>{place}</span>
-          )}
+            paddingRight: 10,
+            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+            color: 'rgba(180,192,216,0.7)', letterSpacing: '0.04em',
+          }}>
+            Visiting @{username}
+          </span>
+          <div style={{
+            background: 'rgba(220,228,240,0.92)', color: '#0d0d0d',
+            padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+            letterSpacing: '0.05em', textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center',
+          }}>{MONTH_LABEL}</div>
+          <div style={{
+            background: COLOR_HEADER_BLACK, color: '#fff',
+            padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minWidth: DAY_LABEL.length === 1 ? 24 : 30,
+          }}>{DAY_LABEL}</div>
         </div>
       </div>
 
@@ -433,75 +451,85 @@ export default function PublicProfilePage() {
             transformStyle: 'preserve-3d', willChange: 'transform',
           }}
         >
-          {/* Paper base + grain + faint contour grid */}
+          {/* Cool slate base + grain + faint grid */}
           <div style={{
             position: 'absolute', inset: 0,
             background: [
               GRAIN_URL,
-              'linear-gradient(rgba(60,55,48,0.035) 1px, transparent 1px)',
-              'linear-gradient(90deg, rgba(60,55,48,0.035) 1px, transparent 1px)',
-              'linear-gradient(168deg, #f4f1ea 0%, #e9e4da 52%, #d9d3c7 100%)',
+              'linear-gradient(rgba(160,180,220,0.03) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(160,180,220,0.03) 1px, transparent 1px)',
+              'linear-gradient(168deg, #2a3248 0%, #1e2636 40%, #161b28 80%, #0f1218 100%)',
             ].join(', '),
             backgroundSize: '220px 220px, 84px 84px, 84px 84px, 100% 100%',
           }} />
-          {/* Soft top light */}
+
+          {/* Horizon glow — cool blue-slate */}
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 220,
-            background: 'radial-gradient(ellipse at 50% 0%, rgba(255,253,247,0.7) 0%, transparent 70%)',
+            position: 'absolute', top: 0, left: 0, right: 0, height: 240,
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(80,110,170,0.22) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
 
-          {/* Roads */}
+          {/* Decorative background road — purely visual, echoes the home page */}
+          <svg viewBox="0 0 390 800" preserveAspectRatio="none"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.18 }}>
+            <g fill="none" stroke="rgba(140,170,220,0.6)" strokeLinecap="round">
+              <path d={BG_ROAD} strokeWidth="10" style={{ filter: 'blur(6px)' }} />
+              <path d={BG_ROAD} strokeWidth="3.5" />
+            </g>
+            <g fill="none" stroke="rgba(140,170,220,0.35)" strokeWidth="1.2" strokeDasharray="6 10" strokeLinecap="round">
+              <path className="pub-amb" d={BG_ROAD}
+                style={{ animation: 'pubDashFlow 14s linear 1s infinite' }} />
+            </g>
+          </svg>
+
+          {/* Interactive roads + nodes SVG overlay */}
           <svg viewBox="0 0 390 800" preserveAspectRatio="none"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
             <defs>
-              <filter id="pubGlow" x="-12%" y="-12%" width="124%" height="124%">
-                <feGaussianBlur stdDeviation="1.4" result="b" />
+              <filter id="pubGlow" x="-14%" y="-14%" width="128%" height="128%">
+                <feGaussianBlur stdDeviation="1.6" result="b" />
                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
-            {template.edges.map((e, i) => {
-              const d = road(template.nodes[e.a], template.nodes[e.b], e.bend)
-              return (
-                <g key={i}>
-                  {/* solid base */}
-                  <g fill="none" stroke="rgba(48,44,38,0.46)" strokeLinecap="round" filter="url(#pubGlow)">
-                    <path ref={el => { roadElsRef.current[i] = el }}
-                      d={d} strokeWidth="2.6" pathLength={1}
-                      style={{ strokeDasharray: 1, animation: `pubRoadDraw 650ms ease-out ${380 + i * 60}ms both` }} />
-                  </g>
-                  {/* dashed centreline */}
-                  <g fill="none" stroke="rgba(48,44,38,0.26)" strokeWidth="1.1" strokeDasharray="4 7" strokeLinecap="round">
-                    <path className="pub-amb" d={d}
-                      style={{ animation: `pubDashIn 500ms ease ${1000 + i * 60}ms both, pubDashFlow ${9 + i}s linear ${1500 + i * 80}ms infinite` }} />
-                  </g>
+
+            {roadPaths.map((d, i) => (
+              <g key={i}>
+                <g fill="none" stroke="rgba(160,200,255,0.45)" strokeLinecap="round" filter="url(#pubGlow)">
+                  <path ref={el => { roadElsRef.current[i] = el }}
+                    d={d} strokeWidth="2.6" pathLength={1}
+                    style={{ strokeDasharray: 1, animation: `pubRoadDraw 650ms ease-out ${360 + i * 60}ms both` }} />
                 </g>
-              )
-            })}
-            {/* Wandering visitor dot — positioned by the RAF loop */}
+                <g fill="none" stroke="rgba(140,180,240,0.28)" strokeWidth="1.1" strokeDasharray="4 7" strokeLinecap="round">
+                  <path className="pub-amb" d={d}
+                    style={{ animation: `pubDashIn 500ms ease ${980 + i * 60}ms both, pubDashFlow ${9 + i}s linear ${1480 + i * 80}ms infinite` }} />
+                </g>
+              </g>
+            ))}
+
+            {/* Wandering visitor dot — burgundy brand, positioned by RAF loop */}
             {template.edges.length > 0 && (
               <g ref={driverRef} opacity="0">
-                <circle r="6" fill="rgba(120,14,18,0.2)" />
+                <circle r="6" fill="rgba(120,14,18,0.22)" />
                 <circle r="2.4" fill={COLOR_BRAND} filter="url(#pubGlow)" />
               </g>
             )}
           </svg>
 
-          {/* Nodes */}
+          {/* Destination nodes */}
           {nodes.map((n, i) => {
-            const pos = template.nodes[i]
+            const pos  = template.nodes[i]
             const size = n.focal ? ICON_WRAPPER_FOCAL : ICON_WRAPPER_STANDARD
             return (
               <div
                 key={n.id}
                 onPointerDown={() => setPressedNode(n.id)}
-                onPointerUp={() => setPressedNode(null)}
+                onPointerUp={() => { setPressedNode(null); onNodeTap(n) }}
                 onPointerCancel={() => setPressedNode(null)}
-                onClick={() => onNodeTap(n)}
                 style={{
                   position: 'absolute',
                   left: `${(pos.x / 390 * 100).toFixed(2)}%`,
-                  top: `${(pos.y / 800 * 100).toFixed(2)}%`,
+                  top:  `${(pos.y / 800 * 100).toFixed(2)}%`,
                   transform: 'translate(-50%, -50%)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
@@ -513,14 +541,16 @@ export default function PublicProfilePage() {
                   <div style={{
                     position: 'absolute', width: 190, height: 190, top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    background: 'radial-gradient(circle, rgba(120,14,18,0.16) 0%, transparent 62%)',
+                    background: 'radial-gradient(circle, rgba(120,14,18,0.18) 0%, transparent 62%)',
                     animation: 'pubPulse 3s ease-in-out infinite', pointerEvents: 'none',
                   }} />
                 )}
                 <div style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   transform: pressedNode === n.id ? 'scale(0.92)' : 'scale(1)',
-                  transition: pressedNode === n.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
+                  transition: pressedNode === n.id
+                    ? 'transform 80ms ease-out'
+                    : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                 }}>
                   <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <img src={n.icon} alt={n.label} draggable={false}
@@ -529,20 +559,21 @@ export default function PublicProfilePage() {
                   {/* Ground shadow */}
                   <div style={{
                     width: size * 0.58, height: 8, marginTop: n.focal ? -6 : -4, borderRadius: '50%',
-                    background: 'rgba(40,36,30,0.28)', filter: 'blur(7px)', flexShrink: 0, pointerEvents: 'none',
+                    background: 'rgba(0,0,0,0.5)', filter: 'blur(7px)', flexShrink: 0, pointerEvents: 'none',
                   }} />
                   <span style={{
                     fontFamily: FONT_UI, fontWeight: n.focal ? 800 : 700,
-                    fontSize: n.focal ? 13 : 11.5,
-                    color: n.focal ? '#1c1a16' : '#3a352d',
-                    letterSpacing: n.focal ? '0.12em' : '0.08em', textTransform: 'uppercase',
-                    textShadow: '0 1px 2px rgba(255,253,247,0.8)', marginTop: 4,
-                    pointerEvents: 'none',
+                    fontSize: n.focal ? 13 : 11,
+                    color: n.focal ? '#f0f4ff' : 'rgba(200,214,240,0.85)',
+                    letterSpacing: n.focal ? '0.12em' : '0.08em',
+                    textTransform: 'uppercase',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                    marginTop: 4, pointerEvents: 'none',
                   }}>{n.label}</span>
                   {n.focal && (
                     <div style={{
-                      width: FOCAL_UNDERLINE_W, height: FOCAL_UNDERLINE_H, background: COLOR_BRAND,
-                      borderRadius: 1, marginTop: 3, opacity: 0.9,
+                      width: FOCAL_UNDERLINE_W, height: FOCAL_UNDERLINE_H,
+                      background: COLOR_BRAND, borderRadius: 1, marginTop: 3, opacity: 0.9,
                     }} />
                   )}
                 </div>
@@ -551,10 +582,10 @@ export default function PublicProfilePage() {
           })}
         </div>
 
-        {/* Vignette */}
+        {/* Edge vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
-          background: 'radial-gradient(ellipse at 50% 48%, transparent 46%, rgba(70,64,54,0.22) 100%)',
+          background: 'radial-gradient(ellipse at 50% 48%, transparent 44%, rgba(8,10,16,0.55) 100%)',
         }} />
 
         {/* Footer wordmark */}
@@ -564,19 +595,19 @@ export default function PublicProfilePage() {
         }}>
           <span style={{
             fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 900, fontSize: 13,
-            color: 'rgba(60,54,44,0.32)', letterSpacing: '-0.1em',
+            color: 'rgba(140,160,200,0.28)', letterSpacing: '-0.1em',
           }}>G‑DIMENSION</span>
         </div>
       </div>
 
-      {/* Tap toast (until read-only sub-screens land) */}
+      {/* Toast (until read-only sub-screens land) */}
       {toast && (
         <div style={{
           position: 'fixed', bottom: 46, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 40, background: 'rgba(28,28,30,0.94)', color: '#f0ebe2',
+          zIndex: 40, background: 'rgba(20,24,32,0.94)', color: '#dce4f0',
           padding: '9px 16px', borderRadius: 10, fontFamily: FONT_UI, fontWeight: 700,
-          fontSize: 12.5, letterSpacing: '0.03em', boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
-          pointerEvents: 'none',
+          fontSize: 12.5, letterSpacing: '0.03em', boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+          pointerEvents: 'none', whiteSpace: 'nowrap',
         }}>{toast}</div>
       )}
     </div>
