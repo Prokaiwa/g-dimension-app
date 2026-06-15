@@ -103,6 +103,15 @@ const GRAIN_URL = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`
 
 type NodeDef = { id: string; label: string; icon: string; focal?: boolean }
 
+// Canonical node order for the ?preview=N dev override (slot 0 = focal Garage)
+const PREVIEW_NODES: NodeDef[] = [
+  { id: 'garage',     label: 'Garage',      icon: ICON_HOME,     focal: true },
+  { id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING },
+  { id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE },
+  { id: 'featured',   label: 'Featured',    icon: iconFeatured },
+  { id: 'guides',     label: 'Guides',      icon: ICON_TUNING },
+]
+
 interface CarRow {
   id: string
   username: string
@@ -163,8 +172,15 @@ export default function PublicProfilePage() {
       if ((tl.count ?? 0)  > 0)  built.push({ id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE })
       if (hasFeatured)            built.push({ id: 'featured',   label: 'Featured',    icon: iconFeatured })
 
+      // ?preview=N forces a node count so each layout template (2–5) can be
+      // previewed on the live site regardless of the build's actual content.
+      const preview = Number(new URLSearchParams(window.location.search).get('preview'))
+      const final = preview >= 1 && preview <= 5
+        ? PREVIEW_NODES.slice(0, preview)
+        : built
+
       setCar(row)
-      setNodes(built)
+      setNodes(final)
       setState('ready')
     })()
     return () => { cancelled = true }
@@ -563,10 +579,14 @@ export default function PublicProfilePage() {
           })}
         </div>
 
-        {/* Subtle edge vignette */}
+        {/* Faint overlay shade — a gentle uniform tint + vignette, like Home */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
-          background: 'radial-gradient(ellipse at 50% 48%, transparent 50%, rgba(60,68,84,0.16) 100%)',
+          background: 'rgba(28,32,42,0.07)',
+        }} />
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
+          background: 'radial-gradient(ellipse at 50% 46%, transparent 42%, rgba(40,46,60,0.28) 100%)',
         }} />
 
         {/* Footer wordmark */}
