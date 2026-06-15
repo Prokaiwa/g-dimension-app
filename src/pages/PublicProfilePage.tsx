@@ -158,36 +158,41 @@ export default function PublicProfilePage() {
       const row = (data?.[0] as CarRow | undefined) ?? null
       if (error || !row) { setState('empty'); return }
 
+      // Fetch a single id from each table to test presence. (Avoids the
+      // head:true count mechanism, which was returning null here.)
       const [jobs, tl] = await Promise.all([
-        supabase.from('jobs').select('id', { count: 'exact', head: true })
-          .eq('car_id', row.id).eq('status', 'installed'),
-        supabase.from('timeline_entries').select('id', { count: 'exact', head: true })
-          .eq('car_id', row.id),
+        supabase.from('jobs').select('id')
+          .eq('car_id', row.id).eq('status', 'installed').limit(1),
+        supabase.from('timeline_entries').select('id')
+          .eq('car_id', row.id).limit(1),
       ])
       if (cancelled) return
 
+      const hasBuildsheet = (jobs.data?.length ?? 0) > 0
+      const hasTimeline   = (tl.data?.length ?? 0) > 0
+
       // eslint-disable-next-line no-console
-      console.log('[pub] car_id', row.id, 'jobs', jobs.count, jobs.error, 'tl', tl.count, tl.error)
+      console.log('[pub] car_id', row.id, 'jobs', jobs.data, jobs.error, 'tl', tl.data, tl.error)
       if (new URLSearchParams(window.location.search).get('debug') === '1') {
         setDebug(
           `car_id=${row.id}\n` +
-          `jobs.count=${jobs.count} err=${jobs.error ? jobs.error.message : '-'}\n` +
-          `tl.count=${tl.count} err=${tl.error ? tl.error.message : '-'}\n` +
+          `jobs.rows=${jobs.data?.length ?? 'null'} err=${jobs.error ? jobs.error.message : '-'}\n` +
+          `tl.rows=${tl.data?.length ?? 'null'} err=${tl.error ? tl.error.message : '-'}\n` +
           `featured_flag=${row.show_featured_publicly}`,
         )
       }
 
-      // Build Sheet / Timeline auto-hide via RLS (their count returns 0 when the
-      // section is private). Featured has no count query, so gate it on the flag
+      // Build Sheet / Timeline auto-hide via RLS (no rows when the section is
+      // private). Featured has no probe query, so gate it on the flag
       // (defaults to visible if the column predates migration 053).
       const featuredShared = row.show_featured_publicly !== false
       const hasFeatured = featuredShared && !!(row.garage_photo_url || row.original_photo_url || row.featured_story)
       const built: NodeDef[] = [
         { id: 'garage', label: 'Garage', icon: ICON_HOME, focal: true },
       ]
-      if ((jobs.count ?? 0) > 0)  built.push({ id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING })
-      if ((tl.count ?? 0)  > 0)  built.push({ id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE })
-      if (hasFeatured)            built.push({ id: 'featured',   label: 'Featured',    icon: iconFeatured })
+      if (hasBuildsheet) built.push({ id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING })
+      if (hasTimeline)   built.push({ id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE })
+      if (hasFeatured)   built.push({ id: 'featured',   label: 'Featured',    icon: iconFeatured })
 
       // ?preview=N forces a node count so each layout template (2–5) can be
       // previewed on the live site regardless of the build's actual content.
