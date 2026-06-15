@@ -5,8 +5,8 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 052_featured_cover_story.sql (2026-06-12)
--- Migrations 001–052 applied to production, with corrections:
+-- Last migration applied : 053_public_section_visibility.sql (pending — run in SQL Editor)
+-- Migrations 001–052 applied to production (053 pending), with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.

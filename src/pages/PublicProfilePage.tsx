@@ -122,6 +122,7 @@ interface CarRow {
   garage_photo_url: string | null
   original_photo_url: string | null
   featured_story: string | null
+  show_featured_publicly: boolean | null
   created_at: string | null
 }
 
@@ -164,7 +165,11 @@ export default function PublicProfilePage() {
       ])
       if (cancelled) return
 
-      const hasFeatured = !!(row.garage_photo_url || row.original_photo_url || row.featured_story)
+      // Build Sheet / Timeline auto-hide via RLS (their count returns 0 when the
+      // section is private). Featured has no count query, so gate it on the flag
+      // (defaults to visible if the column predates migration 053).
+      const featuredShared = row.show_featured_publicly !== false
+      const hasFeatured = featuredShared && !!(row.garage_photo_url || row.original_photo_url || row.featured_story)
       const built: NodeDef[] = [
         { id: 'garage', label: 'Garage', icon: ICON_HOME, focal: true },
       ]

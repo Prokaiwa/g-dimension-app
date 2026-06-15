@@ -47,7 +47,38 @@ type CarMeta = { year: number | null; make: string | null; model: string | null;
 type Details = Record<string, string>
 
 const DETAIL_COLUMNS =
-  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url'
+  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url, is_public, show_buildsheet_publicly, show_timeline_publicly, show_featured_publicly'
+
+// A from-scratch switch (no component libraries). Amber when on.
+function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button type="button" onClick={disabled ? undefined : onChange} aria-pressed={on}
+      style={{
+        width: 44, height: 26, borderRadius: 9999, border: 'none', flexShrink: 0, padding: 0,
+        background: on ? COLOR_ACCENT : 'rgba(255,255,255,0.14)',
+        opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer',
+        position: 'relative', transition: 'background 180ms ease',
+      }}>
+      <span style={{
+        position: 'absolute', top: 3, left: on ? 21 : 3, width: 20, height: 20,
+        borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+        transition: 'left 180ms cubic-bezier(0.22,1,0.36,1)',
+      }} />
+    </button>
+  )
+}
+
+function PrivacyRow({ title, sub, on, onChange, disabled }: { title: string; sub?: string; on: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '7px 0', opacity: disabled ? 0.4 : 1 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_PANEL_TEXT }}>{title}</div>
+        {sub && <div style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: COLOR_TEXT_SECONDARY, marginTop: 2, lineHeight: 1.4 }}>{sub}</div>}
+      </div>
+      <Toggle on={on} onChange={onChange} disabled={disabled} />
+    </div>
+  )
+}
 
 export default function GarageCarsEditPage() {
   const navigate = useNavigate()
@@ -62,6 +93,7 @@ export default function GarageCarsEditPage() {
   const [saving, setSaving]   = useState(false)
   const [err, setErr]         = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [privacy, setPrivacy] = useState({ isPublic: true, buildsheet: true, timeline: true, featured: true })
 
   // Warm the background-removal model so the photo picker is instant.
   useEffect(() => { prewarmBackgroundRemoval() }, [])
@@ -104,6 +136,12 @@ export default function GarageCarsEditPage() {
           originStory:       row.purchase_story     ?? '',
         })
         setPhotoUrl(row.garage_photo_url ?? null)
+        setPrivacy({
+          isPublic:   row.is_public !== false,
+          buildsheet: row.show_buildsheet_publicly !== false,
+          timeline:   row.show_timeline_publicly !== false,
+          featured:   row.show_featured_publicly !== false,
+        })
         setLoading(false)
       })
     return () => { active = false }
@@ -149,6 +187,10 @@ export default function GarageCarsEditPage() {
       mileage_at_purchase: parseInt(data.mileageAtPurchase) || null,
       purchase_dealer:   data.wherePurchased.trim()   || null,
       purchase_story:    data.originStory.trim()      || null,
+      is_public:                 privacy.isPublic,
+      show_buildsheet_publicly:  privacy.buildsheet,
+      show_timeline_publicly:    privacy.timeline,
+      show_featured_publicly:    privacy.featured,
     }
     let photoFailed = false
     let originalUrl: string | null = null
@@ -383,6 +425,37 @@ export default function GarageCarsEditPage() {
                 <span style={LABEL}>Origin Story <span style={OPT}>opt</span></span>
                 <textarea value={data.originStory} onChange={upd('originStory')} rows={4} placeholder="The hunt, the first drive, the reason you kept it." style={{ ...INPUT, resize: 'none', lineHeight: 1.65 } as React.CSSProperties} />
               </div>
+
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
+              <span style={{ ...LABEL, opacity: 0.4 }}>Public Profile</span>
+              <PrivacyRow
+                title="Share this build publicly"
+                sub="Anyone with the link can visit this car's public page."
+                on={privacy.isPublic}
+                onChange={() => setPrivacy(p => ({ ...p, isPublic: !p.isPublic }))}
+              />
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: `2px 0` }} />
+              <PrivacyRow
+                title="Build Sheet"
+                sub="Your mods & specs."
+                on={privacy.buildsheet}
+                disabled={!privacy.isPublic}
+                onChange={() => setPrivacy(p => ({ ...p, buildsheet: !p.buildsheet }))}
+              />
+              <PrivacyRow
+                title="Timeline"
+                sub="Your build history."
+                on={privacy.timeline}
+                disabled={!privacy.isPublic}
+                onChange={() => setPrivacy(p => ({ ...p, timeline: !p.timeline }))}
+              />
+              <PrivacyRow
+                title="Featured"
+                sub="Your magazine feature."
+                on={privacy.featured}
+                disabled={!privacy.isPublic}
+                onChange={() => setPrivacy(p => ({ ...p, featured: !p.featured }))}
+              />
             </div>
             {err && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', marginTop: SPACE_SM }}>{err}</p>}
             <div style={{ height: SPACE_MD }} />
