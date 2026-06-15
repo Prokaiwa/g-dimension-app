@@ -22,16 +22,32 @@ comment on column public.cars.show_timeline_publicly is
 comment on column public.cars.show_featured_publicly is
   'Public profile: show the Featured room. Enforced by nulling featured_story in the view + the frontend node gate.';
 
--- ── anon read for the public map ────────────────────────────────────────────
--- jobs: anon may read rows for a public, non-deleted car whose Build Sheet is
--- shared. (Costs are not exposed to anon by the public profile UI; RLS is the
--- gate on row visibility.)
-drop policy if exists "jobs_public_read" on public.jobs;
+-- ── Scope the owner policies to authenticated ───────────────────────────────
+-- cars_all_owner / jobs_all_owner / timeline_entries_all_owner were created
+-- FOR ALL with NO role clause, so they're evaluated for the anon role too. Each
+-- references cars.user_id in its subquery, and anon has no (and must never have)
+-- grant on cars.user_id — so ANY anon SELECT on these tables raised
+-- `permission denied for table cars` before a single row could be read. anon can
+-- never satisfy auth.uid() = user_id anyway, so scoping these to authenticated
+-- is purely corrective.
+alter policy "cars_all_owner"             on public.cars             to authenticated;
+alter policy "jobs_all_owner"             on public.jobs             to authenticated;
+alter policy "timeline_entries_all_owner" on public.timeline_entries to authenticated;
+
+-- ── Public read for the map (anon AND authenticated visitors) ────────────────
+-- The pre-existing public policies (jobs_select_public_buildsheet from 023,
+-- timeline_entries_select_public from 015) do NOT check the new per-section
+-- flags, so they'd let anon read even when a section is toggled private —
+-- making the toggle cosmetic. Replace them with flag-aware policies. No TO
+-- clause = public (anon + authenticated), so a logged-in visitor viewing
+-- someone else's build is covered too.
+drop policy if exists "jobs_select_public_buildsheet" on public.jobs;
+drop policy if exists "jobs_public_read"              on public.jobs;
 create policy "jobs_public_read"
   on public.jobs for select
-  to anon
   using (
-    exists (
+    status = 'installed'
+    and exists (
       select 1 from public.cars c
       where c.id = jobs.car_id
         and c.is_public = true
@@ -41,12 +57,10 @@ create policy "jobs_public_read"
   );
 grant select on public.jobs to anon;
 
--- timeline_entries: anon may read entries for a public, non-deleted car whose
--- Timeline is shared.
-drop policy if exists "timeline_entries_public_read" on public.timeline_entries;
+drop policy if exists "timeline_entries_select_public" on public.timeline_entries;
+drop policy if exists "timeline_entries_public_read"    on public.timeline_entries;
 create policy "timeline_entries_public_read"
   on public.timeline_entries for select
-  to anon
   using (
     exists (
       select 1 from public.cars c
@@ -59,14 +73,11 @@ create policy "timeline_entries_public_read"
 grant select on public.timeline_entries to anon;
 
 -- ── anon needs to read cars within the policy subqueries above ───────────────
--- The jobs / timeline_entries anon policies each reference public.cars in a
--- subquery, which is itself subject to cars RLS + table grants for the anon
--- role. anon had NO grant on cars (only authenticated did) — so those subqueries
--- silently returned nothing and the Build Sheet / Timeline nodes never appeared.
--- A COLUMN-level grant (not the whole table) lets the gate columns be read while
--- keeping VIN / plate / purchase price unreadable to anon at the table level.
--- Row visibility is still limited to public cars by the existing
--- cars_select_public policy.
+-- The public policies reference public.cars in a subquery, itself subject to
+-- cars RLS + grants for the querying role. A COLUMN-level grant (not the whole
+-- table) lets anon read the gate columns while keeping VIN / plate / purchase
+-- price unreadable. Row visibility is still limited to public cars by
+-- cars_select_public.
 grant select (id, is_public, deleted_at, show_buildsheet_publicly, show_timeline_publicly)
   on public.cars to anon;
 
