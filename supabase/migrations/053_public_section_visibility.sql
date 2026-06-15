@@ -31,8 +31,7 @@ create policy "jobs_public_read"
   on public.jobs for select
   to anon
   using (
-    jobs.deleted_at is null
-    and exists (
+    exists (
       select 1 from public.cars c
       where c.id = jobs.car_id
         and c.is_public = true
