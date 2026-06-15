@@ -67,7 +67,7 @@ const TEMPLATES: Record<number, Template> = {
   2: {
     nodes: [{ x: 146, y: 250 }, { x: 254, y: 560 }],
     radii: [VIS_FOCAL, VIS_STD],
-    edges: [{ a: 0, b: 1, bend: 64 }],
+    edges: [{ a: 0, b: 1, bend: -64 }],
   },
   3: {
     nodes: [{ x: 195, y: 234 }, { x: 96, y: 556 }, { x: 298, y: 556 }],
@@ -340,14 +340,14 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#d8dce3', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', background: '#050507', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes pubWorldIn { 0%{opacity:0;transform:rotateX(11deg) scale(0.95)} 100%{opacity:1;transform:rotateX(8deg) scale(1)} }
         @keyframes pubDestIn  { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
         @keyframes pubRoadDraw { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
         @keyframes pubDashIn   { from{opacity:0} to{opacity:1} }
         @keyframes pubDashFlow { from{stroke-dashoffset:0} to{stroke-dashoffset:-60} }
-        @keyframes pubPulse    { 0%,100%{opacity:0.45;transform:scale(1)} 50%{opacity:0.9;transform:scale(1.06)} }
+        @keyframes pubPulse    { 0%,100%{opacity:0.2;transform:scale(1)} 50%{opacity:0.55;transform:scale(1.05)} }
         @keyframes pubFooterIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pubSheen    { from{transform:translateX(-160%) skewX(-18deg)} to{transform:translateX(420%) skewX(-18deg)} }
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
@@ -421,7 +421,7 @@ export default function PublicProfilePage() {
             display: 'flex', alignItems: 'center',
           }}>{MONTH_LABEL}</div>
           <div style={{
-            background: COLOR_HEADER_BLACK, color: '#fff',
+            background: COLOR_BRAND, color: '#fff',
             padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             minWidth: DAY_LABEL.length === 1 ? 24 : 30,
@@ -522,8 +522,8 @@ export default function PublicProfilePage() {
                   <div style={{
                     position: 'absolute', width: 190, height: 190, top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    background: 'radial-gradient(circle, rgba(120,14,18,0.16) 0%, transparent 62%)',
-                    animation: 'pubPulse 3s ease-in-out infinite', pointerEvents: 'none',
+                    background: 'radial-gradient(circle, rgba(180,185,195,0.35) 0%, transparent 62%)',
+                    animation: 'pubPulse 7s ease-in-out infinite', pointerEvents: 'none',
                   }} />
                 )}
                 <div style={{
@@ -544,9 +544,9 @@ export default function PublicProfilePage() {
                   }} />
                   <span style={{
                     fontFamily: FONT_UI, fontWeight: n.focal ? 800 : 700,
-                    fontSize: n.focal ? 13 : 11,
+                    fontSize: 11,
                     color: n.focal ? '#1b1f26' : '#3a414c',
-                    letterSpacing: n.focal ? '0.12em' : '0.08em',
+                    letterSpacing: '0.1em',
                     textTransform: 'uppercase',
                     textShadow: '0 1px 2px rgba(255,255,255,0.7)',
                     marginTop: 4, pointerEvents: 'none',
