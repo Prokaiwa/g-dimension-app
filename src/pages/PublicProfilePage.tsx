@@ -123,6 +123,7 @@ interface CarRow {
   original_photo_url: string | null
   featured_story: string | null
   show_featured_publicly: boolean | null
+  active_car_id: string | null
   created_at: string | null
 }
 
@@ -153,9 +154,11 @@ export default function PublicProfilePage() {
         .select('*')
         .eq('username', username)
         .order('created_at', { ascending: false })
-        .limit(1)
       if (cancelled) return
-      const row = (data?.[0] as CarRow | undefined) ?? null
+      const rows = (data as CarRow[] | null) ?? []
+      // Prefer the owner's chosen primary (active) car; fall back to newest.
+      const activeId = rows[0]?.active_car_id
+      const row = rows.find(r => r.id === activeId) ?? rows[0] ?? null
       if (error || !row) { setState('empty'); return }
 
       // Fetch a single id from each table to test presence. (Avoids the
@@ -182,7 +185,7 @@ export default function PublicProfilePage() {
       // eslint-disable-next-line no-console
       console.log('[pub] car_id', row.id, 'jobs', jobs.data, jobs.error, 'tl', tl.data, tl.error)
       if (new URLSearchParams(window.location.search).get('debug') === '1') {
-        const rowAny = (data?.[0] as Record<string, unknown>) ?? {}
+        const rowAny = (row as unknown as Record<string, unknown>) ?? {}
         setDebug(
           `car=${row.id.slice(0,8)} make=${rowAny.make} model=${rowAny.model}\n` +
           `show_bs=${rowAny.show_buildsheet_publicly} show_tl=${rowAny.show_timeline_publicly}\n` +

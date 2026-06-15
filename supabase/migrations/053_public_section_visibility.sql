@@ -101,7 +101,10 @@ create or replace view public.public_car_profiles as
     -- appended for per-section visibility (053):
     c.show_buildsheet_publicly,
     c.show_timeline_publicly,
-    c.show_featured_publicly
+    c.show_featured_publicly,
+    -- the owner's chosen primary car, so the public profile lands on it
+    -- (not merely the newest-created public car):
+    u.active_car_id
   from cars c
   join users u on u.id = c.user_id
   where c.is_public = true
