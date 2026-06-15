@@ -1,9 +1,10 @@
 // Route: /builds/:username — Public Profile (the ONLY non-authenticated route).
 //
 // "Stepping into someone's world": a read-only mirror of the owner's Home map,
-// deliberately re-skinned so a visitor knows they're a guest — cool slate
-// background, graphite wedge header, burgundy driver dot, "Leave" top-left,
-// date chip + "Visiting @username" top-right. Maintenance is never exposed.
+// re-skinned so a visitor knows they're a guest — a LIGHT cool-grey map (vs the
+// owner's dark one), graphite wedge header, burgundy driver dot, "Leave"
+// top-left, date chip + "Visiting @username" top-right. Maintenance is never
+// exposed here.
 //
 // ADAPTIVE map: a node only appears when the owner has content behind it.
 // One designed layout template per node count (1–5).
@@ -34,15 +35,19 @@ const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
 // ── Map geometry ────────────────────────────────────────────────────────────
-// Roads originate from the EDGE of each node circle (not the centre) so they
-// don't pass through the icon or label underneath. Offset = half icon size + margin.
 type Pt = { x: number; y: number }
 
-// Offset from node centre toward another point by `r` pixels.
-function edge(from: Pt, to: Pt, r: number): Pt {
-  const dx = to.x - from.x, dy = to.y - from.y
-  const len = Math.hypot(dx, dy) || 1
-  return { x: from.x + (dx / len) * r, y: from.y + (dy / len) * r }
+// Visual icon radii (the rendered icon is 85% of its wrapper)
+const VIS_FOCAL = ICON_WRAPPER_FOCAL   * 0.85 / 2 // ~51
+const VIS_STD   = ICON_WRAPPER_STANDARD * 0.85 / 2 // ~36.5
+const TUCK = 13 // pull the road anchor inside the icon so the end hides under it
+
+// Roads exit/enter from the SIDE of a node (left or right edge, at centre
+// height) — never straight down through the label below — and tuck under the
+// icon so they visibly connect to "the house".
+function sideAnchor(node: Pt, other: Pt, vis: number): Pt {
+  const side = other.x >= node.x ? 1 : -1
+  return { x: node.x + side * (vis - TUCK), y: node.y }
 }
 
 function road(a: Pt, b: Pt, bend: number): string {
@@ -54,31 +59,27 @@ function road(a: Pt, b: Pt, bend: number): string {
   return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} C ${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`
 }
 
-// Icon radii used for road-edge offsets (focal node is larger)
-const R_FOCAL = (ICON_WRAPPER_FOCAL  * 0.85) / 2 + 6   // ~57px
-const R_STD   = (ICON_WRAPPER_STANDARD * 0.85) / 2 + 6 // ~43px
-
 type Edge = { a: number; b: number; bend: number }
 type Template = { nodes: Pt[]; radii: number[]; edges: Edge[] }
 
 const TEMPLATES: Record<number, Template> = {
-  1: { nodes: [{ x: 195, y: 408 }], radii: [R_FOCAL], edges: [] },
+  1: { nodes: [{ x: 195, y: 408 }], radii: [VIS_FOCAL], edges: [] },
   2: {
-    nodes: [{ x: 148, y: 248 }, { x: 252, y: 560 }],
-    radii: [R_FOCAL, R_STD],
-    edges: [{ a: 0, b: 1, bend: 70 }],
+    nodes: [{ x: 146, y: 250 }, { x: 254, y: 560 }],
+    radii: [VIS_FOCAL, VIS_STD],
+    edges: [{ a: 0, b: 1, bend: 64 }],
   },
   3: {
-    nodes: [{ x: 195, y: 232 }, { x: 96, y: 556 }, { x: 298, y: 556 }],
-    radii: [R_FOCAL, R_STD, R_STD],
-    edges: [{ a: 0, b: 1, bend: 54 }, { a: 0, b: 2, bend: -54 }, { a: 1, b: 2, bend: 44 }],
+    nodes: [{ x: 195, y: 234 }, { x: 96, y: 556 }, { x: 298, y: 556 }],
+    radii: [VIS_FOCAL, VIS_STD, VIS_STD],
+    edges: [{ a: 0, b: 1, bend: 50 }, { a: 0, b: 2, bend: -50 }, { a: 1, b: 2, bend: 40 }],
   },
   4: {
-    nodes: [{ x: 152, y: 244 }, { x: 298, y: 330 }, { x: 96, y: 568 }, { x: 292, y: 584 }],
-    radii: [R_FOCAL, R_STD, R_STD, R_STD],
+    nodes: [{ x: 152, y: 244 }, { x: 298, y: 330 }, { x: 96, y: 566 }, { x: 292, y: 584 }],
+    radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      { a: 0, b: 1, bend: 40 }, { a: 0, b: 2, bend: 56 },
-      { a: 1, b: 3, bend: 52 }, { a: 2, b: 3, bend: -44 },
+      { a: 0, b: 1, bend: 38 }, { a: 0, b: 2, bend: 52 },
+      { a: 1, b: 3, bend: 50 }, { a: 2, b: 3, bend: -42 },
     ],
   },
   5: {
@@ -86,23 +87,19 @@ const TEMPLATES: Record<number, Template> = {
       { x: 195, y: 230 }, { x: 308, y: 364 }, { x: 82, y: 390 },
       { x: 294, y: 604 }, { x: 108, y: 598 },
     ],
-    radii: [R_FOCAL, R_STD, R_STD, R_STD, R_STD],
+    radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      { a: 0, b: 1, bend: 44 }, { a: 0, b: 2, bend: -44 },
-      { a: 1, b: 3, bend: 54 }, { a: 2, b: 4, bend: 50 }, { a: 3, b: 4, bend: -40 },
+      { a: 0, b: 1, bend: 42 }, { a: 0, b: 2, bend: -42 },
+      { a: 1, b: 3, bend: 52 }, { a: 2, b: 4, bend: 48 }, { a: 3, b: 4, bend: -40 },
     ],
   },
 }
 
 const STAGGER_MS = [380, 500, 560, 660, 720]
 
-// Noise grain (cool-tinted for the slate background)
-const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.08  0 0 0 0 0.1  0 0 0 0 0.14  0 0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
+// Subtle dark grain on the light map (inlined — no network request)
+const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.12  0 0 0 0 0.16  0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
 const GRAIN_URL = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`
-
-// Decorative winding background road — purely visual, matches home page aesthetic
-// Uses the same viewBox 390×800 as the node SVG overlay
-const BG_ROAD = 'M 80 820 C 160 700, 300 640, 260 520 C 220 400, 80 340, 130 220 C 160 140, 240 90, 320 40'
 
 type NodeDef = { id: string; label: string; icon: string; focal?: boolean }
 
@@ -113,9 +110,6 @@ interface CarRow {
   avatar_url: string | null
   city: string | null
   country: string | null
-  year: number | null
-  model: string | null
-  nickname: string | null
   garage_photo_url: string | null
   original_photo_url: string | null
   featured_story: string | null
@@ -187,12 +181,14 @@ export default function PublicProfilePage() {
     return adj
   }, [template])
 
-  // Pre-compute road paths with edge offsets so roads start/end at icon boundary
   const roadPaths = useMemo(() =>
     template.edges.map(e => {
       const na = template.nodes[e.a], nb = template.nodes[e.b]
-      const ra = template.radii[e.a], rb = template.radii[e.b]
-      return road(edge(na, nb, ra), edge(nb, na, rb), e.bend)
+      return road(
+        sideAnchor(na, nb, template.radii[e.a]),
+        sideAnchor(nb, na, template.radii[e.b]),
+        e.bend,
+      )
     }),
     [template],
   )
@@ -313,7 +309,7 @@ export default function PublicProfilePage() {
     return (
       <div style={{
         minHeight: '100dvh',
-        background: 'radial-gradient(ellipse at center, #2a3040 0%, #181c24 100%)',
+        background: 'radial-gradient(ellipse at center, #e9ebf0 0%, #cdd2db 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexDirection: 'column', gap: 14, padding: 24, textAlign: 'center',
       }}>
@@ -321,15 +317,15 @@ export default function PublicProfilePage() {
         {state === 'loading' ? (
           <div style={{
             width: 30, height: 30, borderRadius: '50%',
-            border: `2.5px solid rgba(200,210,230,0.15)`, borderTopColor: COLOR_BRAND,
+            border: `2.5px solid rgba(60,70,90,0.15)`, borderTopColor: COLOR_BRAND,
             animation: 'pubspin 750ms linear infinite',
           }} />
         ) : (
           <>
-            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#c8cdd8' }}>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#2a2e36' }}>
               No public build here
             </div>
-            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#7a8099', maxWidth: 260, lineHeight: 1.5 }}>
+            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#717784', maxWidth: 260, lineHeight: 1.5 }}>
               {username ? `@${username} hasn't shared a build yet, or this garage is private.` : 'This garage is private.'}
             </div>
             <button onClick={leave} style={{
@@ -344,7 +340,7 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#1e2330', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', background: '#d8dce3', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes pubWorldIn { 0%{opacity:0;transform:rotateX(11deg) scale(0.95)} 100%{opacity:1;transform:rotateX(8deg) scale(1)} }
         @keyframes pubDestIn  { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
@@ -357,7 +353,7 @@ export default function PublicProfilePage() {
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
       `}</style>
 
-      {/* ── Header — graphite wedges (same shape as homepage burgundy, different palette) ── */}
+      {/* ── Header — graphite wedges (same shape as home), darker toward the centre V ── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: HEADER_HEIGHT, zIndex: 10, overflow: 'hidden',
@@ -365,16 +361,15 @@ export default function PublicProfilePage() {
         <svg viewBox="0 0 390 44" preserveAspectRatio="none"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
           <defs>
-            {/* Left wedge: near-black → mid-slate */}
+            {/* Left wedge: lighter at the outer edge → darker toward the centre V */}
             <linearGradient id="pubHdrL" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%"   stopColor="#111318" />
-              <stop offset="55%"  stopColor="#252b38" />
-              <stop offset="100%" stopColor="#2e3548" />
+              <stop offset="0%"   stopColor="#3c4452" />
+              <stop offset="100%" stopColor="#15171d" />
             </linearGradient>
-            {/* Right wedge: cool mid-grey → lighter graphite */}
+            {/* Right wedge: darker at the centre V → lighter at the outer edge */}
             <linearGradient id="pubHdrR" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%"   stopColor="#313a4c" />
-              <stop offset="100%" stopColor="#4a5568" />
+              <stop offset="0%"   stopColor="#15171d" />
+              <stop offset="100%" stopColor="#3c4452" />
             </linearGradient>
           </defs>
           <rect x="0" y="0" width="390" height="44" fill={COLOR_HEADER_BLACK} />
@@ -385,7 +380,7 @@ export default function PublicProfilePage() {
         {/* One-time sheen sweep on entry */}
         <div style={{
           position: 'absolute', top: '-20%', left: 0, width: '36%', height: '140%',
-          background: 'linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.14) 50%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+          background: 'linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.13) 50%, rgba(255,255,255,0.04) 70%, transparent 100%)',
           transform: 'translateX(-160%) skewX(-18deg)',
           animation: 'pubSheen 900ms cubic-bezier(0.4,0,0.2,1) 1100ms both',
           pointerEvents: 'none',
@@ -398,16 +393,16 @@ export default function PublicProfilePage() {
           cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
         }}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
-            stroke="rgba(220,228,240,0.85)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            stroke="rgba(224,230,240,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
           <span style={{
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
-            color: 'rgba(220,228,240,0.85)', letterSpacing: '0.04em',
+            color: 'rgba(224,230,240,0.9)', letterSpacing: '0.04em',
           }}>Leave</span>
         </div>
 
-        {/* Right: "Visiting @username" + date chip (same pattern as owner's header) */}
+        {/* Right: "Visiting @username" + date chip (mirrors the owner's header) */}
         <div style={{
           position: 'absolute', right: 0, top: 0, height: '100%',
           display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
@@ -415,12 +410,12 @@ export default function PublicProfilePage() {
           <span style={{
             paddingRight: 10,
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-            color: 'rgba(180,192,216,0.7)', letterSpacing: '0.04em',
+            color: 'rgba(196,206,224,0.75)', letterSpacing: '0.04em',
           }}>
             Visiting @{username}
           </span>
           <div style={{
-            background: 'rgba(220,228,240,0.92)', color: '#0d0d0d',
+            background: 'rgba(226,231,240,0.94)', color: '#0d0d0d',
             padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
             letterSpacing: '0.05em', textTransform: 'uppercase',
             display: 'flex', alignItems: 'center',
@@ -451,63 +446,49 @@ export default function PublicProfilePage() {
             transformStyle: 'preserve-3d', willChange: 'transform',
           }}
         >
-          {/* Cool slate base + grain + faint grid */}
+          {/* Light cool-grey base + grain + faint grid */}
           <div style={{
             position: 'absolute', inset: 0,
             background: [
               GRAIN_URL,
-              'linear-gradient(rgba(160,180,220,0.03) 1px, transparent 1px)',
-              'linear-gradient(90deg, rgba(160,180,220,0.03) 1px, transparent 1px)',
-              'linear-gradient(168deg, #2a3248 0%, #1e2636 40%, #161b28 80%, #0f1218 100%)',
+              'linear-gradient(rgba(60,70,90,0.04) 1px, transparent 1px)',
+              'linear-gradient(90deg, rgba(60,70,90,0.04) 1px, transparent 1px)',
+              'linear-gradient(168deg, #eef0f4 0%, #dde1e8 45%, #c7ccd6 80%, #b6bcc8 100%)',
             ].join(', '),
             backgroundSize: '220px 220px, 84px 84px, 84px 84px, 100% 100%',
           }} />
 
-          {/* Horizon glow — cool blue-slate */}
+          {/* Soft top light */}
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 240,
-            background: 'radial-gradient(ellipse at 50% 0%, rgba(80,110,170,0.22) 0%, transparent 70%)',
+            position: 'absolute', top: 0, left: 0, right: 0, height: 220,
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.6) 0%, transparent 70%)',
             pointerEvents: 'none',
           }} />
 
-          {/* Decorative background road — purely visual, echoes the home page */}
-          <svg viewBox="0 0 390 800" preserveAspectRatio="none"
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.18 }}>
-            <g fill="none" stroke="rgba(140,170,220,0.6)" strokeLinecap="round">
-              <path d={BG_ROAD} strokeWidth="10" style={{ filter: 'blur(6px)' }} />
-              <path d={BG_ROAD} strokeWidth="3.5" />
-            </g>
-            <g fill="none" stroke="rgba(140,170,220,0.35)" strokeWidth="1.2" strokeDasharray="6 10" strokeLinecap="round">
-              <path className="pub-amb" d={BG_ROAD}
-                style={{ animation: 'pubDashFlow 14s linear 1s infinite' }} />
-            </g>
-          </svg>
-
-          {/* Interactive roads + nodes SVG overlay */}
+          {/* Roads + driver dot */}
           <svg viewBox="0 0 390 800" preserveAspectRatio="none"
             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
             <defs>
               <filter id="pubGlow" x="-14%" y="-14%" width="128%" height="128%">
-                <feGaussianBlur stdDeviation="1.6" result="b" />
+                <feGaussianBlur stdDeviation="1.4" result="b" />
                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
             </defs>
 
             {roadPaths.map((d, i) => (
               <g key={i}>
-                <g fill="none" stroke="rgba(160,200,255,0.45)" strokeLinecap="round" filter="url(#pubGlow)">
+                <g fill="none" stroke="rgba(54,62,78,0.5)" strokeLinecap="round" filter="url(#pubGlow)">
                   <path ref={el => { roadElsRef.current[i] = el }}
                     d={d} strokeWidth="2.6" pathLength={1}
                     style={{ strokeDasharray: 1, animation: `pubRoadDraw 650ms ease-out ${360 + i * 60}ms both` }} />
                 </g>
-                <g fill="none" stroke="rgba(140,180,240,0.28)" strokeWidth="1.1" strokeDasharray="4 7" strokeLinecap="round">
+                <g fill="none" stroke="rgba(54,62,78,0.3)" strokeWidth="1.1" strokeDasharray="4 7" strokeLinecap="round">
                   <path className="pub-amb" d={d}
                     style={{ animation: `pubDashIn 500ms ease ${980 + i * 60}ms both, pubDashFlow ${9 + i}s linear ${1480 + i * 80}ms infinite` }} />
                 </g>
               </g>
             ))}
 
-            {/* Wandering visitor dot — burgundy brand, positioned by RAF loop */}
             {template.edges.length > 0 && (
               <g ref={driverRef} opacity="0">
                 <circle r="6" fill="rgba(120,14,18,0.22)" />
@@ -541,7 +522,7 @@ export default function PublicProfilePage() {
                   <div style={{
                     position: 'absolute', width: 190, height: 190, top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    background: 'radial-gradient(circle, rgba(120,14,18,0.18) 0%, transparent 62%)',
+                    background: 'radial-gradient(circle, rgba(120,14,18,0.16) 0%, transparent 62%)',
                     animation: 'pubPulse 3s ease-in-out infinite', pointerEvents: 'none',
                   }} />
                 )}
@@ -559,15 +540,15 @@ export default function PublicProfilePage() {
                   {/* Ground shadow */}
                   <div style={{
                     width: size * 0.58, height: 8, marginTop: n.focal ? -6 : -4, borderRadius: '50%',
-                    background: 'rgba(0,0,0,0.5)', filter: 'blur(7px)', flexShrink: 0, pointerEvents: 'none',
+                    background: 'rgba(30,36,48,0.3)', filter: 'blur(7px)', flexShrink: 0, pointerEvents: 'none',
                   }} />
                   <span style={{
                     fontFamily: FONT_UI, fontWeight: n.focal ? 800 : 700,
                     fontSize: n.focal ? 13 : 11,
-                    color: n.focal ? '#f0f4ff' : 'rgba(200,214,240,0.85)',
+                    color: n.focal ? '#1b1f26' : '#3a414c',
                     letterSpacing: n.focal ? '0.12em' : '0.08em',
                     textTransform: 'uppercase',
-                    textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                    textShadow: '0 1px 2px rgba(255,255,255,0.7)',
                     marginTop: 4, pointerEvents: 'none',
                   }}>{n.label}</span>
                   {n.focal && (
@@ -582,10 +563,10 @@ export default function PublicProfilePage() {
           })}
         </div>
 
-        {/* Edge vignette */}
+        {/* Subtle edge vignette */}
         <div style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3,
-          background: 'radial-gradient(ellipse at 50% 48%, transparent 44%, rgba(8,10,16,0.55) 100%)',
+          background: 'radial-gradient(ellipse at 50% 48%, transparent 50%, rgba(60,68,84,0.16) 100%)',
         }} />
 
         {/* Footer wordmark */}
@@ -595,7 +576,7 @@ export default function PublicProfilePage() {
         }}>
           <span style={{
             fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 900, fontSize: 13,
-            color: 'rgba(140,160,200,0.28)', letterSpacing: '-0.1em',
+            color: 'rgba(60,68,84,0.3)', letterSpacing: '-0.1em',
           }}>G‑DIMENSION</span>
         </div>
       </div>
@@ -604,9 +585,9 @@ export default function PublicProfilePage() {
       {toast && (
         <div style={{
           position: 'fixed', bottom: 46, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 40, background: 'rgba(20,24,32,0.94)', color: '#dce4f0',
+          zIndex: 40, background: 'rgba(28,32,40,0.94)', color: '#e8ecf2',
           padding: '9px 16px', borderRadius: 10, fontFamily: FONT_UI, fontWeight: 700,
-          fontSize: 12.5, letterSpacing: '0.03em', boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+          fontSize: 12.5, letterSpacing: '0.03em', boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
           pointerEvents: 'none', whiteSpace: 'nowrap',
         }}>{toast}</div>
       )}
