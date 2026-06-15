@@ -168,17 +168,28 @@ export default function PublicProfilePage() {
       ])
       if (cancelled) return
 
+      // Also fetch without status filter and without car filter so we can
+      // diagnose wrong-car vs wrong-status vs wrong-section-flag
+      const [jobsAny, tlAny] = await Promise.all([
+        supabase.from('jobs').select('id, status, car_id').eq('car_id', row.id).limit(3),
+        supabase.from('timeline_entries').select('id, car_id').limit(3),
+      ])
+      if (cancelled) return
+
       const hasBuildsheet = (jobs.data?.length ?? 0) > 0
       const hasTimeline   = (tl.data?.length ?? 0) > 0
 
       // eslint-disable-next-line no-console
       console.log('[pub] car_id', row.id, 'jobs', jobs.data, jobs.error, 'tl', tl.data, tl.error)
       if (new URLSearchParams(window.location.search).get('debug') === '1') {
+        const rowAny = (data?.[0] as Record<string, unknown>) ?? {}
         setDebug(
-          `car_id=${row.id}\n` +
-          `jobs.rows=${jobs.data?.length ?? 'null'} err=${jobs.error ? jobs.error.message : '-'}\n` +
-          `tl.rows=${tl.data?.length ?? 'null'} err=${tl.error ? tl.error.message : '-'}\n` +
-          `featured_flag=${row.show_featured_publicly}`,
+          `car=${row.id.slice(0,8)} make=${rowAny.make} model=${rowAny.model}\n` +
+          `show_bs=${rowAny.show_buildsheet_publicly} show_tl=${rowAny.show_timeline_publicly}\n` +
+          `jobs(installed)=${jobs.data?.length ?? 'null'} err=${jobs.error?.message ?? '-'}\n` +
+          `tl(this car)=${tl.data?.length ?? 'null'} err=${tl.error?.message ?? '-'}\n` +
+          `jobs(any status on car)=${jobsAny.data?.length ?? 'null'} statuses=${jobsAny.data?.map((j: Record<string,unknown>) => j.status).join(',') ?? '-'}\n` +
+          `tl(any car, anon sees)=${tlAny.data?.length ?? 'null'}`,
         )
       }
 
