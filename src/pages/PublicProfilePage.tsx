@@ -159,7 +159,7 @@ export default function PublicProfilePage() {
 
       const [jobs, tl] = await Promise.all([
         supabase.from('jobs').select('id', { count: 'exact', head: true })
-          .eq('car_id', row.id).is('deleted_at', null),
+          .eq('car_id', row.id).eq('status', 'installed'),
         supabase.from('timeline_entries').select('id', { count: 'exact', head: true })
           .eq('car_id', row.id),
       ])
