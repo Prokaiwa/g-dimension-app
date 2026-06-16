@@ -86,9 +86,10 @@ const TEMPLATES: Record<number, Template> = {
       // Monaco Hairpin: exits Garage bottom, compound arc down-left to Timeline top
       { a: 0, b: 2, bend: 0,
         pathFn: () => `M 195 223 C 20 218, 10 318, 14 398 C 18 466, 58 528, 78 532` },
-      // Canyon Run: sweeps from Build Sheet lower-left across to Timeline right side
+      // Canyon Run: sweeps hard right then arcs back left to Timeline right side
+      // — staying east of Monaco's path so the two roads never cross
       { a: 1, b: 2, bend: 0,
-        pathFn: () => `M 294 448 C 130 474, -22 524, 101 556` },
+        pathFn: () => `M 294 448 C 390 488, 390 598, 101 556` },
     ],
   },
   4: {
@@ -616,9 +617,9 @@ export default function PublicProfilePage() {
                 {/* Monaco: reversed label reading upward toward Garage */}
                 <path id="pub-3-b" d="M 78 532 C 58 528, 18 466, 14 398 C 10 318, 20 218, 195 223" fill="none"/>
                 <text><textPath href="#pub-3-b" startOffset="8%">To Timeline</textPath></text>
-                {/* Canyon Run: label on the leftward sweep */}
-                <path id="pub-3-c" d="M 294 448 C 130 474, -22 524, 101 556" fill="none"/>
-                <text><textPath href="#pub-3-c" startOffset="18%">To Timeline</textPath></text>
+                {/* Canyon Run: label on the rightward outer arc */}
+                <path id="pub-3-c" d="M 294 448 C 390 488, 390 598, 101 556" fill="none"/>
+                <text><textPath href="#pub-3-c" startOffset="22%">To Timeline</textPath></text>
               </g>
             )}
             {nodes.length === 4 && (
