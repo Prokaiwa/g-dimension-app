@@ -213,6 +213,7 @@ export default function PublicProfilePage() {
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [tune, setTune] = useState<TuneState | null>(null)
+  const [tuneCollapsed, setTuneCollapsed] = useState(false)
 
   const stageRef   = useRef<HTMLDivElement>(null)
   const worldRef   = useRef<HTMLDivElement>(null)
@@ -814,16 +815,18 @@ export default function PublicProfilePage() {
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           background: 'rgba(10,12,18,0.97)', color: '#c8d0e0',
           fontFamily: 'monospace', fontSize: 11,
-          maxHeight: '42vh', overflowY: 'auto',
+          maxHeight: tuneCollapsed ? 36 : '42vh', overflowY: tuneCollapsed ? 'hidden' : 'auto',
           borderTop: '1px solid rgba(100,120,160,0.3)',
-          padding: '8px 10px 16px',
+          transition: 'max-height 240ms ease',
+          padding: tuneCollapsed ? '0' : '8px 10px 16px',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tuneCollapsed ? 0 : 8, padding: '8px 0', cursor: 'pointer' }}
+               onClick={() => setTuneCollapsed(c => !c)}>
             <span style={{ fontWeight: 700, color: '#7eb8f7', fontSize: 11, letterSpacing: '0.08em' }}>
-              TUNE — template {nodes.length} — viewBox 390×800
+              {tuneCollapsed ? '▲' : '▼'} TUNE — template {nodes.length} — viewBox 390×800
             </span>
             <button
-              onClick={() => {
+              onClick={e => { e.stopPropagation()
                 const nodeStr = tune.nodes.map((n, i) =>
                   `      { x: ${n.x}, y: ${n.y} },  // ${i}`).join('\n')
                 const pathStr = tune.paths.map((p, i) =>
