@@ -171,6 +171,12 @@ const GLINT_ANIMS = [
 const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.12  0 0 0 0 0.16  0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
 const GRAIN_URL = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`
 
+// Dev tuning console — active when ?tune is in the URL.
+// Use alongside ?preview=N to live-edit node positions and road paths.
+const TUNE_MODE = typeof window !== 'undefined' && window.location.search.includes('tune')
+
+interface TuneState { nodes: Pt[]; paths: string[] }
+
 type NodeDef = { id: string; label: string; icon: string; focal?: boolean }
 
 // Canonical node order for the ?preview=N dev override (slot 0 = focal Garage)
@@ -206,6 +212,7 @@ export default function PublicProfilePage() {
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [tune, setTune] = useState<TuneState | null>(null)
 
   const stageRef   = useRef<HTMLDivElement>(null)
   const worldRef   = useRef<HTMLDivElement>(null)
@@ -288,6 +295,17 @@ export default function PublicProfilePage() {
     }),
     [template],
   )
+
+  // Seed the tune console once roads are ready (resets when node count changes)
+  useEffect(() => {
+    if (!TUNE_MODE || state !== 'ready') return
+    setTune({ nodes: template.nodes.map(n => ({ ...n })), paths: [...roadPaths] })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, nodes.length])
+
+  // Effective values — tune overrides static template when console is active
+  const effNodes = (TUNE_MODE && tune) ? tune.nodes : template.nodes
+  const effPaths = (TUNE_MODE && tune) ? tune.paths : roadPaths
 
   // ── Parallax + driver dot ──
   useEffect(() => {
@@ -595,7 +613,7 @@ export default function PublicProfilePage() {
               </filter>
             </defs>
 
-            {roadPaths.map((d, i) => (
+            {effPaths.map((d, i) => (
               <g key={i}>
                 <g fill="none" stroke={`rgba(54,62,78,${ROAD_STROKE_OP[i] ?? 0.48})`} strokeLinecap="round" filter="url(#pubGlow)">
                   <path ref={el => { roadElsRef.current[i] = el }}
@@ -674,7 +692,7 @@ export default function PublicProfilePage() {
 
           {/* Destination nodes */}
           {nodes.map((n, i) => {
-            const pos  = template.nodes[i]
+            const pos  = effNodes[i] ?? template.nodes[i]
             const size = n.focal ? ICON_WRAPPER_FOCAL : ICON_WRAPPER_STANDARD
             return (
               <div
@@ -788,6 +806,95 @@ export default function PublicProfilePage() {
           fontSize: 12.5, letterSpacing: '0.03em', boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
           pointerEvents: 'none', whiteSpace: 'nowrap',
         }}>{toast}</div>
+      )}
+
+      {/* ── Tune console (?tune in URL) ── */}
+      {TUNE_MODE && tune && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
+          background: 'rgba(10,12,18,0.97)', color: '#c8d0e0',
+          fontFamily: 'monospace', fontSize: 11,
+          maxHeight: '42vh', overflowY: 'auto',
+          borderTop: '1px solid rgba(100,120,160,0.3)',
+          padding: '8px 10px 16px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#7eb8f7', fontSize: 11, letterSpacing: '0.08em' }}>
+              TUNE — template {nodes.length} — viewBox 390×800
+            </span>
+            <button
+              onClick={() => {
+                const nodeStr = tune.nodes.map((n, i) =>
+                  `      { x: ${n.x}, y: ${n.y} },  // ${i}`).join('\n')
+                const pathStr = tune.paths.map((p, i) =>
+                  `        pathFn: () => \`${p}\`,  // road ${i}`).join('\n')
+                navigator.clipboard.writeText(`nodes:\n${nodeStr}\n\npaths:\n${pathStr}`)
+                  .then(() => alert('Copied!')).catch(() => alert(`Nodes:\n${nodeStr}\n\nPaths:\n${pathStr}`))
+              }}
+              style={{
+                background: '#1e3a5f', color: '#7eb8f7', border: '1px solid #2e5a9f',
+                borderRadius: 6, padding: '3px 10px', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer',
+              }}
+            >Copy config</button>
+          </div>
+
+          {/* Node positions */}
+          <div style={{ color: '#a0c8ff', fontWeight: 700, marginBottom: 4 }}>NODES (x, y) — viewBox 390 wide × 800 tall</div>
+          {tune.nodes.map((n, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+              <span style={{ color: '#5a7a9a', width: 100, flexShrink: 0 }}>
+                [{i}] {['Garage','Build Sheet','Timeline','Featured','Guides'][i] ?? `node${i}`}
+              </span>
+              <span style={{ color: '#5a7a9a' }}>x</span>
+              <input type="number" value={n.x}
+                onChange={e => setTune(prev => {
+                  if (!prev) return prev
+                  const nodes = prev.nodes.map((nd, ii) => ii === i ? { ...nd, x: Number(e.target.value) } : nd)
+                  return { ...prev, nodes }
+                })}
+                style={{ width: 52, background: '#0d1520', color: '#e0eaff', border: '1px solid #2a3a54', borderRadius: 4, padding: '2px 4px', fontFamily: 'monospace', fontSize: 11 }}
+              />
+              <span style={{ color: '#5a7a9a' }}>y</span>
+              <input type="number" value={n.y}
+                onChange={e => setTune(prev => {
+                  if (!prev) return prev
+                  const nodes = prev.nodes.map((nd, ii) => ii === i ? { ...nd, y: Number(e.target.value) } : nd)
+                  return { ...prev, nodes }
+                })}
+                style={{ width: 52, background: '#0d1520', color: '#e0eaff', border: '1px solid #2a3a54', borderRadius: 4, padding: '2px 4px', fontFamily: 'monospace', fontSize: 11 }}
+              />
+            </div>
+          ))}
+
+          {/* Road paths */}
+          <div style={{ color: '#a0c8ff', fontWeight: 700, margin: '8px 0 4px' }}>
+            ROADS — SVG cubic bezier: M startX startY C cp1x cp1y, cp2x cp2y, endX endY
+          </div>
+          <div style={{ color: '#5a7a9a', marginBottom: 6, fontSize: 10 }}>
+            Tip: M = move to start · C = curve through two control points to end · compound curves chain multiple C segments
+          </div>
+          {template.edges.map((e, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div style={{ color: '#5a7a9a', marginBottom: 2 }}>
+                [{e.a}→{e.b}] {['Garage','Build Sheet','Timeline','Featured','Guides'][e.a] ?? `n${e.a}`} → {['Garage','Build Sheet','Timeline','Featured','Guides'][e.b] ?? `n${e.b}`}
+              </div>
+              <input
+                value={tune.paths[i] ?? ''}
+                onChange={ev => setTune(prev => {
+                  if (!prev) return prev
+                  const paths = prev.paths.map((p, ii) => ii === i ? ev.target.value : p)
+                  return { ...prev, paths }
+                })}
+                style={{
+                  width: '100%', background: '#0d1520', color: '#c8f0a0',
+                  border: '1px solid #2a3a54', borderRadius: 4,
+                  padding: '3px 6px', fontFamily: 'monospace', fontSize: 10,
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )
