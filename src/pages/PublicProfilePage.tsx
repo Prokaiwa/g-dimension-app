@@ -26,6 +26,7 @@ import {
   ICON_WRAPPER_STANDARD,
   FOCAL_UNDERLINE_W,
   FOCAL_UNDERLINE_H,
+  GRADIENT_HEADER_SHADOW,
   EASING_SETTLE,
 } from '../tokens'
 
@@ -126,6 +127,26 @@ const TEMPLATES: Record<number, Template> = {
 }
 
 const STAGGER_MS = [380, 500, 560, 660, 720]
+
+// Per-road stroke variety (matches Home's hand-tuned feel)
+const ROAD_STROKE_W    = [2.8, 2.2, 2.5, 2.4]
+const ROAD_STROKE_OP   = [0.52, 0.42, 0.48, 0.46]
+const ROAD_DRAW_DELAY  = [380, 500, 560, 660]
+const ROAD_DASH_OP     = [0.25, 0.22, 0.24, 0.22]
+const ROAD_DASH_W      = [1.2, 1.0, 1.2, 1.1]
+const ROAD_DASH_ARR    = ['4 6', '6 9', '4 8', '5 7']
+const ROAD_DASH_PERIOD = [9, 10, 9, 10]
+const ROAD_DASH_IN_MS  = [1000, 1050, 1180, 1220]
+const ROAD_DASH_FLW_MS = [1500, 1550, 1680, 1720]
+
+// Glint timing per node — co-prime periods so the sweeps never sync
+const GLINT_ANIMS = [
+  'pubGlintA 7s ease-in-out 3200ms infinite',
+  'pubGlintB 11s ease-in-out 5600ms infinite',
+  'pubGlintC 13s ease-in-out 9200ms infinite',
+  'pubGlintD 17s ease-in-out 7400ms infinite',
+  'pubGlintE 19s ease-in-out 11800ms infinite',
+]
 
 // Subtle dark grain on the light map (inlined — no network request)
 const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.12  0 0 0 0 0.16  0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
@@ -261,6 +282,12 @@ export default function PublicProfilePage() {
     const onResize = () => { rect = stage.getBoundingClientRect() }
     window.addEventListener('resize', onResize)
 
+    let isEntered = false
+    const entryTimer = setTimeout(() => {
+      isEntered = true
+      world.style.animation = 'none'
+    }, 900)
+
     let targetPX = 0, targetPY = 0, curPX = 0, curPY = 0
     const onMove = (e: MouseEvent) => {
       const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2
@@ -290,16 +317,18 @@ export default function PublicProfilePage() {
       const swayY = reduced ? 0 : Math.sin((t / 17000) * Math.PI * 2 + 2.1) * 0.16
       curPX += (targetPX + swayX - curPX) * 0.08
       curPY += (targetPY + swayY - curPY) * 0.08
-      world.style.transform =
-        `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
-      if (compassRef.current && !reduced)
-        compassRef.current.style.transform = `rotate(${(curPX * 4).toFixed(2)}deg)`
+      if (isEntered) {
+        world.style.transform =
+          `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
+        if (compassRef.current && !reduced)
+          compassRef.current.style.transform = `rotate(${(curPX * 4).toFixed(2)}deg)`
+      }
 
       const dot = driverRef.current
       if (dot && !reduced && template.edges.length > 0) {
         if (driver.mode === 'dwell') {
-          if (driver.until === 0) driver.until = t + 2200
-          if (t >= driver.until) {
+          if (driver.until === 0) driver.until = t + 2600
+          if (isEntered && t >= driver.until) {
             const opts = adjacency[driver.node] ?? []
             const pool = opts.length > 1 && driver.lastEdge >= 0
               ? opts.filter(e => e !== driver.lastEdge) : opts
@@ -342,6 +371,7 @@ export default function PublicProfilePage() {
     rafRef.current = requestAnimationFrame(tick)
 
     return () => {
+      clearTimeout(entryTimer)
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener('resize', onResize)
       stage.removeEventListener('mousemove', onMove as EventListener)
@@ -408,7 +438,12 @@ export default function PublicProfilePage() {
         @keyframes pubPulse    { 0%,100%{opacity:0.2;transform:scale(1)} 50%{opacity:0.55;transform:scale(1.05)} }
         @keyframes pubFooterIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pubSheen    { from{transform:translateX(-160%) skewX(-18deg)} to{transform:translateX(420%) skewX(-18deg)} }
-        @keyframes pubCompass  { 0%{transform:rotate(-130deg)} 55%{transform:rotate(12deg)} 78%{transform:rotate(-5deg)} 100%{transform:rotate(0deg)} }
+        @keyframes pubCompass  { 0%{transform:rotate(-140deg)} 55%{transform:rotate(14deg)} 78%{transform:rotate(-6deg)} 100%{transform:rotate(0deg)} }
+        @keyframes pubGlintA { 0%,84%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
+        @keyframes pubGlintB { 0%,89%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
+        @keyframes pubGlintC { 0%,91%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
+        @keyframes pubGlintD { 0%,93%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
+        @keyframes pubGlintE { 0%,94%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
       `}</style>
 
@@ -497,6 +532,13 @@ export default function PublicProfilePage() {
           touchAction: 'none', overscrollBehavior: 'none',
         }}
       >
+        {/* Header cast shadow */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          height: 90, zIndex: 5, pointerEvents: 'none',
+          background: GRADIENT_HEADER_SHADOW,
+        }} />
+
         <div
           ref={worldRef}
           style={{
@@ -536,14 +578,14 @@ export default function PublicProfilePage() {
 
             {roadPaths.map((d, i) => (
               <g key={i}>
-                <g fill="none" stroke="rgba(54,62,78,0.5)" strokeLinecap="round" filter="url(#pubGlow)">
+                <g fill="none" stroke={`rgba(54,62,78,${ROAD_STROKE_OP[i] ?? 0.48})`} strokeLinecap="round" filter="url(#pubGlow)">
                   <path ref={el => { roadElsRef.current[i] = el }}
-                    d={d} strokeWidth="2.6" pathLength={1}
-                    style={{ strokeDasharray: 1, animation: `pubRoadDraw 650ms ease-out ${360 + i * 60}ms both` }} />
+                    d={d} strokeWidth={ROAD_STROKE_W[i] ?? 2.5} pathLength={1}
+                    style={{ strokeDasharray: 1, animation: `pubRoadDraw 650ms ease-out ${ROAD_DRAW_DELAY[i] ?? 500}ms both` }} />
                 </g>
-                <g fill="none" stroke="rgba(54,62,78,0.3)" strokeWidth="1.1" strokeDasharray="4 7" strokeLinecap="round">
+                <g fill="none" stroke={`rgba(54,62,78,${ROAD_DASH_OP[i] ?? 0.22})`} strokeWidth={ROAD_DASH_W[i] ?? 1.1} strokeDasharray={ROAD_DASH_ARR[i] ?? '4 7'} strokeLinecap="round">
                   <path className="pub-amb" d={d}
-                    style={{ animation: `pubDashIn 500ms ease ${980 + i * 60}ms both, pubDashFlow ${9 + i}s linear ${1480 + i * 80}ms infinite` }} />
+                    style={{ animation: `pubDashIn 500ms ease ${ROAD_DASH_IN_MS[i] ?? 980}ms both, pubDashFlow ${ROAD_DASH_PERIOD[i] ?? 9}s linear ${ROAD_DASH_FLW_MS[i] ?? 1480}ms infinite` }} />
                 </g>
               </g>
             ))}
@@ -633,9 +675,28 @@ export default function PublicProfilePage() {
                     ? 'transform 80ms ease-out'
                     : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                 }}>
-                  <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'relative', width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <img src={n.icon} alt={n.label} draggable={false}
                       style={{ width: size * 0.85, height: size * 0.85, objectFit: 'contain', pointerEvents: 'none' }} />
+                    {/* Periodic glint — masked to opaque icon pixels only */}
+                    <div style={{
+                      position: 'absolute', top: '50%', left: '50%',
+                      width: size * 0.85, height: size * 0.85,
+                      transform: 'translate(-50%, -50%)',
+                      WebkitMaskImage: `url(${n.icon})`, maskImage: `url(${n.icon})`,
+                      WebkitMaskSize: 'contain', maskSize: 'contain',
+                      WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+                      WebkitMaskPosition: 'center', maskPosition: 'center',
+                      overflow: 'hidden', pointerEvents: 'none',
+                    }}>
+                      <div className="pub-amb" style={{
+                        position: 'absolute', top: '-20%', left: 0,
+                        width: '55%', height: '140%',
+                        background: `linear-gradient(105deg, transparent 0%, rgba(30,40,55,0.04) 30%, rgba(30,40,55,${n.focal ? 0.28 : 0.18}) 50%, rgba(30,40,55,0.04) 70%, transparent 100%)`,
+                        transform: 'translateX(-160%) skewX(-18deg)',
+                        animation: GLINT_ANIMS[i],
+                      }} />
+                    </div>
                   </div>
                   {/* Ground shadow */}
                   <div style={{
