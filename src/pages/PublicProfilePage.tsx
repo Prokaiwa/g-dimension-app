@@ -76,22 +76,22 @@ const TEMPLATES: Record<number, Template> = {
     // Monaco and Canyon Run share the same Timeline junction (78,535) so both
     // roads tuck cleanly behind the single icon — same technique as 4-node.
     nodes: [
-      { x: 195, y: 225 },  // 0: Garage (focal) — moved down from 185
+      { x: 195, y: 248 },  // 0: Garage (focal)
       { x: 318, y: 428 },  // 1: Build Sheet (right, mid)
-      { x: 78,  y: 556 },  // 2: Timeline (left, lower)
+      { x: 62,  y: 556 },  // 2: Timeline (left, lower — nudged further left)
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD],
     edges: [
-      // Eau Rouge: exits Garage bottom, sweeps hard right to Build Sheet top
+      // Eau Rouge: exits Garage bottom, sweeps right to Build Sheet top
       { a: 0, b: 1, bend: 0,
-        pathFn: () => `M 195 263 C 375 266, 405 352, 318 405` },
-      // Monaco Hairpin: compound arc down-left; ends at shared Timeline junction
+        pathFn: () => `M 195 286 C 375 290, 405 368, 318 405` },
+      // Monaco Hairpin: compound arc down-left to shared Timeline junction
       { a: 0, b: 2, bend: 0,
-        pathFn: () => `M 195 263 C 20 260, 10 352, 14 428 C 18 488, 58 528, 78 535` },
-      // Canyon Run: sweeps hard right (x=440) to clear the label, then arcs
-      // back left to the SAME Timeline junction — roads meet behind the icon
+        pathFn: () => `M 195 286 C 20 283, 10 368, 14 445 C 18 502, 50 528, 62 535` },
+      // Canyon Run: rounded rightward peak near Build Sheet level (x=355, well
+      // inward from screen edge), then arcs back left to shared Timeline junction
       { a: 1, b: 2, bend: 0,
-        pathFn: () => `M 294 448 C 440 490, 440 615, 78 535` },
+        pathFn: () => `M 294 448 C 355 445, 352 592, 62 535` },
     ],
   },
   4: {
@@ -614,14 +614,14 @@ export default function PublicProfilePage() {
               <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
                  fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
                 {/* Eau Rouge: right-sweeping arc to Build Sheet */}
-                <path id="pub-3-a" d="M 195 263 C 375 266, 405 352, 318 405" fill="none"/>
+                <path id="pub-3-a" d="M 195 286 C 375 290, 405 368, 318 405" fill="none"/>
                 <text><textPath href="#pub-3-a" startOffset="14%">To Build Sheet</textPath></text>
                 {/* Monaco: reversed, reads upward toward Garage */}
-                <path id="pub-3-b" d="M 78 535 C 58 528, 18 488, 14 428 C 10 352, 20 260, 195 263" fill="none"/>
+                <path id="pub-3-b" d="M 62 535 C 50 528, 18 502, 14 445 C 10 368, 20 283, 195 286" fill="none"/>
                 <text><textPath href="#pub-3-b" startOffset="8%">To Timeline</textPath></text>
-                {/* Canyon Run: label on the outer rightward arc */}
-                <path id="pub-3-c" d="M 294 448 C 440 490, 440 615, 78 535" fill="none"/>
-                <text><textPath href="#pub-3-c" startOffset="24%">To Timeline</textPath></text>
+                {/* Canyon Run: label on the rounded outer arc */}
+                <path id="pub-3-c" d="M 294 448 C 355 445, 352 592, 62 535" fill="none"/>
+                <text><textPath href="#pub-3-c" startOffset="22%">To Timeline</textPath></text>
               </g>
             )}
             {nodes.length === 4 && (
