@@ -80,10 +80,10 @@ const TEMPLATES: Record<number, Template> = {
     // they appear to share a single departure point — like a fork in the road.
     // Timeline moved down to y=490 so it sits below the two converging road ends.
     nodes: [
-      { x: 195, y: 155 },  // 0: Garage (focal)
-      { x: 322, y: 360 },  // 1: Build Sheet (right)
-      { x: 68,  y: 450 },  // 2: Timeline (left, moved down)
-      { x: 195, y: 605 },  // 3: Featured (bottom)
+      { x: 195, y: 195 },  // 0: Garage (focal)
+      { x: 322, y: 400 },  // 1: Build Sheet (right)
+      { x: 68,  y: 490 },  // 2: Timeline (left)
+      { x: 195, y: 645 },  // 3: Featured (bottom)
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
@@ -98,7 +98,7 @@ const TEMPLATES: Record<number, Template> = {
       // the Pouhon departs from, giving Timeline a single road junction point.
       { a: 0, b: 2, bend: 0,
         pathFn: () =>
-          `M 195 193 C 18 188, 10 295, 15 345 C 20 395, 62 448, 68 450` },
+          `M 195 193 C 18 188, 10 295, 15 345 C 20 410, 62 470, 68 474` },
       // Bus Stop Chicane: unchanged.
       { a: 1, b: 3, bend: 0,
         pathFn: (a, b) =>
@@ -109,7 +109,7 @@ const TEMPLATES: Record<number, Template> = {
       // sweeping right to Featured.
       { a: 2, b: 3, bend: 0,
         pathFn: (_a, b) =>
-          `M 68 450 C -60 468, 70 592, ${b.x} ${b.y}` },
+          `M 68 474 C -60 492, 70 610, ${b.x} ${b.y}` },
     ],
   },
   5: {
@@ -553,16 +553,16 @@ export default function PublicProfilePage() {
               <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
                  fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
                 {/* Eau Rouge: label follows the right-sweeping arc */}
-                <path id="pub-rl-a" d="M 195 193 C 370 200, 392 310, 298.5 360" fill="none"/>
+                <path id="pub-rl-a" d="M 195 193 C 370 200, 392 310, 298.5 400" fill="none"/>
                 <text><textPath href="#pub-rl-a" startOffset="12%">To Build Sheet</textPath></text>
                 {/* Monaco Hairpin: label follows exit leg, reversed toward Timeline */}
-                <path id="pub-rl-b" d="M 68 450 C 62 448, 20 395, 15 345" fill="none"/>
+                <path id="pub-rl-b" d="M 68 474 C 62 470, 20 410, 15 345" fill="none"/>
                 <text><textPath href="#pub-rl-b" startOffset="5%">To Timeline</textPath></text>
                 {/* Bus Stop: label on the left-dipping entry of the S */}
-                <path id="pub-rl-c" d="M 298.5 360 C 118 432, 358 525, 218.5 605" fill="none"/>
+                <path id="pub-rl-c" d="M 298.5 400 C 118 432, 358 525, 218.5 645" fill="none"/>
                 <text><textPath href="#pub-rl-c" startOffset="14%">To Featured</textPath></text>
                 {/* Pouhon: subtle label on the arc toward Featured */}
-                <path id="pub-rl-d" d="M 68 450 C -60 468, 70 592, 171.5 605" fill="none"/>
+                <path id="pub-rl-d" d="M 68 474 C -60 492, 70 610, 171.5 645" fill="none"/>
                 <text><textPath href="#pub-rl-d" startOffset="22%">To Featured</textPath></text>
               </g>
             )}
