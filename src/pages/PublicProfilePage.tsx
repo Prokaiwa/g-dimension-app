@@ -71,9 +71,25 @@ const TEMPLATES: Record<number, Template> = {
     edges: [{ a: 0, b: 1, bend: -64 }],
   },
   3: {
-    nodes: [{ x: 195, y: 234 }, { x: 96, y: 556 }, { x: 298, y: 556 }],
+    // Staggered: Garage top-center, Build Sheet right-mid, Timeline left-lower.
+    // Heights offset by 128px so it reads as a flowing route, not a ghost.
+    nodes: [
+      { x: 195, y: 185 },  // 0: Garage (focal)
+      { x: 318, y: 428 },  // 1: Build Sheet (right, mid)
+      { x: 78,  y: 556 },  // 2: Timeline (left, lower)
+    ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD],
-    edges: [{ a: 0, b: 1, bend: 50 }, { a: 0, b: 2, bend: -50 }, { a: 1, b: 2, bend: 40 }],
+    edges: [
+      // Eau Rouge: exits Garage bottom, sweeps hard right to Build Sheet top
+      { a: 0, b: 1, bend: 0,
+        pathFn: () => `M 195 223 C 375 226, 402 328, 318 405` },
+      // Monaco Hairpin: exits Garage bottom, compound arc down-left to Timeline top
+      { a: 0, b: 2, bend: 0,
+        pathFn: () => `M 195 223 C 20 218, 10 318, 14 398 C 18 466, 58 528, 78 532` },
+      // Canyon Run: sweeps from Build Sheet lower-left across to Timeline right side
+      { a: 1, b: 2, bend: 0,
+        pathFn: () => `M 294 448 C 130 474, -22 524, 101 556` },
+    ],
   },
   4: {
     // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom.
@@ -591,6 +607,20 @@ export default function PublicProfilePage() {
             ))}
 
             {/* Road labels — Cormorant italic, same style as Home */}
+            {nodes.length === 3 && (
+              <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
+                 fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
+                {/* Eau Rouge: right-sweeping arc to Build Sheet */}
+                <path id="pub-3-a" d="M 195 223 C 375 226, 402 328, 318 405" fill="none"/>
+                <text><textPath href="#pub-3-a" startOffset="14%">To Build Sheet</textPath></text>
+                {/* Monaco: reversed label reading upward toward Garage */}
+                <path id="pub-3-b" d="M 78 532 C 58 528, 18 466, 14 398 C 10 318, 20 218, 195 223" fill="none"/>
+                <text><textPath href="#pub-3-b" startOffset="8%">To Timeline</textPath></text>
+                {/* Canyon Run: label on the leftward sweep */}
+                <path id="pub-3-c" d="M 294 448 C 130 474, -22 524, 101 556" fill="none"/>
+                <text><textPath href="#pub-3-c" startOffset="18%">To Timeline</textPath></text>
+              </g>
+            )}
             {nodes.length === 4 && (
               <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
                  fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
