@@ -80,10 +80,10 @@ const TEMPLATES: Record<number, Template> = {
     // they appear to share a single departure point — like a fork in the road.
     // Timeline moved down to y=490 so it sits below the two converging road ends.
     nodes: [
-      { x: 195, y: 195 },  // 0: Garage (focal)
-      { x: 322, y: 400 },  // 1: Build Sheet (right)
-      { x: 68,  y: 490 },  // 2: Timeline (left, moved down)
-      { x: 195, y: 645 },  // 3: Featured (bottom)
+      { x: 195, y: 155 },  // 0: Garage (focal)
+      { x: 322, y: 360 },  // 1: Build Sheet (right)
+      { x: 68,  y: 450 },  // 2: Timeline (left, moved down)
+      { x: 195, y: 605 },  // 3: Featured (bottom)
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
@@ -91,25 +91,25 @@ const TEMPLATES: Record<number, Template> = {
       // arcs back to Build Sheet's left entrance.
       { a: 0, b: 1, bend: 0,
         pathFn: (_a, b) =>
-          `M 195 233 C 370 240, 392 350, ${b.x} ${b.y}` },
+          `M 195 193 C 370 200, 392 310, ${b.x} ${b.y}` },
       // Monaco Hairpin: smooth compound bezier (C1 continuity at junction).
-      // Both Garage roads share (195,233); Monaco ends at Timeline CENTER (68,490)
+      // Both Garage roads share (195,193); Monaco ends at Timeline CENTER (68,450)
       // so the dot and road tuck cleanly behind the icon — same arrival point
       // the Pouhon departs from, giving Timeline a single road junction point.
       { a: 0, b: 2, bend: 0,
         pathFn: () =>
-          `M 195 233 C 18 228, 10 335, 15 385 C 20 435, 62 488, 68 490` },
+          `M 195 193 C 18 188, 10 295, 15 345 C 20 395, 62 448, 68 450` },
       // Bus Stop Chicane: unchanged.
       { a: 1, b: 3, bend: 0,
         pathFn: (a, b) =>
-          `M ${a.x} ${a.y} C 118 472, 358 565, ${b.x} ${b.y}` },
+          `M ${a.x} ${a.y} C 118 432, 358 525, ${b.x} ${b.y}` },
       // Pouhon: departs from Timeline CENTER (same as Monaco arrival) so the
       // road tucks fully behind the icon. CP1 pushed hard left (-60) so the
       // arc clears the TIMELINE label (which sits just below the icon) before
       // sweeping right to Featured.
       { a: 2, b: 3, bend: 0,
         pathFn: (_a, b) =>
-          `M 68 490 C -60 508, 70 632, ${b.x} ${b.y}` },
+          `M 68 450 C -60 468, 70 592, ${b.x} ${b.y}` },
     ],
   },
   5: {
@@ -553,16 +553,16 @@ export default function PublicProfilePage() {
               <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
                  fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
                 {/* Eau Rouge: label follows the right-sweeping arc */}
-                <path id="pub-rl-a" d="M 195 233 C 370 240, 392 350, 298.5 400" fill="none"/>
+                <path id="pub-rl-a" d="M 195 193 C 370 200, 392 310, 298.5 360" fill="none"/>
                 <text><textPath href="#pub-rl-a" startOffset="12%">To Build Sheet</textPath></text>
                 {/* Monaco Hairpin: label follows exit leg, reversed toward Timeline */}
-                <path id="pub-rl-b" d="M 68 490 C 62 488, 20 435, 15 385" fill="none"/>
+                <path id="pub-rl-b" d="M 68 450 C 62 448, 20 395, 15 345" fill="none"/>
                 <text><textPath href="#pub-rl-b" startOffset="5%">To Timeline</textPath></text>
                 {/* Bus Stop: label on the left-dipping entry of the S */}
-                <path id="pub-rl-c" d="M 298.5 400 C 118 472, 358 565, 218.5 645" fill="none"/>
+                <path id="pub-rl-c" d="M 298.5 360 C 118 432, 358 525, 218.5 605" fill="none"/>
                 <text><textPath href="#pub-rl-c" startOffset="14%">To Featured</textPath></text>
                 {/* Pouhon: subtle label on the arc toward Featured */}
-                <path id="pub-rl-d" d="M 68 490 C -60 508, 70 632, 171.5 645" fill="none"/>
+                <path id="pub-rl-d" d="M 68 450 C -60 468, 70 592, 171.5 605" fill="none"/>
                 <text><textPath href="#pub-rl-d" startOffset="22%">To Featured</textPath></text>
               </g>
             )}
