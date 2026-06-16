@@ -59,7 +59,7 @@ function road(a: Pt, b: Pt, bend: number): string {
   return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} C ${c1.x.toFixed(1)} ${c1.y.toFixed(1)}, ${c2.x.toFixed(1)} ${c2.y.toFixed(1)}, ${b.x.toFixed(1)} ${b.y.toFixed(1)}`
 }
 
-type Edge = { a: number; b: number; bend: number }
+type Edge = { a: number; b: number; bend: number; pathFn?: (a: Pt, b: Pt) => string }
 type Template = { nodes: Pt[]; radii: number[]; edges: Edge[] }
 
 const TEMPLATES: Record<number, Template> = {
@@ -75,21 +75,31 @@ const TEMPLATES: Record<number, Template> = {
     edges: [{ a: 0, b: 1, bend: 50 }, { a: 0, b: 2, bend: -50 }, { a: 1, b: 2, bend: 40 }],
   },
   4: {
-    // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom-center.
-    // This ensures every edge connects nodes that are clearly left/right of each other,
-    // so sideAnchor always picks the correct exit side and roads never cross labels.
+    // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom.
     nodes: [
-      { x: 195, y: 195 },  // 0: Garage (focal, top)
+      { x: 195, y: 195 },  // 0: Garage (focal)
       { x: 322, y: 400 },  // 1: Build Sheet (right)
       { x: 68,  y: 420 },  // 2: Timeline (left)
       { x: 195, y: 645 },  // 3: Featured (bottom)
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      { a: 0, b: 1, bend: -28 }, // Garage → Build Sheet (right arc)
-      { a: 0, b: 2, bend:  28 }, // Garage → Timeline   (left arc)
-      { a: 1, b: 3, bend: -32 }, // Build Sheet → Featured (right arc down)
-      { a: 2, b: 3, bend:  32 }, // Timeline → Featured    (left arc down)
+      // Eau Rouge / Raidillon (Spa): fast, sweeping right-hander — the road
+      // commits wide right then arcs back to the entry of the next section.
+      { a: 0, b: 1, bend: 0,
+        pathFn: (a, b) => `M ${a.x} ${a.y} C 358 218, 382 345, ${b.x} ${b.y}` },
+      // Monaco Hairpin (Loews): tightest corner in F1 — road goes hard left,
+      // past the destination, loops back on itself. Two-segment compound bezier.
+      { a: 0, b: 2, bend: 0,
+        pathFn: (a, b) => `M ${a.x} ${a.y} C 48 202, 14 318, 18 372 C 22 440, 72 440, ${b.x} ${b.y}` },
+      // Bus Stop Chicane (Spa): sharp left-right S — right jink then sweeps
+      // hard left to the apex, unsettling the car before the final destination.
+      { a: 1, b: 3, bend: 0,
+        pathFn: (a, b) => `M ${a.x} ${a.y} C 385 478, 92 552, ${b.x} ${b.y}` },
+      // Pouhon (Spa): long, fast, double-apex left-hander — the road arcs
+      // patiently outward then gathers back in at the exit.
+      { a: 2, b: 3, bend: 0,
+        pathFn: (a, b) => `M ${a.x} ${a.y} C 28 535, 88 632, ${b.x} ${b.y}` },
     ],
   },
   5: {
@@ -221,11 +231,9 @@ export default function PublicProfilePage() {
   const roadPaths = useMemo(() =>
     template.edges.map(e => {
       const na = template.nodes[e.a], nb = template.nodes[e.b]
-      return road(
-        sideAnchor(na, nb, template.radii[e.a]),
-        sideAnchor(nb, na, template.radii[e.b]),
-        e.bend,
-      )
+      const a = sideAnchor(na, nb, template.radii[e.a])
+      const b = sideAnchor(nb, na, template.radii[e.b])
+      return e.pathFn ? e.pathFn(a, b) : road(a, b, e.bend)
     }),
     [template],
   )
