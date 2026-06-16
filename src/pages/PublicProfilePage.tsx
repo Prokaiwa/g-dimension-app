@@ -84,22 +84,24 @@ const TEMPLATES: Record<number, Template> = {
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      // Eau Rouge / Raidillon (Spa): fast, sweeping right-hander — the road
-      // commits wide right then arcs back to the entry of the next section.
+      // Eau Rouge / Raidillon (Spa): wide sweeping right-hander — no change.
       { a: 0, b: 1, bend: 0,
         pathFn: (a, b) => `M ${a.x} ${a.y} C 358 218, 382 345, ${b.x} ${b.y}` },
-      // Monaco Hairpin (Loews): tightest corner in F1 — road goes hard left,
-      // past the destination, loops back on itself. Two-segment compound bezier.
+      // Monaco Hairpin: compound bezier — road goes hard left past Timeline,
+      // reverses, and arrives deeply inside the icon so the dot hides cleanly.
       { a: 0, b: 2, bend: 0,
-        pathFn: (a, b) => `M ${a.x} ${a.y} C 48 202, 14 318, 18 372 C 22 440, 72 440, ${b.x} ${b.y}` },
-      // Bus Stop Chicane (Spa): sharp left-right S — right jink then sweeps
-      // hard left to the apex, unsettling the car before the final destination.
+        pathFn: (a, _b) =>
+          `M ${a.x} ${a.y} C 48 202, 14 310, 18 362 C 22 415, 65 418, 72 420` },
+      // Bus Stop Chicane FLIPPED: dips left first, then swings hard right
+      // so the bottom of the S arrives on the right flank of Featured.
       { a: 1, b: 3, bend: 0,
-        pathFn: (a, b) => `M ${a.x} ${a.y} C 385 478, 92 552, ${b.x} ${b.y}` },
-      // Pouhon (Spa): long, fast, double-apex left-hander — the road arcs
-      // patiently outward then gathers back in at the exit.
+        pathFn: (a, b) =>
+          `M ${a.x} ${a.y} C 118 472, 358 565, ${b.x} ${b.y}` },
+      // Pouhon: exits from the BOTTOM of Timeline icon (clears the label below),
+      // then arcs patiently left-right down to Featured's left side.
       { a: 2, b: 3, bend: 0,
-        pathFn: (a, b) => `M ${a.x} ${a.y} C 28 535, 88 632, ${b.x} ${b.y}` },
+        pathFn: (_a, b) =>
+          `M 68 444 C 32 538, 90 628, ${b.x} ${b.y}` },
     ],
   },
   5: {
