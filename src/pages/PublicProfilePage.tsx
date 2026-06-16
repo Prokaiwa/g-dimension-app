@@ -75,11 +75,21 @@ const TEMPLATES: Record<number, Template> = {
     edges: [{ a: 0, b: 1, bend: 50 }, { a: 0, b: 2, bend: -50 }, { a: 1, b: 2, bend: 40 }],
   },
   4: {
-    nodes: [{ x: 152, y: 244 }, { x: 298, y: 330 }, { x: 96, y: 566 }, { x: 292, y: 584 }],
+    // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom-center.
+    // This ensures every edge connects nodes that are clearly left/right of each other,
+    // so sideAnchor always picks the correct exit side and roads never cross labels.
+    nodes: [
+      { x: 195, y: 195 },  // 0: Garage (focal, top)
+      { x: 322, y: 400 },  // 1: Build Sheet (right)
+      { x: 68,  y: 420 },  // 2: Timeline (left)
+      { x: 195, y: 645 },  // 3: Featured (bottom)
+    ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      { a: 0, b: 1, bend: 38 }, { a: 0, b: 2, bend: 52 },
-      { a: 1, b: 3, bend: 50 }, { a: 2, b: 3, bend: -42 },
+      { a: 0, b: 1, bend: -28 }, // Garage → Build Sheet (right arc)
+      { a: 0, b: 2, bend:  28 }, // Garage → Timeline   (left arc)
+      { a: 1, b: 3, bend: -32 }, // Build Sheet → Featured (right arc down)
+      { a: 2, b: 3, bend:  32 }, // Timeline → Featured    (left arc down)
     ],
   },
   5: {
@@ -136,7 +146,6 @@ export default function PublicProfilePage() {
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [debug, setDebug] = useState<string>('')
 
   const stageRef   = useRef<HTMLDivElement>(null)
   const worldRef   = useRef<HTMLDivElement>(null)
@@ -161,8 +170,6 @@ export default function PublicProfilePage() {
       const row = rows.find(r => r.id === activeId) ?? rows[0] ?? null
       if (error || !row) { setState('empty'); return }
 
-      // Fetch a single id from each table to test presence. (Avoids the
-      // head:true count mechanism, which was returning null here.)
       const [jobs, tl] = await Promise.all([
         supabase.from('jobs').select('id')
           .eq('car_id', row.id).eq('status', 'installed').limit(1),
@@ -171,30 +178,8 @@ export default function PublicProfilePage() {
       ])
       if (cancelled) return
 
-      // Also fetch without status filter and without car filter so we can
-      // diagnose wrong-car vs wrong-status vs wrong-section-flag
-      const [jobsAny, tlAny] = await Promise.all([
-        supabase.from('jobs').select('id, status, car_id').eq('car_id', row.id).limit(3),
-        supabase.from('timeline_entries').select('id, car_id').limit(3),
-      ])
-      if (cancelled) return
-
       const hasBuildsheet = (jobs.data?.length ?? 0) > 0
       const hasTimeline   = (tl.data?.length ?? 0) > 0
-
-      // eslint-disable-next-line no-console
-      console.log('[pub] car_id', row.id, 'jobs', jobs.data, jobs.error, 'tl', tl.data, tl.error)
-      if (new URLSearchParams(window.location.search).get('debug') === '1') {
-        const rowAny = (row as unknown as Record<string, unknown>) ?? {}
-        setDebug(
-          `car=${row.id.slice(0,8)} make=${rowAny.make} model=${rowAny.model}\n` +
-          `show_bs=${rowAny.show_buildsheet_publicly} show_tl=${rowAny.show_timeline_publicly}\n` +
-          `jobs(installed)=${jobs.data?.length ?? 'null'} err=${jobs.error?.message ?? '-'}\n` +
-          `tl(this car)=${tl.data?.length ?? 'null'} err=${tl.error?.message ?? '-'}\n` +
-          `jobs(any status on car)=${jobsAny.data?.length ?? 'null'} statuses=${jobsAny.data?.map((j: Record<string,unknown>) => j.status).join(',') ?? '-'}\n` +
-          `tl(any car, anon sees)=${tlAny.data?.length ?? 'null'}`,
-        )
-      }
 
       // Build Sheet / Timeline auto-hide via RLS (no rows when the section is
       // private). Featured has no probe query, so gate it on the flag
@@ -636,17 +621,6 @@ export default function PublicProfilePage() {
           }}>G‑DIMENSION</span>
         </div>
       </div>
-
-      {/* Debug overlay (?debug=1 only) */}
-      {debug && (
-        <pre style={{
-          position: 'fixed', top: 50, left: 8, zIndex: 50,
-          background: 'rgba(10,12,16,0.92)', color: '#9fe6a0',
-          padding: '8px 10px', borderRadius: 6, fontSize: 10.5, lineHeight: 1.5,
-          fontFamily: 'ui-monospace, monospace', margin: 0, whiteSpace: 'pre-wrap',
-          maxWidth: '92vw',
-        }}>{debug}</pre>
-      )}
 
       {/* Toast (until read-only sub-screens land) */}
       {toast && (
