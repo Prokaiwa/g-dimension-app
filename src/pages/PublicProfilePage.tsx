@@ -76,32 +76,37 @@ const TEMPLATES: Record<number, Template> = {
   },
   4: {
     // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom.
+    // Both Garage roads fork from the BOTTOM of the Garage icon (195, 233) so
+    // they appear to share a single departure point — like a fork in the road.
+    // Timeline moved down to y=490 so it sits below the two converging road ends.
     nodes: [
       { x: 195, y: 195 },  // 0: Garage (focal)
       { x: 322, y: 400 },  // 1: Build Sheet (right)
-      { x: 68,  y: 420 },  // 2: Timeline (left)
+      { x: 68,  y: 490 },  // 2: Timeline (left, moved down)
       { x: 195, y: 645 },  // 3: Featured (bottom)
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD, VIS_STD],
     edges: [
-      // Eau Rouge / Raidillon (Spa): wide sweeping right-hander — no change.
+      // Eau Rouge / Raidillon (Spa): exits Garage bottom, sweeps hard right,
+      // arcs back to Build Sheet's left entrance.
       { a: 0, b: 1, bend: 0,
-        pathFn: (a, b) => `M ${a.x} ${a.y} C 358 218, 382 345, ${b.x} ${b.y}` },
-      // Monaco Hairpin: compound bezier — road goes hard left past Timeline,
-      // reverses, and arrives deeply inside the icon so the dot hides cleanly.
+        pathFn: (_a, b) =>
+          `M 195 233 C 370 240, 392 350, ${b.x} ${b.y}` },
+      // Monaco Hairpin: both Garage roads now share the same fork point (195, 233).
+      // Road goes hard left past Timeline, loops back, arrives deep in the icon.
       { a: 0, b: 2, bend: 0,
-        pathFn: (a, _b) =>
-          `M ${a.x} ${a.y} C 48 202, 14 310, 18 362 C 22 415, 65 418, 72 420` },
-      // Bus Stop Chicane FLIPPED: dips left first, then swings hard right
-      // so the bottom of the S arrives on the right flank of Featured.
+        pathFn: () =>
+          `M 195 233 C 18 228, 10 335, 15 385 C 20 462, 62 487, 72 490` },
+      // Bus Stop Chicane: dips left first, swings hard right — S-curve arriving
+      // on the right flank of Featured.
       { a: 1, b: 3, bend: 0,
         pathFn: (a, b) =>
           `M ${a.x} ${a.y} C 118 472, 358 565, ${b.x} ${b.y}` },
-      // Pouhon: exits from the BOTTOM of Timeline icon (clears the label below),
-      // then arcs patiently left-right down to Featured's left side.
+      // Pouhon: exits from BOTTOM of Timeline (clears label), arcs hard left
+      // then sweeps right down to Featured's left side.
       { a: 2, b: 3, bend: 0,
         pathFn: (_a, b) =>
-          `M 68 444 C 32 538, 90 628, ${b.x} ${b.y}` },
+          `M 68 514 C 8 578, 72 632, ${b.x} ${b.y}` },
     ],
   },
   5: {
@@ -161,6 +166,7 @@ export default function PublicProfilePage() {
 
   const stageRef   = useRef<HTMLDivElement>(null)
   const worldRef   = useRef<HTMLDivElement>(null)
+  const compassRef = useRef<HTMLDivElement>(null)
   const driverRef  = useRef<SVGGElement>(null)
   const roadElsRef = useRef<(SVGPathElement | null)[]>([])
   const rafRef     = useRef<number>(0)
@@ -283,6 +289,8 @@ export default function PublicProfilePage() {
       curPY += (targetPY + swayY - curPY) * 0.08
       world.style.transform =
         `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
+      if (compassRef.current && !reduced)
+        compassRef.current.style.transform = `rotate(${(curPX * 4).toFixed(2)}deg)`
 
       const dot = driverRef.current
       if (dot && !reduced && template.edges.length > 0) {
@@ -397,6 +405,7 @@ export default function PublicProfilePage() {
         @keyframes pubPulse    { 0%,100%{opacity:0.2;transform:scale(1)} 50%{opacity:0.55;transform:scale(1.05)} }
         @keyframes pubFooterIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pubSheen    { from{transform:translateX(-160%) skewX(-18deg)} to{transform:translateX(420%) skewX(-18deg)} }
+        @keyframes pubCompass  { 0%{transform:rotate(-130deg)} 55%{transform:rotate(12deg)} 78%{transform:rotate(-5deg)} 100%{transform:rotate(0deg)} }
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
       `}</style>
 
@@ -536,6 +545,25 @@ export default function PublicProfilePage() {
               </g>
             ))}
 
+            {/* Road labels — Cormorant italic, same style as Home */}
+            {nodes.length === 4 && (
+              <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
+                 fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
+                {/* Eau Rouge: label follows the right-sweeping arc */}
+                <path id="pub-rl-a" d="M 195 233 C 370 240, 392 350, 298.5 400" fill="none"/>
+                <text><textPath href="#pub-rl-a" startOffset="12%">To Build Sheet</textPath></text>
+                {/* Monaco Hairpin: label follows the exit leg (bottom of loop → Timeline) */}
+                <path id="pub-rl-b" d="M 72 490 C 62 487, 20 462, 15 385" fill="none"/>
+                <text><textPath href="#pub-rl-b" startOffset="5%">To Timeline</textPath></text>
+                {/* Bus Stop: label on the left-dipping entry of the S */}
+                <path id="pub-rl-c" d="M 298.5 400 C 118 472, 358 565, 218.5 645" fill="none"/>
+                <text><textPath href="#pub-rl-c" startOffset="14%">To Featured</textPath></text>
+                {/* Pouhon: subtle label on the arc toward Featured */}
+                <path id="pub-rl-d" d="M 68 514 C 8 578, 72 632, 171.5 645" fill="none"/>
+                <text><textPath href="#pub-rl-d" startOffset="22%">To Featured</textPath></text>
+              </g>
+            )}
+
             {template.edges.length > 0 && (
               <g ref={driverRef} opacity="0">
                 <circle r="6" fill="rgba(120,14,18,0.22)" />
@@ -543,6 +571,28 @@ export default function PublicProfilePage() {
               </g>
             )}
           </svg>
+
+          {/* Compass — top-right, leans with gyro/mouse like the Home screen */}
+          <div ref={compassRef} style={{
+            position: 'absolute', top: 14, right: 14,
+            width: 42, height: 42, opacity: 0.85, pointerEvents: 'none',
+          }}>
+            <svg viewBox="0 0 64 64" style={{ width: '100%', height: '100%' }}>
+              <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(30,40,55,0.4)" strokeWidth="0.8"/>
+              <circle cx="32" cy="32" r="22" fill="none" stroke="rgba(30,40,55,0.25)" strokeWidth="0.5"/>
+              <g style={{
+                transformOrigin: '32px 32px', transformBox: 'view-box',
+                animation: `pubCompass 1100ms ${EASING_SETTLE} 600ms both`,
+              }}>
+                <path d="M 32 4 L 36 32 L 32 28 L 28 32 Z" fill="rgba(30,40,55,0.6)"/>
+                <path d="M 32 60 L 36 32 L 32 36 L 28 32 Z" fill="rgba(30,40,55,0.28)"/>
+                <path d="M 4 32 L 32 28 L 28 32 L 32 36 Z" fill="rgba(30,40,55,0.28)"/>
+                <path d="M 60 32 L 32 28 L 36 32 L 32 36 Z" fill="rgba(30,40,55,0.28)"/>
+              </g>
+              <text x="32" y="3" fontFamily="Hanken Grotesk, sans-serif" fontWeight="800"
+                fontSize="7" fill="rgba(30,40,55,0.6)" textAnchor="middle">N</text>
+            </svg>
+          </div>
 
           {/* Destination nodes */}
           {nodes.map((n, i) => {
