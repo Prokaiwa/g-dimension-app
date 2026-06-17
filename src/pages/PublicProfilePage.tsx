@@ -223,6 +223,7 @@ export default function PublicProfilePage() {
   const rafRef        = useRef<number>(0)
   const parallaxRef   = useRef({ px: 0, py: 0 })  // live parallax for exit zoom
   const pressStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  const exitingRef    = useRef(false)
 
   // ── Fetch ──
   useEffect(() => {
@@ -359,8 +360,8 @@ export default function PublicProfilePage() {
       const swayY = reduced ? 0 : Math.sin((t / 17000) * Math.PI * 2 + 2.1) * 0.16
       curPX += (targetPX + swayX - curPX) * 0.08
       curPY += (targetPY + swayY - curPY) * 0.08
-      if (isEntered) {
-        parallaxRef.current = { px: curPX, py: curPY }
+      parallaxRef.current = { px: curPX, py: curPY }
+      if (isEntered && !exitingRef.current) {
         world.style.transform =
           `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
         if (compassRef.current && !reduced)
@@ -424,7 +425,6 @@ export default function PublicProfilePage() {
   }, [state, template, adjacency])
 
   const toastTimerRef  = useRef<number>(0)
-  const exitingRef     = useRef(false)
   const onNodeTapRef   = useRef<(n: NodeDef) => void>(() => {})
 
   const onNodeTap = (n: NodeDef) => {
@@ -752,7 +752,16 @@ export default function PublicProfilePage() {
             return (
               <div
                 key={n.id}
-                onPointerDown={e => { pressStartRef.current = { id: n.id, x: e.clientX, y: e.clientY }; setPressedNode(n.id) }}
+                // Arms the press; document-level pointerup completes it. onClick
+                // is a redundant fallback (exitingRef dedupes). setPointerCapture
+                // keeps the pointer bound through gyro/finger drift so iOS can't
+                // cancel the tap.
+                onPointerDown={e => {
+                  pressStartRef.current = { id: n.id, x: e.clientX, y: e.clientY }
+                  setPressedNode(n.id)
+                  try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* non-critical */ }
+                }}
+                onClick={() => onNodeTap(n)}
                 style={{
                   position: 'absolute',
                   left: `${(pos.x / 390 * 100).toFixed(2)}%`,
