@@ -129,10 +129,12 @@ function ModList({
   mods,
   expanded,
   onToggleExpand,
+  onTap,
 }: {
   mods: Mod[]
   expanded: boolean
   onToggleExpand: () => void
+  onTap: (mod: Mod) => void
 }) {
   const [pressedId, setPressedId] = useState<string | null>(null)
   const visible = expanded ? mods : mods.slice(0, COLLAPSE_AT)
@@ -143,6 +145,7 @@ function ModList({
       {visible.map((mod) => (
         <div
           key={mod.id}
+          onClick={() => onTap(mod)}
           onPointerDown={() => setPressedId(mod.id)}
           onPointerUp={() => setPressedId(null)}
           onPointerLeave={() => setPressedId(null)}
@@ -150,11 +153,12 @@ function ModList({
           style={{
             padding: '10px 0 10px 8px',
             borderBottom: '1px solid rgba(255,255,255,0.04)',
-            borderLeft: pressedId === mod.id ? '2px solid rgba(105,12,22,0.7)' : '2px solid transparent',
+            borderLeft: pressedId === mod.id ? '2px solid rgba(200,102,26,0.5)' : '2px solid transparent',
             opacity: pressedId === mod.id ? 0.6 : 1,
             transition: 'opacity 80ms ease, border-left-color 80ms ease',
             WebkitTapHighlightColor: 'transparent',
             touchAction: 'manipulation',
+            cursor: 'pointer',
           }}
         >
           <div style={{
@@ -589,6 +593,7 @@ export default function PublicBuildSheetPage() {
                     mods={group.mods}
                     expanded={isExpanded}
                     onToggleExpand={() => toggleGroup(group.id)}
+                    onTap={mod => navigate(`/builds/${username}/mods/${mod.id}${carParam ? `?car=${carParam}` : ''}`)}
                   />
                 </div>
               )
