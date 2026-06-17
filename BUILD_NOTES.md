@@ -10,7 +10,7 @@ All primary routes are implemented:
 - Auth: Landing, Login, Signup
 - Hub: Home map
 - Garage: hero, My Cars carousel, Add Car, Edit Car, Snapshot, Documents, Contacts, Reminders, PDF
-- Tuning: dashboard, Build Sheet (with section photos + photo picker), Blueprint (stub — not yet built), Parts Bin list, Add Part to Parts Bin, Add Mod (category → part type → form, with optional group field for batch installs), Mod Group detail, Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
+- Tuning: dashboard, Build Sheet (with section photos + photo picker), Parts Bin list, Add Part to Parts Bin, Add Mod (category → part type → form, with optional group field for batch installs), Mod Group detail, Mod Detail (with carousel/viewer + links + Remove from Car), Mod Edit (fields + specs + photos + links), Part Detail (with carousel/viewer + links + Install/Sell), Part Edit (fields + specs + photos + links)
 - Maintenance: landing (GT Auto diagonal), service form + edit, session detail, detailing log, add + edit detail session
 - Timeline: **built** — scroll (`TimelinePage`), compose/edit a note (`TimelineEntryNewPage`), Entry Detail (`EntryDetailPage`). See the **Timeline** section below.
 - Photos: masonry gallery
@@ -165,8 +165,7 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 ## What's Next (not yet built)
 
 - **Timeline note multi-photo display** — notes store multiple photos (`timeline_entry_photos`) and they render on Entry Detail, but the explicit "choose *the* hero shot" picker for **session entries** isn't built — those still use the `timeline_photo_url` → first-`job_photo` fallback. (`sessions.timeline_photo_url` has no upload UI yet.)
-- **Blueprint page** — currently a stub. Should show planned/purchased mods not yet installed. Blueprint items are status=`planned` or status=`purchased` jobs. The page exists at `/tuning/blueprint` but has no real content.
-- **Mod lifecycle completeness** — no flow yet to move a Blueprint item directly to Parts On Hand or to install from the Parts Bin.
+- **Install-from-Parts-Bin flow** — no flow yet to install a part directly from the Parts Bin into the build.
 - **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
 - **YouTube in-app playback** — currently `window.open`. When the PWA becomes a native Capacitor app, replace with `<iframe>` embed or a native video player. The DB schema supports this with no changes.
 - **Unit conversion display** — `users.distance_unit`, `power_unit`, `torque_unit` columns exist but display conversion is not wired up on all screens.

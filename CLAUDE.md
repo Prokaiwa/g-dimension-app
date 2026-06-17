@@ -379,4 +379,4 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 
 ## What's Next
 
-The "not yet built" backlog (Blueprint page, mod lifecycle flows, link reordering, YouTube in-app playback, unit conversion display, Detailing list visual treatment) lives in `BUILD_NOTES.md`.
+The "not yet built" backlog (install-from-Parts-Bin flow, link reordering, YouTube in-app playback, unit conversion display, Detailing list visual treatment) lives in `BUILD_NOTES.md`.
