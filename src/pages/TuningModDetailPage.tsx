@@ -320,6 +320,7 @@ export default function TuningModDetailPage() {
       if      (s.dx < -w * 0.25 || (flick && s.vx < 0)) ni = Math.min(ni + 1, photos.length - 1)
       else if (s.dx >  w * 0.25 || (flick && s.vx > 0)) ni = Math.max(ni - 1, 0)
       viewerIdxRef.current = ni; setViewerIdx(ni)
+      setPhotoIndex(ni)   // keep the hidden carousel in sync → no jump on close
       paintStrip(0, true)
     } else if (s.lock === 'v') {
       const flickDown = s.vy > 0.5 && s.dy > 0
