@@ -349,7 +349,8 @@ export default function HomePage() {
   }, [avatarUrl])
 
   return (
-    <div style={{ minHeight: '100dvh', background: GRADIENT_APP_BG, position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: GRADIENT_APP_BG, position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes worldIn {
           0%   { opacity: 0; transform: rotateX(12deg) scale(0.94); }
@@ -872,6 +873,7 @@ export default function HomePage() {
         transition: 'opacity 340ms ease-in',
         pointerEvents: exiting ? 'auto' : 'none',
       }} />
+    </div>
     </div>
   )
 }
