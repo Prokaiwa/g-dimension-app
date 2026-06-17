@@ -5,6 +5,11 @@ import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer } from './lib/activeCar'
 import { isOnboarded } from './lib/userProfile'
 
+// Home-map node icons — warm the bundled image asset so it never pops in
+// during the Home zoom transition. (The other node icons are inline base64
+// data URIs already embedded in the bundle, so only this one hits the network.)
+import mapNodeFeatured from './assets/icons/home/home_featured.png'
+
 // Auth / marketing
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
@@ -63,6 +68,8 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 
 // Public (non-auth)
 import PublicProfilePage from './pages/PublicProfilePage'
+import PublicTimelinePage from './pages/PublicTimelinePage'
+import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
 
 // Monitoring
 import AuthGateFallback from './components/AuthGateFallback'
@@ -140,6 +147,18 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Idle-preload Home-map node icon assets so they don't pop in mid-zoom.
+  useEffect(() => {
+    const warm = () => { const img = new Image(); img.src = mapNodeFeatured }
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const id = (window as typeof window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
+        .requestIdleCallback(warm, { timeout: 2000 })
+      return () => (window as typeof window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id)
+    }
+    const id = setTimeout(warm, 300)
+    return () => clearTimeout(id)
+  }, [])
+
   return (
     <>
       <ErrorBanner />
@@ -191,8 +210,10 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
 
-      {/* Non-authenticated public route — Part 13 */}
+      {/* Non-authenticated public routes — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
+      <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
+      <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
