@@ -17,7 +17,7 @@ import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
-  COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
+  COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
   COLOR_BURGUNDY_M, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
   EASING_SETTLE,
 } from '../tokens'
@@ -412,10 +412,11 @@ export default function PublicBuildSheetPage() {
           }}>
             <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{
-              fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
-              fontSize: 22, color: COLOR_HEADER_TITLE, letterSpacing: '0.01em',
+              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'rgba(245,240,228,0.4)',
             }}>
-              {car ? [car.year, car.model].filter(Boolean).join(' ') : 'Build Sheet'}
+              Build Sheet
             </span>
           </button>
           <div style={{ display: 'flex', alignItems: 'stretch' }}>

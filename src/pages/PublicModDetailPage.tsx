@@ -357,29 +357,39 @@ export default function PublicModDetailPage() {
         {/* Fullscreen viewer */}
         {viewerOpen && (
           <div
-            style={{ position: 'fixed', inset: 0, zIndex: 200, background: `rgba(0,0,0,${backdropAlpha})`, display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'pan-y', overflow: 'hidden' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: `rgba(0,0,0,${backdropAlpha})`, display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'pan-y', overflow: 'hidden', overscrollBehavior: 'none' }}
             onClick={closeViewer}
           >
+            {/* Outer — vertical dismiss */}
             <div
-              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', transform: `translateY(${viewerDragY}px) scale(${photoScale})`, transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)' }}
+              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', transform: `translateY(${viewerDragY}px) scale(${photoScale})`, transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)', willChange: 'transform' }}
               onTouchStart={onViewerTouchStart}
               onTouchMove={onViewerTouchMove}
               onTouchEnd={onViewerTouchEnd}
               onClick={e => e.stopPropagation()}
             >
-              <div style={{ display: 'flex', width: `${photos.length * 100}%`, height: '100%', transform: `translateX(calc(${-viewerIdx * (100 / photos.length)}% + ${viewerDragX / photos.length}px))`, transition: hTransition }}>
+              {/* Inner strip — horizontal navigation (each slide is full width) */}
+              <div style={{ display: 'flex', width: '100%', transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`, transition: hTransition, willChange: 'transform' }}>
                 {photos.map(photo => (
-                  <div key={photo.id} style={{ width: `${100 / photos.length}%`, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                    <img src={photo.photo_url} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+                  <div key={photo.id} style={{ width: '100%', flexShrink: 0, height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src={photo.photo_url} alt="" draggable={false} style={{ maxWidth: '100%', maxHeight: '90dvh', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', userSelect: 'none' }} />
                   </div>
                 ))}
               </div>
             </div>
-            {photos.length > 1 && (
-              <div style={{ position: 'absolute', bottom: 28, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, opacity: Math.max(0, 1 - Math.abs(viewerDragY) / 160) }}>
-                {photos.map((_, i) => <div key={i} style={{ width: 6, height: 6, borderRadius: 3, background: i === viewerIdx ? 'rgba(245,240,228,0.85)' : 'rgba(245,240,228,0.25)' }} />)}
-              </div>
-            )}
+
+            {/* Close × */}
+            <button
+              onClick={closeViewer}
+              style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease' }}
+            >
+              <span style={{ color: 'rgba(245,240,228,0.85)', fontSize: 20, lineHeight: 1 }}>×</span>
+            </button>
+
+            {/* Counter + hint */}
+            <p style={{ position: 'absolute', bottom: 20, fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.35)', opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease', margin: 0, pointerEvents: 'none' }}>
+              {photos.length > 1 ? `${viewerIdx + 1} / ${photos.length}  ·  swipe down to close` : 'swipe down to close'}
+            </p>
           </div>
         )}
 
