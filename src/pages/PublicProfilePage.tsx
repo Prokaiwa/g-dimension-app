@@ -72,7 +72,7 @@ const TEMPLATES: Record<number, Template> = {
   },
   3: {
     nodes: [
-      { x: 195, y: 248 },  // 0: Garage (focal)
+      { x: 195, y: 253 },  // 0: Garage (focal)
       { x: 318, y: 428 },  // 1: Build Sheet (right, mid)
       { x: 62,  y: 556 },  // 2: Timeline (left, lower)
     ],
@@ -83,7 +83,7 @@ const TEMPLATES: Record<number, Template> = {
       { a: 0, b: 2, bend: 0,
         pathFn: () => `M 195 286 C 20 283, 10 368, 14 445 C 18 502, 50 528, 62 535` },
       { a: 1, b: 2, bend: 0,
-        pathFn: () => `M 294 448 C 430 445, 352 860, 62 535` },
+        pathFn: () => `M 294 448 C 475 445, 352 860, 62 535` },
     ],
   },
   4: {
@@ -629,7 +629,7 @@ export default function PublicProfilePage() {
                 <text><textPath href="#pub-3-a" startOffset="14%">To Build Sheet</textPath></text>
                 <path id="pub-3-b" d="M 62 535 C 50 528, 18 502, 14 445 C 10 368, 20 283, 195 286" fill="none"/>
                 <text><textPath href="#pub-3-b" startOffset="8%">To Timeline</textPath></text>
-                <path id="pub-3-c" d="M 294 448 C 430 445, 352 860, 62 535" fill="none"/>
+                <path id="pub-3-c" d="M 294 448 C 475 445, 352 860, 62 535" fill="none"/>
                 <text><textPath href="#pub-3-c" startOffset="22%">To Timeline</textPath></text>
               </g>
             )}
