@@ -79,18 +79,20 @@ export default function EntryDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [delErr, setDelErr] = useState<string | null>(null)
-  const [carouselIdx, setCarouselIdx] = useState(0)
-  const carouselRef = useRef<HTMLDivElement>(null)
+  const [photoIndex, setPhotoIndex] = useState(0)
 
-  // Gallery carousel + fullscreen viewer
-  const [viewerOpen, setViewerOpen]       = useState(false)
-  const [viewerIdx, setViewerIdx]         = useState(0)
-  const [viewerDragY, setViewerDragY]     = useState(0)
-  const [viewerDragX, setViewerDragX]     = useState(0)
-  const [viewerDragging, setViewerDragging] = useState(false)
-  const viewerTouchStartY = useRef<number>(0)
-  const viewerTouchStartX = useRef<number>(0)
-  const viewerDragLock    = useRef<'h' | 'v' | null>(null)
+  // Gallery carousel + fullscreen viewer (FB-Marketplace-style pager)
+  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerIdx,  setViewerIdx]  = useState(0)
+  const viewerIdxRef = useRef(0)
+  const touchStartX  = useRef(0)
+  const carouselDx   = useRef(0)
+  const scrollRef    = useRef<HTMLDivElement>(null)
+  const overlayRef   = useRef<HTMLDivElement>(null)
+  const vertRef      = useRef<HTMLDivElement>(null)
+  const stripRef     = useRef<HTMLDivElement>(null)
+  const chromeRef    = useRef<HTMLDivElement>(null)
+  const g = useRef({ x0: 0, y0: 0, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, dx: 0, dy: 0, lock: null as 'h' | 'v' | null })
 
   useEffect(() => {
     if (!entryId) return
@@ -168,45 +170,70 @@ export default function EntryDetailPage() {
     return () => { active = false }
   }, [entryId])
 
-  const openViewer = (idx: number) => { setViewerIdx(idx); setViewerDragY(0); setViewerDragX(0); setViewerOpen(true) }
-  const closeViewer = () => { setViewerOpen(false); setViewerDragY(0); setViewerDragX(0) }
-
+  const H_SNAP = 'transform 300ms cubic-bezier(0.22,1,0.36,1)'
+  const V_SNAP = 'transform 340ms cubic-bezier(0.22,1,0.36,1)'
+  const paintStrip = (dx: number, animate: boolean) => {
+    const el = stripRef.current; if (!el) return
+    el.style.transition = animate ? H_SNAP : 'none'
+    el.style.transform  = `translateX(calc(${-viewerIdxRef.current * 100}% + ${dx}px))`
+  }
+  const paintVertical = (dy: number, animate: boolean) => {
+    const v = vertRef.current, o = overlayRef.current, c = chromeRef.current
+    const scale = Math.max(0.86, 1 - Math.abs(dy) / 1100)
+    const alpha = Math.max(0, 1 - Math.abs(dy) / 280)
+    if (v) { v.style.transition = animate ? V_SNAP : 'none'; v.style.transform = `translateY(${dy}px) scale(${scale})` }
+    if (o) { o.style.transition = animate ? 'background 340ms ease' : 'none'; o.style.background = `rgba(0,0,0,${alpha})` }
+    if (c) { c.style.transition = animate ? 'opacity 340ms ease' : 'none'; c.style.opacity = String(alpha) }
+  }
+  const openViewer  = (idx: number) => { viewerIdxRef.current = idx; setViewerIdx(idx); setViewerOpen(true) }
+  const closeViewer = () => { setPhotoIndex(viewerIdxRef.current); setViewerOpen(false) }
+  useEffect(() => {
+    if (!viewerOpen) return
+    paintStrip(0, false); paintVertical(0, false)
+    const sc = scrollRef.current; const prev = sc?.style.overflow
+    if (sc) sc.style.overflow = 'hidden'
+    return () => { if (sc) sc.style.overflow = prev ?? '' }
+  }, [viewerOpen])
+  const onCarouselTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; carouselDx.current = 0 }
+  const onCarouselTouchMove  = (e: React.TouchEvent) => { carouselDx.current = touchStartX.current - e.touches[0].clientX }
+  const commitCarouselSwipe  = () => {
+    const diff = carouselDx.current; carouselDx.current = 0
+    if (diff > 40)       setPhotoIndex(i => Math.min(i + 1, photos.length - 1))
+    else if (diff < -40) setPhotoIndex(i => Math.max(i - 1, 0))
+  }
   const onViewerTouchStart = (e: React.TouchEvent) => {
-    viewerTouchStartY.current = e.touches[0].clientY
-    viewerTouchStartX.current = e.touches[0].clientX
-    viewerDragLock.current = null
-    setViewerDragging(true)
+    const t = e.touches[0]
+    g.current = { x0: t.clientX, y0: t.clientY, lx: t.clientX, ly: t.clientY, lt: performance.now(), vx: 0, vy: 0, dx: 0, dy: 0, lock: null }
   }
   const onViewerTouchMove = (e: React.TouchEvent) => {
-    const dy = e.touches[0].clientY - viewerTouchStartY.current
-    const dx = e.touches[0].clientX - viewerTouchStartX.current
-    if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
-      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
-    }
-    if (viewerDragLock.current === 'v') setViewerDragY(dy)
-    else if (viewerDragLock.current === 'h') {
-      const galleryLen = photos.length
-      const atStart = viewerIdx === 0 && dx > 0
-      const atEnd   = viewerIdx === galleryLen - 1 && dx < 0
-      setViewerDragX(atStart || atEnd ? dx * 0.25 : dx)
+    const t = e.touches[0], s = g.current
+    const dx = t.clientX - s.x0, dy = t.clientY - s.y0
+    const now = performance.now(), dt = now - s.lt
+    if (dt > 0) { s.vx = (t.clientX - s.lx) / dt; s.vy = (t.clientY - s.ly) / dt }
+    s.lx = t.clientX; s.ly = t.clientY; s.lt = now; s.dx = dx; s.dy = dy
+    if (s.lock === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
+      s.lock = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'v' : 'h'
+    if (s.lock === 'h') {
+      const atStart = viewerIdxRef.current === 0 && dx > 0
+      const atEnd   = viewerIdxRef.current === photos.length - 1 && dx < 0
+      paintStrip(atStart || atEnd ? dx * 0.3 : dx, false)
+    } else if (s.lock === 'v') {
+      paintVertical(dy < 0 ? dy * 0.3 : dy, false)
     }
   }
-  const onViewerTouchEnd = (e: React.TouchEvent) => {
-    setViewerDragging(false)
-    const dy = e.changedTouches[0].clientY - viewerTouchStartY.current
-    const dx = e.changedTouches[0].clientX - viewerTouchStartX.current
-    const lock = viewerDragLock.current
-    viewerDragLock.current = null
-    if (lock === 'v' && Math.abs(dy) > 80) {
-      closeViewer()
-    } else if (lock === 'h') {
-      const galleryLen = photos.length
-      if (dx < -50) setViewerIdx(i => Math.min(i + 1, galleryLen - 1))
-      else if (dx > 50) setViewerIdx(i => Math.max(i - 1, 0))
-      setViewerDragX(0)
-    } else {
-      setViewerDragY(0)
-      setViewerDragX(0)
+  const onViewerTouchEnd = () => {
+    const s = g.current
+    if (s.lock === 'h') {
+      const w = window.innerWidth; const flick = Math.abs(s.vx) > 0.4 && Math.abs(s.dx) > 12
+      let ni = viewerIdxRef.current
+      if      (s.dx < -w * 0.25 || (flick && s.vx < 0)) ni = Math.min(ni + 1, photos.length - 1)
+      else if (s.dx >  w * 0.25 || (flick && s.vx > 0)) ni = Math.max(ni - 1, 0)
+      viewerIdxRef.current = ni; setViewerIdx(ni); setPhotoIndex(ni)
+      paintStrip(0, true)
+    } else if (s.lock === 'v') {
+      const flickDown = s.vy > 0.5 && s.dy > 0
+      if (s.dy > 110 || flickDown) { paintVertical(window.innerHeight, true); window.setTimeout(closeViewer, 200) }
+      else paintVertical(0, true)
     }
   }
 
@@ -254,57 +281,26 @@ export default function EntryDetailPage() {
   const isNote = entry.entry_type === 'note'
 
   return page(
-    <div style={{ paddingBottom: isNote ? 96 : 40 }}>
+    <div ref={scrollRef} style={{ paddingBottom: isNote ? 96 : 40 }}>
       {/* Photo carousel — all photos, hero first */}
       {photos.length > 0 && (
         <div style={{ marginBottom: 0, position: 'relative' }}>
           <div
-            ref={carouselRef}
-            onScroll={() => {
-              const el = carouselRef.current
-              if (el) setCarouselIdx(Math.round(el.scrollLeft / el.clientWidth))
-            }}
-            style={{
-              display: 'flex',
-              overflowX: 'scroll',
-              scrollSnapType: 'x mandatory',
-              WebkitOverflowScrolling: 'touch',
-              gap: 0,
-              paddingBottom: 0,
-              msOverflowStyle: 'none',
-              scrollbarWidth: 'none',
-            } as React.CSSProperties}>
-            {photos.map((src, i) => (
-              <div
-                key={i}
-                onClick={() => openViewer(i)}
-                style={{
-                  scrollSnapAlign: 'start',
-                  flexShrink: 0,
-                  width: '100%',
-                  height: 300,
-                  cursor: 'zoom-in',
-                  overflow: 'hidden',
-                  background: 'rgba(0,0,0,0.04)',
-                }}
-              >
-                <FadeImg
-                  src={src}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-              </div>
-            ))}
+            style={{ width: '100%', height: 300, overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
+            onTouchStart={onCarouselTouchStart} onTouchMove={onCarouselTouchMove}
+            onTouchEnd={commitCarouselSwipe} onTouchCancel={commitCarouselSwipe}
+            onClick={() => openViewer(photoIndex)}
+          >
+            <div style={{ display: 'flex', height: '100%', transform: `translateX(-${photoIndex * 100}%)`, transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)' }}>
+              {photos.map((src, i) => (
+                <FadeImg key={i} src={src} style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }} />
+              ))}
+            </div>
           </div>
-          {/* Dot indicators — only shown when there are multiple photos */}
           {photos.length > 1 && (
             <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 5, pointerEvents: 'none' }}>
               {photos.map((_, i) => (
-                <div key={i} style={{ width: i === carouselIdx ? 14 : 5, height: 5, borderRadius: 3, background: i === carouselIdx ? 'rgba(245,240,230,0.9)' : 'rgba(245,240,230,0.35)', transition: 'all 200ms ease' }} />
+                <div key={i} style={{ width: i === photoIndex ? 14 : 5, height: 5, borderRadius: 3, background: i === photoIndex ? 'rgba(245,240,230,0.9)' : 'rgba(245,240,230,0.35)', transition: 'all 200ms ease' }} />
               ))}
             </div>
           )}
@@ -446,102 +442,34 @@ export default function EntryDetailPage() {
       )}
 
       {/* Fullscreen gallery viewer */}
-      {viewerOpen && (() => {
-        const backdropAlpha = Math.max(0, 1 - Math.abs(viewerDragY) / 260)
-        const photoScale    = Math.max(0.72, 1 - Math.abs(viewerDragY) / 900)
-        const isVDrag       = viewerDragging && viewerDragLock.current === 'v'
-        const isHDrag       = viewerDragging && viewerDragLock.current === 'h'
-        return (
-          <div
-            style={{
-              position: 'fixed', inset: 0, zIndex: 200,
-              background: `rgba(0,0,0,${backdropAlpha})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              touchAction: 'none', overflow: 'hidden',
-            }}
-            onClick={closeViewer}
+      {viewerOpen && (
+        <div ref={overlayRef}
+          style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,1)', display: 'flex', alignItems: 'center', touchAction: 'none', overflow: 'hidden', overscrollBehavior: 'none' }}
+          onClick={closeViewer}
+        >
+          <div ref={vertRef}
+            style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform' }}
+            onTouchStart={onViewerTouchStart} onTouchMove={onViewerTouchMove} onTouchEnd={onViewerTouchEnd}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
-            {/* Outer — vertical dismiss */}
-            <div
-              style={{
-                width: '100%',
-                transform: `translateY(${viewerDragY}px) scale(${photoScale})`,
-                transition: isVDrag ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
-                willChange: 'transform',
-              }}
-              onTouchStart={onViewerTouchStart}
-              onTouchMove={onViewerTouchMove}
-              onTouchEnd={onViewerTouchEnd}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              {/* Inner strip — horizontal navigation */}
-              <div style={{
-                display: 'flex',
-                transform: `translateX(calc(-${viewerIdx * 100}% + ${viewerDragX}px))`,
-                transition: isHDrag ? 'none' : 'transform 280ms cubic-bezier(0.22,1,0.36,1)',
-                willChange: 'transform',
-              }}>
-                {photos.map((src, i) => (
-                  <div key={i} style={{ width: '100%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img
-                      src={src}
-                      alt=""
-                      draggable={false}
-                      style={{
-                        width: '100%', maxHeight: '90dvh',
-                        objectFit: 'contain', display: 'block',
-                        userSelect: 'none',
-                        WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
+            <div ref={stripRef} style={{ display: 'flex', width: '100%', willChange: 'transform' }}>
+              {photos.map((src, i) => (
+                <div key={i} style={{ width: '100%', flexShrink: 0, height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={src} alt="" draggable={false} style={{ maxWidth: '100%', maxHeight: '90dvh', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none', WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'] }} />
+                </div>
+              ))}
             </div>
-
-            {/* Close × */}
-            <button
-              onClick={closeViewer}
-              style={{
-                position: 'absolute', top: 16, right: 16,
-                width: 36, height: 36, borderRadius: '50%',
-                background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                WebkitTapHighlightColor: 'transparent',
-                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
-              }}
-            >
+          </div>
+          <div ref={chromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            <button onClick={closeViewer} style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}>
               <span style={{ color: COLOR_ACCENT, fontSize: 20, lineHeight: 1 }}>×</span>
             </button>
-
-            {/* Counter */}
-            {photos.length > 1 && (
-              <p style={{
-                position: 'absolute', bottom: 20,
-                fontFamily: FONT_UI, fontSize: 11,
-                letterSpacing: '0.08em',
-                color: 'rgba(245,240,228,0.45)',
-                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
-                margin: 0, pointerEvents: 'none',
-              }}>
-                {viewerIdx + 1} / {photos.length} · swipe down to close
-              </p>
-            )}
-            {photos.length === 1 && (
-              <p style={{
-                position: 'absolute', bottom: 20,
-                fontFamily: FONT_UI, fontSize: 11,
-                letterSpacing: '0.08em',
-                color: 'rgba(245,240,228,0.45)',
-                opacity: backdropAlpha, transition: isVDrag ? 'none' : 'opacity 200ms ease',
-                margin: 0, pointerEvents: 'none',
-              }}>
-                swipe down to close
-              </p>
-            )}
+            <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.45)', margin: 0 }}>
+              {photos.length > 1 ? `${viewerIdx + 1} / ${photos.length} · swipe down to close` : 'swipe down to close'}
+            </p>
           </div>
-        )
-      })()}
+        </div>
+      )}
     </div>,
   )
 }

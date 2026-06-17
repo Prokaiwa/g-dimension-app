@@ -156,6 +156,7 @@ export default function PublicTimelinePage() {
   const [notFound, setNotFound] = useState(false)
   const [carId, setCarId] = useState<string | null>(null)
   const [origin, setOrigin] = useState<OriginCard | null>(null)
+  const [pressedId, setPressedId] = useState<string | null>(null)
   const [entries, setEntries] = useState<TLEntry[]>([])
   const [meta, setMeta] = useState<Record<string, SessionMeta>>({})
 
@@ -335,11 +336,21 @@ export default function PublicTimelinePage() {
 
             <EntryBlock accent={accent} isLast={isLast}>
               <Reveal>
-                <article style={{
-                  background: COLOR_TIMELINE_CARD, borderRadius: RADIUS_TIMELINE_CARD,
-                  borderLeft: `3px solid ${accent}`,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',
-                }}>
+                <article
+                  onClick={() => navigate(`/builds/${username}/timeline/entry/${e.id}${carParam ? `?car=${carParam}` : ''}`)}
+                  onPointerDown={() => setPressedId(e.id)}
+                  onPointerUp={() => setPressedId(null)}
+                  onPointerLeave={() => setPressedId(null)}
+                  onPointerCancel={() => setPressedId(null)}
+                  style={{
+                    background: COLOR_TIMELINE_CARD, borderRadius: RADIUS_TIMELINE_CARD,
+                    borderLeft: `3px solid ${accent}`,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',
+                    cursor: 'pointer',
+                    opacity: pressedId === e.id ? 0.7 : 1,
+                    transition: 'opacity 80ms ease',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>
                   <div style={{ display: 'flex', gap: 12, padding: '12px 14px', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

@@ -246,21 +246,56 @@ export default function PublicBuildSheetPage() {
       return next
     })
 
-  // Lightbox
-  const [lightboxUrl,   setLightboxUrl]   = useState<string | null>(null)
-  const [lbDragY,       setLbDragY]       = useState(0)
-  const [lbDragging,    setLbDragging]    = useState(false)
-  const lbTouchStartY = useRef(0)
+  // Lightbox (single-image viewer — DOM-ref driven, velocity dismiss)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const lbOverlayRef = useRef<HTMLDivElement>(null)
+  const lbImgRef     = useRef<HTMLDivElement>(null)
+  const lbChromeRef  = useRef<HTMLDivElement>(null)
+  const lbG = useRef({ y0: 0, ly: 0, lt: 0, vy: 0, dy: 0 })
 
-  const openLightbox  = (url: string) => { setLightboxUrl(url); setLbDragY(0); setLbDragging(false) }
+  const openLightbox  = (url: string) => setLightboxUrl(url)
   const closeLightbox = () => setLightboxUrl(null)
 
-  const onLbTouchStart = (e: React.TouchEvent) => { lbTouchStartY.current = e.touches[0].clientY; setLbDragging(true) }
-  const onLbTouchMove  = (e: React.TouchEvent) => setLbDragY(e.touches[0].clientY - lbTouchStartY.current)
-  const onLbTouchEnd   = (e: React.TouchEvent) => {
-    setLbDragging(false)
-    if (Math.abs(e.changedTouches[0].clientY - lbTouchStartY.current) > 80) closeLightbox()
-    else setLbDragY(0)
+  useEffect(() => {
+    if (!lightboxUrl) return
+    // Reset transforms on open
+    const o = lbOverlayRef.current, v = lbImgRef.current, c = lbChromeRef.current
+    if (o) { o.style.transition = 'none'; o.style.background = 'rgba(0,0,0,0.96)' }
+    if (v) { v.style.transition = 'none'; v.style.transform = 'none' }
+    if (c) { c.style.transition = 'none'; c.style.opacity = '1' }
+  }, [lightboxUrl])
+
+  const onLbTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    lbG.current = { y0: t.clientY, ly: t.clientY, lt: performance.now(), vy: 0, dy: 0 }
+  }
+  const onLbTouchMove = (e: React.TouchEvent) => {
+    const t = e.touches[0], s = lbG.current
+    const dy = t.clientY - s.y0
+    const now = performance.now(), dt = now - s.lt
+    if (dt > 0) s.vy = (t.clientY - s.ly) / dt
+    s.ly = t.clientY; s.lt = now; s.dy = dy
+    const v = lbImgRef.current, o = lbOverlayRef.current, c = lbChromeRef.current
+    const scale = Math.max(0.86, 1 - Math.abs(dy) / 1100)
+    const alpha = Math.max(0, 1 - Math.abs(dy) / 280)
+    if (v) { v.style.transition = 'none'; v.style.transform = `translateY(${dy < 0 ? dy * 0.3 : dy}px) scale(${scale})` }
+    if (o) { o.style.transition = 'none'; o.style.background = `rgba(0,0,0,${alpha * 0.96})` }
+    if (c) { c.style.transition = 'none'; c.style.opacity = String(alpha) }
+  }
+  const onLbTouchEnd = () => {
+    const s = lbG.current
+    const flickDown = s.vy > 0.5 && s.dy > 0
+    if (s.dy > 110 || flickDown) {
+      const v = lbImgRef.current, o = lbOverlayRef.current
+      if (v) { v.style.transition = 'transform 200ms ease'; v.style.transform = `translateY(${window.innerHeight}px)` }
+      if (o) { o.style.transition = 'background 200ms ease'; o.style.background = 'rgba(0,0,0,0)' }
+      window.setTimeout(closeLightbox, 200)
+    } else {
+      const v = lbImgRef.current, o = lbOverlayRef.current, c = lbChromeRef.current
+      if (v) { v.style.transition = 'transform 340ms cubic-bezier(0.22,1,0.36,1)'; v.style.transform = 'none' }
+      if (o) { o.style.transition = 'background 340ms ease'; o.style.background = 'rgba(0,0,0,0.96)' }
+      if (c) { c.style.transition = 'opacity 340ms ease'; c.style.opacity = '1' }
+    }
   }
 
   useEffect(() => {
@@ -603,58 +638,24 @@ export default function PublicBuildSheetPage() {
           </div>
         )}
 
-        {/* ── Lightbox (view-only, no Change button) ── */}
+        {/* ── Lightbox (view-only, DOM-ref driven dismiss) ── */}
         {lightboxUrl && (
-          <div
+          <div ref={lbOverlayRef}
+            style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', overflow: 'hidden', overscrollBehavior: 'none' }}
             onClick={closeLightbox}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 70,
-              background: `rgba(0,0,0,${Math.max(0, 0.96 - Math.abs(lbDragY) / 260)})`,
-              display: 'flex', flexDirection: 'column',
-              transition: lbDragging ? 'none' : 'background 300ms ease',
-            }}
           >
-            <div style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 60,
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-              padding: '0 16px',
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.65), transparent)',
-              zIndex: 10, pointerEvents: 'none',
-              opacity: Math.max(0, 1 - Math.abs(lbDragY) / 180),
-            }}>
-              <button
-                onClick={e => { e.stopPropagation(); closeLightbox() }}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: 8, pointerEvents: 'auto',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <span style={{ color: 'rgba(245,240,228,0.55)', fontSize: 30, fontWeight: 200, lineHeight: 1 }}>×</span>
-              </button>
-            </div>
-            <div
+            <div ref={lbImgRef}
+              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', willChange: 'transform' }}
+              onTouchStart={onLbTouchStart} onTouchMove={onLbTouchMove} onTouchEnd={onLbTouchEnd}
               onClick={e => e.stopPropagation()}
-              onTouchStart={onLbTouchStart}
-              onTouchMove={onLbTouchMove}
-              onTouchEnd={onLbTouchEnd}
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                overflow: 'hidden', touchAction: 'pan-x pinch-zoom',
-                padding: '60px 0 60px',
-              }}
             >
-              <img
-                src={lightboxUrl}
-                alt=""
-                draggable={false}
-                style={{
-                  maxWidth: '100%', maxHeight: '100%',
-                  objectFit: 'contain', display: 'block',
-                  transform: `translateY(${lbDragY}px) scale(${Math.max(0.82, 1 - Math.abs(lbDragY) / 900)})`,
-                  transition: lbDragging ? 'none' : 'transform 340ms cubic-bezier(0.22,1,0.36,1)',
-                }}
-              />
+              <img src={lightboxUrl} alt="" draggable={false} style={{ maxWidth: '100%', maxHeight: '90dvh', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
+            </div>
+            <div ref={lbChromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+              <button onClick={e => { e.stopPropagation(); closeLightbox() }} style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}>
+                <span style={{ color: 'rgba(245,240,228,0.7)', fontSize: 20, lineHeight: 1 }}>×</span>
+              </button>
+              <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.3)', margin: 0 }}>swipe down to close</p>
             </div>
           </div>
         )}

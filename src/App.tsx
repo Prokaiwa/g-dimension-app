@@ -71,6 +71,7 @@ import PublicProfilePage from './pages/PublicProfilePage'
 import PublicTimelinePage from './pages/PublicTimelinePage'
 import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
 import PublicModDetailPage from './pages/PublicModDetailPage'
+import PublicEntryDetailPage from './pages/PublicEntryDetailPage'
 
 // Monitoring
 import AuthGateFallback from './components/AuthGateFallback'
@@ -216,6 +217,7 @@ export default function App() {
       <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
       <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
       <Route path="/builds/:username/mods/:modId" element={<PublicModDetailPage />} />
+      <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
