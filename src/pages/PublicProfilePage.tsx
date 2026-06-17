@@ -427,7 +427,8 @@ export default function PublicProfilePage() {
     // Only the built sub-screens navigate; the rest still show the stub toast
     // until their pages land.
     const routes: Record<string, string> = {
-      timeline: `/builds/${username}/timeline${q}`,
+      timeline:   `/builds/${username}/timeline${q}`,
+      buildsheet: `/builds/${username}/buildsheet${q}`,
     }
     const dest = routes[n.id]
     if (dest) { navigate(dest); return }

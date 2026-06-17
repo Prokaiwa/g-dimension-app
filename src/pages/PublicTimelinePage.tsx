@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import ArrivalFade from '../components/ArrivalFade'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
@@ -261,6 +262,7 @@ export default function PublicTimelinePage() {
       background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative',
       maxWidth: 440, margin: '0 auto',
     }}>
+      <ArrivalFade />
       {chevron}
       {children}
     </div>
