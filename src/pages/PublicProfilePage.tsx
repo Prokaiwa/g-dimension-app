@@ -66,13 +66,11 @@ type Template = { nodes: Pt[]; radii: number[]; edges: Edge[] }
 const TEMPLATES: Record<number, Template> = {
   1: { nodes: [{ x: 195, y: 408 }], radii: [VIS_FOCAL], edges: [] },
   2: {
-    nodes: [{ x: 146, y: 220 }, { x: 254, y: 560 }],
+    nodes: [{ x: 146, y: 215 }, { x: 254, y: 600 }],
     radii: [VIS_FOCAL, VIS_STD],
-    // Custom path (seeded from the old algorithmic curve) so the start point is
-    // a fixed coordinate you can pin to the house corner — tune via ?preview=2&tune.
     edges: [
       { a: 0, b: 1, bend: 0,
-        pathFn: () => `M 184 220 C 263 324, 151 253, 231 560` },
+        pathFn: () => `M 120 220 C -100 500, 250 450, 231 600` },
     ],
   },
   3: {
