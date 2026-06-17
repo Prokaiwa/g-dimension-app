@@ -66,7 +66,7 @@ type Template = { nodes: Pt[]; radii: number[]; edges: Edge[] }
 const TEMPLATES: Record<number, Template> = {
   1: { nodes: [{ x: 195, y: 408 }], radii: [VIS_FOCAL], edges: [] },
   2: {
-    nodes: [{ x: 146, y: 250 }, { x: 254, y: 560 }],
+    nodes: [{ x: 146, y: 235 }, { x: 254, y: 560 }],
     radii: [VIS_FOCAL, VIS_STD],
     edges: [{ a: 0, b: 1, bend: -64 }],
   },
