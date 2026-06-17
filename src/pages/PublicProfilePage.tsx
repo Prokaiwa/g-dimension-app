@@ -201,9 +201,14 @@ interface CarRow {
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>()
   const navigate = useNavigate()
+  // Which car the map is showing — visitor-chosen via the Garage carousel
+  // (?car=<id>), defaulting to the owner's active car. Kept in the URL so it
+  // survives navigation into the sub-screens and is shareable. Never mutates
+  // the owner's real active_car_id.
+  const carParam = new URLSearchParams(window.location.search).get('car')
 
   const [state, setState] = useState<'loading' | 'ready' | 'empty'>('loading')
-  const [_car, setCar] = useState<CarRow | null>(null)
+  const [car, setCar] = useState<CarRow | null>(null)
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -229,9 +234,11 @@ export default function PublicProfilePage() {
         .order('created_at', { ascending: false })
       if (cancelled) return
       const rows = (data as CarRow[] | null) ?? []
-      // Prefer the owner's chosen primary (active) car; fall back to newest.
+      // Prefer the visitor-selected car (?car), then the owner's active car,
+      // then the newest public car.
       const activeId = rows[0]?.active_car_id
-      const row = rows.find(r => r.id === activeId) ?? rows[0] ?? null
+      const row = (carParam ? rows.find(r => r.id === carParam) : null)
+        ?? rows.find(r => r.id === activeId) ?? rows[0] ?? null
       if (error || !row) { setState('empty'); return }
 
       const [jobs, tl] = await Promise.all([
@@ -415,6 +422,15 @@ export default function PublicProfilePage() {
 
   const toastTimerRef = useRef<number>(0)
   const onNodeTap = (n: NodeDef) => {
+    // Carry the current car so the sub-screen shows the same vehicle.
+    const q = car?.id ? `?car=${car.id}` : ''
+    // Only the built sub-screens navigate; the rest still show the stub toast
+    // until their pages land.
+    const routes: Record<string, string> = {
+      timeline: `/builds/${username}/timeline${q}`,
+    }
+    const dest = routes[n.id]
+    if (dest) { navigate(dest); return }
     setToast(`${n.label} — opening soon`)
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 1600)

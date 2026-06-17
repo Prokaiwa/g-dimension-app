@@ -68,6 +68,7 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 
 // Public (non-auth)
 import PublicProfilePage from './pages/PublicProfilePage'
+import PublicTimelinePage from './pages/PublicTimelinePage'
 
 // Monitoring
 import AuthGateFallback from './components/AuthGateFallback'
@@ -208,8 +209,9 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
 
-      {/* Non-authenticated public route — Part 13 */}
+      {/* Non-authenticated public routes — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
+      <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
