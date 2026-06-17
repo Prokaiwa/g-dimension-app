@@ -215,12 +215,14 @@ export default function PublicProfilePage() {
   const [tune, setTune] = useState<TuneState | null>(null)
   const [tuneCollapsed, setTuneCollapsed] = useState(false)
 
-  const stageRef   = useRef<HTMLDivElement>(null)
-  const worldRef   = useRef<HTMLDivElement>(null)
-  const compassRef = useRef<HTMLDivElement>(null)
-  const driverRef  = useRef<SVGGElement>(null)
-  const roadElsRef = useRef<(SVGPathElement | null)[]>([])
-  const rafRef     = useRef<number>(0)
+  const stageRef      = useRef<HTMLDivElement>(null)
+  const worldRef      = useRef<HTMLDivElement>(null)
+  const compassRef    = useRef<HTMLDivElement>(null)
+  const driverRef     = useRef<SVGGElement>(null)
+  const roadElsRef    = useRef<(SVGPathElement | null)[]>([])
+  const rafRef        = useRef<number>(0)
+  const parallaxRef   = useRef({ px: 0, py: 0 })  // live parallax for exit zoom
+  const pressStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
 
   // ── Fetch ──
   useEffect(() => {
@@ -358,6 +360,7 @@ export default function PublicProfilePage() {
       curPX += (targetPX + swayX - curPX) * 0.08
       curPY += (targetPY + swayY - curPY) * 0.08
       if (isEntered) {
+        parallaxRef.current = { px: curPX, py: curPY }
         world.style.transform =
           `rotateX(${(8 + curPY * 2).toFixed(3)}deg) rotateY(${(-curPX * 3).toFixed(3)}deg) translate3d(${(-curPX * 5).toFixed(2)}px, ${(-curPY * 4).toFixed(2)}px, 0)`
         if (compassRef.current && !reduced)
@@ -420,8 +423,9 @@ export default function PublicProfilePage() {
     }
   }, [state, template, adjacency])
 
-  const toastTimerRef = useRef<number>(0)
-  const exitingRef    = useRef(false)
+  const toastTimerRef  = useRef<number>(0)
+  const exitingRef     = useRef(false)
+  const onNodeTapRef   = useRef<(n: NodeDef) => void>(() => {})
 
   const onNodeTap = (n: NodeDef) => {
     if (exitingRef.current) return
@@ -433,18 +437,17 @@ export default function PublicProfilePage() {
     const dest = routes[n.id]
     if (dest) {
       exitingRef.current = true
-      // Same GT4-style zoom-into-node as HomePage: push the camera toward the
-      // tapped node, then navigate once the animation lands (~380ms).
       const world = worldRef.current
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (world && !reduced) {
-        // Node position as percentage of the 390×800 SVG coordinate space
+        const { px, py } = parallaxRef.current
         const nodePos = effNodes[nodes.findIndex(nd => nd.id === n.id)] ?? { x: 195, y: 400 }
         world.style.animation = 'none'
         world.style.transformOrigin =
           `${(nodePos.x / 390 * 100).toFixed(2)}% ${(nodePos.y / 800 * 100).toFixed(2)}%`
         world.style.transition = 'transform 380ms cubic-bezier(0.55, 0, 0.85, 0.6)'
-        world.style.transform = 'scale(2.05)'
+        world.style.transform =
+          `rotateX(${(8 + py * 2).toFixed(3)}deg) rotateY(${(-px * 3).toFixed(3)}deg) scale(2.05)`
       }
       window.setTimeout(() => navigate(dest), reduced ? 200 : 380)
       return
@@ -453,6 +456,29 @@ export default function PublicProfilePage() {
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 1600)
   }
+  onNodeTapRef.current = onNodeTap
+
+  // Document-level pointerup — same pattern as HomePage: arms on pointerdown,
+  // fires on any pointerup within 34px slop so iOS gyro/roll-off can't swallow it.
+  useEffect(() => {
+    const onUp = (e: PointerEvent) => {
+      const s = pressStartRef.current
+      pressStartRef.current = null
+      setPressedNode(null)
+      if (!s) return
+      if (Math.hypot(e.clientX - s.x, e.clientY - s.y) < 34) {
+        const n = nodes.find(nd => nd.id === s.id)
+        if (n) onNodeTapRef.current(n)
+      }
+    }
+    const onCancel = () => { pressStartRef.current = null; setPressedNode(null) }
+    document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
+    return () => {
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
+    }
+  }, [nodes])
 
   const leave = () => {
     if (window.history.length > 1) navigate(-1)
@@ -726,9 +752,7 @@ export default function PublicProfilePage() {
             return (
               <div
                 key={n.id}
-                onPointerDown={() => setPressedNode(n.id)}
-                onPointerUp={() => { setPressedNode(null); onNodeTap(n) }}
-                onPointerCancel={() => setPressedNode(null)}
+                onPointerDown={e => { pressStartRef.current = { id: n.id, x: e.clientX, y: e.clientY }; setPressedNode(n.id) }}
                 style={{
                   position: 'absolute',
                   left: `${(pos.x / 390 * 100).toFixed(2)}%`,

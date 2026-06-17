@@ -134,6 +134,7 @@ function ModList({
   expanded: boolean
   onToggleExpand: () => void
 }) {
+  const [pressedId, setPressedId] = useState<string | null>(null)
   const visible = expanded ? mods : mods.slice(0, COLLAPSE_AT)
   const hiddenCount = mods.length - COLLAPSE_AT
 
@@ -142,10 +143,18 @@ function ModList({
       {visible.map((mod) => (
         <div
           key={mod.id}
+          onPointerDown={() => setPressedId(mod.id)}
+          onPointerUp={() => setPressedId(null)}
+          onPointerLeave={() => setPressedId(null)}
+          onPointerCancel={() => setPressedId(null)}
           style={{
             padding: '10px 0 10px 8px',
             borderBottom: '1px solid rgba(255,255,255,0.04)',
-            borderLeft: '2px solid transparent',
+            borderLeft: pressedId === mod.id ? '2px solid rgba(105,12,22,0.7)' : '2px solid transparent',
+            opacity: pressedId === mod.id ? 0.6 : 1,
+            transition: 'opacity 80ms ease, border-left-color 80ms ease',
+            WebkitTapHighlightColor: 'transparent',
+            touchAction: 'manipulation',
           }}
         >
           <div style={{
