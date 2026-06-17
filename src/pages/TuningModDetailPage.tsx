@@ -272,7 +272,7 @@ export default function TuningModDetailPage() {
     const dy = e.touches[0].clientY - viewerTouchStartY.current
     const dx = e.touches[0].clientX - viewerTouchStartX.current
     if (viewerDragLock.current === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
-      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) ? 'v' : 'h'
+      viewerDragLock.current = Math.abs(dy) > Math.abs(dx) * 1.5 ? 'v' : 'h'
     }
     if (viewerDragLock.current === 'v') setViewerDragY(dy)
     else if (viewerDragLock.current === 'h') {

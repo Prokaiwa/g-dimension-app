@@ -480,8 +480,9 @@ export default function PublicProfilePage() {
     }
   }, [nodes])
 
-  const leave = () => {
-    if (window.history.length > 1) navigate(-1)
+  const leave = async () => {
+    const { data: { session: authSession } } = await supabase.auth.getSession()
+    if (authSession) navigate('/home')
     else navigate('/')
   }
 
