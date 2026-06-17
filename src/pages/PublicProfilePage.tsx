@@ -421,17 +421,34 @@ export default function PublicProfilePage() {
   }, [state, template, adjacency])
 
   const toastTimerRef = useRef<number>(0)
+  const exitingRef    = useRef(false)
+
   const onNodeTap = (n: NodeDef) => {
-    // Carry the current car so the sub-screen shows the same vehicle.
+    if (exitingRef.current) return
     const q = car?.id ? `?car=${car.id}` : ''
-    // Only the built sub-screens navigate; the rest still show the stub toast
-    // until their pages land.
     const routes: Record<string, string> = {
       timeline:    `/builds/${username}/timeline${q}`,
       buildsheet:  `/builds/${username}/buildsheet${q}`,
     }
     const dest = routes[n.id]
-    if (dest) { navigate(dest); return }
+    if (dest) {
+      exitingRef.current = true
+      // Same GT4-style zoom-into-node as HomePage: push the camera toward the
+      // tapped node, then navigate once the animation lands (~380ms).
+      const world = worldRef.current
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (world && !reduced) {
+        // Node position as percentage of the 390×800 SVG coordinate space
+        const nodePos = effNodes[nodes.findIndex(nd => nd.id === n.id)] ?? { x: 195, y: 400 }
+        world.style.animation = 'none'
+        world.style.transformOrigin =
+          `${(nodePos.x / 390 * 100).toFixed(2)}% ${(nodePos.y / 800 * 100).toFixed(2)}%`
+        world.style.transition = 'transform 380ms cubic-bezier(0.55, 0, 0.85, 0.6)'
+        world.style.transform = 'scale(2.05)'
+      }
+      window.setTimeout(() => navigate(dest), reduced ? 200 : 380)
+      return
+    }
     setToast(`${n.label} — opening soon`)
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 1600)

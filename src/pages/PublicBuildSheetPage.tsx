@@ -47,7 +47,6 @@ type Car = {
   year: number | null
   make: string | null
   model: string | null
-  variant: string | null
   garage_photo_url: string | null
   photo_y_offset: number | null
   horsepower: number | null
@@ -256,25 +255,20 @@ export default function PublicBuildSheetPage() {
     async function load() {
       if (!username) { setNotFound(true); setLoading(false); return }
 
-      // Resolve owner user_id from handle
-      const { data: profile } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', username)
-        .single()
-      if (!active || !profile) { setNotFound(true); setLoading(false); return }
-
-      // Load all public cars for this user to pick the right one
+      // Query the view directly by username — avoids a separate users-table
+      // lookup that would be blocked by anon RLS. The view already filters
+      // is_public = true and joins to users.username.
       const { data: cars } = await supabase
         .from('public_car_profiles')
-        .select('id, year, make, model, variant, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo, show_buildsheet_publicly')
-        .eq('user_id', profile.id)
-        .eq('is_public', true)
+        .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo, show_buildsheet_publicly, active_car_id')
+        .eq('username', username)
 
       if (!active) return
       if (!cars || cars.length === 0) { setNotFound(true); setLoading(false); return }
 
-      const chosen = (carParam ? cars.find(c => c.id === carParam) : null) ?? cars[0]
+      const activeId = (cars[0] as { active_car_id?: string }).active_car_id
+      const chosen = (carParam ? cars.find(c => c.id === carParam) : null)
+        ?? cars.find(c => c.id === activeId) ?? cars[0]
       if (!chosen) { setNotFound(true); setLoading(false); return }
 
       setCar(chosen as unknown as Car)
@@ -408,7 +402,7 @@ export default function PublicBuildSheetPage() {
               fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
               fontSize: 22, color: COLOR_HEADER_TITLE, letterSpacing: '0.01em',
             }}>
-              {car ? [car.year, car.model, car.variant].filter(Boolean).join(' ') : 'Build Sheet'}
+              {car ? [car.year, car.model].filter(Boolean).join(' ') : 'Build Sheet'}
             </span>
           </button>
           <div style={{ display: 'flex', alignItems: 'stretch' }}>
@@ -451,7 +445,7 @@ export default function PublicBuildSheetPage() {
                   fontSize: 26, letterSpacing: '-0.01em', lineHeight: 1.1,
                   color: 'rgba(245,240,228,0.95)', margin: 0,
                 }}>
-                  {[car?.year, car?.model, car?.variant].filter(Boolean).join(' ') || 'Unknown'}
+                  {[car?.year, car?.model].filter(Boolean).join(' ') || 'Unknown'}
                 </p>
                 {car?.make && (
                   <p style={{
