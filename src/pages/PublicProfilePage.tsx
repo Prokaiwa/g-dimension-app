@@ -461,7 +461,8 @@ export default function PublicProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#050507', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: '#050507', position: 'relative', overflow: 'hidden' }}>
       <style>{`
         @keyframes pubWorldIn { 0%{opacity:0;transform:rotateX(11deg) scale(0.95)} 100%{opacity:1;transform:rotateX(8deg) scale(1)} }
         @keyframes pubDestIn  { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
@@ -892,6 +893,7 @@ export default function PublicProfilePage() {
           ))}
         </div>
       )}
+    </div>
     </div>
   )
 }
