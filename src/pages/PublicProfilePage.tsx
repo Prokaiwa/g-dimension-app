@@ -1040,9 +1040,11 @@ export default function PublicProfilePage() {
           {/* Destination marker at road end */}
           <circle cx="230" cy="46" r="4" fill="rgba(120,14,18,0.22)"/>
           <circle cx="230" cy="46" r="1.8" fill={COLOR_BRAND} opacity="0.65"/>
-          {/* Driver dot — travels right→left when returning via back (POP) */}
+          {/* Driver dot direction. A fresh load/refresh registers as POP and
+             reads as "arriving" → left-to-right. Returning from a sub-page is a
+             PUSH (sub-pages navigate to the profile URL, not -1) → right-to-left. */}
           {(() => {
-            const kp = navType === 'POP' ? '1;0' : '0;1'
+            const kp = navType === 'POP' ? '0;1' : '1;0'
             return (
               <>
                 <circle r="5.5" fill="rgba(120,14,18,0.18)">
