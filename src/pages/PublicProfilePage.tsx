@@ -500,13 +500,14 @@ export default function PublicProfilePage() {
     }
   }
 
-  // Minimum hold time — keeps intro up while the two network round-trips land.
+  // Minimum hold time — keeps intro up long enough to read, and so the data
+  // round-trips land before the map mounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const t = window.setTimeout(() => {
       introRef.current.minReady = true
       tryExitIntro()
-    }, 1300)
+    }, 2200)
     return () => window.clearTimeout(t)
   }, [])
 
@@ -544,8 +545,9 @@ export default function PublicProfilePage() {
       </div>
     )}
 
-    {/* ── Map (only mounted once data is ready) ── */}
-    {state === 'ready' && (
+    {/* ── Map — mounts once the intro begins fading, so its road-draw +
+         compass entry animations play in view (not hidden behind the intro) ── */}
+    {state === 'ready' && introPhase !== 'in' && (
     <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: '#050507', position: 'relative', overflow: 'hidden', animation: 'pubMapIn 340ms ease both' }}>
       <style>{`
         @keyframes pubMapIn { from{opacity:0} to{opacity:1} }
