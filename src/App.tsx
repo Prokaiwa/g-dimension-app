@@ -70,6 +70,7 @@ import SettingsArchivedPage from './pages/SettingsArchivedPage'
 import PublicProfilePage from './pages/PublicProfilePage'
 import PublicTimelinePage from './pages/PublicTimelinePage'
 import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
+import PublicGaragePage from './pages/PublicGaragePage'
 import PublicModDetailPage from './pages/PublicModDetailPage'
 import PublicEntryDetailPage from './pages/PublicEntryDetailPage'
 
@@ -214,6 +215,7 @@ export default function App() {
 
       {/* Non-authenticated public routes — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
+      <Route path="/builds/:username/garage" element={<PublicGaragePage />} />
       <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
       <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
       <Route path="/builds/:username/mods/:modId" element={<PublicModDetailPage />} />

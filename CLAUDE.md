@@ -166,7 +166,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `053_public_section_visibility.sql` — run in order.
+`supabase/migrations/001_users.sql` → `054_public_car_variant.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -201,6 +201,7 @@ const carId = await getActiveCarId()
 | `051_usage_type_engine_origin.sql` | `cars.usage_type` (street/daily/track/drift/drag/show/vip/offroad) + `cars.engine_origin` (original/swapped) — primary-use category and engine provenance for the Featured archetype engine. Also refreshes `public_car_profiles` view to include both new columns plus previously-missing `build_sheet_*_photo` columns. |
 | `052_featured_cover_story.sql` | `cars.cover_focus_x/y` + `cars.cover_zoom` (all nullable, NO default — NULL = never framed → legacy contain cover layout) for the Featured cover drag/pinch framing, and `cars.featured_story` (text) — the user-written **magazine-voice** feature article (deliberately separate from `purchase_story`, the first-person Timeline Origin voice). Refreshes `public_car_profiles` appending `original_photo_url` + the four new framing/story columns. Frontend stays guarded (pre-052 column-list fallback) as harmless belt-and-suspenders. Applied 2026-06-12. |
 | `053_public_section_visibility.sql` | **Applied 2026-06-15.** Per-section public visibility for `/builds/:username`: `cars.show_buildsheet_publicly` / `show_timeline_publicly` / `show_featured_publicly` (boolean NOT NULL default true). Adds **anon SELECT RLS policies** on `jobs` + `timeline_entries` (gated on `cars.is_public` AND the matching section flag — the public map's count queries need these; without them the Build Sheet/Timeline nodes never appear for visitors). Refreshes `public_car_profiles` to expose the three flags and to NULL `featured_story` when Featured is private. Toggles live on the Edit Car page (`GarageCarsEditPage`) under "Public Profile"; the master switch is the existing `cars.is_public`. |
+| `054_public_car_variant.sql` | **PENDING — not yet applied to live DB.** Refreshes `public_car_profiles` to expose the free-text `cars.variant` column (migration 044) so the public Garage (`/builds/:username/garage`, `PublicGaragePage`) can render the full display name ("2006 LS 430") like the private carousel. The view previously exposed only `variant_id` (the empty future-catalog FK). Additive view-only refresh — no columns/policies/grants change. `PublicGaragePage` reads `variant` defensively (falls back to `model` alone when absent), so it works before and after this runs. |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 

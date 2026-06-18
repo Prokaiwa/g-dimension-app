@@ -444,6 +444,7 @@ export default function PublicProfilePage() {
     if (exitingRef.current) return
     const q = car?.id ? `?car=${car.id}` : ''
     const routes: Record<string, string> = {
+      garage:      `/builds/${username}/garage${q}`,
       timeline:    `/builds/${username}/timeline${q}`,
       buildsheet:  `/builds/${username}/buildsheet${q}`,
     }
