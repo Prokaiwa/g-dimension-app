@@ -954,10 +954,19 @@ export default function GarageCarsPage() {
         </div>
       )}
 
+      {/* Tap-outside-to-close — covers the car area above the sheet */}
+      {showDetails && (
+        <div
+          onClick={() => setShowDetails(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '54%', zIndex: 19 }}
+        />
+      )}
+
       {/* ── DETAILS SHEET ── bottom sheet over the carousel. The real card morphs
           (car lifts/shrinks, logo + model fade) so there's never a duplicate car —
           this sheet holds only the spec content. Pull down from the grip (or the
-          list when it's at the top) to dismiss; the header chevron leaves the garage. */}
+          list when it's at the top) to dismiss, tap above it to close; the header
+          chevron leaves the garage. */}
       {(() => {
         const car = cars[activeIdx]
         return (

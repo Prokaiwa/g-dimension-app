@@ -230,7 +230,7 @@ export default function PublicGaragePage() {
       el.removeEventListener('touchend', onEnd)
       el.removeEventListener('touchcancel', onEnd)
     }
-  }, [])
+  }, [state])   // re-bind once the sheet is actually mounted (after loading)
 
   const back = () => navigate(`/builds/${username}${carParam ? `?car=${carParam}` : ''}`)
 
@@ -404,6 +404,14 @@ export default function PublicGaragePage() {
           </div>
         )}
       </div>
+
+      {/* Tap-outside-to-close — covers the car area above the sheet */}
+      {showDetails && (
+        <div
+          onClick={() => setShowDetails(false)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '54%', zIndex: 19 }}
+        />
+      )}
 
       {/* ── DETAILS SHEET — morphs out of the active card ── */}
       {(() => {
