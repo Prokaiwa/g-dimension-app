@@ -214,6 +214,8 @@ export default function PublicProfilePage() {
   const [toast, setToast] = useState<string | null>(null)
   const [tune, setTune] = useState<TuneState | null>(null)
   const [tuneCollapsed, setTuneCollapsed] = useState(false)
+  const [introPhase, setIntroPhase] = useState<'in' | 'fade' | 'out'>('in')
+  const introRef = useRef({ minReady: false, dataReady: false, exited: false })
 
   const stageRef      = useRef<HTMLDivElement>(null)
   const worldRef      = useRef<HTMLDivElement>(null)
@@ -486,43 +488,64 @@ export default function PublicProfilePage() {
     else navigate('/')
   }
 
-  // ── Loading / empty states ──
-  if (state !== 'ready') {
-    return (
+  // ── Intro timing ──
+  // tryExitIntro is a plain function (reads from ref, no stale-closure risk).
+  // Both triggers call it; the exited flag ensures a single fire.
+  const tryExitIntro = () => {
+    const s = introRef.current
+    if (s.minReady && s.dataReady && !s.exited) {
+      s.exited = true
+      setIntroPhase('fade')
+      window.setTimeout(() => setIntroPhase('out'), 440)
+    }
+  }
+
+  // Minimum hold time — keeps intro up while the two network round-trips land.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      introRef.current.minReady = true
+      tryExitIntro()
+    }, 1300)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  // Fire when data arrives (ready OR empty — both end the fetch phase).
+  useEffect(() => {
+    if (state !== 'loading') {
+      introRef.current.dataReady = true
+      tryExitIntro()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state])
+
+  return (
+    <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
+
+    {/* ── Empty state — shown after intro exits when profile is not found ── */}
+    {state === 'empty' && introPhase === 'out' && (
       <div style={{
-        minHeight: '100dvh',
+        position: 'fixed', inset: 0, zIndex: 10,
         background: 'radial-gradient(ellipse at center, #e9ebf0 0%, #cdd2db 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         flexDirection: 'column', gap: 14, padding: 24, textAlign: 'center',
       }}>
-        <style>{`@keyframes pubspin{to{transform:rotate(360deg)}}`}</style>
-        {state === 'loading' ? (
-          <div style={{
-            width: 30, height: 30, borderRadius: '50%',
-            border: `2.5px solid rgba(60,70,90,0.15)`, borderTopColor: COLOR_BRAND,
-            animation: 'pubspin 750ms linear infinite',
-          }} />
-        ) : (
-          <>
-            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#2a2e36' }}>
-              No public build here
-            </div>
-            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#717784', maxWidth: 260, lineHeight: 1.5 }}>
-              {username ? `@${username} hasn't shared a build yet, or this garage is private.` : 'This garage is private.'}
-            </div>
-            <button onClick={leave} style={{
-              marginTop: 8, padding: '9px 18px', borderRadius: 10, border: 'none',
-              background: COLOR_BRAND, color: '#f5f0ea', fontFamily: FONT_UI,
-              fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer',
-            }}>Leave</button>
-          </>
-        )}
+        <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#2a2e36' }}>
+          No public build here
+        </div>
+        <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#717784', maxWidth: 260, lineHeight: 1.5 }}>
+          {username ? `@${username} hasn't shared a build yet, or this garage is private.` : 'This garage is private.'}
+        </div>
+        <button onClick={leave} style={{
+          marginTop: 8, padding: '9px 18px', borderRadius: 10, border: 'none',
+          background: COLOR_BRAND, color: '#f5f0ea', fontFamily: FONT_UI,
+          fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer',
+        }}>Leave</button>
       </div>
-    )
-  }
+    )}
 
-  return (
-    <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
+    {/* ── Map (only mounted once data is ready) ── */}
+    {state === 'ready' && (
     <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: '#050507', position: 'relative', overflow: 'hidden', animation: 'pubMapIn 340ms ease both' }}>
       <style>{`
         @keyframes pubMapIn { from{opacity:0} to{opacity:1} }
@@ -873,7 +896,7 @@ export default function PublicProfilePage() {
       )}
 
       {/* ── Tune console (?tune in URL) ── */}
-      {TUNE_MODE && tune && (
+      {TUNE_MODE && tune != null && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           background: 'rgba(10,12,18,0.97)', color: '#c8d0e0',
@@ -963,6 +986,75 @@ export default function PublicProfilePage() {
         </div>
       )}
     </div>
+    )} {/* end state === 'ready' */}
+
+    {/* ── Intro overlay — always on top while loading ── */}
+    {introPhase !== 'out' && (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: '#050507',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        opacity: introPhase === 'fade' ? 0 : 1,
+        transition: introPhase === 'fade' ? 'opacity 440ms ease' : 'none',
+        pointerEvents: introPhase === 'fade' ? 'none' : 'auto',
+      }}>
+        <style>{`
+          @keyframes introFadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes introMark   { from{opacity:0} to{opacity:1} }
+        `}</style>
+
+        {/* Wordmark */}
+        <div style={{
+          fontFamily: FONT_UI, fontWeight: 900, fontSize: 10,
+          letterSpacing: '0.24em', color: 'rgba(200,210,230,0.22)',
+          marginBottom: 48,
+          animation: 'introMark 700ms ease both',
+        }}>G-DIMENSION</div>
+
+        {/* Road + driver dot */}
+        <svg width="240" height="76" viewBox="0 0 240 76"
+          style={{ overflow: 'visible', animation: 'introFadeUp 500ms 120ms ease both' }}>
+          <defs>
+            {/* Gentle S-curve: lower-left → plateau → right */}
+            <path id="iroad" d="M 12 64 C 52 64, 82 16, 130 16 C 178 16, 210 46, 230 46"/>
+          </defs>
+          {/* Road surface */}
+          <use href="#iroad" fill="none"
+            stroke="rgba(80,92,116,0.55)" strokeWidth="2.4" strokeLinecap="round"/>
+          {/* Centre dashes */}
+          <use href="#iroad" fill="none"
+            stroke="rgba(200,212,232,0.12)" strokeWidth="1" strokeDasharray="5 9" strokeLinecap="round"/>
+          {/* Destination marker at road end */}
+          <circle cx="230" cy="46" r="4" fill="rgba(120,14,18,0.22)"/>
+          <circle cx="230" cy="46" r="1.8" fill={COLOR_BRAND} opacity="0.65"/>
+          {/* Driver dot — shadow halo */}
+          <circle r="5.5" fill="rgba(120,14,18,0.18)">
+            <animateMotion dur="2.1s" repeatCount="indefinite"
+              keyPoints="0;1" keyTimes="0;1"
+              calcMode="spline" keySplines="0.42 0 0.58 1">
+              <mpath href="#iroad"/>
+            </animateMotion>
+          </circle>
+          {/* Driver dot — burgundy fill */}
+          <circle r="2.3" fill={COLOR_BRAND}>
+            <animateMotion dur="2.1s" repeatCount="indefinite"
+              keyPoints="0;1" keyTimes="0;1"
+              calcMode="spline" keySplines="0.42 0 0.58 1">
+              <mpath href="#iroad"/>
+            </animateMotion>
+          </circle>
+        </svg>
+
+        {/* Destination name */}
+        <div style={{
+          fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', fontWeight: 600,
+          fontSize: 30, color: 'rgba(218,226,242,0.72)', marginTop: 22,
+          letterSpacing: '0.01em',
+          animation: 'introFadeUp 600ms 260ms ease both',
+        }}>@{username}</div>
+      </div>
+    )}
+
     </div>
   )
 }
