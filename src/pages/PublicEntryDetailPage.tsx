@@ -117,10 +117,9 @@ export default function PublicEntryDetailPage() {
     if (!viewerOpen) return
     paintStrip(0, false)
     paintVertical(0, false)
-    const sc = scrollRef.current
-    const prev = sc?.style.overflow
-    if (sc) sc.style.overflow = 'hidden'
-    return () => { if (sc) sc.style.overflow = prev ?? '' }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
   }, [viewerOpen])
 
   const onViewerTouchStart = (e: React.TouchEvent) => {
@@ -251,7 +250,7 @@ export default function PublicEntryDetailPage() {
   )
 
   const page = (children: React.ReactNode) => (
-    <div ref={scrollRef} style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative' }}>
+    <div ref={scrollRef} style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative', overscrollBehavior: 'none' }}>
       <ArrivalFade />
       {chevron}
       {children}

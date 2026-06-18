@@ -113,9 +113,9 @@ export default function TuningPartDetailPage() {
   useEffect(() => {
     if (!viewerOpen) return
     paintStrip(0, false); paintVertical(0, false)
-    const sc = scrollRef.current; const prev = sc?.style.overflow
-    if (sc) sc.style.overflow = 'hidden'
-    return () => { if (sc) sc.style.overflow = prev ?? '' }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
   }, [viewerOpen])
 
   const onViewerTouchStart = (e: React.TouchEvent) => {
@@ -314,6 +314,7 @@ export default function TuningPartDetailPage() {
         `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
       ].join(', '),
       position: 'relative',
+      overscrollBehavior: 'none',
     }}>
 
       {/* Kraft paper grain */}

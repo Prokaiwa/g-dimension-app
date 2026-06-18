@@ -190,9 +190,9 @@ export default function EntryDetailPage() {
   useEffect(() => {
     if (!viewerOpen) return
     paintStrip(0, false); paintVertical(0, false)
-    const sc = scrollRef.current; const prev = sc?.style.overflow
-    if (sc) sc.style.overflow = 'hidden'
-    return () => { if (sc) sc.style.overflow = prev ?? '' }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
   }, [viewerOpen])
   const onCarouselTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; carouselDx.current = 0 }
   const onCarouselTouchMove  = (e: React.TouchEvent) => { carouselDx.current = touchStartX.current - e.touches[0].clientX }
@@ -262,7 +262,7 @@ export default function EntryDetailPage() {
   )
 
   const page = (children: React.ReactNode) => (
-    <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative' }}>
+    <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative', overscrollBehavior: 'none' }}>
       {chevron}
       {children}
     </div>
