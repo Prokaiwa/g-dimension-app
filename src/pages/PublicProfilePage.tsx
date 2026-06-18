@@ -523,8 +523,9 @@ export default function PublicProfilePage() {
 
   return (
     <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
-    <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: '#050507', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100dvh', width: '100%', maxWidth: 440, background: '#050507', position: 'relative', overflow: 'hidden', animation: 'pubMapIn 340ms ease both' }}>
       <style>{`
+        @keyframes pubMapIn { from{opacity:0} to{opacity:1} }
         @keyframes pubWorldIn { 0%{opacity:0;transform:rotateX(11deg) scale(0.95)} 100%{opacity:1;transform:rotateX(8deg) scale(1)} }
         @keyframes pubDestIn  { 0%{opacity:0;transform:translate(-50%,-40%)} 100%{opacity:1;transform:translate(-50%,-50%)} }
         @keyframes pubRoadDraw { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
