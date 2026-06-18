@@ -480,6 +480,8 @@ export default function PublicBuildSheetPage() {
                 backgroundSize: 'contain, cover',
                 backgroundPosition: `center ${car?.photo_y_offset ?? 50}%, center`,
                 backgroundRepeat: 'no-repeat, no-repeat',
+                // No-photo placeholder always reads as a dark/dimmed silhouette
+                filter: car?.garage_photo_url ? undefined : 'brightness(0.12)',
               }} />
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', paddingTop: 4 }}>
                 <p style={{

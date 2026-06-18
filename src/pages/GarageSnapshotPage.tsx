@@ -309,6 +309,8 @@ export default function GarageSnapshotPage() {
                 backgroundPosition: `center ${car.photo_y_offset ?? 50}%`,
                 backgroundRepeat: 'no-repeat',
                 backgroundColor: '#d0d0ce',
+                // No-photo placeholder always reads as a dark/dimmed silhouette
+                filter: car.garage_photo_url ? undefined : 'brightness(0.12)',
               }} />
               {/* Identity text */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 4 }}>
