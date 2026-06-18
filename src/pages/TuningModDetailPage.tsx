@@ -457,7 +457,7 @@ export default function TuningModDetailPage() {
         <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <p style={{
             fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700,
-            fontSize: 28, lineHeight: 0.9,
+            fontSize: 34, lineHeight: 0.9,
             color: 'rgba(245,240,228,0.95)', margin: 0,
           }}>
             {job.title}

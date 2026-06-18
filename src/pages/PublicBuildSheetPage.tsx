@@ -31,13 +31,6 @@ const MOD_GROUPS = [
   { id: 'other',    label: 'Other',    categories: ['Other'] },
 ]
 
-const GROUP_PHOTO_COL: Record<string, string> = {
-  power:    'build_sheet_power_photo',
-  chassis:  'build_sheet_chassis_photo',
-  exterior: 'build_sheet_exterior_photo',
-  interior: 'build_sheet_interior_photo',
-}
-
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 const COLLAPSE_AT = 5
@@ -92,18 +85,68 @@ function CountUp({ value, delay = 0 }: { value: number; delay?: number }) {
   return <>{shown}</>
 }
 
-function SectionHeroPhoto({ url, onTap }: { url: string; onTap: () => void }) {
+// Instagram-style pinch-to-zoom: image stays in the page, two fingers zoom it
+// in place (up to 3×, centred on the pinch midpoint). Releasing snaps back.
+// No tap-to-lightbox — the image is decorative, not interactive on single touch.
+function SectionHeroPhoto({ url }: { url: string }) {
+  const imgRef = useRef<HTMLImageElement>(null)
+  const pinch  = useRef({ active: false, d0: 0, ox: 50, oy: 50, scale: 1 })
+
+  const dist = (a: React.Touch, b: React.Touch) =>
+    Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 2) return
+    const p = pinch.current
+    p.active = true
+    p.d0 = dist(e.touches[0], e.touches[1])
+    p.scale = 1
+    const rect = imgRef.current?.getBoundingClientRect()
+    if (rect) {
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2
+      p.ox = ((mx - rect.left) / rect.width)  * 100
+      p.oy = ((my - rect.top)  / rect.height) * 100
+    }
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    const p = pinch.current
+    if (!p.active || e.touches.length !== 2) return
+    e.preventDefault()
+    const d = dist(e.touches[0], e.touches[1])
+    p.scale = Math.min(3, Math.max(1, d / p.d0))
+    const el = imgRef.current
+    if (el) {
+      el.style.transition = 'none'
+      el.style.transformOrigin = `${p.ox}% ${p.oy}%`
+      el.style.transform = `scale(${p.scale})`
+    }
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length >= 2) return
+    pinch.current.active = false
+    const el = imgRef.current
+    if (el) {
+      el.style.transition = 'transform 380ms cubic-bezier(0.22,1,0.36,1)'
+      el.style.transform = 'scale(1)'
+    }
+  }
+
   return (
     <div
-      onClick={onTap}
       style={{
         width: '100%', height: 195,
         position: 'relative', overflow: 'hidden',
-        cursor: 'pointer', flexShrink: 0,
-        marginBottom: 16,
+        flexShrink: 0, marginBottom: 16,
+        touchAction: 'pan-x pan-y',   // allow page scroll; pinch handled manually
       }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
     >
       <img
+        ref={imgRef}
         src={url}
         alt=""
         draggable={false}
@@ -113,6 +156,8 @@ function SectionHeroPhoto({ url, onTap }: { url: string; onTap: () => void }) {
           display: 'block',
           opacity: 0,
           transition: 'opacity 350ms ease',
+          userSelect: 'none',
+          WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
         }}
         onLoad={e => { e.currentTarget.style.opacity = '1' }}
       />
@@ -246,57 +291,6 @@ export default function PublicBuildSheetPage() {
       return next
     })
 
-  // Lightbox (single-image viewer — DOM-ref driven, velocity dismiss)
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
-  const lbOverlayRef = useRef<HTMLDivElement>(null)
-  const lbImgRef     = useRef<HTMLDivElement>(null)
-  const lbChromeRef  = useRef<HTMLDivElement>(null)
-  const lbG = useRef({ y0: 0, ly: 0, lt: 0, vy: 0, dy: 0 })
-
-  const openLightbox  = (url: string) => setLightboxUrl(url)
-  const closeLightbox = () => setLightboxUrl(null)
-
-  useEffect(() => {
-    if (!lightboxUrl) return
-    // Reset transforms on open
-    const o = lbOverlayRef.current, v = lbImgRef.current, c = lbChromeRef.current
-    if (o) { o.style.transition = 'none'; o.style.background = 'rgba(0,0,0,0.96)' }
-    if (v) { v.style.transition = 'none'; v.style.transform = 'none' }
-    if (c) { c.style.transition = 'none'; c.style.opacity = '1' }
-  }, [lightboxUrl])
-
-  const onLbTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0]
-    lbG.current = { y0: t.clientY, ly: t.clientY, lt: performance.now(), vy: 0, dy: 0 }
-  }
-  const onLbTouchMove = (e: React.TouchEvent) => {
-    const t = e.touches[0], s = lbG.current
-    const dy = t.clientY - s.y0
-    const now = performance.now(), dt = now - s.lt
-    if (dt > 0) s.vy = (t.clientY - s.ly) / dt
-    s.ly = t.clientY; s.lt = now; s.dy = dy
-    const v = lbImgRef.current, o = lbOverlayRef.current, c = lbChromeRef.current
-    const scale = Math.max(0.86, 1 - Math.abs(dy) / 1100)
-    const alpha = Math.max(0, 1 - Math.abs(dy) / 280)
-    if (v) { v.style.transition = 'none'; v.style.transform = `translateY(${dy < 0 ? dy * 0.3 : dy}px) scale(${scale})` }
-    if (o) { o.style.transition = 'none'; o.style.background = `rgba(0,0,0,${alpha * 0.96})` }
-    if (c) { c.style.transition = 'none'; c.style.opacity = String(alpha) }
-  }
-  const onLbTouchEnd = () => {
-    const s = lbG.current
-    const flickDown = s.vy > 0.5 && s.dy > 0
-    if (s.dy > 110 || flickDown) {
-      const v = lbImgRef.current, o = lbOverlayRef.current
-      if (v) { v.style.transition = 'transform 200ms ease'; v.style.transform = `translateY(${window.innerHeight}px)` }
-      if (o) { o.style.transition = 'background 200ms ease'; o.style.background = 'rgba(0,0,0,0)' }
-      window.setTimeout(closeLightbox, 200)
-    } else {
-      const v = lbImgRef.current, o = lbOverlayRef.current, c = lbChromeRef.current
-      if (v) { v.style.transition = 'transform 340ms cubic-bezier(0.22,1,0.36,1)'; v.style.transform = 'none' }
-      if (o) { o.style.transition = 'background 340ms ease'; o.style.background = 'rgba(0,0,0,0.96)' }
-      if (c) { c.style.transition = 'opacity 340ms ease'; c.style.opacity = '1' }
-    }
-  }
 
   useEffect(() => {
     let active = true
@@ -447,9 +441,8 @@ export default function PublicBuildSheetPage() {
           }}>
             <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{
-              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-              letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: 'rgba(245,240,228,0.4)',
+              fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
+              fontSize: 22, color: 'rgba(245,240,228,0.72)', letterSpacing: '0.01em',
             }}>
               Build Sheet
             </span>
@@ -565,9 +558,8 @@ export default function PublicBuildSheetPage() {
 
             {/* ── Mod sections ── */}
             {!isPrivate && activeGroups.map((group, idx) => {
-              const photoUrl    = photoMap[group.id] ?? null
-              const hasPhotoCol = !!GROUP_PHOTO_COL[group.id]
-              const isExpanded  = expandedGroups.has(group.id)
+              const photoUrl   = photoMap[group.id] ?? null
+              const isExpanded = expandedGroups.has(group.id)
 
               return (
                 <div key={group.id} style={{
@@ -589,12 +581,9 @@ export default function PublicBuildSheetPage() {
                     </span>
                   </div>
 
-                  {/* Section photo — tap to view, no change option */}
+                  {/* Section photo — pinch to zoom (Instagram-style), no tap-to-lightbox */}
                   {photoUrl ? (
-                    <SectionHeroPhoto
-                      url={photoUrl}
-                      onTap={() => hasPhotoCol && openLightbox(photoUrl)}
-                    />
+                    <SectionHeroPhoto url={photoUrl} />
                   ) : null}
 
                   {/* Group cards (titled sessions) — read-only, no nav */}
@@ -638,27 +627,6 @@ export default function PublicBuildSheetPage() {
           </div>
         )}
 
-        {/* ── Lightbox (view-only, DOM-ref driven dismiss) ── */}
-        {lightboxUrl && (
-          <div ref={lbOverlayRef}
-            style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(0,0,0,0.96)', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', overflow: 'hidden', overscrollBehavior: 'none' }}
-            onClick={closeLightbox}
-          >
-            <div ref={lbImgRef}
-              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', willChange: 'transform' }}
-              onTouchStart={onLbTouchStart} onTouchMove={onLbTouchMove} onTouchEnd={onLbTouchEnd}
-              onClick={e => e.stopPropagation()}
-            >
-              <img src={lightboxUrl} alt="" draggable={false} style={{ maxWidth: '100%', maxHeight: '90dvh', width: 'auto', height: 'auto', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
-            </div>
-            <div ref={lbChromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              <button onClick={e => { e.stopPropagation(); closeLightbox() }} style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}>
-                <span style={{ color: 'rgba(245,240,228,0.7)', fontSize: 20, lineHeight: 1 }}>×</span>
-              </button>
-              <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.3)', margin: 0 }}>swipe down to close</p>
-            </div>
-          </div>
-        )}
 
       </div>
     </div>
