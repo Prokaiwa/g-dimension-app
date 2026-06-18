@@ -6,12 +6,13 @@
 -- variant column, so /builds/:username had no way to show it.
 --
 -- Additive, view-only refresh — no new columns, no policy/grant changes
--- (public_car_profiles already granted to anon, authenticated). Mirrors the
--- 053 definition verbatim with c.variant appended next to c.model.
+-- (public_car_profiles already granted to anon, authenticated). c.variant is
+-- APPENDED as the last column: `create or replace view` cannot rename/reorder
+-- existing view columns (Postgres 42P16), so a new column must go at the end.
 
 create or replace view public.public_car_profiles as
   select
-    c.id, c.user_id, c.year, c.make, c.model, c.variant, c."trim", c.variant_id,
+    c.id, c.user_id, c.year, c.make, c.model, c."trim", c.variant_id,
     c.chassis_code, c.nickname, c.color, c.engine_type, c.transmission,
     c.drivetrain, c.forced_induction, c.horsepower, c.torque,
     c.current_mileage, c.is_import, c.garage_photo_url, c.showcase_photo_url,
@@ -26,7 +27,8 @@ create or replace view public.public_car_profiles as
     c.show_buildsheet_publicly,
     c.show_timeline_publicly,
     c.show_featured_publicly,
-    u.active_car_id
+    u.active_car_id,
+    c.variant
   from cars c
   join users u on u.id = c.user_id
   where c.is_public = true
