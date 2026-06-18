@@ -221,6 +221,9 @@ export default function PublicProfilePage() {
   const [tuneCollapsed, setTuneCollapsed] = useState(false)
   const [introPhase, setIntroPhase] = useState<'in' | 'fade' | 'out'>('in')
   const introRef = useRef({ minReady: false, dataReady: false, exited: false })
+  // Tracks whether the world entry animation has finished so React stops
+  // re-applying the animation prop on every re-render (which would restart it).
+  const [worldEntered, setWorldEntered] = useState(false)
 
   const stageRef      = useRef<HTMLDivElement>(null)
   const worldRef      = useRef<HTMLDivElement>(null)
@@ -336,6 +339,9 @@ export default function PublicProfilePage() {
     const entryTimer = setTimeout(() => {
       isEntered = true
       world.style.animation = 'none'
+      // Remove the animation from React's style prop so re-renders can never
+      // restart it (e.g. setPressedNode on every tap would reset it otherwise).
+      setWorldEntered(true)
     }, 900)
 
     let targetPX = 0, targetPY = 0, curPX = 0, curPY = 0
@@ -669,7 +675,9 @@ export default function PublicProfilePage() {
           ref={worldRef}
           style={{
             position: 'absolute', inset: 0,
-            animation: `pubWorldIn 800ms ${EASING_SETTLE} both`,
+            // Once worldEntered is true, omit animation entirely from React's
+            // style prop so re-renders never re-apply it and restart the animation.
+            ...(worldEntered ? {} : { animation: `pubWorldIn 800ms ${EASING_SETTLE} both` }),
             transformStyle: 'preserve-3d', willChange: 'transform',
           }}
         >
@@ -700,8 +708,24 @@ export default function PublicProfilePage() {
                 <feGaussianBlur stdDeviation="1.4" result="b" />
                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
               </filter>
+              {/* Clip roads to never draw inside the focal (Garage) icon area.
+                  Icon transparent pixels make geometry-based starts unreliable —
+                  this mask is the only guarantee. Radius = VIS_FOCAL + 4 ≈ 55. */}
+              {(() => {
+                const fn = effNodes[0]
+                const r = Math.ceil(VIS_FOCAL) + 4
+                const circlePath =
+                  `M ${fn.x - r} ${fn.y} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0`
+                return (
+                  <clipPath id="pubRoadClip">
+                    <path fillRule="evenodd"
+                      d={`M -20 -20 L 410 -20 L 410 820 L -20 820 Z ${circlePath}`} />
+                  </clipPath>
+                )
+              })()}
             </defs>
 
+            <g clipPath="url(#pubRoadClip)">
             {effPaths.map((d, i) => (
               <g key={i}>
                 <g fill="none" stroke={`rgba(54,62,78,${ROAD_STROKE_OP[i] ?? 0.48})`} strokeLinecap="round" filter="url(#pubGlow)">
@@ -746,6 +770,8 @@ export default function PublicProfilePage() {
                 <text><textPath href="#pub-rl-d" startOffset="22%">To Featured</textPath></text>
               </g>
             )}
+
+            </g> {/* end clipPath group */}
 
             {template.edges.length > 0 && (
               <g ref={driverRef} opacity="0">
