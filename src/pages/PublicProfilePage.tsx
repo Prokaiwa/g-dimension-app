@@ -10,7 +10,7 @@
 // One designed layout template per node count (1–5).
 // Node taps are stubbed — read-only sub-screens are the next build.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useNavigationType, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, iconFeatured,
@@ -206,6 +206,7 @@ interface CarRow {
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>()
   const navigate = useNavigate()
+  const navType = useNavigationType() // 'POP' = back navigation → reverse dot
   // Which car the map is showing — visitor-chosen via the Garage carousel
   // (?car=<id>), defaulting to the owner's active car. Kept in the URL so it
   // survives navigation into the sub-screens and is shareable. Never mutates
@@ -1039,22 +1040,28 @@ export default function PublicProfilePage() {
           {/* Destination marker at road end */}
           <circle cx="230" cy="46" r="4" fill="rgba(120,14,18,0.22)"/>
           <circle cx="230" cy="46" r="1.8" fill={COLOR_BRAND} opacity="0.65"/>
-          {/* Driver dot — shadow halo */}
-          <circle r="5.5" fill="rgba(120,14,18,0.18)">
-            <animateMotion dur="2.1s" repeatCount="indefinite"
-              keyPoints="0;1" keyTimes="0;1"
-              calcMode="spline" keySplines="0.42 0 0.58 1">
-              <mpath href="#iroad"/>
-            </animateMotion>
-          </circle>
-          {/* Driver dot — burgundy fill */}
-          <circle r="2.3" fill={COLOR_BRAND}>
-            <animateMotion dur="2.1s" repeatCount="indefinite"
-              keyPoints="0;1" keyTimes="0;1"
-              calcMode="spline" keySplines="0.42 0 0.58 1">
-              <mpath href="#iroad"/>
-            </animateMotion>
-          </circle>
+          {/* Driver dot — travels right→left when returning via back (POP) */}
+          {(() => {
+            const kp = navType === 'POP' ? '1;0' : '0;1'
+            return (
+              <>
+                <circle r="5.5" fill="rgba(120,14,18,0.18)">
+                  <animateMotion dur="2.1s" repeatCount="indefinite"
+                    keyPoints={kp} keyTimes="0;1"
+                    calcMode="spline" keySplines="0.42 0 0.58 1">
+                    <mpath href="#iroad"/>
+                  </animateMotion>
+                </circle>
+                <circle r="2.3" fill={COLOR_BRAND}>
+                  <animateMotion dur="2.1s" repeatCount="indefinite"
+                    keyPoints={kp} keyTimes="0;1"
+                    calcMode="spline" keySplines="0.42 0 0.58 1">
+                    <mpath href="#iroad"/>
+                  </animateMotion>
+                </circle>
+              </>
+            )
+          })()}
         </svg>
 
         {/* Destination name */}
