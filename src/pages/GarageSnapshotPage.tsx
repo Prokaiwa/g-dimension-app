@@ -299,26 +299,30 @@ export default function GarageSnapshotPage() {
 
             {/* Hero: photo left, identity right */}
             <div style={{ paddingTop: SPACE_LG, paddingBottom: SPACE_MD, borderBottom: `1px solid ${RULE}`, display: 'flex', alignItems: 'flex-start', gap: SPACE_MD }}>
-              {/* Car photo */}
+              {/* Car photo — grey box; placeholder silhouette dimmed on a child
+                  layer so the filter darkens only the car, not the box. */}
               <div style={{
+                position: 'relative',
                 flexShrink: 0,
                 width: 150,
                 height: 110,
+                backgroundColor: '#d0d0ce',
                 backgroundRepeat: 'no-repeat',
                 backgroundSize: 'contain',
                 backgroundPosition: `center ${car.photo_y_offset ?? 50}%`,
-                ...(car.garage_photo_url
-                  ? {
-                      backgroundImage: `url(${car.garage_photo_url})`,
-                      backgroundColor: '#d0d0ce',
-                    }
-                  : {
-                      // No-photo: dim only the silhouette, no box — paper shows through
-                      backgroundImage: `url(${garagePlaceholder})`,
-                      filter: 'brightness(0.12)',
-                    }
-                ),
-              }} />
+                backgroundImage: car.garage_photo_url ? `url(${car.garage_photo_url})` : undefined,
+              }}>
+                {!car.garage_photo_url && (
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    backgroundImage: `url(${garagePlaceholder})`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: 'contain',
+                    backgroundPosition: `center ${car.photo_y_offset ?? 50}%`,
+                    filter: 'brightness(0.12)',
+                  }} />
+                )}
+              </div>
               {/* Identity text */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: SPACE_SM, flexWrap: 'wrap' }}>
