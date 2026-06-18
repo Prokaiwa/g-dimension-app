@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
-import { FONT_UI, FONT_TITLE, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 const LABEL: React.CSSProperties = {
@@ -213,7 +213,7 @@ export default function PublicModDetailPage() {
     }}>
       <button onClick={back} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent' }}>
         <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
-        <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, letterSpacing: '0.01em', color: 'rgba(245,240,228,0.72)' }}>Build Sheet</span>
+        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.5)' }}>Build Sheet</span>
       </button>
     </div>
   )
