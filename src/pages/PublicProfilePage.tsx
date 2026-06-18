@@ -81,10 +81,13 @@ const TEMPLATES: Record<number, Template> = {
     ],
     radii: [VIS_FOCAL, VIS_STD, VIS_STD],
     edges: [
+      // Start at the Garage icon CENTRE (y≈258, under the icon body) so the
+      // roads tuck behind it and emerge from the sides — never poking out the
+      // icon's base across its ground shadow (matches Home + the 4-node layout).
       { a: 0, b: 1, bend: 0,
-        pathFn: () => `M 195 286 C 370 300, 36 450, 300 445` },
+        pathFn: () => `M 195 258 C 370 300, 36 450, 300 445` },
       { a: 0, b: 2, bend: 0,
-        pathFn: () => `M 195 286 C 20 283, 10 368, 14 445 C 18 502, 50 528, 62 535` },
+        pathFn: () => `M 195 258 C 20 283, 10 368, 14 445 C 18 502, 50 528, 62 535` },
       { a: 1, b: 2, bend: 0,
         pathFn: () => `M 294 448 C 475 445, 352 860, 62 535` },
     ],
@@ -716,9 +719,9 @@ export default function PublicProfilePage() {
               <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10"
                  fontWeight="500" fill="rgba(54,62,78,0.58)" letterSpacing="0.8">
                 {/* Eau Rouge: right-sweeping arc to Build Sheet */}
-                <path id="pub-3-a" d="M 195 286 C 370 300, 36 450, 300 445" fill="none"/>
+                <path id="pub-3-a" d="M 195 258 C 370 300, 36 450, 300 445" fill="none"/>
                 <text><textPath href="#pub-3-a" startOffset="14%">To Build Sheet</textPath></text>
-                <path id="pub-3-b" d="M 62 535 C 50 528, 18 502, 14 445 C 10 368, 20 283, 195 286" fill="none"/>
+                <path id="pub-3-b" d="M 62 535 C 50 528, 18 502, 14 445 C 10 368, 20 283, 195 258" fill="none"/>
                 <text><textPath href="#pub-3-b" startOffset="8%">To Timeline</textPath></text>
                 <path id="pub-3-c" d="M 294 448 C 475 445, 352 860, 62 535" fill="none"/>
                 <text><textPath href="#pub-3-c" startOffset="22%">To Timeline</textPath></text>
