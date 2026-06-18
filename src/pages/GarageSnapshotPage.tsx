@@ -313,8 +313,8 @@ export default function GarageSnapshotPage() {
                       backgroundColor: '#d0d0ce',
                     }
                   : {
+                      // No-photo: dim only the silhouette, no box — paper shows through
                       backgroundImage: `url(${garagePlaceholder})`,
-                      backgroundColor: '#0d0d0f',
                       filter: 'brightness(0.12)',
                     }
                 ),
