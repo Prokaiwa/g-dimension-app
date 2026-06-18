@@ -202,6 +202,7 @@ export default function PublicTimelinePage() {
         })
       }
       setEntries(std)
+      setLoading(false)   // show timeline immediately; enrichment fills in below
 
       // Enrich session-derived entries (best-effort — gated by anon RLS).
       const sessionIds = std.map(e => e.session_id).filter((x): x is string => !!x)
@@ -235,8 +236,6 @@ export default function PublicTimelinePage() {
         }
         setMeta(m)
       }
-
-      setLoading(false)
     })()
     return () => { active = false }
   }, [username, carParam])

@@ -511,24 +511,20 @@ export default function GarageCarsPage() {
         .is('deleted_at', null)
         .order('created_at')
         .then(async ({ data }) => {
-          if (data) { setCars(data); if (data.length > 1) setShowHints(true) }
           setLoading(false)
           const id = await getActiveCarId()
           setChosenCarId(id)
-          // Returning from the Edit Car route focuses the car just edited;
-          // otherwise land on the active car.
+          if (!data) return
+          // Returning from Edit focuses the just-edited car; else land on active.
           const focusId = (location.state as { focusCarId?: string } | null)?.focusCarId
           const targetId = focusId ?? id
-          if (targetId && data) {
-            const idx = data.findIndex(c => c.id === targetId)
-            if (idx > 0) {
-              setActiveIdx(idx)
-              setTimeout(() => {
-                const el = scrollRef.current
-                if (el) el.scrollLeft = idx * el.clientWidth
-              }, 50)
-            }
-          }
+          const idx = targetId ? data.findIndex(c => c.id === targetId) : -1
+          // Move the target car to position 0 so it's always the first slot.
+          const ordered = idx > 0
+            ? [data[idx], ...data.slice(0, idx), ...data.slice(idx + 1)]
+            : data
+          setCars(ordered)
+          if (ordered.length > 1) setShowHints(true)
         })
     })
     // Mount-only: fetch once and read the initial focusCarId from navigation state.

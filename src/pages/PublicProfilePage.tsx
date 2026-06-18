@@ -222,6 +222,7 @@ export default function PublicProfilePage() {
   const [tuneCollapsed, setTuneCollapsed] = useState(false)
   const [introPhase, setIntroPhase] = useState<'in' | 'fade' | 'out'>('in')
   const introRef = useRef({ minReady: false, dataReady: false, exited: false })
+  const [exiting, setExiting] = useState(false)
 
   const stageRef      = useRef<HTMLDivElement>(null)
   const worldRef      = useRef<HTMLDivElement>(null)
@@ -451,6 +452,7 @@ export default function PublicProfilePage() {
     const dest = routes[n.id]
     if (dest) {
       exitingRef.current = true
+      setExiting(true)
       const world = worldRef.current
       const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (world && !reduced) {
@@ -1077,6 +1079,14 @@ export default function PublicProfilePage() {
       </div>
     )}
 
+    {/* Exit fade — cut to black while the camera dives into the destination */}
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      background: '#050507',
+      opacity: exiting ? 1 : 0,
+      transition: 'opacity 340ms ease-in',
+      pointerEvents: exiting ? 'auto' : 'none',
+    }} />
     </div>
   )
 }

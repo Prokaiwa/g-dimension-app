@@ -237,6 +237,7 @@ export default function TimelinePage() {
         })
       }
       setEntries(std)
+      setLoading(false)   // show timeline immediately; enrichment fills in below
 
       // Enrich standard entries: title from session/jobs + a fallback thumbnail
       // from the mod's first job_photo (until timeline_photo_url is set).
@@ -273,8 +274,6 @@ export default function TimelinePage() {
         }
         setMeta(m)
       }
-
-      setLoading(false)
     })()
     return () => { active = false }
   }, [])

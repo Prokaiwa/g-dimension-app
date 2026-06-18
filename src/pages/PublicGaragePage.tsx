@@ -162,20 +162,16 @@ export default function PublicGaragePage() {
       if (cancelled) return
       const rows = (data as Car[] | null) ?? []
       if (error || rows.length === 0) { setState('empty'); return }
-      setCars(rows)
-      setState('ready')
-      if (rows.length > 1) setShowHints(true)
-      // Focus the visitor-selected car (?car), else the owner's active car.
+      // Move the target car (visitor-selected or owner's active) to position 0.
       const activeId = (rows[0] as Car).active_car_id
       const targetId = carParam ?? activeId ?? rows[0].id
       const idx = rows.findIndex(c => c.id === targetId)
-      if (idx > 0) {
-        setActiveIdx(idx)
-        setTimeout(() => {
-          const el = scrollRef.current
-          if (el) el.scrollLeft = idx * el.clientWidth
-        }, 50)
-      }
+      const ordered = idx > 0
+        ? [rows[idx], ...rows.slice(0, idx), ...rows.slice(idx + 1)]
+        : rows
+      setCars(ordered)
+      setState('ready')
+      if (ordered.length > 1) setShowHints(true)
     })()
     return () => { cancelled = true }
   }, [username, carParam])
