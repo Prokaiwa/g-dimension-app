@@ -36,7 +36,9 @@ comment on column public.cars.featured_layout is
   'Featured magazine editorial overrides (headline/deck/captions) + a snapshot of the engine output at last edit for quiet "suggestion updated" hints. NULL = fully engine-generated. See migration 055.';
 
 -- ── Refresh the public view: expose featured_layout, withheld when the Featured
--- room is private (mirrors how featured_story is nulled in 053). Append-only. ──
+-- room is private (mirrors how featured_story is nulled in 053).
+-- NOTE: CREATE OR REPLACE VIEW can only APPEND columns (never reorder/insert into
+-- the middle), so featured_layout goes LAST after active_car_id. ──
 create or replace view public.public_car_profiles as
   select
     c.id, c.user_id, c.year, c.make, c.model, c."trim", c.variant_id,
@@ -50,13 +52,14 @@ create or replace view public.public_car_profiles as
     c.build_sheet_power_photo, c.build_sheet_chassis_photo,
     c.build_sheet_exterior_photo, c.build_sheet_interior_photo,
     c.original_photo_url, c.cover_focus_x, c.cover_focus_y, c.cover_zoom,
-    -- Featured story + layout are withheld when the Featured room is private:
-    case when c.show_featured_publicly then c.featured_story  else null end as featured_story,
-    case when c.show_featured_publicly then c.featured_layout else null end as featured_layout,
+    -- Featured story is withheld when the Featured room is private:
+    case when c.show_featured_publicly then c.featured_story else null end as featured_story,
     c.show_buildsheet_publicly,
     c.show_timeline_publicly,
     c.show_featured_publicly,
-    u.active_car_id
+    u.active_car_id,
+    -- appended (055): Featured editorial overrides, withheld when private:
+    case when c.show_featured_publicly then c.featured_layout else null end as featured_layout
   from cars c
   join users u on u.id = c.user_id
   where c.is_public = true
