@@ -5,8 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 053_public_section_visibility.sql (applied 2026-06-15)
--- Migrations 001–053 applied to production, with corrections:
+-- Last migration applied : 055_featured_layout.sql (applied 2026-06-19)
+--   - 054 (public_car_profiles exposes cars.variant) confirmed live 2026-06-19
+--     while applying 055 (the live view's last pre-055 column was c.variant).
+--   - 055 (cars.featured_layout jsonb — Featured cover editorial overrides +
+--     engine snapshot; view refreshed to expose it, nulled when Featured private)
+--     applied 2026-06-19.
+-- Migrations 001–055 applied to production, with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
