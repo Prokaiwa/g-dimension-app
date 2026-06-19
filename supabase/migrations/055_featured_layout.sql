@@ -38,7 +38,9 @@ comment on column public.cars.featured_layout is
 -- ── Refresh the public view: expose featured_layout, withheld when the Featured
 -- room is private (mirrors how featured_story is nulled in 053).
 -- NOTE: CREATE OR REPLACE VIEW can only APPEND columns (never reorder/insert into
--- the middle), so featured_layout goes LAST after active_car_id. ──
+-- the middle). The live view ends with active_car_id, then c.variant (migration
+-- 054 — which IS applied to production despite the CLAUDE.md "pending" note), so
+-- featured_layout MUST be appended after c.variant. ──
 create or replace view public.public_car_profiles as
   select
     c.id, c.user_id, c.year, c.make, c.model, c."trim", c.variant_id,
@@ -58,6 +60,7 @@ create or replace view public.public_car_profiles as
     c.show_timeline_publicly,
     c.show_featured_publicly,
     u.active_car_id,
+    c.variant,
     -- appended (055): Featured editorial overrides, withheld when private:
     case when c.show_featured_publicly then c.featured_layout else null end as featured_layout
   from cars c
