@@ -53,6 +53,10 @@ interface FeaturedLayout {
   generated_deck?: string
   generated_captions?: Record<string, string>
   story_photo?: string                         // chosen image URL for the Story page (else cover photo)
+  story_photo_height?: number                  // vh height of the story photo (default 32)
+  story_photo_focus_x?: number                 // 0-100
+  story_photo_focus_y?: number                 // 0-100
+  story_photo_zoom?: number                    // 1-3
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -257,6 +261,21 @@ export default function FeaturedPage() {
   const [storyPhotoErr, setStoryPhotoErr]   = useState<string | null>(null)
   const storyPhotoFileRef                   = useRef<HTMLInputElement>(null)
 
+  // ── story photo framing (pan/zoom + height, persisted in featured_layout) ────────
+  const [spAdjusting, setSpAdjusting]   = useState(false)
+  const spAdjustingRef                  = useRef(false)
+  const [spFx, setSpFx]                 = useState(50)
+  const [spFy, setSpFy]                 = useState(50)
+  const [spZoom, setSpZoom]             = useState(1)
+  const [spHeight, setSpHeight]         = useState(32)   // vh
+  const [savingSpFrame, setSavingSpFrame] = useState(false)
+  const [spFrameErr, setSpFrameErr]     = useState<string | null>(null)
+  const spTouches = useRef<{x:number;y:number}[]>([])
+  const spPinch   = useRef<{dist:number;zoom:number}|null>(null)
+  const spHeightDragRef  = useRef(false)
+  const spHeightStartY   = useRef(0)
+  const spHeightStartVal = useRef(32)
+
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
 
@@ -317,6 +336,12 @@ export default function FeaturedPage() {
       setCar(c)
       if (c?.cover_zoom != null) {
         setFx(c.cover_focus_x ?? 50); setFy(c.cover_focus_y ?? 50); setZoom(c.cover_zoom)
+      }
+      if (c?.featured_layout?.story_photo_zoom != null) {
+        setSpFx(c.featured_layout.story_photo_focus_x ?? 50)
+        setSpFy(c.featured_layout.story_photo_focus_y ?? 50)
+        setSpZoom(c.featured_layout.story_photo_zoom)
+        setSpHeight(c.featured_layout.story_photo_height ?? 32)
       }
       if (unitsRes.data) {
         const u = unitsRes.data as { distance_unit?: string; power_unit?: string }
@@ -639,6 +664,90 @@ export default function FeaturedPage() {
     }
   }
 
+  // ── story photo framing helpers ──────────────────────────────────────────────────
+  const enterSpAdjust = () => {
+    setSpFrameErr(null)
+    spAdjustingRef.current = true
+    setSpAdjusting(true)
+  }
+  const cancelSpAdjust = () => {
+    const l = car?.featured_layout
+    setSpFx(l?.story_photo_focus_x ?? 50)
+    setSpFy(l?.story_photo_focus_y ?? 50)
+    setSpZoom(l?.story_photo_zoom ?? 1)
+    setSpHeight(l?.story_photo_height ?? 32)
+    spAdjustingRef.current = false
+    setSpAdjusting(false)
+  }
+  const saveSpFrame = async () => {
+    if (!car || savingSpFrame) return
+    setSavingSpFrame(true)
+    setSpFrameErr(null)
+    const prevLayout = car.featured_layout ?? {}
+    const next: FeaturedLayout = {
+      ...prevLayout,
+      story_photo_focus_x: Math.round(spFx),
+      story_photo_focus_y: Math.round(spFy),
+      story_photo_zoom: Math.round(spZoom * 100) / 100,
+      story_photo_height: Math.round(spHeight),
+    }
+    const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
+    const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
+    setSavingSpFrame(false)
+    if (error) { setSpFrameErr("Couldn't save — run migration 055."); return }
+    setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
+    spAdjustingRef.current = false
+    setSpAdjusting(false)
+  }
+  const onSpAdjTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    spTouches.current = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }))
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      spPinch.current = { dist: Math.hypot(dx, dy), zoom: spZoom }
+    }
+  }
+  const onSpAdjTouchMove = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    const photoH = (spHeight / 100) * window.innerHeight
+    if (e.touches.length === 2 && spPinch.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const d = Math.hypot(dx, dy)
+      setSpZoom(Math.min(3, Math.max(1, spPinch.current.zoom * (d / spPinch.current.dist))))
+    } else if (e.touches.length === 1 && spTouches.current.length >= 1) {
+      const prev = spTouches.current[0]
+      const dx = e.touches[0].clientX - prev.x
+      const dy = e.touches[0].clientY - prev.y
+      setSpFx(v => Math.min(100, Math.max(0, v - (dx / window.innerWidth) * 100 / spZoom)))
+      setSpFy(v => Math.min(100, Math.max(0, v - (dy / photoH) * 100 / spZoom)))
+    }
+    spTouches.current = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }))
+  }
+  const onSpAdjTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    spTouches.current = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }))
+    if (e.touches.length < 2) spPinch.current = null
+  }
+  const onSpHeightDragStart = (e: React.TouchEvent) => {
+    e.stopPropagation()
+    spHeightDragRef.current = true
+    spHeightStartY.current    = e.touches[0].clientY
+    spHeightStartVal.current  = spHeight
+    const handleMove = (ev: TouchEvent) => {
+      const delta = ((ev.touches[0].clientY - spHeightStartY.current) / window.innerHeight) * 100
+      setSpHeight(Math.min(60, Math.max(14, spHeightStartVal.current + delta)))
+    }
+    const handleEnd = () => {
+      spHeightDragRef.current = false
+      window.removeEventListener('touchmove', handleMove)
+      window.removeEventListener('touchend', handleEnd)
+    }
+    window.addEventListener('touchmove', handleMove, { passive: true })
+    window.addEventListener('touchend', handleEnd, { passive: true })
+  }
+
   // ── story photo chooser helpers ─────────────────────────────────────────────────
   const saveStoryPhoto = async (url: string | null) => {
     if (!car || savingStoryPhoto) return
@@ -836,6 +945,12 @@ export default function FeaturedPage() {
     return () => clearTimeout(id)
   }, [pageIdx, pages])
 
+  // Cancel story-photo adjust when the user turns away from the story page
+  useEffect(() => {
+    if (spAdjustingRef.current) { spAdjustingRef.current = false; setSpAdjusting(false) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageIdx])
+
   // Clamp current page if the book shrank (e.g. data reloaded smaller)
   useEffect(() => {
     if (pageIdx > pages.length - 1) { const n = Math.max(0, pages.length - 1); pageIdxRef.current = n; setPageIdx(n) }
@@ -1008,7 +1123,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
-      if (adjustingRef.current || editingRef.current || capEditRef.current) return
+      if (adjustingRef.current || editingRef.current || capEditRef.current || spAdjustingRef.current || spHeightDragRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -1253,7 +1368,13 @@ export default function FeaturedPage() {
           saving={savingLayout} err={layoutErr} hasSuggestion={hasSuggestion}
           onEnterEdit={enterEditing} onCancelEdit={cancelEditing} onSaveEdit={saveLayout}
           storyPhoto={layout?.story_photo ?? photos[0]?.url ?? null}
-          onChangePhoto={() => { setStoryPhotoErr(null); setStoryPhotoSheet(true) }} />
+          onChangePhoto={() => { setStoryPhotoErr(null); setStoryPhotoSheet(true) }}
+          spAdjusting={spAdjusting} spFx={spFx} spFy={spFy} spZoom={spZoom} spHeight={spHeight}
+          onAdjust={enterSpAdjust}
+          onAdjTouchStart={onSpAdjTouchStart} onAdjTouchMove={onSpAdjTouchMove} onAdjTouchEnd={onSpAdjTouchEnd}
+          onHeightDragStart={onSpHeightDragStart}
+          onSaveFrame={saveSpFrame} onCancelFrame={cancelSpAdjust}
+          savingFrame={savingSpFrame} frameErr={spFrameErr} />
       )
     }
 
@@ -2031,18 +2152,33 @@ interface StoryPageProps {
   saving?: boolean; err?: string | null
   hasSuggestion?: boolean
   onEnterEdit?: () => void; onCancelEdit?: () => void; onSaveEdit?: () => void
-  // ── optional photo shown below short writing ──
+  // ── optional photo shown below writing ──
   storyPhoto?: string | null
   onChangePhoto?: () => void
+  // ── photo framing (pan/zoom + height) ──
+  spAdjusting?: boolean
+  spFx?: number; spFy?: number; spZoom?: number
+  spHeight?: number                  // vh
+  onAdjust?: () => void
+  onAdjTouchStart?: (e: React.TouchEvent) => void
+  onAdjTouchMove?: (e: React.TouchEvent) => void
+  onAdjTouchEnd?: (e: React.TouchEvent) => void
+  onHeightDragStart?: (e: React.TouchEvent) => void
+  onSaveFrame?: () => void
+  onCancelFrame?: () => void
+  savingFrame?: boolean
+  frameErr?: string | null
 }
 function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots,
   canEdit, editing, editHeadline = '', onHeadlineChange, saving, err, hasSuggestion,
-  onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto, onChangePhoto }: StoryPageProps) {
+  onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto, onChangePhoto,
+  spAdjusting, spFx = 50, spFy = 50, spZoom = 1, spHeight = 32,
+  onAdjust, onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd, onHeightDragStart,
+  onSaveFrame, onCancelFrame, savingFrame, frameErr }: StoryPageProps) {
   const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
   const first = paras[0] ?? ''
   const rest  = paras.slice(1)
-  const isShort = story.trim().length < 380
-  const showPhoto = isShort && !!storyPhoto
+  const showPhoto = !!storyPhoto
 
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
@@ -2105,10 +2241,10 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         </div>
       )}
 
-      {/* Body — drop cap on the opening paragraph. When a photo fills the space
-          below a short story, the body sizes to its content (so the text hugs
-          the headline) instead of growing and shoving the photo to the bottom. */}
-      <div style={{ flex: showPhoto ? '0 1 auto' : 1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
+      {/* Body — always flex:1. If a photo is shown, the fixed-height photo claims
+          its vh slice first; the body fills the rest (short text shows whitespace,
+          long text clips to the bottom fade). */}
+      <div style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
         <p style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>
           <span style={{ float:'left', fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:theme.accent,
             fontSize:46, lineHeight:0.78, paddingRight:7, paddingTop:3 }}>
@@ -2122,33 +2258,91 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.subInk, margin:'16px 0 18px' }}>
           — As told to G-Dimension
         </div>
-        {/* bottom fade so an overrun clips gracefully (only when the body scrolls/clips) */}
-        {!showPhoto && (
-          <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
-            background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
-        )}
+        <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
+          background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
       </div>
 
-      {/* Photo — fills the space between a short story and the footer */}
+      {/* Story photo — fixed vh height, pan/zoom via objectPosition + scale */}
       {showPhoto && (
-        <div style={{ flex:1, minHeight:90, margin:'2px 14px 10px 30px', position:'relative', overflow:'hidden' }}>
+        <div
+          onTouchStart={spAdjusting ? onAdjTouchStart : undefined}
+          onTouchMove={spAdjusting ? onAdjTouchMove : undefined}
+          onTouchEnd={spAdjusting ? onAdjTouchEnd : undefined}
+          style={{ flexShrink:0, height:`${spHeight}vh`, margin:'2px 14px 6px 30px', position:'relative', overflow:'hidden',
+            touchAction: spAdjusting ? 'none' : 'auto' }}>
           <img src={storyPhoto!} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
-            filter: PHOTO_FILTER, border:`1px solid ${theme.rule}` }} />
-          <div style={{ position:'absolute', inset:0,
-            background:`linear-gradient(0deg, rgba(0,0,0,0.18) 0%, transparent 40%)` }} />
-          {canEdit && !editing && onChangePhoto && (
-            <button onClick={onChangePhoto}
-              style={{ position:'absolute', top:8, right:8, zIndex:4, background:'rgba(0,0,0,0.52)',
-                border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
-                display:'flex', alignItems:'center', gap:4,
-                fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              Change
-            </button>
+            filter: PHOTO_FILTER, border:`1px solid ${theme.rule}`,
+            objectPosition:`${spFx}% ${spFy}%`,
+            transform:`scale(${spZoom})`,
+            transformOrigin:`${spFx}% ${spFy}%`,
+          }} />
+          {!spAdjusting && <div style={{ position:'absolute', inset:0,
+            background:`linear-gradient(0deg, rgba(0,0,0,0.18) 0%, transparent 40%)` }} />}
+          {/* Adjust mode overlay */}
+          {spAdjusting && (
+            <>
+              <div style={{ position:'absolute', inset:0, border:`1.5px dashed ${theme.accent}`, pointerEvents:'none', boxSizing:'border-box' }} />
+              <div style={{ position:'absolute', top:7, left:0, right:0, textAlign:'center', pointerEvents:'none',
+                fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.18em', textTransform:'uppercase',
+                color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)' }}>
+                Drag · pinch to zoom · drag handle ↕
+              </div>
+              <div style={{ position:'absolute', bottom:3, left:0, right:0, textAlign:'center', pointerEvents:'none',
+                fontFamily:FONT_DECK, fontWeight:600, fontSize:8, letterSpacing:'0.12em', color:'rgba(245,245,245,0.7)' }}>
+                {Math.round(spZoom * 100)}%
+              </div>
+            </>
           )}
+          {/* Change + Adjust chips (at rest) */}
+          {canEdit && !editing && !spAdjusting && (
+            <div style={{ position:'absolute', top:8, right:8, zIndex:4, display:'flex', gap:5 }}>
+              {onChangePhoto && (
+                <button onClick={onChangePhoto}
+                  style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
+                    display:'flex', alignItems:'center', gap:4,
+                    fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  Change
+                </button>
+              )}
+              {onAdjust && (
+                <button onClick={onAdjust}
+                  style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
+                    fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
+                  ⤢ Adjust
+                </button>
+              )}
+            </div>
+          )}
+          {/* Adjust save/cancel */}
+          {spAdjusting && (
+            <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', justifyContent:'center', gap:10, zIndex:5 }}>
+              {frameErr && <div style={{ position:'absolute', bottom:'100%', left:0, right:0, textAlign:'center', marginBottom:6,
+                fontFamily:FONT_DECK, fontSize:9, color:'#e08a6e', textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>{frameErr}</div>}
+              <button onClick={onCancelFrame}
+                style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase',
+                  color:'#f5f5f5', background:'rgba(0,0,0,0.6)', border:'1px solid rgba(245,245,245,0.4)', padding:'9px 18px', cursor:'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={onSaveFrame} disabled={!!savingFrame}
+                style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase',
+                  color:'#fff', background:theme.accent, border:'none', padding:'9px 20px', cursor:'pointer', opacity:savingFrame?0.6:1 }}>
+                {savingFrame ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Height drag handle — a thin grippy strip below the photo */}
+      {showPhoto && canEdit && !editing && (
+        <div
+          onTouchStart={onHeightDragStart}
+          style={{ flexShrink:0, height:18, margin:'0 14px 0 30px', display:'flex', alignItems:'center', justifyContent:'center',
+            cursor:'ns-resize', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
+          <div style={{ width:28, height:3, borderRadius:1.5, background:theme.rule, opacity:0.7 }} />
         </div>
       )}
 
