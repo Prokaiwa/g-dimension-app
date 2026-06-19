@@ -54,7 +54,11 @@ interface FeaturedLayout {
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
-type PhotoItem = { url: string; caption: string | null }
+// A photo on a spread. `key` is the STABLE caption key (bsg:<group> / tl:<entryId>) —
+// never the URL — so re-uploading a photo never orphans its caption (055).
+// `placeholder` is the default caption (timeline title / engine) shown in the edit
+// field when the owner hasn't written a Featured-specific override.
+type PhotoItem = { url: string; caption: string | null; key: string; placeholder?: string | null }
 
 // Spec Sheet data model
 interface SpecRow { label: string; value: string }
@@ -187,7 +191,7 @@ export default function FeaturedPage() {
   const [photos, setPhotos] = useState<Photo[]>([])       // cover photo candidates (original / no-bg)
   const [photoIdx, setPhotoIdx] = useState(0)
   const [jobs, setJobs]     = useState<Job[]>([])
-  const [timelinePhotos, setTimelinePhotos] = useState<{photo_url: string; title: string | null}[]>([])
+  const [timelinePhotos, setTimelinePhotos] = useState<{id: string; photo_url: string; title: string | null}[]>([])
   const [userUnits, setUserUnits] = useState<{ distance_unit: 'mi'|'km'; power_unit: 'hp'|'ps'|'kw' }>({ distance_unit: 'mi', power_unit: 'hp' })
   const [loading, setLoading] = useState(true)
   const [coverIdx, setCoverIdx] = useState(0)
@@ -223,6 +227,15 @@ export default function FeaturedPage() {
   const [editDeck, setEditDeck]       = useState('')
   const [savingLayout, setSavingLayout] = useState(false)
   const [layoutErr, setLayoutErr]     = useState<string | null>(null)
+
+  // ── caption edit mode (055): per-photo-spread inline caption overrides ────────
+  // capEditPage = the page index whose captions are being edited (null = none).
+  // editCaptions = working drafts keyed by stable photo key ('' = use the default).
+  const [capEditPage, setCapEditPage]   = useState<number | null>(null)
+  const capEditRef                      = useRef(false)
+  const [editCaptions, setEditCaptions] = useState<Record<string, string>>({})
+  const [savingCaptions, setSavingCaptions] = useState(false)
+  const [captionErr, setCaptionErr]     = useState<string | null>(null)
 
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
@@ -302,7 +315,7 @@ export default function FeaturedPage() {
         const pt = Array.isArray(r.part_types) ? r.part_types[0] : r.part_types
         return { id:r.id, title:r.title, category:r.category, brand:r.brand, part_type_name: pt?.name ?? null }
       }))
-      setTimelinePhotos((timelineRes.data as unknown as {photo_url: string; title: string | null}[]) ?? [])
+      setTimelinePhotos((timelineRes.data as unknown as {id: string; photo_url: string; title: string | null}[]) ?? [])
       if (carRes.data) setCoverIdx(seedFrom(carId) % TEMPLATES.length)
       setLoading(false)
     })()
@@ -467,6 +480,63 @@ export default function FeaturedPage() {
     setEditing(false)
   }
 
+  // ── caption edit mode (055) ─────────────────────────────────────────────────────
+  const enterCaptionEdit = (pageIdx: number, spreadPhotos: PhotoItem[]) => {
+    setCaptionErr(null)
+    const seed: Record<string, string> = {}
+    for (const p of spreadPhotos) seed[p.key] = car?.featured_layout?.captions?.[p.key] ?? ''
+    setEditCaptions(seed)
+    capEditRef.current = true
+    setCapEditPage(pageIdx)
+  }
+  const cancelCaptionEdit = () => {
+    capEditRef.current = false
+    setCapEditPage(null)
+    setCaptionErr(null)
+  }
+  const saveCaptions = async (spreadPhotos: PhotoItem[]) => {
+    if (!car || savingCaptions) return
+    setSavingCaptions(true)
+    setCaptionErr(null)
+    const prevLayout = car.featured_layout ?? {}
+    const captions    = { ...(prevLayout.captions ?? {}) }
+    const genCaptions = { ...(prevLayout.generated_captions ?? {}) }
+    for (const p of spreadPhotos) {
+      const val = (editCaptions[p.key] ?? '').trim()
+      if (val) {
+        captions[p.key] = val
+        // Snapshot the engine caption for this key so the freshness dot can later
+        // flag when the engine output diverges.
+        const eng = engineFeature?.captions[p.key]
+        if (eng) genCaptions[p.key] = eng; else delete genCaptions[p.key]
+      } else {
+        delete captions[p.key]
+        delete genCaptions[p.key]
+      }
+    }
+    const next: FeaturedLayout = { ...prevLayout }
+    if (Object.keys(captions).length)    next.captions = captions;             else delete next.captions
+    if (Object.keys(genCaptions).length) next.generated_captions = genCaptions; else delete next.generated_captions
+    const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
+    const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
+    setSavingCaptions(false)
+    if (error) { setCaptionErr('Couldn’t save — run migration 055.'); return }
+    setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
+    capEditRef.current = false
+    setCapEditPage(null)
+  }
+
+  // A spread shows the quiet dot when any of its photos has a custom caption AND
+  // the live engine caption for that photo now differs from the saved snapshot.
+  const captionSuggestionFor = (spreadPhotos: PhotoItem[]): boolean => {
+    const caps = layout?.captions ?? {}
+    const gen  = layout?.generated_captions ?? {}
+    return spreadPhotos.some(p => {
+      const eng = engineFeature?.captions[p.key]
+      return !!(caps[p.key]?.trim() && gen[p.key] && eng && gen[p.key] !== eng)
+    })
+  }
+
   const grouped = useMemo(() => {
     const g: Record<string,Job[]> = { power:[], chassis:[], exterior:[], interior:[] }
     for (const job of jobs) {
@@ -482,13 +552,15 @@ export default function FeaturedPage() {
     const modData = jobs.map(j => ({ category: j.category ?? 'Unknown', status: 'installed' as const }))
     const groupKeys = ['power', 'chassis', 'exterior', 'interior'] as const
     const groupCols = ['build_sheet_power_photo', 'build_sheet_chassis_photo', 'build_sheet_exterior_photo', 'build_sheet_interior_photo'] as const
+    // Slot `id` is the STABLE caption key (bsg:<group> / tl:<entryId>) so the
+    // engine's caption map is keyed the same way as user overrides (055).
     const slots: PhotoSlot[] = []
     for (let i = 0; i < groupKeys.length; i++) {
       const url = car[groupCols[i]]
-      if (url) slots.push({ id: url, type: 'build_group', group: groupKeys[i] })
+      if (url) slots.push({ id: `bsg:${groupKeys[i]}`, type: 'build_group', group: groupKeys[i] })
     }
     for (const tp of timelinePhotos) {
-      if (tp.photo_url) slots.push({ id: tp.photo_url, type: 'full_body' })
+      if (tp.photo_url) slots.push({ id: `tl:${tp.id}`, type: 'full_body' })
     }
     return generateFeature(
       {
@@ -536,28 +608,37 @@ export default function FeaturedPage() {
   const hasSuggestion   = headlineUpdated || deckUpdated
 
   // ── photo pool (priority: build-group photos, then timeline photos) ────
-  const photoPool = useMemo<PhotoItem[]>(() => {
+  // Each item carries its STABLE key + a `baseCaption` (the timeline note title,
+  // when present) — distinct from the engine fallback and the user's override.
+  const photoPool = useMemo<(PhotoItem & { baseCaption: string | null })[]>(() => {
     if (!car) return []
     const used = new Set<string>()
     if (car.original_photo_url) used.add(car.original_photo_url)   // cover photo
     if (car.garage_photo_url)   used.add(car.garage_photo_url)     // cover photo (cutout)
-    const pool: PhotoItem[] = []
+    const pool: (PhotoItem & { baseCaption: string | null })[] = []
+    const groupKeys = ['power', 'chassis', 'exterior', 'interior'] as const
     const groupPhotos = [car.build_sheet_power_photo, car.build_sheet_chassis_photo, car.build_sheet_exterior_photo, car.build_sheet_interior_photo]
-    for (const u of groupPhotos) if (u && !used.has(u)) { pool.push({ url:u, caption:null }); used.add(u) }
+    for (let i = 0; i < groupPhotos.length; i++) {
+      const u = groupPhotos[i]
+      if (u && !used.has(u)) { pool.push({ url:u, key:`bsg:${groupKeys[i]}`, caption:null, baseCaption:null }); used.add(u) }
+    }
     for (const tp of timelinePhotos) {
-      if (tp.photo_url && !used.has(tp.photo_url)) { pool.push({ url: tp.photo_url, caption: tp.title ?? null }); used.add(tp.photo_url) }
+      if (tp.photo_url && !used.has(tp.photo_url)) { pool.push({ url: tp.photo_url, key:`tl:${tp.id}`, caption: tp.title ?? null, baseCaption: tp.title ?? null }); used.add(tp.photo_url) }
     }
     return pool
   }, [car, timelinePhotos])
 
-  // ── merge engine-generated captions into empty photo slots ────────────────────
+  // ── resolve each caption: user override (055) > base (timeline title) > engine.
+  // `placeholder` carries the default (base ?? engine) shown in the edit field. ──
   const photoPoolFinal = useMemo<PhotoItem[]>(() => {
-    if (!engineFeature) return photoPool
-    return photoPool.map(item => ({
-      ...item,
-      caption: item.caption ?? (engineFeature.captions[item.url] ?? null),
-    }))
-  }, [photoPool, engineFeature])
+    const overrides = layout?.captions ?? {}
+    return photoPool.map(item => {
+      const engineCap  = engineFeature?.captions[item.key] ?? null
+      const def        = item.baseCaption ?? engineCap
+      const override   = overrides[item.key]?.trim() || null
+      return { url: item.url, key: item.key, caption: override ?? def, placeholder: def }
+    })
+  }, [photoPool, engineFeature, layout])
 
   // ── photo spreads: 0 / 1 / 2 pages, deterministic collage arrangement ──────────
   const photoSpreads = useMemo(() => {
@@ -777,7 +858,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
-      if (adjustingRef.current || editingRef.current) return
+      if (adjustingRef.current || editingRef.current || capEditRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -815,14 +896,14 @@ export default function FeaturedPage() {
   }, [])
 
   function handleTouchStart(e: React.TouchEvent) {
-    if (isTurningRef.current || adjustingRef.current || editingRef.current || storyOpen) return
+    if (isTurningRef.current || adjustingRef.current || editingRef.current || capEditRef.current || storyOpen) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
     isDragTurnRef.current  = false
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    if (adjustingRef.current || editingRef.current) return
+    if (adjustingRef.current || editingRef.current || capEditRef.current) return
     const endX = e.changedTouches[0].clientX
     if (isDragTurnRef.current) {
       isDragTurnRef.current  = false
@@ -987,12 +1068,24 @@ export default function FeaturedPage() {
     const dotsProps = pages.length > 1 ? { count: pages.length, active: i } : undefined
 
     if (pg.kind === 'photo') {
+      const spreadPhotos = pg.photos!
+      const capEditing = capEditPage === i
       return (
-        <PhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
+        <PhotoSpread photos={spreadPhotos} arrangement={pg.arrangement ?? 0} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
-          onBack={onBack} onNext={onNext} dots={dotsProps} />
+          onBack={capEditing ? undefined : onBack} onNext={capEditing ? undefined : onNext} dots={dotsProps}
+          canEdit={!!car && i === pageIdx && !isTurning}
+          editing={capEditing}
+          captionSuggestion={captionSuggestionFor(spreadPhotos)}
+          saving={savingCaptions}
+          captionErr={captionErr}
+          captionValue={(key) => editCaptions[key] ?? ''}
+          onCaptionChange={(key, val) => setEditCaptions(prev => ({ ...prev, [key]: val }))}
+          onEnterEdit={() => enterCaptionEdit(i, spreadPhotos)}
+          onCancelEdit={cancelCaptionEdit}
+          onSaveEdit={() => saveCaptions(spreadPhotos)} />
       )
     }
 
@@ -1338,6 +1431,17 @@ interface PhotoSpreadProps {
   near?: boolean
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  // ── caption editing (055) ──
+  canEdit?: boolean                 // owner + this page current + not mid-turn → show pencil
+  editing?: boolean                 // this spread is in caption-edit mode
+  captionSuggestion?: boolean       // engine has a fresher caption than a saved override
+  saving?: boolean
+  captionErr?: string | null
+  captionValue?: (key: string) => string
+  onCaptionChange?: (key: string, val: string) => void
+  onEnterEdit?: () => void
+  onCancelEdit?: () => void
+  onSaveEdit?: () => void
 }
 
 interface PhotoCellProps {
@@ -1348,10 +1452,26 @@ interface PhotoCellProps {
   /** Horizontal placement within the cell — solo rows alternate for editorial variety. */
   justify?: 'flex-start' | 'flex-end' | 'center'
   onAspect?: (ratio: number) => void
+  editing?: boolean
+  captionValue?: string
+  onCaptionChange?: (val: string) => void
 }
 const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
 
-function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', onAspect }: PhotoCellProps) {
+// Inline caption field shared by the hero + cell captions in edit mode.
+function CaptionField({ theme, value, placeholder, onChange, align = 'left', onPhoto = false }:
+  { theme: InteriorTheme; value: string; placeholder: string; onChange: (v: string) => void; align?: 'left' | 'right'; onPhoto?: boolean }) {
+  return (
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      style={{ width:'100%', boxSizing:'border-box', fontFamily:FONT_DECK,
+        fontSize:8.5, lineHeight:1.3, letterSpacing:'0.04em', textAlign:align,
+        color: onPhoto ? '#f0ede8' : theme.subInk,
+        background: onPhoto ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.04)',
+        border:`1px dashed ${theme.accent}`, outline:'none', padding:'2px 4px', caretColor:theme.accent }} />
+  )
+}
+
+function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', onAspect, editing = false, captionValue = '', onCaptionChange }: PhotoCellProps) {
   // Image letterboxes at natural fitted size (absolute + margin auto — proven
   // layout); the horizontal margin and the caption row share the same edge so
   // the label always hugs its photo instead of the page margin.
@@ -1372,7 +1492,12 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
         />
       </div>
       <div style={{ flexShrink:0 }}>
-        {item.caption && (
+        {editing ? (
+          <div style={{ marginTop:4 }}>
+            <CaptionField theme={theme} value={captionValue} placeholder={item.placeholder || 'Add a caption…'}
+              onChange={onCaptionChange ?? (() => {})} align={justify === 'flex-end' ? 'right' : 'left'} />
+          </div>
+        ) : item.caption && (
           <div style={{ display:'flex', justifyContent:justify, alignItems:'flex-start', gap:3, marginTop:4 }}>
             {figureNum !== undefined && (
               <span style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, color:theme.accent, fontSize:8, letterSpacing:'0.08em', lineHeight:'13px' }}>
@@ -1391,7 +1516,8 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
   )
 }
 
-function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots }: PhotoSpreadProps) {
+function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+  canEdit = false, editing = false, captionSuggestion = false, saving = false, captionErr = null, captionValue, onCaptionChange, onEnterEdit, onCancelEdit, onSaveEdit }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const [heroAspect, setHeroAspect] = useState<number | null>(null)
   // Ultra-wide hero → "double truck": full-bleed edge to edge with a center
@@ -1413,6 +1539,8 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
   for (const p of allOrdered) {
     if (p.caption) figureNums[p.url] = figCounter++
   }
+  const capValue = (p: PhotoItem) => captionValue?.(p.key) ?? ''
+  const capChange = (p: PhotoItem) => (v: string) => onCaptionChange?.(p.key, v)
 
   // ── partition support photos into rows ────────────────────────────────────────
   const rows: PhotoItem[][] = (() => {
@@ -1476,7 +1604,14 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
               </span>
             </>
           )}
-          {heroPhoto.caption && (
+          {editing ? (
+            <div style={{ position:'absolute', bottom:0, left:doubleTruck ? 0 : 30, right:doubleTruck ? 0 : 14,
+              background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
+              padding:'24px 10px 8px' }}>
+              <CaptionField theme={theme} value={capValue(heroPhoto)} placeholder={heroPhoto.placeholder || 'Add a caption…'}
+                onChange={capChange(heroPhoto)} onPhoto />
+            </div>
+          ) : heroPhoto.caption && (
             <div style={{ position:'absolute', bottom:0, left:doubleTruck ? 0 : 30, right:doubleTruck ? 0 : 14,
               background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
               padding:'24px 10px 8px' }}>
@@ -1506,7 +1641,10 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
                   figureNum={figureNums[p.url]}
                   near={near}
                   justify={row.length === 1 ? ((ri + arrangement) % 2 === 0 ? 'flex-start' : 'flex-end') : 'center'}
-                  onAspect={onAspect(p.url)} />
+                  onAspect={onAspect(p.url)}
+                  editing={editing}
+                  captionValue={capValue(p)}
+                  onCaptionChange={capChange(p)} />
               ))}
             </div>
           ))}
@@ -1515,6 +1653,40 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
 
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />
+
+      {/* ── caption edit affordance (055) ── */}
+      {/* Pencil chip (owner, page at rest) — enters caption-edit mode for this spread */}
+      {canEdit && !editing && (
+        <div onClick={onEnterEdit}
+          style={{ position:'absolute', top:6, right:10, zIndex:6, display:'flex', alignItems:'center', gap:5,
+            fontFamily:FONT_DECK, fontWeight:600, fontSize:8.5, letterSpacing:'0.16em', textTransform:'uppercase',
+            color:theme.ink, background:theme.pageBg, border:`1px solid ${theme.rule}`, padding:'4px 8px', cursor:'pointer' }}>
+          Captions <PencilIcon size={10} color={theme.ink} />
+          {captionSuggestion && (
+            <span style={{ position:'absolute', top:-3, right:-3, width:7, height:7, borderRadius:'50%', background:theme.accent, boxShadow:`0 0 0 1.5px ${theme.pageBg}` }} />
+          )}
+        </div>
+      )}
+
+      {/* Edit toolbar — replaces the chip while editing this spread */}
+      {editing && (
+        <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:7, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+          background:theme.menuHeaderBg, padding:'7px 10px' }}>
+          <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:8.5, letterSpacing:'0.16em', textTransform:'uppercase', color:theme.menuHeaderInk, opacity:0.85 }}>
+            {captionErr ? captionErr : 'Editing captions'}
+          </span>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={onCancelEdit}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:theme.menuHeaderInk, background:'transparent', border:`1px solid ${theme.menuHeaderInk}`, padding:'5px 12px', cursor:'pointer', opacity:0.85 }}>
+              Cancel
+            </button>
+            <button onClick={onSaveEdit} disabled={saving}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'#fff', background:theme.accent, border:'none', padding:'5px 14px', cursor:'pointer', opacity:saving?0.6:1 }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
