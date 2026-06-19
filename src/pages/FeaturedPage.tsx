@@ -52,6 +52,7 @@ interface FeaturedLayout {
   generated_headline?: string
   generated_deck?: string
   generated_captions?: Record<string, string>
+  story_photo?: string                         // chosen image URL for the Story page (else cover photo)
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -249,6 +250,12 @@ export default function FeaturedPage() {
   const [replacingPhoto, setReplacingPhoto] = useState(false)
   const [replaceErr, setReplaceErr]       = useState<string | null>(null)
   const photoReplaceFileRef               = useRef<HTMLInputElement>(null)
+
+  // ── story photo chooser (which image fills the gap under a short story) ────────
+  const [storyPhotoSheet, setStoryPhotoSheet] = useState(false)
+  const [savingStoryPhoto, setSavingStoryPhoto] = useState(false)
+  const [storyPhotoErr, setStoryPhotoErr]   = useState<string | null>(null)
+  const storyPhotoFileRef                   = useRef<HTMLInputElement>(null)
 
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
@@ -629,6 +636,43 @@ export default function FeaturedPage() {
       setPhotoEditItem(null)
     } finally {
       setReplacingPhoto(false)
+    }
+  }
+
+  // ── story photo chooser helpers ─────────────────────────────────────────────────
+  const saveStoryPhoto = async (url: string | null) => {
+    if (!car || savingStoryPhoto) return
+    setSavingStoryPhoto(true)
+    setStoryPhotoErr(null)
+    try {
+      const prevLayout = car.featured_layout ?? {}
+      const next: FeaturedLayout = { ...prevLayout }
+      if (url) next.story_photo = url; else delete next.story_photo
+      const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
+      const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
+      if (error) { setStoryPhotoErr('Couldn’t save — run migration 055.'); return }
+      setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
+      setStoryPhotoSheet(false)
+    } finally {
+      setSavingStoryPhoto(false)
+    }
+  }
+  const uploadStoryPhoto = async (file: File) => {
+    if (!car) return
+    setSavingStoryPhoto(true)
+    setStoryPhotoErr(null)
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg',
+      })
+      const rand = Math.random().toString(36).slice(2, 7)
+      const path = `${car.id}/featured-story-${Date.now()}-${rand}.jpg`
+      const { error: upErr } = await supabase.storage.from('car-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+      if (upErr) { setStoryPhotoErr('Upload failed.'); return }
+      const { data: pub } = supabase.storage.from('car-photos').getPublicUrl(path)
+      await saveStoryPhoto(pub.publicUrl)
+    } finally {
+      setSavingStoryPhoto(false)
     }
   }
 
@@ -1208,7 +1252,8 @@ export default function FeaturedPage() {
           editHeadline={editHeadline} onHeadlineChange={setEditHeadline}
           saving={savingLayout} err={layoutErr} hasSuggestion={hasSuggestion}
           onEnterEdit={enterEditing} onCancelEdit={cancelEditing} onSaveEdit={saveLayout}
-          storyPhoto={photos[0]?.url ?? null} />
+          storyPhoto={layout?.story_photo ?? photos[0]?.url ?? null}
+          onChangePhoto={() => { setStoryPhotoErr(null); setStoryPhotoSheet(true) }} />
       )
     }
 
@@ -1455,6 +1500,66 @@ export default function FeaturedPage() {
         </div>
       )}
 
+      {/* ── Story photo chooser sheet ── */}
+      <input ref={storyPhotoFileRef} type="file" accept="image/*" style={{ display:'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) uploadStoryPhoto(f); e.target.value = '' }} />
+      {storyPhotoSheet && (
+        <div style={{ position:'fixed', inset:0, zIndex:55, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
+          onClick={() => !savingStoryPhoto && setStoryPhotoSheet(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:theme.menuHeaderBg, borderTop:`1px solid ${theme.rule}`, paddingBottom:'env(safe-area-inset-bottom, 0)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px 8px' }}>
+              <span style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:theme.menuHeaderInk }}>
+                Story Photo
+              </span>
+              <button onClick={() => setStoryPhotoSheet(false)} disabled={savingStoryPhoto}
+                style={{ background:'transparent', border:'none', color:theme.menuHeaderInk, fontSize:22, lineHeight:1, cursor:'pointer', padding:'0 4px', opacity:0.7 }}>×</button>
+            </div>
+            {storyPhotoErr && (
+              <div style={{ padding:'0 16px 8px', fontFamily:FONT_DECK, fontSize:10, color:'#e08a6e' }}>{storyPhotoErr}</div>
+            )}
+            <div style={{ overflowX:'auto', display:'flex', gap:8, padding:'0 16px 14px', WebkitOverflowScrolling:'touch' } as React.CSSProperties}>
+              {photoPoolFinal.map(p => {
+                const sel = (layout?.story_photo ?? photos[0]?.url) === p.url
+                return (
+                  <div key={p.url} onClick={() => !savingStoryPhoto && saveStoryPhoto(p.url)}
+                    style={{ flexShrink:0, width:80, height:80, position:'relative', cursor:'pointer',
+                      outline: sel ? `2px solid ${theme.accent}` : 'none', outlineOffset:2, opacity: savingStoryPhoto ? 0.5 : 1 }}>
+                    <img src={p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                    {sel && (
+                      <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        <span style={{ fontFamily:FONT_DECK, fontSize:7, letterSpacing:'0.14em', color:'#fff', textTransform:'uppercase' }}>Current</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div onClick={() => !savingStoryPhoto && storyPhotoFileRef.current?.click()}
+                style={{ flexShrink:0, width:80, height:80, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+                  border:`1.5px dashed ${theme.rule}`, cursor:'pointer', opacity: savingStoryPhoto ? 0.4 : 1 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={theme.menuHeaderInk} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.7 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.12em', textTransform:'uppercase', color:theme.menuHeaderInk, opacity:0.65, textAlign:'center', lineHeight:1.2 }}>Add New</span>
+              </div>
+            </div>
+            {/* Reset to the cover photo when a custom one is set */}
+            {layout?.story_photo && (
+              <div style={{ padding:'0 16px 14px' }}>
+                <button onClick={() => saveStoryPhoto(null)} disabled={savingStoryPhoto}
+                  style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+                    color:theme.menuHeaderInk, background:'transparent', border:`1px solid ${theme.rule}`, padding:'7px 14px', cursor:'pointer', opacity:0.85 }}>
+                  Use cover photo
+                </button>
+              </div>
+            )}
+            {savingStoryPhoto && (
+              <div style={{ padding:'0 16px 12px', fontFamily:FONT_DECK, fontSize:10, color:theme.menuHeaderInk, opacity:0.65, textAlign:'center' }}>Saving…</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes featFade { from { opacity:0 } to { opacity:1 } }
       `}</style>
@@ -1646,13 +1751,37 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
   const imgMargin = justify === 'flex-start' ? 'auto auto auto 0'
                   : justify === 'flex-end'   ? 'auto 0 auto auto'
                   : 'auto'
+  // Anchor the Replace chip to the photo's own top-right corner (not the cell's),
+  // since a letterboxed image rarely fills the cell. Compute the rendered image
+  // box from the container size + natural aspect, recompute on resize/turn.
+  const areaRef = useRef<HTMLDivElement>(null)
+  const naturalRef = useRef<number | null>(null)
+  const [chipPos, setChipPos] = useState<{ top: number; right: number } | null>(null)
+  const recompute = () => {
+    const el = areaRef.current, A = naturalRef.current
+    if (!el || !A) return
+    const W = el.clientWidth, H = el.clientHeight
+    let w = W, h = W / A
+    if (h > H) { h = H; w = H * A }
+    const left = justify === 'flex-start' ? 0 : justify === 'flex-end' ? W - w : (W - w) / 2
+    const top  = (H - h) / 2
+    setChipPos({ top: top + 4, right: (W - (left + w)) + 4 })
+  }
+  useEffect(() => {
+    const el = areaRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(recompute)
+    ro.observe(el)
+    return () => ro.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justify])
   return (
     <div style={{ flex: flexVal ?? 1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-      <div style={{ flex:1, minHeight:0, position:'relative' }}>
+      <div ref={areaRef} style={{ flex:1, minHeight:0, position:'relative' }}>
         <img
           src={near ? item.url : undefined} alt=""
           decoding="async"
-          onLoad={onAspect ? (e) => { const img = e.currentTarget; onAspect(img.naturalWidth / img.naturalHeight) } : undefined}
+          onLoad={(e) => { const img = e.currentTarget; naturalRef.current = img.naturalWidth / img.naturalHeight; recompute(); onAspect?.(img.naturalWidth / img.naturalHeight) }}
           style={{ position:'absolute', inset:0, margin:imgMargin, maxWidth:'100%', maxHeight:'100%',
             width:'auto', height:'auto', boxSizing:'border-box', display:'block',
             border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
@@ -1660,7 +1789,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
         />
         {onReplaceRequest && (
           <button onClick={e => { e.stopPropagation(); onReplaceRequest() }}
-            style={{ position:'absolute', top:5, right:5, zIndex:4, background:'rgba(0,0,0,0.52)',
+            style={{ position:'absolute', top: chipPos?.top ?? 5, right: chipPos?.right ?? 5, zIndex:4, background:'rgba(0,0,0,0.52)',
               border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
               display:'flex', alignItems:'center', gap:4,
               fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
@@ -1787,7 +1916,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
           )}
           {onReplacePhoto && (
             <button onClick={() => onReplacePhoto(heroPhoto)}
-              style={{ position:'absolute', top:8, right:8, zIndex:4, background:'rgba(0,0,0,0.52)',
+              style={{ position:'absolute', top:8, right: doubleTruck ? 8 : 20, zIndex:4, background:'rgba(0,0,0,0.52)',
                 border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:4,
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
@@ -1904,10 +2033,11 @@ interface StoryPageProps {
   onEnterEdit?: () => void; onCancelEdit?: () => void; onSaveEdit?: () => void
   // ── optional photo shown below short writing ──
   storyPhoto?: string | null
+  onChangePhoto?: () => void
 }
 function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots,
   canEdit, editing, editHeadline = '', onHeadlineChange, saving, err, hasSuggestion,
-  onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto }: StoryPageProps) {
+  onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto, onChangePhoto }: StoryPageProps) {
   const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
   const first = paras[0] ?? ''
   const rest  = paras.slice(1)
@@ -1975,8 +2105,10 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         </div>
       )}
 
-      {/* Body — drop cap on the opening paragraph */}
-      <div style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
+      {/* Body — drop cap on the opening paragraph. When a photo fills the space
+          below a short story, the body sizes to its content (so the text hugs
+          the headline) instead of growing and shoving the photo to the bottom. */}
+      <div style={{ flex: showPhoto ? '0 1 auto' : 1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
         <p style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>
           <span style={{ float:'left', fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:theme.accent,
             fontSize:46, lineHeight:0.78, paddingRight:7, paddingTop:3 }}>
@@ -1990,18 +2122,33 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.subInk, margin:'16px 0 18px' }}>
           — As told to G-Dimension
         </div>
-        {/* bottom fade so an overrun clips gracefully */}
-        <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
-          background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
+        {/* bottom fade so an overrun clips gracefully (only when the body scrolls/clips) */}
+        {!showPhoto && (
+          <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
+            background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
+        )}
       </div>
 
-      {/* Photo strip — shown below short stories when a photo is available */}
+      {/* Photo — fills the space between a short story and the footer */}
       {showPhoto && (
-        <div style={{ flexShrink:0, height:130, margin:'0 14px 0 30px', position:'relative', overflow:'hidden' }}>
-          <img src={storyPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+        <div style={{ flex:1, minHeight:90, margin:'2px 14px 10px 30px', position:'relative', overflow:'hidden' }}>
+          <img src={storyPhoto!} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
             filter: PHOTO_FILTER, border:`1px solid ${theme.rule}` }} />
           <div style={{ position:'absolute', inset:0,
             background:`linear-gradient(0deg, rgba(0,0,0,0.18) 0%, transparent 40%)` }} />
+          {canEdit && !editing && onChangePhoto && (
+            <button onClick={onChangePhoto}
+              style={{ position:'absolute', top:8, right:8, zIndex:4, background:'rgba(0,0,0,0.52)',
+                border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:4,
+                fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              Change
+            </button>
+          )}
         </div>
       )}
 
