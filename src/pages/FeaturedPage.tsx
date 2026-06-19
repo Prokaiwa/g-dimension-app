@@ -7,6 +7,7 @@
 // Swipe L/R on cover = cycle templates. Drag from right-30% = turn forward.
 //   Interior: drag right = back, drag left = forward (when a next page exists).
 import type React from 'react'
+import imageCompression from 'browser-image-compression'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -134,6 +135,10 @@ const CAT_TO_GROUP: Record<string, 'power' | 'chassis' | 'exterior' | 'interior'
 }
 const GROUP_ORDER = ['power','chassis','exterior','interior'] as const
 const GROUP_LABELS: Record<string,string> = { power:'POWER', chassis:'CHASSIS', exterior:'EXTERIOR', interior:'INTERIOR' }
+const GROUP_PHOTO_COL: Record<string, string> = {
+  power:'build_sheet_power_photo', chassis:'build_sheet_chassis_photo',
+  exterior:'build_sheet_exterior_photo', interior:'build_sheet_interior_photo',
+}
 const MAX_ROWS_PER_GROUP = 8
 
 // ─── spec-sheet section builder ─────────────────────────────────────────────────
@@ -236,6 +241,14 @@ export default function FeaturedPage() {
   const [editCaptions, setEditCaptions] = useState<Record<string, string>>({})
   const [savingCaptions, setSavingCaptions] = useState(false)
   const [captionErr, setCaptionErr]     = useState<string | null>(null)
+
+  // ── photo replacement (tap photo → sheet with source images + add new) ─────────
+  const [photoEditItem, setPhotoEditItem] = useState<PhotoItem | null>(null)
+  const [sourcePhotos, setSourcePhotos]   = useState<string[]>([])
+  const [loadingSourcePhotos, setLoadingSourcePhotos] = useState(false)
+  const [replacingPhoto, setReplacingPhoto] = useState(false)
+  const [replaceErr, setReplaceErr]       = useState<string | null>(null)
+  const photoReplaceFileRef               = useRef<HTMLInputElement>(null)
 
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
@@ -524,6 +537,99 @@ export default function FeaturedPage() {
     setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
     capEditRef.current = false
     setCapEditPage(null)
+  }
+
+  // ── photo replacement helpers ──────────────────────────────────────────────────
+  const openPhotoReplace = async (item: PhotoItem) => {
+    setReplaceErr(null)
+    setSourcePhotos([])
+    setPhotoEditItem(item)
+    setLoadingSourcePhotos(true)
+    try {
+      if (item.key.startsWith('bsg:')) {
+        const group = item.key.slice(4)
+        const cats = Object.entries(CAT_TO_GROUP).filter(([, g]) => g === group).map(([c]) => c)
+        const groupJobIds = jobs.filter(j => j.category && cats.includes(j.category)).map(j => j.id)
+        let urls: string[] = [item.url]
+        if (groupJobIds.length > 0) {
+          const { data } = await supabase.from('job_photos').select('photo_url')
+            .in('job_id', groupJobIds).order('created_at', { ascending: false }).limit(16)
+          const extra = ((data ?? []) as { photo_url: string }[]).map(r => r.photo_url).filter(Boolean)
+          urls = [...new Set([item.url, ...extra])]
+        }
+        setSourcePhotos(urls)
+      } else if (item.key.startsWith('tl:')) {
+        const entryId = item.key.slice(3)
+        const { data } = await supabase.from('timeline_entry_photos').select('photo_url')
+          .eq('timeline_entry_id', entryId).order('created_at', { ascending: false }).limit(16)
+        const extra = ((data ?? []) as { photo_url: string }[]).map(r => r.photo_url).filter(Boolean)
+        setSourcePhotos([...new Set([item.url, ...extra])])
+      }
+    } finally {
+      setLoadingSourcePhotos(false)
+    }
+  }
+
+  const replacePhoto = async (newUrl: string) => {
+    const item = photoEditItem
+    if (!item || !car || replacingPhoto) return
+    setReplacingPhoto(true)
+    setReplaceErr(null)
+    try {
+      if (item.key.startsWith('bsg:')) {
+        const group = item.key.slice(4)
+        const col = GROUP_PHOTO_COL[group]
+        const { error } = await supabase.from('cars').update({ [col]: newUrl }).eq('id', car.id)
+        if (error) { setReplaceErr('Couldn’t update photo.'); return }
+        setCar(prev => prev ? { ...prev, [col]: newUrl } : prev)
+      } else if (item.key.startsWith('tl:')) {
+        const entryId = item.key.slice(3)
+        const { error } = await supabase.from('timeline_entries').update({ photo_url: newUrl }).eq('id', entryId)
+        if (error) { setReplaceErr('Couldn’t update photo.'); return }
+        setTimelinePhotos(prev => prev.map(tp => tp.id === entryId ? { ...tp, photo_url: newUrl } : tp))
+      }
+      setPhotoEditItem(null)
+    } finally {
+      setReplacingPhoto(false)
+    }
+  }
+
+  const handlePhotoFileUpload = async (file: File) => {
+    const item = photoEditItem
+    if (!item || !car) return
+    setReplacingPhoto(true)
+    setReplaceErr(null)
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/jpeg',
+      })
+      const rand = Math.random().toString(36).slice(2, 7)
+      const isTimeline = item.key.startsWith('tl:')
+      const bucket = isTimeline ? 'timeline-photos' : 'car-photos'
+      const path = isTimeline
+        ? `${car.id}/featured-${Date.now()}-${rand}.jpg`
+        : `${car.id}/build-sheet/${item.key.slice(4)}-${Date.now()}-${rand}.jpg`
+      const { error: upErr } = await supabase.storage.from(bucket).upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+      if (upErr) { setReplaceErr('Upload failed.'); return }
+      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
+      const newUrl = pub.publicUrl
+      if (isTimeline) {
+        const entryId = item.key.slice(3)
+        await supabase.from('timeline_entry_photos').insert({ timeline_entry_id: entryId, photo_url: newUrl, car_id: car.id })
+        const { error } = await supabase.from('timeline_entries').update({ photo_url: newUrl }).eq('id', entryId)
+        if (error) { setReplaceErr('Couldn’t update photo.'); return }
+        setTimelinePhotos(prev => prev.map(tp => tp.id === entryId ? { ...tp, photo_url: newUrl } : tp))
+      } else {
+        const group = item.key.slice(4)
+        const col = GROUP_PHOTO_COL[group]
+        const { error } = await supabase.from('cars').update({ [col]: newUrl }).eq('id', car.id)
+        if (error) { setReplaceErr('Couldn’t update photo.'); return }
+        setCar(prev => prev ? { ...prev, [col]: newUrl } : prev)
+      }
+      setPhotoEditItem(null)
+    } finally {
+      setReplacingPhoto(false)
+    }
   }
 
   // A spread shows the quiet dot when any of its photos has a custom caption AND
@@ -1085,7 +1191,8 @@ export default function FeaturedPage() {
           onCaptionChange={(key, val) => setEditCaptions(prev => ({ ...prev, [key]: val }))}
           onEnterEdit={() => enterCaptionEdit(i, spreadPhotos)}
           onCancelEdit={cancelCaptionEdit}
-          onSaveEdit={() => saveCaptions(spreadPhotos)} />
+          onSaveEdit={() => saveCaptions(spreadPhotos)}
+          onReplacePhoto={!!car && i === pageIdx && !isTurning ? openPhotoReplace : undefined} />
       )
     }
 
@@ -1099,7 +1206,6 @@ export default function FeaturedPage() {
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={storyEditing}
           editHeadline={editHeadline} onHeadlineChange={setEditHeadline}
-          editDeck={editDeck} onDeckChange={setEditDeck}
           saving={savingLayout} err={layoutErr} hasSuggestion={hasSuggestion}
           onEnterEdit={enterEditing} onCancelEdit={cancelEditing} onSaveEdit={saveLayout}
           storyPhoto={photos[0]?.url ?? null} />
@@ -1297,6 +1403,58 @@ export default function FeaturedPage() {
       )}
 
 
+      {/* ── Photo replace sheet ── */}
+      <input ref={photoReplaceFileRef} type="file" accept="image/*" style={{ display:'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFileUpload(f); e.target.value = '' }} />
+      {photoEditItem && (
+        <div style={{ position:'fixed', inset:0, zIndex:55, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
+          onClick={() => !replacingPhoto && setPhotoEditItem(null)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:theme.menuHeaderBg, borderTop:`1px solid ${theme.rule}`, paddingBottom:'env(safe-area-inset-bottom, 0)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px 8px' }}>
+              <span style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:theme.menuHeaderInk }}>
+                Replace Photo
+              </span>
+              <button onClick={() => setPhotoEditItem(null)} disabled={replacingPhoto}
+                style={{ background:'transparent', border:'none', color:theme.menuHeaderInk, fontSize:22, lineHeight:1, cursor:'pointer', padding:'0 4px', opacity:0.7 }}>×</button>
+            </div>
+            {replaceErr && (
+              <div style={{ padding:'0 16px 8px', fontFamily:FONT_DECK, fontSize:10, color:'#e08a6e' }}>{replaceErr}</div>
+            )}
+            <div style={{ overflowX:'auto', display:'flex', gap:8, padding:'0 16px 14px', WebkitOverflowScrolling:'touch' } as React.CSSProperties}>
+              {loadingSourcePhotos && (
+                <div style={{ width:80, height:80, display:'flex', alignItems:'center', justifyContent:'center',
+                  fontFamily:FONT_DECK, fontSize:9, color:theme.menuHeaderInk, opacity:0.5 }}>Loading…</div>
+              )}
+              {sourcePhotos.map(url => (
+                <div key={url} onClick={() => !replacingPhoto && replacePhoto(url)}
+                  style={{ flexShrink:0, width:80, height:80, position:'relative', cursor:'pointer',
+                    outline: url === photoEditItem.url ? `2px solid ${theme.accent}` : 'none',
+                    outlineOffset:2, opacity: replacingPhoto ? 0.5 : 1 }}>
+                  <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                  {url === photoEditItem.url && (
+                    <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <span style={{ fontFamily:FONT_DECK, fontSize:7, letterSpacing:'0.14em', color:'#fff', textTransform:'uppercase' }}>Current</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div onClick={() => !replacingPhoto && photoReplaceFileRef.current?.click()}
+                style={{ flexShrink:0, width:80, height:80, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+                  border:`1.5px dashed ${theme.rule}`, cursor:'pointer', opacity: replacingPhoto ? 0.4 : 1 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={theme.menuHeaderInk} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.7 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.12em', textTransform:'uppercase', color:theme.menuHeaderInk, opacity:0.65, textAlign:'center', lineHeight:1.2 }}>Add New</span>
+              </div>
+            </div>
+            {replacingPhoto && (
+              <div style={{ padding:'0 16px 12px', fontFamily:FONT_DECK, fontSize:10, color:theme.menuHeaderInk, opacity:0.65, textAlign:'center' }}>Saving…</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes featFade { from { opacity:0 } to { opacity:1 } }
       `}</style>
@@ -1450,6 +1608,7 @@ interface PhotoSpreadProps {
   onEnterEdit?: () => void
   onCancelEdit?: () => void
   onSaveEdit?: () => void
+  onReplacePhoto?: (item: PhotoItem) => void
 }
 
 interface PhotoCellProps {
@@ -1463,6 +1622,7 @@ interface PhotoCellProps {
   editing?: boolean
   captionValue?: string
   onCaptionChange?: (val: string) => void
+  onReplaceRequest?: () => void
 }
 const PHOTO_FILTER = 'contrast(1.04) saturate(0.97)'
 
@@ -1479,7 +1639,7 @@ function CaptionField({ theme, value, placeholder, onChange, align = 'left', onP
   )
 }
 
-function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', onAspect, editing = false, captionValue = '', onCaptionChange }: PhotoCellProps) {
+function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'center', onAspect, editing = false, captionValue = '', onCaptionChange, onReplaceRequest }: PhotoCellProps) {
   // Image letterboxes at natural fitted size (absolute + margin auto — proven
   // layout); the horizontal margin and the caption row share the same edge so
   // the label always hugs its photo instead of the page margin.
@@ -1498,6 +1658,19 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
             border:`1px solid ${theme.rule}`, boxShadow:'0 1px 5px rgba(0,0,0,0.10)',
             filter: PHOTO_FILTER }}
         />
+        {onReplaceRequest && (
+          <button onClick={e => { e.stopPropagation(); onReplaceRequest() }}
+            style={{ position:'absolute', top:5, right:5, zIndex:4, background:'rgba(0,0,0,0.52)',
+              border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:4,
+              fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Replace
+          </button>
+        )}
       </div>
       <div style={{ flexShrink:0 }}>
         {editing ? (
@@ -1525,7 +1698,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
 }
 
 function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots,
-  canEdit = false, editing = false, captionSuggestion = false, saving = false, captionErr = null, captionValue, onCaptionChange, onEnterEdit, onCancelEdit, onSaveEdit }: PhotoSpreadProps) {
+  canEdit = false, editing = false, captionSuggestion = false, saving = false, captionErr = null, captionValue, onCaptionChange, onEnterEdit, onCancelEdit, onSaveEdit, onReplacePhoto }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const [heroAspect, setHeroAspect] = useState<number | null>(null)
   // Ultra-wide hero → "double truck": full-bleed edge to edge with a center
@@ -1612,6 +1785,19 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
               </span>
             </>
           )}
+          {onReplacePhoto && (
+            <button onClick={() => onReplacePhoto(heroPhoto)}
+              style={{ position:'absolute', top:8, right:8, zIndex:4, background:'rgba(0,0,0,0.52)',
+                border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:4,
+                fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              Replace
+            </button>
+          )}
           {editing ? (
             <div style={{ position:'absolute', bottom:0, left:doubleTruck ? 0 : 30, right:doubleTruck ? 0 : 14,
               background:'linear-gradient(0deg,rgba(0,0,0,0.72) 0%,rgba(0,0,0,0.28) 60%,transparent 100%)',
@@ -1652,7 +1838,8 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
                   onAspect={onAspect(p.url)}
                   editing={editing}
                   captionValue={capValue(p)}
-                  onCaptionChange={capChange(p)} />
+                  onCaptionChange={capChange(p)}
+                  onReplaceRequest={onReplacePhoto ? () => onReplacePhoto(p) : undefined} />
               ))}
             </div>
           ))}
@@ -1708,11 +1895,10 @@ interface StoryPageProps {
   story: string; headline: string; carShortName: string; theme: InteriorTheme
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
-  // ── inline headline/deck editing (reuses cover edit state) ──
+  // ── inline headline editing (reuses cover edit state) ──
   canEdit?: boolean
   editing?: boolean
   editHeadline?: string; onHeadlineChange?: (v: string) => void
-  editDeck?: string;     onDeckChange?: (v: string) => void
   saving?: boolean; err?: string | null
   hasSuggestion?: boolean
   onEnterEdit?: () => void; onCancelEdit?: () => void; onSaveEdit?: () => void
@@ -1720,7 +1906,7 @@ interface StoryPageProps {
   storyPhoto?: string | null
 }
 function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots,
-  canEdit, editing, editHeadline = '', onHeadlineChange, editDeck = '', onDeckChange, saving, err, hasSuggestion,
+  canEdit, editing, editHeadline = '', onHeadlineChange, saving, err, hasSuggestion,
   onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto }: StoryPageProps) {
   const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
   const first = paras[0] ?? ''
@@ -1756,19 +1942,12 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
       {/* Headline — static display or inline edit */}
       <div style={{ flexShrink:0, padding:'6px 16px 0 30px' }}>
         {editing ? (
-          <>
-            <input value={editHeadline} onChange={e => onHeadlineChange?.(e.target.value)}
-              placeholder={headline}
-              style={{ width:'100%', boxSizing:'border-box', fontFamily:FONT_MASTHEAD, fontStyle:'italic', textTransform:'uppercase',
-                fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em',
-                color:theme.ink, background:'transparent', border:'none', borderBottom:`1.5px dashed ${theme.accent}`,
-                outline:'none', padding:0, caretColor:theme.accent }} />
-            <input value={editDeck} onChange={e => onDeckChange?.(e.target.value)}
-              placeholder="Add a deck line…"
-              style={{ width:'100%', boxSizing:'border-box', marginTop:8, fontFamily:FONT_DECK, fontWeight:500,
-                fontSize:11, letterSpacing:'0.03em', color:theme.subInk, background:'transparent',
-                border:'none', borderBottom:`1px dashed ${theme.rule}`, outline:'none', padding:0, caretColor:theme.accent }} />
-          </>
+          <input value={editHeadline} onChange={e => onHeadlineChange?.(e.target.value)}
+            placeholder={headline}
+            style={{ width:'100%', boxSizing:'border-box', fontFamily:FONT_MASTHEAD, fontStyle:'italic', textTransform:'uppercase',
+              fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em',
+              color:theme.ink, background:'transparent', border:'none', borderBottom:`1.5px dashed ${theme.accent}`,
+              outline:'none', padding:0, caretColor:theme.accent }} />
         ) : (
           <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontStyle:'italic', textTransform:'uppercase',
             fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em' }}>
