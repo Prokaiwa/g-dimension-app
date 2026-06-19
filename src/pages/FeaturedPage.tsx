@@ -1090,11 +1090,19 @@ export default function FeaturedPage() {
     }
 
     if (pg.kind === 'story') {
+      const storyEditing = editing && i === pageIdx
       return (
         <StoryPage story={car?.featured_story ?? ''} headline={coverHeadline}
           carShortName={carShortName} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
-          onBack={onBack} onNext={onNext} dots={dotsProps} />
+          onBack={storyEditing ? undefined : onBack} onNext={storyEditing ? undefined : onNext} dots={dotsProps}
+          canEdit={!!car && i === pageIdx && !isTurning}
+          editing={storyEditing}
+          editHeadline={editHeadline} onHeadlineChange={setEditHeadline}
+          editDeck={editDeck} onDeckChange={setEditDeck}
+          saving={savingLayout} err={layoutErr} hasSuggestion={hasSuggestion}
+          onEnterEdit={enterEditing} onCancelEdit={cancelEditing} onSaveEdit={saveLayout}
+          storyPhoto={photos[0]?.url ?? null} />
       )
     }
 
@@ -1694,35 +1702,99 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
 // ─── StoryPage (interior) — the user-written feature article ─────────────────────
 // Magazine voice, written by the owner via the cover "Story ✎" chip. Drop cap,
 // Cormorant body, byline. Fixed height with a bottom fade if the text overruns.
+// When the story is short (< 380 chars) and a photo is provided, the photo fills
+// the space below the writing. The headline is editable directly on this page.
 interface StoryPageProps {
   story: string; headline: string; carShortName: string; theme: InteriorTheme
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  // ── inline headline/deck editing (reuses cover edit state) ──
+  canEdit?: boolean
+  editing?: boolean
+  editHeadline?: string; onHeadlineChange?: (v: string) => void
+  editDeck?: string;     onDeckChange?: (v: string) => void
+  saving?: boolean; err?: string | null
+  hasSuggestion?: boolean
+  onEnterEdit?: () => void; onCancelEdit?: () => void; onSaveEdit?: () => void
+  // ── optional photo shown below short writing ──
+  storyPhoto?: string | null
 }
-function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }: StoryPageProps) {
+function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+  canEdit, editing, editHeadline = '', onHeadlineChange, editDeck = '', onDeckChange, saving, err, hasSuggestion,
+  onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto }: StoryPageProps) {
   const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
   const first = paras[0] ?? ''
   const rest  = paras.slice(1)
+  const isShort = story.trim().length < 380
+  const showPhoto = isShort && !!storyPhoto
+
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
 
-      {/* Hairline kicker — mirrors the photo spread */}
-      <div style={{ flexShrink:0, padding:'8px 14px 5px 30px' }}>
+      {/* Hairline kicker + optional edit chip */}
+      <div style={{ flexShrink:0, padding:'8px 14px 5px 30px', position:'relative' }}>
         <div style={{ height:'0.5px', background:theme.rule, marginBottom:5 }} />
-        <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
-          THE FEATURE · {carShortName.toUpperCase()}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
+            THE FEATURE · {carShortName.toUpperCase()}
+          </div>
+          {canEdit && !editing && (
+            <div onClick={onEnterEdit}
+              style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase',
+                color:theme.subInk, border:`1px solid ${theme.rule}`, padding:'3px 8px', cursor:'pointer',
+                display:'flex', alignItems:'center', gap:4, position:'relative' }}>
+              Headline <PencilIcon size={9} color={theme.subInk} />
+              {hasSuggestion && (
+                <span style={{ position:'absolute', top:-3, right:-3, width:6, height:6, borderRadius:'50%', background:COLOR_ACCENT, boxShadow:'0 0 0 1px rgba(0,0,0,0.4)' }} />
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Headline */}
+      {/* Headline — static display or inline edit */}
       <div style={{ flexShrink:0, padding:'6px 16px 0 30px' }}>
-        <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontStyle:'italic', textTransform:'uppercase',
-          fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em' }}>
-          {headline}
-        </div>
+        {editing ? (
+          <>
+            <input value={editHeadline} onChange={e => onHeadlineChange?.(e.target.value)}
+              placeholder={headline}
+              style={{ width:'100%', boxSizing:'border-box', fontFamily:FONT_MASTHEAD, fontStyle:'italic', textTransform:'uppercase',
+                fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em',
+                color:theme.ink, background:'transparent', border:'none', borderBottom:`1.5px dashed ${theme.accent}`,
+                outline:'none', padding:0, caretColor:theme.accent }} />
+            <input value={editDeck} onChange={e => onDeckChange?.(e.target.value)}
+              placeholder="Add a deck line…"
+              style={{ width:'100%', boxSizing:'border-box', marginTop:8, fontFamily:FONT_DECK, fontWeight:500,
+                fontSize:11, letterSpacing:'0.03em', color:theme.subInk, background:'transparent',
+                border:'none', borderBottom:`1px dashed ${theme.rule}`, outline:'none', padding:0, caretColor:theme.accent }} />
+          </>
+        ) : (
+          <div style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontStyle:'italic', textTransform:'uppercase',
+            fontSize: headline.length > 22 ? 26 : 34, lineHeight:0.95, letterSpacing:'-0.01em' }}>
+            {headline}
+          </div>
+        )}
         <div style={{ height:2, background:theme.accent, width:44, margin:'10px 0 0' }} />
       </div>
+
+      {/* Edit toolbar */}
+      {editing && (
+        <div style={{ flexShrink:0, padding:'8px 16px 0 30px', display:'flex', alignItems:'center', gap:8 }}>
+          {err && <span style={{ fontFamily:FONT_DECK, fontSize:9, color:'#e08a6e', flex:1 }}>{err}</span>}
+          {!err && <span style={{ flex:1 }} />}
+          <button onClick={onCancelEdit}
+            style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+              color:theme.subInk, background:'transparent', border:`1px solid ${theme.rule}`, padding:'5px 12px', cursor:'pointer' }}>
+            Cancel
+          </button>
+          <button onClick={onSaveEdit} disabled={!!saving}
+            style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+              color:'#fff', background:theme.accent, border:'none', padding:'5px 14px', cursor:'pointer', opacity:saving?0.6:1 }}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
 
       {/* Body — drop cap on the opening paragraph */}
       <div style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
@@ -1743,6 +1815,16 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
           background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
       </div>
+
+      {/* Photo strip — shown below short stories when a photo is available */}
+      {showPhoto && (
+        <div style={{ flexShrink:0, height:130, margin:'0 14px 0 30px', position:'relative', overflow:'hidden' }}>
+          <img src={storyPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+            filter: PHOTO_FILTER, border:`1px solid ${theme.rule}` }} />
+          <div style={{ position:'absolute', inset:0,
+            background:`linear-gradient(0deg, rgba(0,0,0,0.18) 0%, transparent 40%)` }} />
+        </div>
+      )}
 
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />
