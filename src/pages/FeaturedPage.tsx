@@ -36,6 +36,21 @@ interface Car {
   // 052 — may be absent until the migration runs (guarded select falls back)
   cover_focus_x?: number | null; cover_focus_y?: number | null; cover_zoom?: number | null
   featured_story?: string | null
+  // 055 — editorial overrides + engine snapshot (guarded select falls back)
+  featured_layout?: FeaturedLayout | null
+}
+
+// ── Featured editorial overrides (migration 055, cars.featured_layout jsonb) ───
+// Sparse: only the slots the owner has customized are present. `generated_*` is a
+// snapshot of the engine output at the user's last save — diffed against the live
+// engine to quietly flag (a dot on the edit pencil) when fresh output diverges.
+interface FeaturedLayout {
+  headline?: string
+  deck?: string
+  captions?: Record<string, string>            // keyed by STABLE photo key (see photoKey)
+  generated_headline?: string
+  generated_deck?: string
+  generated_captions?: Record<string, string>
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -197,6 +212,18 @@ export default function FeaturedPage() {
   const [savingStory, setSavingStory] = useState(false)
   const [storyErr, setStoryErr]     = useState<string | null>(null)
 
+  // ── editorial edit mode (055): inline cover headline/deck overrides ───────────
+  // `editing` puts the cover into edit mode (driven by the pencil chip); the
+  // headline + deck become inline fields. `editHeadline`/`editDeck` are the
+  // working drafts ('' = use the engine text). A quiet dot on the pencil appears
+  // when the engine output has diverged from the user's saved snapshot.
+  const [editing, setEditing]         = useState(false)
+  const editingRef                    = useRef(false)
+  const [editHeadline, setEditHeadline] = useState('')
+  const [editDeck, setEditDeck]       = useState('')
+  const [savingLayout, setSavingLayout] = useState(false)
+  const [layoutErr, setLayoutErr]     = useState<string | null>(null)
+
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
 
@@ -229,10 +256,14 @@ export default function FeaturedPage() {
       const { data: { user } } = await supabase.auth.getUser()
       const CAR_COLS_BASE = 'id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo'
       const CAR_COLS_052  = CAR_COLS_BASE + ',cover_focus_x,cover_focus_y,cover_zoom,featured_story'
-      // Try the post-052 columns first; fall back if the migration isn't applied yet.
+      const CAR_COLS_055  = CAR_COLS_052 + ',featured_layout'
+      // Try the newest column set first; fall back step-by-step if a migration
+      // isn't applied yet (055 → 052 → base).
       const fetchCar = async () => {
-        const full = await supabase.from('cars').select(CAR_COLS_052).eq('id', carId).is('deleted_at', null).single()
-        if (!full.error) return full
+        const v055 = await supabase.from('cars').select(CAR_COLS_055).eq('id', carId).is('deleted_at', null).single()
+        if (!v055.error) return v055
+        const v052 = await supabase.from('cars').select(CAR_COLS_052).eq('id', carId).is('deleted_at', null).single()
+        if (!v052.error) return v052
         return supabase.from('cars').select(CAR_COLS_BASE).eq('id', carId).is('deleted_at', null).single()
       }
       const [carRes, jobsRes, timelineRes, unitsRes] = await Promise.all([
@@ -396,6 +427,46 @@ export default function FeaturedPage() {
     setStoryOpen(false)
   }
 
+  // ── editorial edit mode (055) ──────────────────────────────────────────────────
+  const enterEditing = () => {
+    setLayoutErr(null)
+    setEditHeadline(car?.featured_layout?.headline ?? '')
+    setEditDeck(car?.featured_layout?.deck ?? '')
+    editingRef.current = true
+    setEditing(true)
+  }
+  const cancelEditing = () => {
+    editingRef.current = false
+    setEditing(false)
+    setLayoutErr(null)
+  }
+  const saveLayout = async () => {
+    if (!car || savingLayout) return
+    setSavingLayout(true)
+    setLayoutErr(null)
+    const hl = editHeadline.trim()
+    const dk = editDeck.trim()
+    // Preserve any other keys already in the layout (e.g. captions, set elsewhere).
+    const prevLayout = car.featured_layout ?? {}
+    const next: FeaturedLayout = { ...prevLayout }
+    if (hl) next.headline = hl; else delete next.headline
+    if (dk) next.deck = dk;     else delete next.deck
+    // Refresh the engine snapshot so the "suggestion updated" dot clears until the
+    // engine output next diverges. Only snapshot a slot the user is overriding.
+    if (hl && engineFeature?.headline) next.generated_headline = engineFeature.headline
+    else delete next.generated_headline
+    if (dk && engineFeature?.deck) next.generated_deck = engineFeature.deck
+    else delete next.generated_deck
+    // Empty object → store NULL so the column reads cleanly as "fully generated".
+    const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
+    const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
+    setSavingLayout(false)
+    if (error) { setLayoutErr('Couldn’t save — run migration 055.'); return }
+    setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
+    editingRef.current = false
+    setEditing(false)
+  }
+
   const grouped = useMemo(() => {
     const g: Record<string,Job[]> = { power:[], chassis:[], exterior:[], interior:[] }
     for (const job of jobs) {
@@ -444,6 +515,25 @@ export default function FeaturedPage() {
       slots,
     )
   }, [car, jobs, timelinePhotos, userUnits])
+
+  // ── effective cover copy: user override wins, else engine, else car name ──────
+  const layout      = car?.featured_layout ?? null
+  const genHeadline = engineFeature?.headline ?? null
+  const genDeck     = engineFeature?.deck ?? null
+  // In edit mode the in-progress draft drives the cover live (placeholder = engine).
+  const coverHeadline = editing
+    ? (editHeadline.trim() || genHeadline || carName)
+    : (layout?.headline?.trim() || genHeadline || carName)
+  const coverDeck = editing
+    ? (editDeck.trim() || genDeck || '')
+    : (layout?.deck?.trim() || genDeck || '')
+
+  // Quiet "suggestion updated" signal: the user has a custom override AND the live
+  // engine output now differs from the snapshot taken when they last saved. A user
+  // who adds mods later can discover the refreshed engine line without any nag.
+  const headlineUpdated = !!(layout?.headline?.trim() && layout.generated_headline && genHeadline && layout.generated_headline !== genHeadline)
+  const deckUpdated     = !!(layout?.deck?.trim()     && layout.generated_deck     && genDeck     && layout.generated_deck     !== genDeck)
+  const hasSuggestion   = headlineUpdated || deckUpdated
 
   // ── photo pool (priority: build-group photos, then timeline photos) ────
   const photoPool = useMemo<PhotoItem[]>(() => {
@@ -687,7 +777,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
-      if (adjustingRef.current) return
+      if (adjustingRef.current || editingRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -725,14 +815,14 @@ export default function FeaturedPage() {
   }, [])
 
   function handleTouchStart(e: React.TouchEvent) {
-    if (isTurningRef.current || adjustingRef.current || storyOpen) return
+    if (isTurningRef.current || adjustingRef.current || editingRef.current || storyOpen) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
     isDragTurnRef.current  = false
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    if (adjustingRef.current) return
+    if (adjustingRef.current || editingRef.current) return
     const endX = e.changedTouches[0].clientX
     if (isDragTurnRef.current) {
       isDragTurnRef.current  = false
@@ -820,13 +910,17 @@ export default function FeaturedPage() {
               ? { position:'absolute', left:0, right:0, bottom:90, textAlign:'center', padding:'0 20px' }
               : { position:'absolute', left:16, right:16, bottom:96 }}>
               <span style={{ display:'inline-block', fontFamily:FONT_DECK, fontWeight:600, fontSize:11, letterSpacing:'0.22em', textTransform:'uppercase', color:'#fff', background:t.accent, padding:'3px 8px', marginBottom:10 }}>Feature Car</span>
-              {/* Engine headline — big masthead slot */}
+              {/* Headline — engine-generated, or the owner's override (055) */}
               {(() => {
-                const hl = engineFeature?.headline ?? carName
+                const hl = coverHeadline
                 const fs = hl.length > 22 ? 28 : hl.length > 14 ? 36 : 44
-                return (
-                  <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:fs, textTransform:'uppercase', letterSpacing:'-0.01em', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }}>{hl}</div>
+                const headStyle: React.CSSProperties = { fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.92, fontSize:fs, textTransform:'uppercase', letterSpacing:'-0.01em', textShadow:t.textOnPhoto==='light'?'0 2px 14px rgba(0,0,0,0.5)':'none' }
+                if (editing) return (
+                  <textarea value={editHeadline} onChange={e => setEditHeadline(e.target.value)}
+                    placeholder={genHeadline ?? carName} rows={1}
+                    style={{ ...headStyle, width:'100%', textAlign:'center', resize:'none', background:'rgba(0,0,0,0.18)', border:`1px dashed ${t.accent}`, outline:'none', padding:'2px 4px', boxSizing:'border-box', caretColor:t.accent }} />
                 )
+                return <div style={headStyle}>{hl}</div>
               })()}
               {/* Car identification line */}
               <div style={{ fontFamily:FONT_MASTHEAD, color:bottomColor, lineHeight:0.95, fontSize:14,
@@ -842,14 +936,18 @@ export default function FeaturedPage() {
                   {car.nickname}
                 </div>
               )}
-              {/* Engine deck */}
-              {engineFeature?.deck && (
-                <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.82,
+              {/* Deck — engine-generated, or the owner's override (055) */}
+              {(() => {
+                const deckStyle: React.CSSProperties = { fontFamily:FONT_TITLE, fontStyle:'italic', color:bottomColor, opacity:0.82,
                   fontSize:12.5, lineHeight:1.35, marginTop:5,
-                  textShadow:t.textOnPhoto==='light'?'0 1px 8px rgba(0,0,0,0.5)':'none' }}>
-                  {engineFeature.deck}
-                </div>
-              )}
+                  textShadow:t.textOnPhoto==='light'?'0 1px 8px rgba(0,0,0,0.5)':'none' }
+                if (editing) return (
+                  <textarea value={editDeck} onChange={e => setEditDeck(e.target.value)}
+                    placeholder={genDeck ?? 'A line of cover copy…'} rows={2}
+                    style={{ ...deckStyle, opacity:1, width:'100%', textAlign:'center', resize:'none', background:'rgba(0,0,0,0.18)', border:`1px dashed ${t.accent}`, outline:'none', padding:'2px 4px', boxSizing:'border-box', caretColor:t.accent }} />
+                )
+                return coverDeck ? <div style={deckStyle}>{coverDeck}</div> : null
+              })()}
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
@@ -900,7 +998,7 @@ export default function FeaturedPage() {
 
     if (pg.kind === 'story') {
       return (
-        <StoryPage story={car?.featured_story ?? ''} headline={engineFeature?.headline ?? carName}
+        <StoryPage story={car?.featured_story ?? ''} headline={coverHeadline}
           carShortName={carShortName} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
           onBack={onBack} onNext={onNext} dots={dotsProps} />
@@ -956,7 +1054,7 @@ export default function FeaturedPage() {
       </div>
 
       {/* Cover chrome — template switcher + dots */}
-      {pageIdx === 0 && !isTurning && !adjusting && (
+      {pageIdx === 0 && !isTurning && !adjusting && !editing && (
         <>
           <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
             Cover {coverIdx+1}/{TEMPLATES.length} · {t.name}
@@ -971,7 +1069,16 @@ export default function FeaturedPage() {
               <div onClick={enterAdjust} style={COVER_CHIP}>Frame ⤢</div>
             )}
             {car && (
-              <div onClick={openStory} style={COVER_CHIP}>{car.featured_story?.trim() ? 'Story ✎' : 'Write Story ✎'}</div>
+              <div onClick={openStory} style={COVER_CHIP}>{car.featured_story?.trim() ? 'Story' : 'Write Story'} <PencilIcon /></div>
+            )}
+            {car && (
+              <div onClick={enterEditing} style={{ ...COVER_CHIP, position:'relative', display:'flex', alignItems:'center', gap:5 }}>
+                Edit Cover <PencilIcon />
+                {hasSuggestion && (
+                  // Quiet amber dot — engine has a fresher line than the saved override.
+                  <span style={{ position:'absolute', top:-3, right:-3, width:7, height:7, borderRadius:'50%', background:COLOR_ACCENT, boxShadow:'0 0 0 1.5px rgba(0,0,0,0.55)' }} />
+                )}
+              </div>
             )}
           </div>
           <div onClick={() => cycleCover(-1)} style={{ position:'absolute', top:'30%', bottom:'22%', left:0, width:'26%', zIndex:15 }} />
@@ -1017,6 +1124,46 @@ export default function FeaturedPage() {
         </div>
       )}
 
+      {/* ── Editorial edit mode (055): inline headline/deck + suggestion adopt ── */}
+      {editing && (
+        <>
+          <div style={{ position:'absolute', top:16, left:0, right:0, textAlign:'center', zIndex:25, fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
+            Tap the headline or deck to rewrite
+          </div>
+          {/* Suggestion adopt — only when the engine has a fresher line than the saved override */}
+          {(headlineUpdated || deckUpdated) && (
+            <div style={{ position:'absolute', top:40, left:14, right:14, zIndex:26, background:'rgba(0,0,0,0.72)', border:`1px solid ${COLOR_ACCENT}`, padding:'10px 12px' }}>
+              <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.18em', textTransform:'uppercase', color:COLOR_ACCENT, marginBottom:6 }}>Updated suggestion</div>
+              {headlineUpdated && genHeadline && (
+                <div onClick={() => setEditHeadline(genHeadline)} style={{ cursor:'pointer', marginBottom: deckUpdated ? 8 : 0 }}>
+                  <div style={{ fontFamily:FONT_MASTHEAD, color:'#f5f5f5', fontSize:18, textTransform:'uppercase', lineHeight:1.05 }}>{genHeadline}</div>
+                  <div style={{ fontFamily:FONT_DECK, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:COLOR_ACCENT, marginTop:2 }}>Tap to use this headline ›</div>
+                </div>
+              )}
+              {deckUpdated && genDeck && (
+                <div onClick={() => setEditDeck(genDeck)} style={{ cursor:'pointer' }}>
+                  <div style={{ fontFamily:FONT_TITLE, fontStyle:'italic', color:'#f5f5f5', fontSize:13, lineHeight:1.3 }}>{genDeck}</div>
+                  <div style={{ fontFamily:FONT_DECK, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:COLOR_ACCENT, marginTop:2 }}>Tap to use this deck ›</div>
+                </div>
+              )}
+            </div>
+          )}
+          {layoutErr && (
+            <div style={{ position:'absolute', bottom:80, left:0, right:0, textAlign:'center', zIndex:26, fontFamily:FONT_DECK, fontSize:11, color:'#e08a6e', textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>{layoutErr}</div>
+          )}
+          <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', justifyContent:'center', gap:12, zIndex:26 }}>
+            <button onClick={cancelEditing}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:'#f5f5f5', background:'rgba(0,0,0,0.6)', border:'1px solid rgba(245,245,245,0.4)', padding:'11px 22px', cursor:'pointer' }}>
+              Cancel
+            </button>
+            <button onClick={saveLayout} disabled={savingLayout}
+              style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'11px 26px', cursor:'pointer', opacity:savingLayout?0.6:1 }}>
+              {savingLayout ? 'Saving…' : 'Save Cover'}
+            </button>
+          </div>
+        </>
+      )}
+
       {/* ── Feature story compose sheet ── */}
       {storyOpen && (
         <div style={{ position:'absolute', inset:0, zIndex:60, background:'rgba(0,0,0,0.72)', display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
@@ -1053,6 +1200,20 @@ export default function FeaturedPage() {
         @keyframes featFade { from { opacity:0 } to { opacity:1 } }
       `}</style>
     </div>
+  )
+}
+
+// ─── PencilIcon ───────────────────────────────────────────────────────────────
+// Stroked editorial pencil for the cover chips (Story / Edit). Deliberately an
+// SVG glyph, not an emoji, so it sits in the FONT_DECK chip type cleanly.
+function PencilIcon({ size = 11, color = '#f5f5f5' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      style={{ display:'inline-block', verticalAlign:'-1px', flexShrink:0 }}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
   )
 }
 

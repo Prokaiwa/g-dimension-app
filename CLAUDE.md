@@ -166,7 +166,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `054_public_car_variant.sql` — run in order.
+`supabase/migrations/001_users.sql` → `055_featured_layout.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -202,6 +202,7 @@ const carId = await getActiveCarId()
 | `052_featured_cover_story.sql` | `cars.cover_focus_x/y` + `cars.cover_zoom` (all nullable, NO default — NULL = never framed → legacy contain cover layout) for the Featured cover drag/pinch framing, and `cars.featured_story` (text) — the user-written **magazine-voice** feature article (deliberately separate from `purchase_story`, the first-person Timeline Origin voice). Refreshes `public_car_profiles` appending `original_photo_url` + the four new framing/story columns. Frontend stays guarded (pre-052 column-list fallback) as harmless belt-and-suspenders. Applied 2026-06-12. |
 | `053_public_section_visibility.sql` | **Applied 2026-06-15.** Per-section public visibility for `/builds/:username`: `cars.show_buildsheet_publicly` / `show_timeline_publicly` / `show_featured_publicly` (boolean NOT NULL default true). Adds **anon SELECT RLS policies** on `jobs` + `timeline_entries` (gated on `cars.is_public` AND the matching section flag — the public map's count queries need these; without them the Build Sheet/Timeline nodes never appear for visitors). Refreshes `public_car_profiles` to expose the three flags and to NULL `featured_story` when Featured is private. Toggles live on the Edit Car page (`GarageCarsEditPage`) under "Public Profile"; the master switch is the existing `cars.is_public`. |
 | `054_public_car_variant.sql` | **PENDING — not yet applied to live DB.** Refreshes `public_car_profiles` to expose the free-text `cars.variant` column (migration 044) so the public Garage (`/builds/:username/garage`, `PublicGaragePage`) can render the full display name ("2006 LS 430") like the private carousel. The view previously exposed only `variant_id` (the empty future-catalog FK). Additive view-only refresh — no columns/policies/grants change. `PublicGaragePage` reads `variant` defensively (falls back to `model` alone when absent), so it works before and after this runs. |
+| `055_featured_layout.sql` | **PENDING — not yet applied to live DB.** Adds `cars.featured_layout` (JSONB, nullable) — the owner's editorial overrides for the Featured magazine cover: `{ headline, deck, captions: {photoKey:text}, generated_headline, generated_deck, generated_captions }`. Captions are keyed by a **stable photo key** (`bsg:<group>` for Build Sheet group photos, `tl:<entryId>` for Timeline note photos) — never the photo URL — so re-uploading a photo can't orphan its caption. The `generated_*` snapshot stores the engine output at the user's last save; the frontend diffs it against the live editorial engine to show a quiet amber dot on the "Edit Cover" pencil chip when fresh engine output diverges (a user who adds mods later can discover the updated suggestion without being nagged). NULL = fully engine-generated. Refreshes `public_car_profiles` to expose `featured_layout`, nulled when the Featured room is private (mirrors `featured_story` in 053). Additive nullable column + view-only refresh. FeaturedPage reads it via a guarded select (055 → 052 → base fallback). **This slice ships cover headline + deck editing; photo-spread caption editing is the next increment (schema already supports it).** |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -300,7 +301,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–053
+supabase/migrations/                — Numbered SQL files 001–055
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
