@@ -17,9 +17,10 @@
 --     cleanup was applied the same day and is NOT captured in any migration:
 --     removed NHTSA motorcycle/ATV/trailer contamination (Honda/BMW/Suzuki/
 --     Eagle/Hudson/etc.) and normalized the JDM models to family level (chassis
---     now lives on the car). WARNING: import_nhtsa.js still hardcodes the old
---     chassis-baked JDM names and has no vehicle-type filter, so a fresh re-seed
---     will re-introduce the bikes/trailers and undo the JDM merge.
+--     now lives on the car). import_nhtsa.js was updated the same day (commit
+--     e70aaf1) to reproduce this clean state on a fresh pull — a car/truck/mpv
+--     vehicle-type filter + family-level JDM seed + us_manual muscle seed — so a
+--     re-seed no longer re-contaminates or undoes the JDM merge.
 -- Migrations 001–057 applied to production, with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
