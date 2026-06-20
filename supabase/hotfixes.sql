@@ -5,13 +5,22 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 055_featured_layout.sql (applied 2026-06-19)
+-- Last migration applied : 057_us_muscle_plymouth_buick_olds.sql (applied 2026-06-20)
 --   - 054 (public_car_profiles exposes cars.variant) confirmed live 2026-06-19
 --     while applying 055 (the live view's last pre-055 column was c.variant).
 --   - 055 (cars.featured_layout jsonb — Featured cover editorial overrides +
 --     engine snapshot; view refreshed to expose it, nulled when Featured private)
 --     applied 2026-06-19.
--- Migrations 001–055 applied to production, with corrections:
+--   - 056 + 057 (vehicle_models reference data) applied 2026-06-20: 'us_manual'
+--     source tag + US muscle-car backfill (Ford/Chevy/Dodge in 056;
+--     Plymouth/Buick/Olds in 057). SEPARATELY, a large MANUAL vehicle_models
+--     cleanup was applied the same day and is NOT captured in any migration:
+--     removed NHTSA motorcycle/ATV/trailer contamination (Honda/BMW/Suzuki/
+--     Eagle/Hudson/etc.) and normalized the JDM models to family level (chassis
+--     now lives on the car). WARNING: import_nhtsa.js still hardcodes the old
+--     chassis-baked JDM names and has no vehicle-type filter, so a fresh re-seed
+--     will re-introduce the bikes/trailers and undo the JDM merge.
+-- Migrations 001–057 applied to production, with corrections:
 --   - 049 (cars.original_photo_url — persist the original car upload before
 --     background removal) applied 2026-06-07, while building the Featured magazine.
 --   - 033_session_mod_groups (sessions.title) had been SKIPPED on production.
