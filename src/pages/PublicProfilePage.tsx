@@ -448,6 +448,7 @@ export default function PublicProfilePage() {
       garage:      `/builds/${username}/garage${q}`,
       timeline:    `/builds/${username}/timeline${q}`,
       buildsheet:  `/builds/${username}/buildsheet${q}`,
+      featured:    `/builds/${username}/featured${q}`,
     }
     const dest = routes[n.id]
     if (dest) {

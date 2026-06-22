@@ -73,6 +73,7 @@ import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
 import PublicGaragePage from './pages/PublicGaragePage'
 import PublicModDetailPage from './pages/PublicModDetailPage'
 import PublicEntryDetailPage from './pages/PublicEntryDetailPage'
+import PublicFeaturedPage from './pages/PublicFeaturedPage'
 
 // Monitoring
 import AuthGateFallback from './components/AuthGateFallback'
@@ -220,6 +221,7 @@ export default function App() {
       <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
       <Route path="/builds/:username/mods/:modId" element={<PublicModDetailPage />} />
       <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
+      <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
 
       {/* Dev tools */}
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
