@@ -195,6 +195,7 @@ export default function PublicFeaturedPage() {
   // ── touch refs ────────────────────────────────────────────────────────────────
   const touchStartXRef = useRef<number|null>(null)
   const touchStartYRef = useRef<number|null>(null)
+  const touchStartTRef = useRef<number>(0)
   const isDragTurnRef  = useRef(false)
 
   // ── data fetch ────────────────────────────────────────────────────────────────
@@ -564,6 +565,15 @@ export default function PublicFeaturedPage() {
   finishRef.current  = finishTurn
   animateRef.current = animateTo
 
+  // Disable browser pull-to-refresh while the magazine is open (restored on unmount).
+  useEffect(() => {
+    const html = document.documentElement, body = document.body
+    const prevHtml = html.style.overscrollBehaviorY, prevBody = body.style.overscrollBehaviorY
+    html.style.overscrollBehaviorY = 'none'
+    body.style.overscrollBehaviorY = 'none'
+    return () => { html.style.overscrollBehaviorY = prevHtml; body.style.overscrollBehaviorY = prevBody }
+  }, [])
+
   useEffect(() => {
     const container = document.getElementById('pub-feat-container')
     if (!container) return
@@ -589,9 +599,7 @@ export default function PublicFeaturedPage() {
         if (Math.abs(dy) > Math.abs(dx) * 0.85) { touchStartXRef.current = null; return }
         const pg   = pageIdxRef.current
         const last = pagesLenRef.current - 1
-        const startX = touchStartXRef.current!
-        const W = window.innerWidth
-        if (pg === 0 && dx < 0 && startX >= W * 0.70) {
+        if (pg === 0 && dx < 0) {
           armTurn('fwd', 0)
         } else if (pg > 0 && dx > 0) {
           armTurn('back', pg)
@@ -617,21 +625,26 @@ export default function PublicFeaturedPage() {
     if (isTurningRef.current) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
+    touchStartTRef.current = Date.now()
     isDragTurnRef.current  = false
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
     const endX = e.changedTouches[0].clientX
     if (isDragTurnRef.current) {
+      const startX = touchStartXRef.current
       isDragTurnRef.current  = false
       touchStartXRef.current = null
       const p = progressRef.current, dir = turnDirRef.current
-      if (p >= 0.35) animateRef.current(p, 1, dir, finishRef.current)
-      else           animateRef.current(p, 0, dir, () => finishRef.current(false))
+      // Commit on a quick flick even if the drag was short (see FeaturedPage).
+      const dt    = Date.now() - touchStartTRef.current
+      const moved = startX !== null ? Math.abs(endX - startX) : 0
+      const flick = dt < 320 && moved > 40
+      if (p >= 0.35 || flick) animateRef.current(p, 1, dir, finishRef.current)
+      else                    animateRef.current(p, 0, dir, () => finishRef.current(false))
       return
     }
     touchStartXRef.current = null
-    void endX // suppress unused
   }
 
   if (loading) return <div style={{ position:'fixed', inset:0, background:'#08080a' }} />
@@ -812,7 +825,7 @@ export default function PublicFeaturedPage() {
   return (
     <div
       id="pub-feat-container"
-      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', userSelect:'none', WebkitUserSelect:'none' }}
+      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', userSelect:'none', WebkitUserSelect:'none' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >

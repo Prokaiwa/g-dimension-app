@@ -317,6 +317,7 @@ export default function FeaturedPage() {
   // ── touch refs ────────────────────────────────────────────────────────────────
   const touchStartXRef  = useRef<number|null>(null)
   const touchStartYRef  = useRef<number|null>(null)
+  const touchStartTRef  = useRef<number>(0)   // gesture start time → flick velocity
   const isDragTurnRef   = useRef(false)
 
   // ── data fetch ────────────────────────────────────────────────────────────────
@@ -1031,6 +1032,17 @@ export default function FeaturedPage() {
   useEffect(() => { pagesLenRef.current = pages.length }, [pages.length])
   useEffect(() => { isPublishedRef.current = isPublished }, [isPublished])
 
+  // Disable browser pull-to-refresh (and vertical overscroll bounce) while the
+  // magazine is open — a downward drag is a page gesture here, not a refresh.
+  // Restored on unmount so the rest of the app keeps native behavior.
+  useEffect(() => {
+    const html = document.documentElement, body = document.body
+    const prevHtml = html.style.overscrollBehaviorY, prevBody = body.style.overscrollBehaviorY
+    html.style.overscrollBehaviorY = 'none'
+    body.style.overscrollBehaviorY = 'none'
+    return () => { html.style.overscrollBehaviorY = prevHtml; body.style.overscrollBehaviorY = prevBody }
+  }, [])
+
   // ── idle preload: next page images during browser downtime ───────────────────
   useEffect(() => {
     const nextPage = pages[pageIdx + 1]
@@ -1267,6 +1279,7 @@ export default function FeaturedPage() {
     if (isTurningRef.current || adjustingRef.current || editingRef.current || capEditRef.current || storyOpen) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
+    touchStartTRef.current = Date.now()
     isDragTurnRef.current  = false
   }
 
@@ -1274,11 +1287,18 @@ export default function FeaturedPage() {
     if (adjustingRef.current || editingRef.current || capEditRef.current) return
     const endX = e.changedTouches[0].clientX
     if (isDragTurnRef.current) {
+      const startX = touchStartXRef.current
       isDragTurnRef.current  = false
       touchStartXRef.current = null
       const p = progressRef.current, dir = turnDirRef.current
-      if (p >= 0.35) animateRef.current(p, 1, dir, finishRef.current)
-      else           animateRef.current(p, 0, dir, () => finishRef.current(false))
+      // Commit on a quick flick even if the drag distance was short — a normal
+      // swipe rarely reaches 35% of the screen, so without this it snaps back
+      // and feels like swiping "doesn't work".
+      const dt    = Date.now() - touchStartTRef.current
+      const moved = startX !== null ? Math.abs(endX - startX) : 0
+      const flick = dt < 320 && moved > 40
+      if (p >= 0.35 || flick) animateRef.current(p, 1, dir, finishRef.current)
+      else                    animateRef.current(p, 0, dir, () => finishRef.current(false))
       return
     }
     // Template cycling on cover via swipe — only while UNPUBLISHED (locked once live)
@@ -1498,7 +1518,7 @@ export default function FeaturedPage() {
   return (
     <div
       id="feat-container"
-      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', userSelect:'none', WebkitUserSelect:'none' }}
+      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', userSelect:'none', WebkitUserSelect:'none' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
