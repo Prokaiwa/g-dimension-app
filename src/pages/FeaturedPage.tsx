@@ -8,7 +8,7 @@
 //   Interior: drag right = back, drag left = forward (when a next page exists).
 import type React from 'react'
 import imageCompression from 'browser-image-compression'
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -54,7 +54,7 @@ interface FeaturedLayout {
   generated_captions?: Record<string, string>
   story_photo?: string                         // chosen image URL for the Story page (else cover photo)
   story_photo_height?: number                  // vh height of the story photo (default 32)
-  story_photo_order?: number                   // # of paragraphs rendered before the photo (null/absent = bottom)
+  story_photo_pos?: number                     // 0 (just below text) … 1 (page bottom); null/absent = bottom
   story_photo_focus_x?: number                 // 0-100
   story_photo_focus_y?: number                 // 0-100
   story_photo_zoom?: number                    // 1-3
@@ -269,7 +269,7 @@ export default function FeaturedPage() {
   const [spFy, setSpFy]                 = useState(50)
   const [spZoom, setSpZoom]             = useState(1)
   const [spHeight, setSpHeight]         = useState(32)   // vh
-  const [spOrder, setSpOrder]           = useState<number | null>(null)  // # paras before photo; null = bottom
+  const [spPos, setSpPos]               = useState<number | null>(null)  // 0=just below text … 1=page bottom; null = bottom
   const [savingSpFrame, setSavingSpFrame] = useState(false)
   const [spFrameErr, setSpFrameErr]     = useState<string | null>(null)
   const spTouches = useRef<{x:number;y:number}[]>([])
@@ -277,7 +277,7 @@ export default function FeaturedPage() {
   const spHeightDragRef  = useRef(false)
   const spHeightStartY   = useRef(0)
   const spHeightStartVal = useRef(32)
-  const spOrderDragRef   = useRef(false)
+  const spPosDragRef     = useRef(false)
 
   // True once the user manually picks a template — blocks the brightness auto-pick.
   const userPickedCoverRef = useRef(false)
@@ -346,7 +346,7 @@ export default function FeaturedPage() {
         setSpZoom(c.featured_layout.story_photo_zoom)
         setSpHeight(c.featured_layout.story_photo_height ?? 32)
       }
-      if (c?.featured_layout?.story_photo_order != null) setSpOrder(c.featured_layout.story_photo_order)
+      if (c?.featured_layout?.story_photo_pos != null) setSpPos(c.featured_layout.story_photo_pos)
       if (unitsRes.data) {
         const u = unitsRes.data as { distance_unit?: string; power_unit?: string }
         setUserUnits({
@@ -668,9 +668,6 @@ export default function FeaturedPage() {
     }
   }
 
-  // Paragraph count of the feature story — bounds the reorder drag's slot range.
-  const storyParaCount = (car?.featured_story ?? '').split(/\n+/).map(s => s.trim()).filter(Boolean).length
-
   // ── story photo framing helpers ──────────────────────────────────────────────────
   const enterSpAdjust = () => {
     setSpFrameErr(null)
@@ -763,26 +760,30 @@ export default function FeaturedPage() {
     window.addEventListener('touchmove', handleMove, { passive: true })
     window.addEventListener('touchend', handleEnd, { passive: true })
   }
-  // Reorder drag — slides the photo block up/down through the writing. Maps the
-  // finger's Y within the story content column to a paragraph slot (0…paraCount).
-  const onSpOrderDragStart = (e: React.TouchEvent) => {
+  // Position drag — slides the photo smoothly up/down through the free space below
+  // the writing (continuous, like the cover pan). The finger tracks the photo's
+  // center within the column's draggable band; 0 = just below the text, 1 = bottom.
+  const onSpPosDragStart = (e: React.TouchEvent) => {
     e.stopPropagation()
     const col = (e.currentTarget as HTMLElement).closest('[data-story-content]') as HTMLElement | null
     if (!col) return
     const rect = col.getBoundingClientRect()
-    const paraCount = Math.max(1, storyParaCount)
-    spOrderDragRef.current = true
-    let latest = spOrder ?? paraCount
+    const photoH = (spHeight / 100) * window.innerHeight
+    const band = Math.max(1, rect.height - photoH)   // px of travel for the full 0→1 range
+    const startY = e.touches[0].clientY
+    const startPos = spPos ?? 1
+    spPosDragRef.current = true
+    let latest = startPos
     const handleMove = (ev: TouchEvent) => {
-      const frac = (ev.touches[0].clientY - rect.top) / rect.height
-      latest = Math.min(paraCount, Math.max(0, Math.round(frac * paraCount)))
-      setSpOrder(latest)
+      // Delta-based so the photo never jumps on grab — finger moves it 1:1.
+      latest = Math.min(1, Math.max(0, startPos + (ev.touches[0].clientY - startY) / band))
+      setSpPos(latest)
     }
     const handleEnd = () => {
-      spOrderDragRef.current = false
+      spPosDragRef.current = false
       window.removeEventListener('touchmove', handleMove)
       window.removeEventListener('touchend', handleEnd)
-      void persistStoryLayout({ story_photo_order: latest })
+      void persistStoryLayout({ story_photo_pos: Math.round(latest * 1000) / 1000 })
     }
     window.addEventListener('touchmove', handleMove, { passive: true })
     window.addEventListener('touchend', handleEnd, { passive: true })
@@ -1163,7 +1164,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
-      if (adjustingRef.current || editingRef.current || capEditRef.current || spAdjustingRef.current || spHeightDragRef.current || spOrderDragRef.current) return
+      if (adjustingRef.current || editingRef.current || capEditRef.current || spAdjustingRef.current || spHeightDragRef.current || spPosDragRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -1414,7 +1415,7 @@ export default function FeaturedPage() {
           onAdjust={enterSpAdjust}
           onAdjTouchStart={onSpAdjTouchStart} onAdjTouchMove={onSpAdjTouchMove} onAdjTouchEnd={onSpAdjTouchEnd}
           onHeightDragStart={onSpHeightDragStart}
-          spOrder={spOrder} onOrderDragStart={onSpOrderDragStart}
+          spPos={spPos} onPosDragStart={onSpPosDragStart}
           onSaveFrame={saveSpFrame} onCancelFrame={cancelSpAdjust}
           savingFrame={savingSpFrame} frameErr={spFrameErr} />
       )
@@ -2197,13 +2198,13 @@ interface StoryPhotoBlockProps {
   onChangePhoto?: () => void
   onAdjust?: () => void
   onHeightDragStart?: (e: React.TouchEvent) => void
-  onOrderDragStart?: (e: React.TouchEvent) => void
+  onPosDragStart?: (e: React.TouchEvent) => void
   onSaveFrame?: () => void; onCancelFrame?: () => void
   savingFrame?: boolean; frameErr?: string | null
 }
 function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom = 1, spHeight = 32,
   theme, canEdit, editing, onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd,
-  onChangePhoto, onAdjust, onHeightDragStart, onOrderDragStart,
+  onChangePhoto, onAdjust, onHeightDragStart, onPosDragStart,
   onSaveFrame, onCancelFrame, savingFrame, frameErr }: StoryPhotoBlockProps) {
   const showGrips = canEdit && !editing && !spAdjusting
   return (
@@ -2260,9 +2261,9 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
         </div>
       )}
 
-      {/* Reorder grip (top edge) — drag the photo up/down through the writing */}
-      {showGrips && onOrderDragStart && (
-        <div onTouchStart={onOrderDragStart}
+      {/* Position grip (top edge) — drag the photo up/down through the page */}
+      {showGrips && onPosDragStart && (
+        <div onTouchStart={onPosDragStart}
           style={{ position:'absolute', top:0, left:0, right:0, height:24, display:'flex', alignItems:'center', justifyContent:'center',
             cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none', zIndex:5,
             background:'linear-gradient(180deg, rgba(0,0,0,0.32) 0%, transparent 100%)' }}>
@@ -2324,8 +2325,8 @@ interface StoryPageProps {
   onAdjTouchMove?: (e: React.TouchEvent) => void
   onAdjTouchEnd?: (e: React.TouchEvent) => void
   onHeightDragStart?: (e: React.TouchEvent) => void
-  spOrder?: number | null            // # of paragraphs before the photo (null = bottom)
-  onOrderDragStart?: (e: React.TouchEvent) => void
+  spPos?: number | null              // 0 (just below text) … 1 (page bottom); null = bottom
+  onPosDragStart?: (e: React.TouchEvent) => void
   onSaveFrame?: () => void
   onCancelFrame?: () => void
   savingFrame?: boolean
@@ -2336,12 +2337,13 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
   onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto, onChangePhoto,
   spAdjusting, spFx = 50, spFy = 50, spZoom = 1, spHeight = 32,
   onAdjust, onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd, onHeightDragStart,
-  spOrder, onOrderDragStart,
+  spPos, onPosDragStart,
   onSaveFrame, onCancelFrame, savingFrame, frameErr }: StoryPageProps) {
   const paras = story.split(/\n+/).map(s => s.trim()).filter(Boolean)
   const showPhoto = !!storyPhoto
-  // Where the photo sits in the text flow: # of paragraphs above it (null = bottom).
-  const photoSlot = spOrder == null ? paras.length : Math.min(paras.length, Math.max(0, spOrder))
+  // Vertical position of the photo in the free space below the writing:
+  // 0 = right under the byline, 1 = pinned to the page bottom (the default).
+  const pos = spPos == null ? 1 : Math.min(1, Math.max(0, spPos))
 
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
@@ -2404,18 +2406,13 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         </div>
       )}
 
-      {/* Content column — paragraphs flow top-to-bottom with the photo block
-          spliced in at `photoSlot` (draggable up/down through the writing). The
-          column is fixed-height + overflow:hidden, so long stories clip to the fade. */}
-      <div data-story-content style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', padding:'12px 18px 0 30px' }}>
-        {paras.map((p, i) => (
-          <Fragment key={i}>
-            {showPhoto && i === photoSlot && (
-              <StoryPhotoBlock {...{ storyPhoto, spAdjusting, spFx, spFy, spZoom, spHeight, theme, canEdit, editing,
-                onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd, onChangePhoto, onAdjust, onHeightDragStart, onOrderDragStart,
-                onSaveFrame, onCancelFrame, savingFrame, frameErr }} />
-            )}
-            <p style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>
+      {/* Content column — the writing sits at the top; the photo lives in the free
+          space below it and slides smoothly between just-under-the-byline (pos 0)
+          and the page bottom (pos 1, the default). Column clips long stories. */}
+      <div data-story-content style={{ flex:1, minHeight:0, position:'relative', overflow:'hidden', display:'flex', flexDirection:'column', padding:'12px 18px 0 30px' }}>
+        <div style={{ flexShrink:0 }}>
+          {paras.map((p, i) => (
+            <p key={i} style={{ margin:'0 0 12px', fontFamily:FONT_TITLE, color:theme.ink, fontSize:15.5, lineHeight:1.58 }}>
               {i === 0 ? (
                 <>
                   <span style={{ float:'left', fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:theme.accent,
@@ -2424,18 +2421,24 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
                 </>
               ) : p}
             </p>
-          </Fragment>
-        ))}
-        {showPhoto && photoSlot >= paras.length && (
-          <StoryPhotoBlock {...{ storyPhoto, spAdjusting, spFx, spFy, spZoom, spHeight, theme, canEdit, editing,
-            onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd, onChangePhoto, onAdjust, onHeightDragStart, onOrderDragStart,
-            onSaveFrame, onCancelFrame, savingFrame, frameErr }} />
-        )}
-        <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.subInk, margin:'16px 0 18px' }}>
-          — As told to G-Dimension
+          ))}
+          <div style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:8.5, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.subInk, margin:'16px 0 18px' }}>
+            — As told to G-Dimension
+          </div>
         </div>
-        <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
-          background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
+        {showPhoto && (
+          <>
+            <div style={{ flexGrow: pos, flexShrink: 1, minHeight: 0 }} />
+            <StoryPhotoBlock {...{ storyPhoto, spAdjusting, spFx, spFy, spZoom, spHeight, theme, canEdit, editing,
+              onAdjTouchStart, onAdjTouchMove, onAdjTouchEnd, onChangePhoto, onAdjust, onHeightDragStart, onPosDragStart,
+              onSaveFrame, onCancelFrame, savingFrame, frameErr }} />
+            <div style={{ flexGrow: 1 - pos, flexShrink: 1, minHeight: 0 }} />
+          </>
+        )}
+        {!showPhoto && (
+          <div style={{ position:'absolute', left:0, right:0, bottom:0, height:34, pointerEvents:'none',
+            background:`linear-gradient(0deg, ${theme.pageBg} 12%, transparent 100%)` }} />
+        )}
       </div>
 
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
