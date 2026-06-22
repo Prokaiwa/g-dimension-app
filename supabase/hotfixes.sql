@@ -5,7 +5,7 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 057_us_muscle_plymouth_buick_olds.sql (applied 2026-06-20)
+-- Last migration applied : 058_exterior_full_aero_kit.sql (applied 2026-06-22)
 --   - 054 (public_car_profiles exposes cars.variant) confirmed live 2026-06-19
 --     while applying 055 (the live view's last pre-055 column was c.variant).
 --   - 055 (cars.featured_layout jsonb — Featured cover editorial overrides +
