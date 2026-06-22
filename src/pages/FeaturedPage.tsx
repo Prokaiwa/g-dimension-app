@@ -1602,14 +1602,16 @@ export default function FeaturedPage() {
       {/* Cover navigation layer — works published OR not: tap the right edge to
           enter the book, with a one-time blinking ‹›-style hint. Swipe still
           cycles templates when unpublished (handled in handleTouchEnd). */}
-      {pageIdx === 0 && !isTurning && !adjusting && !editing && (
+      {pageIdx === 0 && !adjusting && !editing && (
         <>
           <div onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
             style={{ position:'absolute', top:'34%', bottom:'18%', right:0, width:'34%', zIndex:16 }} />
-          <div style={{ position:'absolute', top:'50%', right:14, transform:'translateY(-50%)', zIndex:17,
-            fontFamily:FONT_DECK, fontSize:34, lineHeight:1, color:COLOR_ACCENT, pointerEvents:'none',
-            animation:`featCoverHint 1600ms ease 700ms both` }}>›</div>
-          {isPublished && (
+          {!isTurning && (
+            <div style={{ position:'absolute', top:'50%', right:14, transform:'translateY(-50%)', zIndex:17,
+              fontFamily:FONT_DECK, fontSize:34, lineHeight:1, color:COLOR_ACCENT, pointerEvents:'none',
+              animation:`featCoverHint 1600ms ease 700ms both` }}>›</div>
+          )}
+          {isPublished && !isTurning && (
             <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20,
               fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase',
               color:'rgba(245,245,245,0.5)', pointerEvents:'none' }}>
@@ -1621,9 +1623,13 @@ export default function FeaturedPage() {
 
       {/* Interior tap zones — tap the left half to go back (incl. to the cover),
           the right half to go forward (swipe also works). Vertically inset so they
-          clear the Captions pencil (top), the folio + story grip (bottom); disabled
-          during any edit/turn interaction. */}
-      {pageIdx > 0 && !isTurning && !adjusting && !editing && capEditPage === null && !storyOpen && (
+          clear the Captions pencil (top), the folio + story grip (bottom).
+          NOTE: these stay mounted during a turn (not gated on !isTurning) — they
+          cover most of the screen and are the touch target for a swipe; unmounting
+          them mid-gesture detaches the target so touchmove/touchend stop reaching
+          the container and the fold freezes, forcing a second swipe. The onClick
+          guards on isTurningRef so taps still no-op while a turn is animating. */}
+      {pageIdx > 0 && !adjusting && !editing && capEditPage === null && !storyOpen && (
         <>
           <div onClick={() => { if (!isTurningRef.current) runTurn('back') }}
             style={{ position:'absolute', top:'12%', bottom:'14%', left:0, width:'48%', zIndex:16 }} />
