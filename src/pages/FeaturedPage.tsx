@@ -62,6 +62,7 @@ interface FeaturedLayout {
   story_photo_focus_y?: number                 // 0-100
   story_photo_zoom?: number                    // 1-3
   template?: string                            // TEMPLATES[i].id — persisted cover choice
+  published?: boolean                          // explicit publish flag — false/undefined = private draft
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -261,10 +262,15 @@ export default function FeaturedPage() {
   const photoReplaceFileRef               = useRef<HTMLInputElement>(null)
 
   // ── publish state ────────────────────────────────────────────────────────────────
+  // Featured is a private draft until the owner explicitly hits Publish (writes
+  // featured_layout.published = true). Default/undefined = NOT live — existing
+  // cars never auto-publish even though show_featured_publicly defaults true (053).
   const [isPublished, setIsPublished]       = useState(false)
   const [savingPublish, setSavingPublish]   = useState(false)
   const [publishErr, setPublishErr]         = useState<string | null>(null)
   const [myUsername, setMyUsername]         = useState<string | null>(null)
+  const [publishedToast, setPublishedToast] = useState(false)   // "Published" confirmation modal
+  const [copied, setCopied]                 = useState(false)
 
   // ── story photo chooser (which image fills the gap under a short story) ────────
   const [storyPhotoSheet, setStoryPhotoSheet] = useState(false)
@@ -301,6 +307,7 @@ export default function FeaturedPage() {
 
   // ── turn state refs ───────────────────────────────────────────────────────────
   const isTurningRef = useRef(false)
+  const isPublishedRef = useRef(false)   // live publish flag for the non-passive touch handler
   const pageIdxRef   = useRef(0)
   const turnDirRef   = useRef<'fwd'|'back'>('fwd')
   const progressRef  = useRef(0)
@@ -361,7 +368,7 @@ export default function FeaturedPage() {
         const tIdx = TEMPLATES.findIndex(t => t.id === c.featured_layout!.template)
         if (tIdx >= 0) { setCoverIdx(tIdx); userPickedCoverRef.current = true }
       }
-      setIsPublished(c?.show_featured_publicly !== false)
+      setIsPublished(c?.featured_layout?.published === true)
       if (unitsRes.data) {
         const u = unitsRes.data as { distance_unit?: string; power_unit?: string; username?: string }
         setUserUnits({
@@ -400,9 +407,8 @@ export default function FeaturedPage() {
   const t          = TEMPLATES[coverIdx]
   const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
   const photo      = photos[photoIdx] ?? null
-  const cycleCover = (dir: number) => {
+  const applyCover = (nextIdx: number) => {
     userPickedCoverRef.current = true
-    const nextIdx = (coverIdx + dir + TEMPLATES.length) % TEMPLATES.length
     setCoverIdx(nextIdx)
     if (car) {
       const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), template: TEMPLATES[nextIdx].id }
@@ -410,6 +416,11 @@ export default function FeaturedPage() {
         if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
       })
     }
+  }
+  // Templates are locked once published — cycling is a no-op until unpublish.
+  const cycleCover = (dir: number) => {
+    if (isPublished) return
+    applyCover((coverIdx + dir + TEMPLATES.length) % TEMPLATES.length)
   }
   const bottomColor = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
 
@@ -703,11 +714,17 @@ export default function FeaturedPage() {
     setSavingPublish(true)
     setPublishErr(null)
     const next = !isPublished
-    const { error } = await supabase.from('cars').update({ show_featured_publicly: next }).eq('id', car.id)
+    // Explicit publish flag lives in featured_layout (the public page gates on it);
+    // show_featured_publicly is synced too so the section toggle stays consistent.
+    const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), published: next }
+    const { error } = await supabase.from('cars')
+      .update({ featured_layout: nextLayout, show_featured_publicly: next })
+      .eq('id', car.id)
     setSavingPublish(false)
     if (error) { setPublishErr("Couldn't save"); return }
     setIsPublished(next)
-    setCar(prev => prev ? { ...prev, show_featured_publicly: next } : prev)
+    setCar(prev => prev ? { ...prev, featured_layout: nextLayout, show_featured_publicly: next } : prev)
+    if (next) { setPublishedToast(true); setCopied(false) }
   }
 
   // ── story photo framing helpers ──────────────────────────────────────────────────
@@ -1012,6 +1029,7 @@ export default function FeaturedPage() {
   }, [photoSpreads, specPages, car?.featured_story])
 
   useEffect(() => { pagesLenRef.current = pages.length }, [pages.length])
+  useEffect(() => { isPublishedRef.current = isPublished }, [isPublished])
 
   // ── idle preload: next page images during browser downtime ───────────────────
   useEffect(() => {
@@ -1218,8 +1236,10 @@ export default function FeaturedPage() {
         const last = pagesLenRef.current - 1
         const startX = touchStartXRef.current!
         const W = window.innerWidth
-        if (pg === 0 && dx < 0 && startX >= W * 0.70) {
-          // Cover: drag left from the right-30% zone = turn forward
+        if (pg === 0 && dx < 0 && (isPublishedRef.current || startX >= W * 0.70)) {
+          // Cover: drag left = turn forward. When unpublished only the right-30%
+          // zone turns (the rest cycles templates); when published the whole
+          // cover turns the page (templates are locked).
           armTurn('fwd', 0)
         } else if (pg > 0 && dx > 0) {
           // Interior: drag right = go back
@@ -1261,8 +1281,8 @@ export default function FeaturedPage() {
       else           animateRef.current(p, 0, dir, () => finishRef.current(false))
       return
     }
-    // Template cycling on cover via swipe
-    if (touchStartXRef.current !== null && pageIdx === 0 && !isTurning) {
+    // Template cycling on cover via swipe — only while UNPUBLISHED (locked once live)
+    if (touchStartXRef.current !== null && pageIdx === 0 && !isTurning && !isPublished) {
       const dx = endX - touchStartXRef.current
       const dy = e.changedTouches[0].clientY - (touchStartYRef.current ?? 0)
       if (Math.abs(dx) > 44 && Math.abs(dy) < 70) cycleCover(dx < 0 ? 1 : -1)
@@ -1514,8 +1534,9 @@ export default function FeaturedPage() {
         ‹
       </div>
 
-      {/* Cover chrome — template switcher + dots */}
-      {pageIdx === 0 && !isTurning && !adjusting && !editing && (
+      {/* Cover chrome — template switcher + dots. Hidden once PUBLISHED: the design
+          is locked until the owner unpublishes (from the spec-sheet page). */}
+      {pageIdx === 0 && !isTurning && !adjusting && !editing && !isPublished && (
         <>
           <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
             Cover {coverIdx+1}/{TEMPLATES.length} · {t.name}
@@ -1542,14 +1563,44 @@ export default function FeaturedPage() {
               </div>
             )}
           </div>
-          <div onClick={() => cycleCover(-1)} style={{ position:'absolute', top:'30%', bottom:'22%', left:0, width:'26%', zIndex:15 }} />
-          <div onClick={() => cycleCover(1)}  style={{ position:'absolute', top:'30%', bottom:'22%', right:0, width:'22%', zIndex:15 }} />
           <div style={{ position:'absolute', bottom:6, left:0, right:0, display:'flex', justifyContent:'center', gap:6, zIndex:20 }}>
             {TEMPLATES.map((tp,i) => (
-              <div key={tp.id} onClick={() => { userPickedCoverRef.current = true; setCoverIdx(i) }}
+              <div key={tp.id} onClick={() => applyCover(i)}
                 style={{ width:i===coverIdx?16:6, height:6, borderRadius:3, background:i===coverIdx?COLOR_ACCENT:'rgba(245,245,245,0.4)', transition:`all 200ms ${EASING_SETTLE}`, cursor:'pointer' }} />
             ))}
           </div>
+        </>
+      )}
+
+      {/* Cover navigation layer — works published OR not: tap the right edge to
+          enter the book, with a one-time blinking ‹›-style hint. Swipe still
+          cycles templates when unpublished (handled in handleTouchEnd). */}
+      {pageIdx === 0 && !isTurning && !adjusting && !editing && (
+        <>
+          <div onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
+            style={{ position:'absolute', top:'30%', bottom:'22%', right:0, width:'24%', zIndex:16 }} />
+          <div style={{ position:'absolute', top:'50%', right:14, transform:'translateY(-50%)', zIndex:17,
+            fontFamily:FONT_DECK, fontSize:34, lineHeight:1, color:COLOR_ACCENT, pointerEvents:'none',
+            animation:`featCoverHint 1600ms ease 700ms both` }}>›</div>
+          {isPublished && (
+            <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20,
+              fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase',
+              color:'rgba(245,245,245,0.5)', pointerEvents:'none' }}>
+              Published · Live
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Interior tap zones — tap the left/right edge to turn pages (swipe also
+          works). Vertically inset so they clear the back chevron, the folio, and
+          the edit pencils; disabled during any edit/turn interaction. */}
+      {pageIdx > 0 && !isTurning && !adjusting && !editing && capEditPage === null && !storyOpen && (
+        <>
+          <div onClick={() => { if (!isTurningRef.current) runTurn('back') }}
+            style={{ position:'absolute', top:'30%', bottom:'24%', left:0, width:'16%', zIndex:16 }} />
+          <div onClick={() => { if (!isTurningRef.current && pageIdx < pages.length - 1) runTurn('fwd') }}
+            style={{ position:'absolute', top:'30%', bottom:'24%', right:0, width:'16%', zIndex:16 }} />
         </>
       )}
 
@@ -1769,8 +1820,36 @@ export default function FeaturedPage() {
         </div>
       )}
 
+      {/* Published confirmation — modal with the shareable link */}
+      {publishedToast && (
+        <div onClick={() => setPublishedToast(false)}
+          style={{ position:'absolute', inset:0, zIndex:50, background:'rgba(8,8,10,0.72)', display:'grid', placeItems:'center', padding:24, animation:`featFade 200ms ${EASING_SETTLE} both` }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:'100%', maxWidth:340, background:'#15110c', border:'1px solid rgba(200,102,26,0.35)', padding:'26px 22px 20px', textAlign:'center' }}>
+            <div style={{ fontFamily:FONT_MASTHEAD, color:'#f5f5f5', fontSize:30, fontStyle:'italic', lineHeight:0.95, textTransform:'uppercase' }}>Published</div>
+            <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.7)', fontSize:12, lineHeight:1.45, marginTop:10 }}>
+              Your Featured section is now live on your public profile.
+            </div>
+            {shareUrl && (
+              <div style={{ marginTop:18, display:'flex', alignItems:'center', gap:8, border:'1px solid rgba(245,245,245,0.18)', padding:'8px 10px' }}>
+                <div style={{ flex:1, minWidth:0, fontFamily:FONT_DECK, fontSize:10.5, color:'rgba(245,245,245,0.85)', textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{shareUrl}</div>
+                <button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => setCopied(true)).catch(() => {}) }}
+                  style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'7px 12px', cursor:'pointer' }}>
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
+            <button onClick={() => setPublishedToast(false)}
+              style={{ marginTop:18, fontFamily:FONT_DECK, fontWeight:700, fontSize:10, letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(245,245,245,0.65)', background:'transparent', border:'none', cursor:'pointer' }}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes featFade { from { opacity:0 } to { opacity:1 } }
+        @keyframes featCoverHint { 0%{opacity:0;transform:translateY(-50%) translateX(4px)} 18%{opacity:0.6} 40%{opacity:0.1} 60%{opacity:0.55} 100%{opacity:0.42;transform:translateY(-50%) translateX(0)} }
       `}</style>
     </div>
   )
@@ -1866,24 +1945,23 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
   )
 }
 
-// Folio bar — back/forward labels derived from neighbor pages; last page shows the
-// page number instead of a forward link. When dots are provided the center slot
-// shows page progress indicators instead of the GDIMENSION.APP watermark.
-function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }:
-  { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
+// Folio bar — clean magazine chrome. Navigation happens by tap/swipe (tap zones
+// in the page stage), so the folio carries no Prev/Next buttons: just the dots
+// carousel indicator (centered) and the page number (right). backLabel/nextLabel/
+// onBack/onNext remain in the signature (callers still pass them) but are unused.
+function Folio({ theme, pageNum, dots }:
+  { theme: InteriorTheme; backLabel?: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
   return (
     <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
-      <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onBack?'pointer':'default', padding:'4px 0' }}>‹ {backLabel}</div>
+      <div style={{ width:24, flexShrink:0 }} />
       {dots && dots.count > 1
         ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>
             {Array.from({ length: dots.count }, (_, i) => (
               <div key={i} style={{ width: i === dots.active ? 12 : 4, height: 4, borderRadius: 2, background: i === dots.active ? theme.accent : theme.rule, transition:`all 200ms ${EASING_SETTLE}` }} />
             ))}
           </div>
-        : <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>}
-      {nextLabel
-        ? <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onNext?'pointer':'default', padding:'4px 0' }}>{nextLabel} ›</div>
-        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>}
+        : <span />}
+      <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>
     </div>
   )
 }

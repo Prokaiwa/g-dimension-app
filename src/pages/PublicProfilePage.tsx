@@ -10,7 +10,7 @@
 // One designed layout template per node count (1–5).
 // Node taps are stubbed — read-only sub-screens are the next build.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useNavigationType, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, iconFeatured,
@@ -206,7 +206,16 @@ interface CarRow {
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>()
   const navigate = useNavigate()
-  const navType = useNavigationType() // 'POP' = back navigation → reverse dot
+  // Captured once at mount: did we arrive by returning from a sub-page? (flag set
+  // in onNodeTap). Drives the driver-dot direction; cleared immediately so a later
+  // fresh visit reads as an arrival (left-to-right).
+  const [dotReturning] = useState(() => {
+    try {
+      const r = sessionStorage.getItem('gdim_pub_return') === '1'
+      sessionStorage.removeItem('gdim_pub_return')
+      return r
+    } catch { return false }
+  })
   // Which car the map is showing — visitor-chosen via the Garage carousel
   // (?car=<id>), defaulting to the owner's active car. Kept in the URL so it
   // survives navigation into the sub-screens and is shareable. Never mutates
@@ -452,6 +461,9 @@ export default function PublicProfilePage() {
     }
     const dest = routes[n.id]
     if (dest) {
+      // Tag this hop so the profile's driver dot reverses (right-to-left) when
+      // the visitor returns from this sub-page. Cleared on the next fresh mount.
+      try { sessionStorage.setItem('gdim_pub_return', '1') } catch { /* ignore */ }
       exitingRef.current = true
       setExiting(true)
       const world = worldRef.current
@@ -1044,11 +1056,12 @@ export default function PublicProfilePage() {
           {/* Destination marker at road end */}
           <circle cx="230" cy="46" r="4" fill="rgba(120,14,18,0.22)"/>
           <circle cx="230" cy="46" r="1.8" fill={COLOR_BRAND} opacity="0.65"/>
-          {/* Driver dot direction. A fresh load/refresh registers as POP and
-             reads as "arriving" → left-to-right. Returning from a sub-page is a
-             PUSH (sub-pages navigate to the profile URL, not -1) → right-to-left. */}
+          {/* Driver dot direction. Arriving (from the owner's profile or a fresh
+             load) reads left-to-right. Only a return from a sub-page reverses it
+             — sub-pages PUSH back to the profile URL (not history -1), so we tag
+             that hop with a sessionStorage flag set in onNodeTap. */}
           {(() => {
-            const kp = navType === 'POP' ? '0;1' : '1;0'
+            const kp = dotReturning ? '1;0' : '0;1'
             return (
               <>
                 <circle r="5.5" fill="rgba(120,14,18,0.18)">

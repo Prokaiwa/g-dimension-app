@@ -34,6 +34,7 @@ interface CarData {
 }
 
 interface FeaturedLayout {
+  published?: boolean
   headline?: string
   deck?: string
   captions?: Record<string, string>
@@ -222,6 +223,21 @@ export default function PublicFeaturedPage() {
       if (!row?.is_public || row.show_featured_publicly === false) {
         setNotFound(true); setLoading(false); return
       }
+
+      // Magazine is only live once the owner explicitly publishes.
+      const parsedLayout = (() => {
+        const raw: unknown = row.featured_layout
+        if (!raw) return null
+        if (typeof raw === 'string') {
+          try { return JSON.parse(raw) as FeaturedLayout } catch { return null }
+        }
+        if (typeof raw === 'object') return raw as FeaturedLayout
+        return null
+      })()
+      if ((parsedLayout as (FeaturedLayout & { published?: boolean }) | null)?.published !== true) {
+        setNotFound(true); setLoading(false); return
+      }
+      row.featured_layout = parsedLayout
 
       const carId = row.id
 
@@ -821,6 +837,37 @@ export default function PublicFeaturedPage() {
         <div ref={foldLineRef}    style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
       </div>
 
+      {/* Tap zones — page turn by tapping like a real magazine */}
+      {pageIdx === 0 ? (
+        <div
+          onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
+          style={{ position:'absolute', top:'25%', right:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+        />
+      ) : (
+        <>
+          <div
+            onClick={() => { if (!isTurningRef.current) runTurn('back') }}
+            style={{ position:'absolute', top:'25%', left:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+          />
+          <div
+            onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
+            style={{ position:'absolute', top:'25%', right:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+          />
+        </>
+      )}
+
+      {/* Cover swipe/tap hint — blinks once shortly after load */}
+      {pageIdx === 0 && (
+        <>
+          <style>{`@keyframes pubCoverHint { 0%{opacity:0} 25%{opacity:0.55} 50%{opacity:0} 75%{opacity:0.55} 100%{opacity:0.42} }`}</style>
+          <div style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', zIndex:21, pointerEvents:'none',
+            fontFamily:FONT_DECK, fontSize:34, lineHeight:1, color:COLOR_ACCENT, opacity:0,
+            animation:'pubCoverHint 1600ms ease 700ms both' }}>
+            ›
+          </div>
+        </>
+      )}
+
       {/* Back chevron */}
       <div onClick={() => navigate(`/builds/${username ?? ''}`)}
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
@@ -911,19 +958,18 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
 // ─── Folio ────────────────────────────────────────────────────────────────────
 function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }:
   { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
+  void backLabel; void nextLabel; void onBack; void onNext
   return (
     <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
-      <div onClick={onBack} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onBack?'pointer':'default', padding:'4px 0' }}>‹ {backLabel}</div>
+      <div style={{ width:24 }} />
       {dots && dots.count > 1
         ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>
             {Array.from({ length: dots.count }, (_, i) => (
               <div key={i} style={{ width: i === dots.active ? 12 : 4, height:4, borderRadius:2, background: i === dots.active ? theme.accent : theme.rule, transition:`all 200ms ${EASING_SETTLE}` }} />
             ))}
           </div>
-        : <span style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.28em', textTransform:'uppercase', color:theme.subInk, opacity:0.55 }}>GDIMENSION.APP</span>}
-      {nextLabel
-        ? <div onClick={onNext} style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:theme.accent, cursor:onNext?'pointer':'default', padding:'4px 0' }}>{nextLabel} ›</div>
-        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>}
+        : <span />}
+      <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>
     </div>
   )
 }
