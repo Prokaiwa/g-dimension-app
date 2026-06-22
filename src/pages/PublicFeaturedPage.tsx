@@ -772,14 +772,6 @@ export default function PublicFeaturedPage() {
             <div style={{ position:'absolute', top:0, right:0, bottom:0, width:28, pointerEvents:'none', background:'linear-gradient(270deg,rgba(0,0,0,0.2) 0%,rgba(0,0,0,0.05) 60%,transparent 100%)' }} />
           </div>
 
-          {/* "INSIDE ▸" chip */}
-          {!isTurning && next && (
-            <div onClick={() => runTurn('fwd')}
-              style={{ position:'absolute', right:12, bottom:50, zIndex:9, fontFamily:FONT_DECK, fontWeight:700, fontSize:9.5, letterSpacing:'0.24em', textTransform:'uppercase', color:'#f5f5f5', background:'rgba(0,0,0,0.58)', border:'1px solid rgba(245,245,245,0.38)', padding:'7px 12px', cursor:'pointer' }}>
-              INSIDE ▸
-            </div>
-          )}
-
           <PubCornerCurl color={t.textOnPhoto==='light' ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.14)'} />
         </>
       )
