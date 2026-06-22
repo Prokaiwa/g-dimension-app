@@ -1206,11 +1206,12 @@ export default function FeaturedPage() {
                 style={{ position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }} />
             )}
             {photo && photo.mode === 'full' && framed && (
-              // User-framed (052): cover-fit + saved focus/zoom, clipped to the cover rect.
+              // User-framed (052): contain baseline (zoom 1 = whole photo, matching
+              // the unframed view so entering adjust doesn't jump) + saved focus/zoom.
               <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', overflow:'hidden' }}>
                 <img src={photo.url} alt=""
                   onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
-                  style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:`${fx}% ${fy}%`,
+                  style={{ width:'100%', height:'100%', objectFit:'contain', objectPosition:`${fx}% ${fy}%`,
                     transform:`scale(${zoom})`, transformOrigin:`${fx}% ${fy}%`, display:'block' }} />
               </div>
             )}
