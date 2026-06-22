@@ -334,7 +334,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
-      const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : m.installed_by === 'self' ? 'Self' : ''
+      const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : ''
+      const hasLabor = m.installed_by === 'shop' && (m.labor_cost ?? 0) > 0
       const cost = includePricing ? ((m.parts_cost ?? 0) + (m.labor_cost ?? 0)) : 0
       const titleW = includePricing ? COL_COST - COL_TITLE - 22 : PW - MX - COL_TITLE - 4
       const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
@@ -347,7 +348,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       doc.text(titleLines[0] || m.title, COL_TITLE, cy + 4.8)
       if (includePricing && cost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(cost) + '*', COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(cost) + (hasLabor ? '*' : ''), COL_COST, cy + 4.8, { align: 'right' })
       }
       cy += rowH
     })
@@ -386,7 +387,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       const label = s.title
         || (s.jobs.length > 0 ? s.jobs.map(j => j.title).join(', ') : null)
         || (s.type === 'detail' ? 'Detailing' : 'Maintenance')
-      const shop = s.performed_by === 'shop' ? (s.shop_name || 'Shop') : s.performed_by === 'self' ? 'Self' : ''
+      const shop = s.performed_by === 'shop' ? (s.shop_name || 'Shop') : ''
+      const svcHasLabor = s.performed_by === 'shop' && (s.labor_cost ?? 0) > 0
       const totalCost = includePricing ? (s.total_cost ?? 0) : 0
 
       const detailW = includePricing ? COL_COST - COL_DETAIL - 22 : PW - MX - COL_DETAIL - 4
@@ -410,7 +412,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       }
       if (includePricing && totalCost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(totalCost) + '*', COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(totalCost) + (svcHasLabor ? '*' : ''), COL_COST, cy + 4.8, { align: 'right' })
       }
       cy += rowH
     })
@@ -418,9 +420,13 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   }
 
   // ── Page footers ─────────────────────────────────────────────────────────────
+  const DISCLAIMER = 'All information provided by the vehicle owner. G-Dimension makes no representation as to accuracy or completeness. This report is not a substitute for a professional inspection.'
   const pages = doc.getNumberOfPages()
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
+    // Disclaimer — very light, centered, above the rule
+    doc.setFont('helvetica','italic'); doc.setFontSize(5.5); doc.setTextColor(190, 190, 190)
+    doc.text(DISCLAIMER, PW / 2, PH - 17, { align: 'center', maxWidth: CW })
     if (includePricing) {
       doc.setFont('helvetica','italic'); doc.setFontSize(6.5); doc.setTextColor(...C_MID)
       doc.text('* Cost reflects parts + labor combined', MX, PH - 13)
