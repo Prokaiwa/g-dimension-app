@@ -1273,7 +1273,9 @@ export default function FeaturedPage() {
     }
     container.addEventListener('touchmove', onMove, { passive: false })
     return () => container.removeEventListener('touchmove', onMove)
-  }, [])
+    // Depends on `loading`: the container only exists once loading is done, so
+    // the listener must (re)attach then — on mount it isn't in the DOM yet.
+  }, [loading])
 
   function handleTouchStart(e: React.TouchEvent) {
     if (isTurningRef.current || adjustingRef.current || editingRef.current || capEditRef.current || storyOpen) return

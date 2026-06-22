@@ -619,7 +619,8 @@ export default function PublicFeaturedPage() {
     }
     container.addEventListener('touchmove', onMove, { passive: false })
     return () => container.removeEventListener('touchmove', onMove)
-  }, [])
+    // Re-attach once the container actually exists (after loading / not-found gates).
+  }, [loading, notFound])
 
   function handleTouchStart(e: React.TouchEvent) {
     if (isTurningRef.current) return
