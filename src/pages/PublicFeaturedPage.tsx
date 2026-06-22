@@ -596,7 +596,7 @@ export default function PublicFeaturedPage() {
 
       if (!isDragTurnRef.current) {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
-        if (Math.abs(dy) > Math.abs(dx) * 0.85) { touchStartXRef.current = null; return }
+        if (Math.abs(dy) > Math.abs(dx) * 1.5) { touchStartXRef.current = null; return }
         const pg   = pageIdxRef.current
         const last = pagesLenRef.current - 1
         if (pg === 0 && dx < 0) {
@@ -613,7 +613,7 @@ export default function PublicFeaturedPage() {
       e.preventDefault()
       const dir   = turnDirRef.current
       const rawDx = dir === 'fwd' ? -dx : dx
-      const p     = Math.min(Math.max(rawDx / (window.innerWidth * 0.65), 0), 1)
+      const p     = Math.min(Math.max(rawDx / (window.innerWidth * 0.45), 0), 1)
       progressRef.current = p
       applyRef.current(p, dir)
     }
