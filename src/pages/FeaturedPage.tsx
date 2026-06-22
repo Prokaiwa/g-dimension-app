@@ -2261,23 +2261,33 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
         </div>
       )}
 
-      {/* Position grip (top edge) — drag the photo up/down through the page */}
-      {showGrips && onPosDragStart && (
-        <div onTouchStart={onPosDragStart}
-          style={{ position:'absolute', top:0, left:0, right:0, height:24, display:'flex', alignItems:'center', justifyContent:'center',
-            cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none', zIndex:5,
-            background:'linear-gradient(180deg, rgba(0,0,0,0.32) 0%, transparent 100%)' }}>
-          <span style={{ fontSize:11, color:'rgba(245,245,245,0.92)', letterSpacing:'0.3em', textShadow:'0 1px 4px rgba(0,0,0,0.8)' }}>⋮⋮⋮ ↕</span>
-        </div>
-      )}
-
-      {/* Resize grip (bottom edge) — drag to change the photo's height */}
-      {showGrips && onHeightDragStart && (
-        <div onTouchStart={onHeightDragStart}
-          style={{ position:'absolute', bottom:0, left:0, right:0, height:22, display:'flex', alignItems:'center', justifyContent:'center',
-            cursor:'ns-resize', touchAction:'none', userSelect:'none', WebkitUserSelect:'none', zIndex:5,
-            background:'linear-gradient(0deg, rgba(0,0,0,0.32) 0%, transparent 100%)' }}>
-          <div style={{ width:28, height:3, borderRadius:1.5, background:'rgba(245,245,245,0.85)' }} />
+      {/* Bottom-right corner — two stacked grips: height resize (left) + position (right) */}
+      {showGrips && (onHeightDragStart || onPosDragStart) && (
+        <div style={{ position:'absolute', bottom:0, right:0, zIndex:5, display:'flex', alignItems:'flex-end',
+          background:'linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.38) 100%)' }}>
+          {onHeightDragStart && (
+            <div onTouchStart={onHeightDragStart}
+              style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                cursor:'ns-resize', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <line x1="7" y1="1" x2="7" y2="13" stroke="rgba(245,245,245,0.85)" strokeWidth="1.8" strokeLinecap="round"/>
+                <polyline points="3,4 7,1 11,4" stroke="rgba(245,245,245,0.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <polyline points="3,10 7,13 11,10" stroke="rgba(245,245,245,0.85)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              </svg>
+            </div>
+          )}
+          {onPosDragStart && (
+            <div onTouchStart={onPosDragStart}
+              style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+                cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <circle cx="4" cy="4" r="1.3" fill="rgba(245,245,245,0.85)"/>
+                <circle cx="10" cy="4" r="1.3" fill="rgba(245,245,245,0.85)"/>
+                <circle cx="4" cy="10" r="1.3" fill="rgba(245,245,245,0.85)"/>
+                <circle cx="10" cy="10" r="1.3" fill="rgba(245,245,245,0.85)"/>
+              </svg>
+            </div>
+          )}
         </div>
       )}
 
