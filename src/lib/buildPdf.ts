@@ -191,7 +191,12 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     doc.text('G-DIMENSION', MX, HEAD_MID + 2)
   }
   doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_ACCENT)
-  doc.text('BUILD REPORT', PW - MX, HEAD_MID + 1, { align: 'right', charSpace: 0.8 })
+  doc.text('BUILD REPORT', PW - MX, HEAD_MID - 1, { align: 'right', charSpace: 0.8 })
+  // Generation date — "Pulled MM/DD/YYYY" beneath the BUILD REPORT label
+  const now = new Date()
+  const pulled = `Pulled ${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}/${now.getFullYear()}`
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C_MID)
+  doc.text(pulled, PW - MX, HEAD_MID + 4, { align: 'right' })
 
   // Under-header rule (sits clearly below the badge)
   cy = HEAD_Y + LOGO_SZ + 4
@@ -199,8 +204,9 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
   // — Car photo (boxed dark stage, Snapshot-style) + Identity block ————————————
   const PHOTO_W = 74, PHOTO_H = 55
-  // Light grey rounded stage so the background-removed cutout sits cleanly.
-  doc.setFillColor(220, 220, 222)
+  // Warm greige rounded stage so the background-removed cutout sits cleanly
+  // and harmonizes with the warm off-white page.
+  doc.setFillColor(213, 209, 204)
   doc.roundedRect(MX, cy, PHOTO_W, PHOTO_H, 2.5, 2.5, 'F')
   if (carPhoto) {
     const pad = 5
@@ -254,7 +260,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     doc.text('BUILD INVESTMENT', ID_X, iy2, { charSpace: 0.4 })
     iy2 += 5
     doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...C_ACCENT)
-    doc.text(money(investment), ID_X, iy2)
+    doc.text(money(investment) + '*', ID_X, iy2)
   }
 
   cy = Math.max(cy + PHOTO_H, iy2) + 10
@@ -341,7 +347,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       doc.text(titleLines[0] || m.title, COL_TITLE, cy + 4.8)
       if (includePricing && cost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(cost), COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(cost) + '*', COL_COST, cy + 4.8, { align: 'right' })
       }
       cy += rowH
     })
@@ -404,7 +410,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       }
       if (includePricing && totalCost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(totalCost), COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(totalCost) + '*', COL_COST, cy + 4.8, { align: 'right' })
       }
       cy += rowH
     })
@@ -415,6 +421,10 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   const pages = doc.getNumberOfPages()
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p)
+    if (includePricing) {
+      doc.setFont('helvetica','italic'); doc.setFontSize(6.5); doc.setTextColor(...C_MID)
+      doc.text('* Cost reflects parts + labor combined', MX, PH - 13)
+    }
     doc.setDrawColor(...C_BURG); doc.setLineWidth(0.5)
     doc.line(MX, PH - 10, PW - MX, PH - 10)
     doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...C_MID)

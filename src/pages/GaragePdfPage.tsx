@@ -198,7 +198,7 @@ export default function GaragePdfPage() {
               Your build, on record.
             </p>
             <p style={{ fontSize:13, color:TEXT_MUTED, lineHeight:1.55, margin:'0 0 22px' }}>
-              A Carfax-style build report — vehicle identity, modification history, and service history. Hand it to a buyer, a shop, or keep it for the record.
+              The full record. Print it, share it, hand it to a buyer — vehicle identity, modification history, and service history in one document.
             </p>
 
             {/* Contents card */}
