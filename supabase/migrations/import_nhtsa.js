@@ -8,7 +8,7 @@
 // USAGE:
 //   node scripts/import_nhtsa.js
 //   node scripts/import_nhtsa.js --makes-only     (skip models, faster test)
-//   node scripts/import_nhtsa.js --jdm-only        (only seed JDM manual list)
+//   node scripts/import_nhtsa.js --jdm-only        (only seed supplemental JDM + US muscle lists)
 //   node scripts/import_nhtsa.js --dry-run         (print counts, no inserts)
 //
 // REQUIREMENTS:
@@ -172,26 +172,47 @@ async function importMakes() {
 // STEP 2: FETCH AND INSERT MODELS FOR EACH MAKE
 // =============================================================================
 
+// Vehicle types we KEEP — passenger cars, trucks, and SUVs/vans (MPV).
+// Deliberately EXCLUDES motorcycle, trailer, bus, lsv, incomplete and off-road.
+// The plain getmodelsformake endpoint returns EVERY vehicle type a make has ever
+// produced, which is how ~1,100 motorcycles/ATVs/trailers contaminated the first
+// pull (Honda/BMW/Suzuki bikes, Eagle/Hudson trailers, hearse/bus chassis).
+// Filtering by vehicle type at fetch time prevents it. Verified against vPIC:
+// getmodelsformakeyear accepts a /vehicletype/<type> segment with no model year,
+// e.g. Honda → car:14, truck:2, mpv:10, motorcycle:304 (the 304 are now excluded).
+const KEPT_VEHICLE_TYPES = ['car', 'truck', 'mpv']
+
 async function importModelsForMake(makeName, makeId) {
-  await sleep(RATE_LIMIT_MS)  // Rate limiting
-
   const encodedMake = encodeURIComponent(makeName)
-  const data = await fetchWithRetry(
-    `${NHTSA_BASE}/getmodelsformake/${encodedMake}?format=json`
-  )
+  const seen = new Set()
+  const models = []
 
-  if (!data.Results) return []
+  // One request per kept vehicle type; merge + de-dupe (e.g. Accord appears under
+  // both 'car' and 'mpv'). De-dupe is case-insensitive on the model name.
+  for (const vtype of KEPT_VEHICLE_TYPES) {
+    await sleep(RATE_LIMIT_MS)  // rate limit each sub-request
+    const data = await fetchWithRetry(
+      `${NHTSA_BASE}/getmodelsformakeyear/make/${encodedMake}/vehicletype/${vtype}?format=json`
+    )
+    if (!data.Results) continue
 
-  return data.Results
-    .filter(m => m.Model_Name && m.Model_Name.trim())
-    .map(m => ({
-      make_id:     makeId,
-      model_name:  m.Model_Name.trim(),
-      source:      'nhtsa',
-      is_jdm_only: false,
-      // year_start and year_end not available from this endpoint
-      // Use getmodelsformakeyear endpoint for year-range data (future enhancement)
-    }))
+    for (const m of data.Results) {
+      const name = m.Model_Name && m.Model_Name.trim()
+      if (!name) continue
+      const key = name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      models.push({
+        make_id:     makeId,
+        model_name:  name,
+        source:      'nhtsa',
+        is_jdm_only: false,
+        // year_start/year_end not available from this endpoint
+      })
+    }
+  }
+
+  return models
 }
 
 async function importAllModels() {
@@ -264,67 +285,143 @@ const JDM_MAKES = [
   { make_name: 'Amuse',    country: 'JP', regions: ['JP'], source: 'jdm_manual' },
 ]
 
-// JDM-only models for popular makes
-// make_name is used to find the make_id after makes are inserted
+// Supplemental manual model lists.
+//
+// CONVENTION: model_name = canonical FAMILY name. Chassis / generation (R34, S15,
+// JZX100, GC8, DC2…) is NOT baked into the name — it lives on the car via
+// cars.chassis_code / variant / trim. Generations are NOT separate rows. Models
+// that NHTSA already returns at family level (RX-7, Lancer Evolution, Galant,
+// WRX/Impreza, SVX, Legacy, Civic/Civic Type R, 3000GT) are intentionally omitted
+// to avoid duplicates. make_name resolves the make_id after makes are inserted.
 const JDM_MODELS = [
   // Nissan JDM
-  { make_name: 'Nissan', model_name: 'Silvia S13',    year_start: 1988, year_end: 1993, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: 'Silvia S14',    year_start: 1993, year_end: 1998, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: 'Silvia S15',    year_start: 1999, year_end: 2002, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: '180SX',         year_start: 1989, year_end: 1998, is_jdm_only: true,  body_style: 'hatchback' },
-  { make_name: 'Nissan', model_name: 'Skyline R32',   year_start: 1989, year_end: 1994, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: 'Skyline R33',   year_start: 1993, year_end: 1998, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: 'Skyline R34',   year_start: 1998, year_end: 2002, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Nissan', model_name: 'Cefiro A31',    year_start: 1988, year_end: 1994, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Nissan', model_name: 'Stagea',        year_start: 1996, year_end: 2007, is_jdm_only: true,  body_style: 'wagon' },
-  { make_name: 'Nissan', model_name: 'Laurel C35',    year_start: 1997, year_end: 2002, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Nissan', model_name: 'Gloria Y34',    year_start: 1999, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Nissan', model_name: 'Cedric Y34',    year_start: 1999, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },
+  { make_name: 'Nissan', model_name: 'Silvia',  year_start: 1988, year_end: 2002, is_jdm_only: true, body_style: 'coupe' },      // S13/S14/S15
+  { make_name: 'Nissan', model_name: '180SX',   year_start: 1989, year_end: 1998, is_jdm_only: true, body_style: 'hatchback' },
+  { make_name: 'Nissan', model_name: 'Skyline', year_start: 1989, year_end: 2002, is_jdm_only: true, body_style: 'coupe' },      // R32/R33/R34
+  { make_name: 'Nissan', model_name: 'Cefiro',  year_start: 1988, year_end: 1994, is_jdm_only: true, body_style: 'sedan' },      // A31
+  { make_name: 'Nissan', model_name: 'Stagea',  year_start: 1996, year_end: 2007, is_jdm_only: true, body_style: 'wagon' },
+  { make_name: 'Nissan', model_name: 'Laurel',  year_start: 1997, year_end: 2002, is_jdm_only: true, body_style: 'sedan' },      // C35
+  { make_name: 'Nissan', model_name: 'Gloria',  year_start: 1999, year_end: 2004, is_jdm_only: true, body_style: 'sedan' },      // Y34
+  { make_name: 'Nissan', model_name: 'Cedric',  year_start: 1999, year_end: 2004, is_jdm_only: true, body_style: 'sedan' },      // Y34
 
   // Toyota JDM
-  { make_name: 'Toyota', model_name: 'Chaser JZX100', year_start: 1996, year_end: 2001, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Chaser JZX90',  year_start: 1992, year_end: 1996, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Mark II JZX100',year_start: 1996, year_end: 2000, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Cresta JZX100', year_start: 1996, year_end: 2001, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Soarer Z30',    year_start: 1991, year_end: 2000, is_jdm_only: true,  body_style: 'coupe' },
-  { make_name: 'Toyota', model_name: 'Aristo JZS161', year_start: 1997, year_end: 2005, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Altezza',       year_start: 1998, year_end: 2005, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Verossa',       year_start: 2001, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Brevis',        year_start: 2001, year_end: 2007, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Toyota', model_name: 'Estima',        year_start: 1990, year_end: 2019, is_jdm_only: true,  body_style: 'minivan' },
+  { make_name: 'Toyota', model_name: 'Chaser',  year_start: 1992, year_end: 2001, is_jdm_only: true, body_style: 'sedan' },      // JZX90/JZX100
+  { make_name: 'Toyota', model_name: 'Mark II', year_start: 1996, year_end: 2000, is_jdm_only: true, body_style: 'sedan' },      // JZX100
+  { make_name: 'Toyota', model_name: 'Cresta',  year_start: 1996, year_end: 2001, is_jdm_only: true, body_style: 'sedan' },      // JZX100
+  { make_name: 'Toyota', model_name: 'Soarer',  year_start: 1991, year_end: 2000, is_jdm_only: true, body_style: 'coupe' },      // Z30
+  { make_name: 'Toyota', model_name: 'Aristo',  year_start: 1997, year_end: 2005, is_jdm_only: true, body_style: 'sedan' },      // JZS161
+  { make_name: 'Toyota', model_name: 'Altezza', year_start: 1998, year_end: 2005, is_jdm_only: true, body_style: 'sedan' },
+  { make_name: 'Toyota', model_name: 'Verossa', year_start: 2001, year_end: 2004, is_jdm_only: true, body_style: 'sedan' },
+  { make_name: 'Toyota', model_name: 'Brevis',  year_start: 2001, year_end: 2007, is_jdm_only: true, body_style: 'sedan' },
+  { make_name: 'Toyota', model_name: 'Estima',  year_start: 1990, year_end: 2019, is_jdm_only: true, body_style: 'minivan' },
 
-  // Honda JDM
-  { make_name: 'Honda', model_name: 'Civic Type R EK9', year_start: 1997, year_end: 2000, is_jdm_only: true, body_style: 'hatchback' },
-  { make_name: 'Honda', model_name: 'Integra DC2',     year_start: 1993, year_end: 2001, is_jdm_only: false, body_style: 'coupe' },
-  { make_name: 'Honda', model_name: 'Integra Type R DC2', year_start: 1995, year_end: 2001, is_jdm_only: true, body_style: 'coupe' },
-  { make_name: 'Honda', model_name: 'Legend KA9',      year_start: 1996, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Honda', model_name: 'Stream',          year_start: 2000, year_end: 2006, is_jdm_only: true,  body_style: 'wagon' },
+  // Honda JDM (the JDM Honda Integra; the US Acura Integra comes from NHTSA)
+  { make_name: 'Honda', model_name: 'Integra', year_start: 1993, year_end: 2001, is_jdm_only: false, body_style: 'coupe' },      // DC2
+  { make_name: 'Honda', model_name: 'Legend',  year_start: 1996, year_end: 2004, is_jdm_only: true,  body_style: 'sedan' },      // KA9
+  { make_name: 'Honda', model_name: 'Stream',  year_start: 2000, year_end: 2006, is_jdm_only: true,  body_style: 'wagon' },
 
-  // Mitsubishi JDM
-  { make_name: 'Mitsubishi', model_name: 'Lancer Evolution IV',   year_start: 1996, year_end: 1998, is_jdm_only: true, body_style: 'sedan' },
-  { make_name: 'Mitsubishi', model_name: 'Lancer Evolution V',    year_start: 1998, year_end: 1999, is_jdm_only: true, body_style: 'sedan' },
-  { make_name: 'Mitsubishi', model_name: 'Lancer Evolution VI',   year_start: 1999, year_end: 2001, is_jdm_only: true, body_style: 'sedan' },
-  { make_name: 'Mitsubishi', model_name: 'GTO Twin Turbo',        year_start: 1990, year_end: 2000, is_jdm_only: true, body_style: 'coupe' },
-  { make_name: 'Mitsubishi', model_name: 'Galant VR-4',           year_start: 1988, year_end: 1993, is_jdm_only: true, body_style: 'sedan' },
+  // Mitsubishi JDM (GTO = JDM name of the US-market 3000GT, which NHTSA provides)
+  { make_name: 'Mitsubishi', model_name: 'GTO', year_start: 1990, year_end: 2000, is_jdm_only: true, body_style: 'coupe' },
 
   // Mazda JDM
-  { make_name: 'Mazda', model_name: 'RX-7 FD3S',  year_start: 1991, year_end: 2002, is_jdm_only: false, body_style: 'coupe' },
-  { make_name: 'Mazda', model_name: 'RX-7 FC3S',  year_start: 1985, year_end: 1991, is_jdm_only: false, body_style: 'coupe' },
-  { make_name: 'Mazda', model_name: 'Cosmo',       year_start: 1990, year_end: 1996, is_jdm_only: true,  body_style: 'coupe' },
+  { make_name: 'Mazda', model_name: 'Cosmo',          year_start: 1990, year_end: 1996, is_jdm_only: true, body_style: 'coupe' },
   { make_name: 'Mazda', model_name: 'Eunos Roadster', year_start: 1989, year_end: 1997, is_jdm_only: true, body_style: 'convertible' },
-  { make_name: 'Mazda', model_name: 'Atenza',      year_start: 2002, year_end: 2019, is_jdm_only: true,  body_style: 'sedan' },
-  { make_name: 'Mazda', model_name: 'Autozam AZ-1', year_start: 1992, year_end: 1994, is_jdm_only: true, body_style: 'coupe' },
-
-  // Subaru JDM
-  { make_name: 'Subaru', model_name: 'Impreza WRX STI GC8', year_start: 1992, year_end: 2000, is_jdm_only: true, body_style: 'sedan' },
-  { make_name: 'Subaru', model_name: 'Legacy B4 BE5',       year_start: 1998, year_end: 2003, is_jdm_only: true, body_style: 'sedan' },
-  { make_name: 'Subaru', model_name: 'Alcyone SVX',         year_start: 1991, year_end: 1996, is_jdm_only: true, body_style: 'coupe' },
+  { make_name: 'Mazda', model_name: 'Atenza',         year_start: 2002, year_end: 2019, is_jdm_only: true, body_style: 'sedan' },
+  { make_name: 'Mazda', model_name: 'Autozam AZ-1',   year_start: 1992, year_end: 1994, is_jdm_only: true, body_style: 'coupe' },
 
   // Suzuki JDM
-  { make_name: 'Suzuki', model_name: 'Cappuccino',  year_start: 1991, year_end: 1998, is_jdm_only: true, body_style: 'convertible' },
-  { make_name: 'Suzuki', model_name: 'Alto Works',  year_start: 1987, year_end: 2000, is_jdm_only: true, body_style: 'hatchback' },
-  { make_name: 'Suzuki', model_name: 'Jimny JA12',  year_start: 1995, year_end: 1998, is_jdm_only: true, body_style: 'suv' },
+  { make_name: 'Suzuki', model_name: 'Cappuccino', year_start: 1991, year_end: 1998, is_jdm_only: true, body_style: 'convertible' },
+  { make_name: 'Suzuki', model_name: 'Alto',       year_start: 1987, year_end: 2000, is_jdm_only: true, body_style: 'hatchback' },  // Alto Works
+  { make_name: 'Suzuki', model_name: 'Jimny',      year_start: 1995, year_end: 1998, is_jdm_only: true, body_style: 'suv' },        // JA12
+
+  // (Subaru Impreza WRX STI / Legacy B4 / SVX all come from NHTSA at family level.)
 ]
+
+// US classic / muscle nameplates that the modern-only NHTSA pull does NOT return
+// (e.g. Dodge has no classic Charger/Challenger). Family-level; performance names
+// (SS, R/T, Boss, Mach 1, Super Bee, GT500, Trans Am) live on the car as trims.
+// Mirrors migrations 056 + 057. source = 'us_manual'.
+const US_MUSCLE_MODELS = [
+  // Ford
+  { make_name: 'Ford', model_name: 'Torino',   year_start: 1968, year_end: 1976 },
+  { make_name: 'Ford', model_name: 'Fairlane', year_start: 1955, year_end: 1970 },
+  { make_name: 'Ford', model_name: 'Falcon',   year_start: 1960, year_end: 1970 },
+  { make_name: 'Ford', model_name: 'Galaxie',  year_start: 1959, year_end: 1974 },
+  { make_name: 'Ford', model_name: 'Ranchero', year_start: 1957, year_end: 1979 },
+  // Chevrolet
+  { make_name: 'Chevrolet', model_name: 'Chevelle', year_start: 1964, year_end: 1977 },
+  { make_name: 'Chevrolet', model_name: 'Bel Air',  year_start: 1953, year_end: 1975 },
+  { make_name: 'Chevrolet', model_name: 'Biscayne', year_start: 1958, year_end: 1972 },
+  { make_name: 'Chevrolet', model_name: 'Nomad',    year_start: 1955, year_end: 1961 },
+  { make_name: 'Chevrolet', model_name: 'Chevy II', year_start: 1962, year_end: 1968 },
+  // Dodge
+  { make_name: 'Dodge', model_name: 'Charger',    year_start: 1966, year_end: 2023 },
+  { make_name: 'Dodge', model_name: 'Challenger', year_start: 1970, year_end: 2023 },
+  { make_name: 'Dodge', model_name: 'Dart',       year_start: 1960, year_end: 2016 },
+  { make_name: 'Dodge', model_name: 'Coronet',    year_start: 1949, year_end: 1976 },
+  { make_name: 'Dodge', model_name: 'Polara',     year_start: 1960, year_end: 1973 },
+  { make_name: 'Dodge', model_name: 'Viper',      year_start: 1992, year_end: 2017 },
+  { make_name: 'Dodge', model_name: 'Magnum',     year_start: 1978, year_end: 2008 },
+  { make_name: 'Dodge', model_name: 'Daytona',    year_start: 1984, year_end: 1993 },
+  // Plymouth
+  { make_name: 'Plymouth', model_name: 'Barracuda',   year_start: 1964, year_end: 1974 },
+  { make_name: 'Plymouth', model_name: 'Road Runner', year_start: 1968, year_end: 1980 },
+  { make_name: 'Plymouth', model_name: 'GTX',         year_start: 1967, year_end: 1971 },
+  { make_name: 'Plymouth', model_name: 'Satellite',   year_start: 1965, year_end: 1974 },
+  { make_name: 'Plymouth', model_name: 'Belvedere',   year_start: 1954, year_end: 1970 },
+  { make_name: 'Plymouth', model_name: 'Duster',      year_start: 1970, year_end: 1976 },
+  { make_name: 'Plymouth', model_name: 'Valiant',     year_start: 1960, year_end: 1976 },
+  { make_name: 'Plymouth', model_name: 'Fury',        year_start: 1956, year_end: 1978 },
+  // Buick
+  { make_name: 'Buick', model_name: 'Gran Sport', year_start: 1965, year_end: 1975 },
+  { make_name: 'Buick', model_name: 'Wildcat',    year_start: 1963, year_end: 1970 },
+  // Oldsmobile
+  { make_name: 'Oldsmobile', model_name: '442',  year_start: 1964, year_end: 1991 },
+  { make_name: 'Oldsmobile', model_name: 'F-85', year_start: 1961, year_end: 1972 },
+]
+
+// Seed a manual model list (JDM or US muscle). Resolves make_id by name from the
+// already-inserted makes, then inserts with ON CONFLICT DO NOTHING (make+model is
+// unique), so anything NHTSA already provided at family level is left untouched.
+async function seedManualModels(label, models, source) {
+  if (models.length === 0) return
+
+  const neededMakeNames = [...new Set(models.map(m => m.make_name))]
+  const orFilter = neededMakeNames.map(n => `make_name.ilike.${n}`).join(',')
+  const { data: makesData } = await supabase
+    .from('vehicle_makes')
+    .select('id, make_name')
+    .or(orFilter)
+
+  const makeMap = {}
+  makesData?.forEach(m => { makeMap[m.make_name.toLowerCase()] = m.id })
+
+  const missingMakes = new Set()
+  const rows = models
+    .filter(m => {
+      const found = makeMap[m.make_name.toLowerCase()]
+      if (!found) missingMakes.add(m.make_name)
+      return found
+    })
+    .map(m => ({
+      make_id:     makeMap[m.make_name.toLowerCase()],
+      model_name:  m.model_name,
+      year_start:  m.year_start ?? null,
+      year_end:    m.year_end ?? null,
+      is_jdm_only: m.is_jdm_only ?? false,
+      body_style:  m.body_style ?? null,
+      source,
+    }))
+
+  const skipped = models.length - rows.length
+  if (skipped > 0) {
+    console.warn(`  Warning: ${skipped} ${label} models skipped — makes not in DB: ${[...missingMakes].join(', ')}`)
+    console.warn(`  Run the full NHTSA import first (without --jdm-only) to populate vehicle_makes.`)
+  }
+
+  const result = await batchInsert('vehicle_models', rows, 'ignore')
+  console.log(`  ✓ ${result.count} ${label} models inserted`)
+}
 
 async function importJDMData() {
   console.log('\n📍 Step 3: Seeding JDM supplemental data...')
@@ -364,45 +461,10 @@ async function importJDMData() {
     console.log('  ✓ Updated region tags for Japanese makes in NHTSA data')
   }
 
-  // Insert JDM-only models
-  console.log(`  Inserting ${JDM_MODELS.length} JDM model records...`)
-
-  // Resolve make_id — fetch only the specific makes JDM models reference
-  const neededMakeNames = [...new Set(JDM_MODELS.map(m => m.make_name))]
-  const orFilter = neededMakeNames.map(n => `make_name.ilike.${n}`).join(',')
-  const { data: makesData } = await supabase
-    .from('vehicle_makes')
-    .select('id, make_name')
-    .or(orFilter)
-
-  const makeMap = {}
-  makesData?.forEach(m => { makeMap[m.make_name.toLowerCase()] = m.id })
-
-  const missingMakes = new Set()
-  const modelsWithIds = JDM_MODELS
-    .filter(m => {
-      const found = makeMap[m.make_name.toLowerCase()]
-      if (!found) missingMakes.add(m.make_name)
-      return found
-    })
-    .map(m => ({
-      make_id:     makeMap[m.make_name.toLowerCase()],
-      model_name:  m.model_name,
-      year_start:  m.year_start,
-      year_end:    m.year_end,
-      is_jdm_only: m.is_jdm_only,
-      body_style:  m.body_style,
-      source:      'jdm_manual'
-    }))
-
-  const skipped = JDM_MODELS.length - modelsWithIds.length
-  if (skipped > 0) {
-    console.warn(`  Warning: ${skipped} JDM models skipped — makes not in DB: ${[...missingMakes].join(', ')}`)
-    console.warn(`  Run the full NHTSA import first (without --jdm-only) to populate vehicle_makes.`)
-  }
-
-  const result = await batchInsert('vehicle_models', modelsWithIds, 'ignore')
-  console.log(`  ✓ ${result.count} JDM models inserted`)
+  // Insert supplemental models — JDM (jdm_manual) + US muscle/classic (us_manual).
+  console.log(`  Inserting ${JDM_MODELS.length} JDM + ${US_MUSCLE_MODELS.length} US-muscle model records...`)
+  await seedManualModels('JDM', JDM_MODELS, 'jdm_manual')
+  await seedManualModels('US muscle', US_MUSCLE_MODELS, 'us_manual')
 }
 
 // =============================================================================
