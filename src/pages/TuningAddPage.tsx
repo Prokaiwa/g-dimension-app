@@ -121,6 +121,10 @@ const TITLE_PLACEHOLDER: Record<string, string> = {
   'Helmet':                          'e.g. Bell GTX.3 Full Face Helmet',
   'Fire Suppression System':         'e.g. Lifeline Zero 2000 Fire System',
   // Exterior
+  'Front Bumper / Lip':              'e.g. Greddy Front Lip Spoiler',
+  'Rear Bumper / Diffuser':          'e.g. Voltex Rear Diffuser',
+  'Side Skirts':                     'e.g. URAS Side Skirts',
+  'Full Aero Kit':                   'e.g. Bomex Full Aero Kit',
   'Wing / Spoiler':                  'e.g. Voltex Type 1.5 GT Wing',
   'Fenders / Widebody':              'e.g. Work Wheels Overfenders +50mm',
   // Interior
