@@ -85,18 +85,26 @@ function fmtDate(d: string | null | undefined): string {
   return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`
 }
 
+// Load an image and re-encode it to PNG via a canvas. jsPDF can't decode WEBP
+// (it renders a black box), so we always normalize to PNG and preserve any
+// alpha channel (needed for the background-removed car cutout + the G badge).
 async function imgToDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
     const res = await fetch(url, { mode: 'cors' })
     if (!res.ok) return null
     const blob = await res.blob()
-    const dataUrl = await new Promise<string>((res, rej) => {
-      const r = new FileReader(); r.onload = () => res(r.result as string); r.onerror = rej; r.readAsDataURL(blob)
+    const rawUrl = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(blob)
     })
-    const dims = await new Promise<{ w: number; h: number }>((res, rej) => {
-      const img = new Image(); img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight }); img.onerror = rej; img.src = dataUrl
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = rawUrl
     })
-    return { dataUrl, ...dims }
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(img, 0, 0)
+    return { dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight }
   } catch { return null }
 }
 
@@ -108,7 +116,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   const PH = doc.internal.pageSize.getHeight()  // 297 mm
   const MX = 16                                  // outer margin
   const CW = PW - MX * 2                         // 178 mm content width
-  const { car, ownerName, ownerHandle, mods, services, investment, gLogoUrl, includePricing } = data
+  const { car, mods, services, investment, gLogoUrl, includePricing } = data
 
   const carTitle = [car.year, car.model, car.variant].filter(Boolean).join(' ') || 'Unknown Build'
 
@@ -147,38 +155,43 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   // Top accent stripe
   doc.setFillColor(...C_BURG); doc.rect(0, 0, PW, 1.2, 'F')
 
-  // G logo + wordmark header block
-  const HEADER_H = 22
-  cy = 10
+  // — Header: G badge + wordmark left, BUILD REPORT right ————————————————————
+  const LOGO_SZ = 12          // badge height (square-ish)
+  const HEAD_Y  = 8           // top of the logo
+  const HEAD_MID = HEAD_Y + LOGO_SZ / 2  // vertical center of the header row
   if (gLogo) {
-    const lh = HEADER_H * 0.9
-    const lw = lh * (gLogo.w / gLogo.h)
-    const fmt = gLogo.dataUrl.includes('image/png') ? 'PNG' : 'WEBP'
-    doc.addImage(gLogo.dataUrl, fmt, MX, cy - lh * 0.7, lw, lh)
-    doc.setFont('helvetica','bolditalic'); doc.setFontSize(18); doc.setTextColor(...C_DARK)
-    doc.text('G-DIMENSION', MX + lw + 4, cy)
+    const lw = LOGO_SZ * (gLogo.w / gLogo.h)
+    doc.addImage(gLogo.dataUrl, 'PNG', MX, HEAD_Y, lw, LOGO_SZ)
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(17); doc.setTextColor(...C_DARK)
+    doc.text('G-DIMENSION', MX + lw + 3, HEAD_MID + 2)
   } else {
-    doc.setFont('helvetica','bolditalic'); doc.setFontSize(18); doc.setTextColor(...C_DARK)
-    doc.text('G-DIMENSION', MX, cy)
+    doc.setFont('helvetica','bolditalic'); doc.setFontSize(17); doc.setTextColor(...C_DARK)
+    doc.text('G-DIMENSION', MX, HEAD_MID + 2)
   }
   doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...C_ACCENT)
-  doc.text('BUILD REPORT', PW - MX, cy, { align: 'right', charSpace: 0.8 })
-  cy += 3
+  doc.text('BUILD REPORT', PW - MX, HEAD_MID + 1, { align: 'right', charSpace: 0.8 })
 
-  // Under-header rule
+  // Under-header rule (sits clearly below the badge)
+  cy = HEAD_Y + LOGO_SZ + 4
   doc.setDrawColor(...C_BURG); doc.setLineWidth(0.8); doc.line(MX, cy, PW - MX, cy); cy += 10
 
-  // — Car photo (top-left cutout) + Identity block side-by-side ———————————————
-  const PHOTO_W = 72, PHOTO_H = 54
+  // — Car photo (boxed dark stage, Snapshot-style) + Identity block ————————————
+  const PHOTO_W = 74, PHOTO_H = 55
+  // Dark rounded stage so the background-removed cutout reads like the carousel.
+  doc.setFillColor(40, 40, 44)
+  doc.roundedRect(MX, cy, PHOTO_W, PHOTO_H, 2.5, 2.5, 'F')
   if (carPhoto) {
-    // Place the background-removed PNG directly on the page bg — no border,
-    // so the transparent edges blend with the warm off-white.
+    const pad = 5
+    const boxW = PHOTO_W - pad * 2, boxH = PHOTO_H - pad * 2
     const ar = carPhoto.w / carPhoto.h
-    let iw = PHOTO_W, ih = PHOTO_W / ar
-    if (ih > PHOTO_H) { ih = PHOTO_H; iw = ih * ar }
+    let iw = boxW, ih = boxW / ar
+    if (ih > boxH) { ih = boxH; iw = ih * ar }
+    const ix = MX + (PHOTO_W - iw) / 2
     const iy = cy + (PHOTO_H - ih) / 2
-    const fmt = carPhoto.dataUrl.includes('image/png') ? 'PNG' : 'JPEG'
-    doc.addImage(carPhoto.dataUrl, fmt, MX, iy, iw, ih)
+    doc.addImage(carPhoto.dataUrl, 'PNG', ix, iy, iw, ih)
+  } else {
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150, 150, 154)
+    doc.text('No photo', MX + PHOTO_W / 2, cy + PHOTO_H / 2, { align: 'center' })
   }
 
   // Identity block to the right of the photo
@@ -259,9 +272,6 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   idRow('Variant / Trim',  car.variant)
   idRow('VIN',             car.vin)
   idRow('Current Mileage', car.current_mileage != null ? car.current_mileage.toLocaleString() + ' mi' : null)
-  if (ownerName || ownerHandle) {
-    idRow('Owner',         [ownerName, ownerHandle ? '@'+ownerHandle : ''].filter(Boolean).join('  '))
-  }
   cy += 6
 
   // ── Modification History ──────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ export default function GaragePdfPage() {
           .eq('id', carId).single(),
         supabase
           .from('jobs')
-          .select('id,title,brand,category,date_installed,install_mileage,installed_by,shop_name,parts_cost,labor_cost,session_id,status,type')
+          .select('id,title,brand,category,date_installed,install_mileage,installed_by,parts_cost,labor_cost,session_id,status,type')
           .eq('car_id', carId).eq('status','installed').eq('type','modification')
           .order('date_installed', { ascending: false, nullsFirst: false }),
         supabase
@@ -80,7 +80,7 @@ export default function GaragePdfPage() {
       const car = carRes.data
       if (!car) { setLoading(false); return }
 
-      type JobRow = { id:string; title:string; brand:string|null; category:string|null; date_installed:string|null; install_mileage:number|null; installed_by:'self'|'shop'|null; shop_name?:string|null; parts_cost:number|null; labor_cost:number|null; session_id:string|null }
+      type JobRow = { id:string; title:string; brand:string|null; category:string|null; date_installed:string|null; install_mileage:number|null; installed_by:'self'|'shop'|null; parts_cost:number|null; labor_cost:number|null; session_id:string|null }
       type SvcRow = { id:string; type:string; date_performed:string; performed_by:'self'|'shop'|null; shop_name:string|null; mileage:number|null; total_cost:number|null; labor_cost:number|null; tax_amount:number|null; notes:string|null; title:string|null; jobs:{id:string;title:string;cost:number|null}[] }
 
       const jobs = (modsRes.data ?? []) as unknown as JobRow[]
@@ -93,7 +93,6 @@ export default function GaragePdfPage() {
         date_installed: j.date_installed,
         install_mileage: j.install_mileage,
         installed_by: j.installed_by,
-        shop_name: j.shop_name,
         parts_cost: j.parts_cost,
         labor_cost: j.labor_cost,
       }))
@@ -169,7 +168,6 @@ export default function GaragePdfPage() {
           <button onClick={() => { playBack(); navigate('/garage') }} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px 4px 4px', display:'flex', alignItems:'center' }}>
             <span style={{ color:COLOR_HEADER_WARM, fontSize:22, fontWeight:300, lineHeight:1 }}>‹</span>
           </button>
-          <img src={gLogoAsset} alt="" style={{ height:22, width:'auto', marginRight:4 }} />
           <span style={{ fontFamily:FONT_TITLE, fontStyle:'italic', fontWeight:600, fontSize:22, color:COLOR_HEADER_TITLE, letterSpacing:'0.01em' }}>Build Report</span>
         </div>
         <div style={{ display:'flex', alignItems:'stretch', gap:0 }}>
@@ -211,9 +209,6 @@ export default function GaragePdfPage() {
               <Row label="Service records"     value={`${svcCount} record${svcCount !== 1 ? 's' : ''}`} />
               {pdfData.investment != null && (
                 <Row label="Build investment" value={'$' + Math.round(pdfData.investment).toLocaleString('en-US')} accent />
-              )}
-              {(pdfData.ownerName || pdfData.ownerHandle) && (
-                <Row label="Owner" value={[pdfData.ownerName, pdfData.ownerHandle ? '@'+pdfData.ownerHandle : ''].filter(Boolean).join('  ')} />
               )}
             </div>
 
