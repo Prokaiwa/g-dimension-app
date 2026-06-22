@@ -827,7 +827,7 @@ export default function PublicFeaturedPage() {
   return (
     <div
       id="pub-feat-container"
-      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', userSelect:'none', WebkitUserSelect:'none' }}
+      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >

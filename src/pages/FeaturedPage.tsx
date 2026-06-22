@@ -1525,7 +1525,7 @@ export default function FeaturedPage() {
   return (
     <div
       id="feat-container"
-      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', userSelect:'none', WebkitUserSelect:'none' }}
+      style={{ position:'fixed', inset:0, background:'#000', overflow:'hidden', overscrollBehavior:'none', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -2510,25 +2510,27 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
 
-      {/* Hairline kicker + optional edit chip */}
+      {/* Hairline kicker + optional edit chip. Label markup matches THE DETAILS
+          kicker exactly (bare div, no flex row) so the title block sits at the
+          same height on every page — the edit chip is absolutely positioned so
+          it can't push the label down and cause a shift on page turn. */}
       <div style={{ flexShrink:0, padding:'8px 14px 5px 30px', position:'relative' }}>
         <div style={{ height:'0.5px', background:theme.rule, marginBottom:5 }} />
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
-            THE FEATURE · {carShortName.toUpperCase()}
-          </div>
-          {canEdit && !editing && (
-            <div onClick={onEnterEdit}
-              style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase',
-                color:theme.subInk, border:`1px solid ${theme.rule}`, padding:'3px 8px', cursor:'pointer',
-                display:'flex', alignItems:'center', gap:4, position:'relative' }}>
-              Headline <PencilIcon size={9} color={theme.subInk} />
-              {hasSuggestion && (
-                <span style={{ position:'absolute', top:-3, right:-3, width:6, height:6, borderRadius:'50%', background:COLOR_ACCENT, boxShadow:'0 0 0 1px rgba(0,0,0,0.4)' }} />
-              )}
-            </div>
-          )}
+        <div style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.28em', color:theme.subInk, textTransform:'uppercase', opacity:0.65 }}>
+          THE FEATURE · {carShortName.toUpperCase()}
         </div>
+        {canEdit && !editing && (
+          <div onClick={onEnterEdit}
+            style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
+              fontFamily:FONT_DECK, fontWeight:600, fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase',
+              color:theme.subInk, border:`1px solid ${theme.rule}`, padding:'3px 8px', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:4 }}>
+            Headline <PencilIcon size={9} color={theme.subInk} />
+            {hasSuggestion && (
+              <span style={{ position:'absolute', top:-3, right:-3, width:6, height:6, borderRadius:'50%', background:COLOR_ACCENT, boxShadow:'0 0 0 1px rgba(0,0,0,0.4)' }} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Headline — static display or inline edit */}
