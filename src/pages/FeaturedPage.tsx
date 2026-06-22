@@ -39,6 +39,9 @@ interface Car {
   featured_story?: string | null
   // 055 — editorial overrides + engine snapshot (guarded select falls back)
   featured_layout?: FeaturedLayout | null
+  // 053 — public visibility flags
+  show_featured_publicly?: boolean | null
+  is_public?: boolean | null
 }
 
 // ── Featured editorial overrides (migration 055, cars.featured_layout jsonb) ───
@@ -58,6 +61,7 @@ interface FeaturedLayout {
   story_photo_focus_x?: number                 // 0-100
   story_photo_focus_y?: number                 // 0-100
   story_photo_zoom?: number                    // 1-3
+  template?: string                            // TEMPLATES[i].id — persisted cover choice
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
 type Photo = { url: string; mode: 'full' | 'cutout'; label: string }
@@ -256,6 +260,12 @@ export default function FeaturedPage() {
   const [replaceErr, setReplaceErr]       = useState<string | null>(null)
   const photoReplaceFileRef               = useRef<HTMLInputElement>(null)
 
+  // ── publish state ────────────────────────────────────────────────────────────────
+  const [isPublished, setIsPublished]       = useState(false)
+  const [savingPublish, setSavingPublish]   = useState(false)
+  const [publishErr, setPublishErr]         = useState<string | null>(null)
+  const [myUsername, setMyUsername]         = useState<string | null>(null)
+
   // ── story photo chooser (which image fills the gap under a short story) ────────
   const [storyPhotoSheet, setStoryPhotoSheet] = useState(false)
   const [savingStoryPhoto, setSavingStoryPhoto] = useState(false)
@@ -311,7 +321,7 @@ export default function FeaturedPage() {
       const { data: { user } } = await supabase.auth.getUser()
       const CAR_COLS_BASE = 'id,year,make,model,variant,trim,nickname,horsepower,torque,engine_type,transmission,forced_induction,drivetrain,purchase_date,current_mileage,color,is_import,usage_type,engine_origin,showcase_photo_url,garage_photo_url,original_photo_url,build_sheet_power_photo,build_sheet_chassis_photo,build_sheet_exterior_photo,build_sheet_interior_photo'
       const CAR_COLS_052  = CAR_COLS_BASE + ',cover_focus_x,cover_focus_y,cover_zoom,featured_story'
-      const CAR_COLS_055  = CAR_COLS_052 + ',featured_layout'
+      const CAR_COLS_055  = CAR_COLS_052 + ',featured_layout,show_featured_publicly,is_public'
       // Try the newest column set first; fall back step-by-step if a migration
       // isn't applied yet (055 → 052 → base).
       const fetchCar = async () => {
@@ -332,7 +342,7 @@ export default function FeaturedPage() {
           .not('photo_url', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6),
-        user ? supabase.from('users').select('distance_unit,power_unit').eq('id', user.id).single() : Promise.resolve({ data: null }),
+        user ? supabase.from('users').select('distance_unit,power_unit,username').eq('id', user.id).single() : Promise.resolve({ data: null }),
       ])
       if (!alive) return
       const c = (carRes.data as unknown as Car) ?? null
@@ -347,12 +357,18 @@ export default function FeaturedPage() {
         setSpHeight(c.featured_layout.story_photo_height ?? 32)
       }
       if (c?.featured_layout?.story_photo_pos != null) setSpPos(c.featured_layout.story_photo_pos)
+      if (c?.featured_layout?.template) {
+        const tIdx = TEMPLATES.findIndex(t => t.id === c.featured_layout!.template)
+        if (tIdx >= 0) { setCoverIdx(tIdx); userPickedCoverRef.current = true }
+      }
+      setIsPublished(c?.show_featured_publicly !== false)
       if (unitsRes.data) {
-        const u = unitsRes.data as { distance_unit?: string; power_unit?: string }
+        const u = unitsRes.data as { distance_unit?: string; power_unit?: string; username?: string }
         setUserUnits({
           distance_unit: (u.distance_unit === 'km' ? 'km' : 'mi') as 'mi'|'km',
           power_unit: (u.power_unit === 'ps' ? 'ps' : u.power_unit === 'kw' ? 'kw' : 'hp') as 'hp'|'ps'|'kw',
         })
+        if (u.username) setMyUsername(u.username)
       }
       const cands: Photo[] = []
       if (c?.original_photo_url) cands.push({ url: c.original_photo_url, mode:'full',   label:'Original' })
@@ -384,7 +400,17 @@ export default function FeaturedPage() {
   const t          = TEMPLATES[coverIdx]
   const theme      = INTERIOR_THEMES[t.id] ?? INTERIOR_THEMES['top-band']
   const photo      = photos[photoIdx] ?? null
-  const cycleCover = (dir: number) => { userPickedCoverRef.current = true; setCoverIdx(p => (p + dir + TEMPLATES.length) % TEMPLATES.length) }
+  const cycleCover = (dir: number) => {
+    userPickedCoverRef.current = true
+    const nextIdx = (coverIdx + dir + TEMPLATES.length) % TEMPLATES.length
+    setCoverIdx(nextIdx)
+    if (car) {
+      const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), template: TEMPLATES[nextIdx].id }
+      supabase.from('cars').update({ featured_layout: nextLayout }).eq('id', car.id).then(({ error }) => {
+        if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
+      })
+    }
+  }
   const bottomColor = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
 
   // Framed = a saved (or in-progress) framing exists → cover-fit + focus/zoom.
@@ -666,6 +692,22 @@ export default function FeaturedPage() {
     } finally {
       setReplacingPhoto(false)
     }
+  }
+
+  // ── publish helpers ──────────────────────────────────────────────────────────────
+  const shareUrl = myUsername && car?.is_public !== false
+    ? `https://gdimension.app/builds/${myUsername}/featured`
+    : null
+  const togglePublish = async () => {
+    if (!car || savingPublish) return
+    setSavingPublish(true)
+    setPublishErr(null)
+    const next = !isPublished
+    const { error } = await supabase.from('cars').update({ show_featured_publicly: next }).eq('id', car.id)
+    setSavingPublish(false)
+    if (error) { setPublishErr("Couldn't save"); return }
+    setIsPublished(next)
+    setCar(prev => prev ? { ...prev, show_featured_publicly: next } : prev)
   }
 
   // ── story photo framing helpers ──────────────────────────────────────────────────
@@ -1426,7 +1468,10 @@ export default function FeaturedPage() {
       <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
         totalMods={jobs.length} carShortName={carShortName}
         backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
-        onBack={onBack} onNext={onNext} dots={dotsProps} />
+        onBack={onBack} onNext={onNext} dots={dotsProps}
+        isLast={!next}
+        isPublished={isPublished} onTogglePublish={togglePublish} savingPublish={savingPublish}
+        publishErr={publishErr} shareUrl={shareUrl} />
     )
   }
 
@@ -2463,8 +2508,13 @@ interface SpecSheetProps {
   totalMods: number; carShortName: string
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  // ── publish (last page only) ──
+  isLast?: boolean
+  isPublished?: boolean; onTogglePublish?: () => void; savingPublish?: boolean
+  publishErr?: string | null; shareUrl?: string | null
 }
-function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext, dots }: SpecSheetProps) {
+function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+  isLast, isPublished, onTogglePublish, savingPublish, publishErr, shareUrl }: SpecSheetProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
       <div style={SPINE_GUTTER} />
@@ -2509,6 +2559,40 @@ function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel
           </div>
         ))}
       </div>
+
+      {/* Publish strip — last spec sheet only */}
+      {isLast && onTogglePublish && (
+        <div style={{ flexShrink:0, borderTop:`1px solid ${theme.rule}`, padding:'10px 16px 10px 28px',
+          display:'flex', alignItems:'center', gap:10, background:theme.pageBg }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            {isPublished && shareUrl ? (
+              <div style={{ fontFamily:FONT_DECK, fontSize:9, color:theme.subInk, letterSpacing:'0.06em',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {shareUrl}
+              </div>
+            ) : (
+              <div style={{ fontFamily:FONT_DECK, fontSize:9, color:theme.subInk, letterSpacing:'0.06em', opacity:0.65 }}>
+                {isPublished ? 'Visible on your public profile' : 'Not visible to the public yet'}
+              </div>
+            )}
+            {publishErr && <div style={{ fontFamily:FONT_DECK, fontSize:9, color:'#e08a6e', marginTop:2 }}>{publishErr}</div>}
+          </div>
+          {isPublished && shareUrl && (
+            <button onClick={() => { navigator.clipboard?.writeText(shareUrl).catch(() => {}) }}
+              style={{ fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+                color:theme.subInk, background:'transparent', border:`1px solid ${theme.rule}`, padding:'5px 10px', cursor:'pointer', flexShrink:0 }}>
+              Copy
+            </button>
+          )}
+          <button onClick={onTogglePublish} disabled={!!savingPublish}
+            style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.18em', textTransform:'uppercase',
+              color: isPublished ? theme.pageBg : '#fff',
+              background: isPublished ? theme.subInk : theme.accent,
+              border:'none', padding:'7px 14px', cursor:'pointer', opacity:savingPublish?0.6:1, flexShrink:0 }}>
+            {savingPublish ? '…' : isPublished ? 'Unpublish' : 'Publish'}
+          </button>
+        </div>
+      )}
 
       <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
       <div style={NOISE_OVERLAY} />
