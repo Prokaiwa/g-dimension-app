@@ -129,6 +129,23 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   // ── layout state ────────────────────────────────────────────────────────────
   let cy = 0
   const BOTTOM = PH - 14
+  // Active section context — re-drawn at the top of each continuation page so a
+  // reader always knows which section the spilled rows belong to.
+  let curSection: string | null = null
+  let curSub: string | undefined
+  let drawCols: (() => void) | null = null   // table column-header redraw, if any
+
+  // Draws the dark section band at the current cy (no page-break logic).
+  function drawSectionBand(label: string, sub: string | undefined, continued: boolean) {
+    doc.setFillColor(...C_DARK); doc.rect(MX, cy, CW, 8, 'F')
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(244, 244, 242)
+    doc.text(label.toUpperCase() + (continued ? '  (CONTINUED)' : ''), MX + 4, cy + 5.3, { charSpace: 0.8 })
+    if (sub && !continued) {
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(180, 180, 180)
+      doc.text(sub, PW - MX - 4, cy + 5.3, { align: 'right' })
+    }
+    cy += 10
+  }
 
   function newPage() {
     doc.addPage()
@@ -145,6 +162,11 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     cy += 8
     doc.setDrawColor(...C_FAINT); doc.setLineWidth(0.2); doc.line(MX, cy, PW - MX, cy)
     cy += 6
+    // Repeat the active section header + column headers so the reader keeps context.
+    if (curSection) {
+      drawSectionBand(curSection, curSub, true)
+      if (drawCols) drawCols()
+    }
   }
 
   function ensure(need: number) { if (cy + need > BOTTOM) newPage() }
@@ -177,8 +199,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
   // — Car photo (boxed dark stage, Snapshot-style) + Identity block ————————————
   const PHOTO_W = 74, PHOTO_H = 55
-  // Dark rounded stage so the background-removed cutout reads like the carousel.
-  doc.setFillColor(40, 40, 44)
+  // Light grey rounded stage so the background-removed cutout sits cleanly.
+  doc.setFillColor(220, 220, 222)
   doc.roundedRect(MX, cy, PHOTO_W, PHOTO_H, 2.5, 2.5, 'F')
   if (carPhoto) {
     const pad = 5
@@ -190,8 +212,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     const iy = cy + (PHOTO_H - ih) / 2
     doc.addImage(carPhoto.dataUrl, 'PNG', ix, iy, iw, ih)
   } else {
-    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150, 150, 154)
-    doc.text('No photo', MX + PHOTO_W / 2, cy + PHOTO_H / 2, { align: 'center' })
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(140, 140, 144)
+    doc.text('No photo', MX + PHOTO_W / 2, cy + PHOTO_H / 2 + 1, { align: 'center' })
   }
 
   // Identity block to the right of the photo
@@ -242,15 +264,12 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
   // ── Vehicle Identity block (Carfax-style) ────────────────────────────────────
   function sectionHeader(label: string, sub?: string) {
+    // Clear context before the break check so a section boundary starts a clean
+    // page (no stale "(continued)" band) rather than repeating the prior section.
+    curSection = null; curSub = undefined; drawCols = null
     ensure(16)
-    doc.setFillColor(...C_DARK); doc.rect(MX, cy, CW, 8, 'F')
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(244, 244, 242)
-    doc.text(label.toUpperCase(), MX + 4, cy + 5.3, { charSpace: 0.8 })
-    if (sub) {
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(180, 180, 180)
-      doc.text(sub, PW - MX - 4, cy + 5.3, { align: 'right' })
-    }
-    cy += 10
+    curSection = label; curSub = sub
+    drawSectionBand(label, sub, false)
   }
 
   function idRow(label: string, value: string | null | undefined) {
@@ -289,15 +308,19 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     const COL_TITLE = MX + 102
     const COL_COST = PW - MX - 2
 
-    // Column headers
-    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
-    doc.text('DATE',    COL_DATE,  cy + 4, { charSpace: 0.4 })
-    doc.text('MILEAGE', COL_MI,    cy + 4, { charSpace: 0.4 })
-    doc.text('SHOP',    COL_SHOP,  cy + 4, { charSpace: 0.4 })
-    doc.text('MODIFICATION', COL_TITLE, cy + 4, { charSpace: 0.4 })
-    if (includePricing) doc.text('COST', COL_COST, cy + 4, { align: 'right', charSpace: 0.4 })
-    cy += 5.5
-    doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy); cy += 2
+    // Column headers — registered so they repeat at the top of a continuation page.
+    const modCols = () => {
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
+      doc.text('DATE',    COL_DATE,  cy + 4, { charSpace: 0.4 })
+      doc.text('MILEAGE', COL_MI,    cy + 4, { charSpace: 0.4 })
+      doc.text('SHOP',    COL_SHOP,  cy + 4, { charSpace: 0.4 })
+      doc.text('MODIFICATION', COL_TITLE, cy + 4, { charSpace: 0.4 })
+      if (includePricing) doc.text('COST', COL_COST, cy + 4, { align: 'right', charSpace: 0.4 })
+      cy += 5.5
+      doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy); cy += 2
+    }
+    modCols()
+    drawCols = modCols
 
     mods.forEach((m, idx) => {
       const rowH = 7
@@ -339,14 +362,18 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     const COL_DETAIL = MX + 102
     const COL_COST  = PW - MX - 2
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
-    doc.text('DATE',    COL_DATE,   cy + 4, { charSpace: 0.4 })
-    doc.text('MILEAGE', COL_MI,     cy + 4, { charSpace: 0.4 })
-    doc.text('SHOP',    COL_SHOP,   cy + 4, { charSpace: 0.4 })
-    doc.text('SERVICE', COL_DETAIL, cy + 4, { charSpace: 0.4 })
-    if (includePricing) doc.text('COST', COL_COST, cy + 4, { align: 'right', charSpace: 0.4 })
-    cy += 5.5
-    doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy); cy += 2
+    const svcCols = () => {
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
+      doc.text('DATE',    COL_DATE,   cy + 4, { charSpace: 0.4 })
+      doc.text('MILEAGE', COL_MI,     cy + 4, { charSpace: 0.4 })
+      doc.text('SHOP',    COL_SHOP,   cy + 4, { charSpace: 0.4 })
+      doc.text('SERVICE', COL_DETAIL, cy + 4, { charSpace: 0.4 })
+      if (includePricing) doc.text('COST', COL_COST, cy + 4, { align: 'right', charSpace: 0.4 })
+      cy += 5.5
+      doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy); cy += 2
+    }
+    svcCols()
+    drawCols = svcCols
 
     services.forEach((s, idx) => {
       // Service label: session title, or list of job titles, or type
