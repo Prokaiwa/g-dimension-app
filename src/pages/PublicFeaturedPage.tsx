@@ -640,8 +640,9 @@ export default function PublicFeaturedPage() {
       // Commit on a quick flick even if the drag was short (see FeaturedPage).
       const dt    = Date.now() - touchStartTRef.current
       const moved = startX !== null ? Math.abs(endX - startX) : 0
-      const flick = dt < 320 && moved > 40
-      if (p >= 0.35 || flick) animateRef.current(p, 1, dir, finishRef.current)
+      // Commit on any deliberate swipe (modest drag or flick) — see FeaturedPage.
+      const flick = dt < 500 && moved > 30
+      if (p >= 0.18 || flick) animateRef.current(p, 1, dir, finishRef.current)
       else                    animateRef.current(p, 0, dir, () => finishRef.current(false))
       return
     }

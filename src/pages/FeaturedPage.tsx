@@ -1246,12 +1246,10 @@ export default function FeaturedPage() {
         if (Math.abs(dy) > Math.abs(dx) * 0.85) { touchStartXRef.current = null; return }
         const pg = pageIdxRef.current
         const last = pagesLenRef.current - 1
-        const startX = touchStartXRef.current!
-        const W = window.innerWidth
-        if (pg === 0 && dx < 0 && (isPublishedRef.current || startX >= W * 0.70)) {
-          // Cover: drag left = turn forward. When unpublished only the right-30%
-          // zone turns (the rest cycles templates); when published the whole
-          // cover turns the page (templates are locked).
+        if (pg === 0 && dx < 0 && isPublishedRef.current) {
+          // Cover: drag left turns the page ONLY when published. While unpublished
+          // a horizontal swipe cycles templates (handleTouchEnd) — entering the
+          // book is done via the right-edge tap zone / blinking hint.
           armTurn('fwd', 0)
         } else if (pg > 0 && dx > 0) {
           // Interior: drag right = go back
@@ -1298,8 +1296,11 @@ export default function FeaturedPage() {
       // and feels like swiping "doesn't work".
       const dt    = Date.now() - touchStartTRef.current
       const moved = startX !== null ? Math.abs(endX - startX) : 0
-      const flick = dt < 320 && moved > 40
-      if (p >= 0.35 || flick) animateRef.current(p, 1, dir, finishRef.current)
+      // Commit on any deliberate swipe: a modest drag (~18% of the fold travel)
+      // OR a flick. The old 35% threshold made a normal swipe snap back, so it
+      // took two swipes to turn one page.
+      const flick = dt < 500 && moved > 30
+      if (p >= 0.18 || flick) animateRef.current(p, 1, dir, finishRef.current)
       else                    animateRef.current(p, 0, dir, () => finishRef.current(false))
       return
     }
