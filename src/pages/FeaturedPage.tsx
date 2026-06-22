@@ -1441,7 +1441,7 @@ export default function FeaturedPage() {
       const capEditing = capEditPage === i
       return (
         <PhotoSpread photos={spreadPhotos} arrangement={pg.arrangement ?? 0} theme={theme}
-          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
           onBack={capEditing ? undefined : onBack} onNext={capEditing ? undefined : onNext} dots={dotsProps}
@@ -1464,7 +1464,7 @@ export default function FeaturedPage() {
       return (
         <StoryPage story={car?.featured_story ?? ''} headline={coverHeadline}
           carShortName={carShortName} theme={theme}
-          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           onBack={storyEditing ? undefined : onBack} onNext={storyEditing ? undefined : onNext} dots={dotsProps}
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={storyEditing}
@@ -1487,7 +1487,7 @@ export default function FeaturedPage() {
     return (
       <SpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
         totalMods={jobs.length} carShortName={carShortName}
-        backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+        backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
         onBack={onBack} onNext={onNext} dots={dotsProps}
         isLast={!next}
         isPublished={isPublished} onTogglePublish={togglePublish} savingPublish={savingPublish}
@@ -1578,7 +1578,7 @@ export default function FeaturedPage() {
       {pageIdx === 0 && !isTurning && !adjusting && !editing && (
         <>
           <div onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
-            style={{ position:'absolute', top:'30%', bottom:'22%', right:0, width:'24%', zIndex:16 }} />
+            style={{ position:'absolute', top:'34%', bottom:'18%', right:0, width:'34%', zIndex:16 }} />
           <div style={{ position:'absolute', top:'50%', right:14, transform:'translateY(-50%)', zIndex:17,
             fontFamily:FONT_DECK, fontSize:34, lineHeight:1, color:COLOR_ACCENT, pointerEvents:'none',
             animation:`featCoverHint 1600ms ease 700ms both` }}>›</div>
@@ -1592,15 +1592,16 @@ export default function FeaturedPage() {
         </>
       )}
 
-      {/* Interior tap zones — tap the left/right edge to turn pages (swipe also
-          works). Vertically inset so they clear the back chevron, the folio, and
-          the edit pencils; disabled during any edit/turn interaction. */}
+      {/* Interior tap zones — tap the left half to go back (incl. to the cover),
+          the right half to go forward (swipe also works). Vertically inset so they
+          clear the Captions pencil (top), the folio + story grip (bottom); disabled
+          during any edit/turn interaction. */}
       {pageIdx > 0 && !isTurning && !adjusting && !editing && capEditPage === null && !storyOpen && (
         <>
           <div onClick={() => { if (!isTurningRef.current) runTurn('back') }}
-            style={{ position:'absolute', top:'30%', bottom:'24%', left:0, width:'16%', zIndex:16 }} />
+            style={{ position:'absolute', top:'12%', bottom:'14%', left:0, width:'48%', zIndex:16 }} />
           <div onClick={() => { if (!isTurningRef.current && pageIdx < pages.length - 1) runTurn('fwd') }}
-            style={{ position:'absolute', top:'30%', bottom:'24%', right:0, width:'16%', zIndex:16 }} />
+            style={{ position:'absolute', top:'12%', bottom:'14%', right:0, width:'48%', zIndex:16 }} />
         </>
       )}
 

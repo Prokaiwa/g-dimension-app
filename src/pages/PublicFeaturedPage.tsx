@@ -775,7 +775,7 @@ export default function PublicFeaturedPage() {
     if (pg.kind === 'photo') {
       return (
         <PubPhotoSpread photos={pg.photos!} arrangement={pg.arrangement ?? 0} theme={theme}
-          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
           onBack={onBack} onNext={onNext} dots={dotsProps} />
@@ -793,7 +793,7 @@ export default function PublicFeaturedPage() {
         <PubStoryPage
           story={car?.featured_story ?? ''} headline={coverHeadline}
           carShortName={carShortName} theme={theme}
-          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+          backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           onBack={onBack} onNext={onNext} dots={dotsProps}
           storyPhoto={storyPhoto}
           spFx={spFx} spFy={spFy} spZoom={spZoom} spHeight={spHeight} spPos={spPos} />
@@ -804,7 +804,7 @@ export default function PublicFeaturedPage() {
     return (
       <PubSpecSheet sections={pg.sections!} isCont={!!pg.isCont} theme={theme}
         totalMods={jobs.length} carShortName={carShortName}
-        backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i + 1}
+        backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
         onBack={onBack} onNext={onNext} dots={dotsProps} />
     )
   }
@@ -837,21 +837,22 @@ export default function PublicFeaturedPage() {
         <div ref={foldLineRef}    style={{ position:'absolute', top:0, bottom:0, pointerEvents:'none', opacity:0 }} />
       </div>
 
-      {/* Tap zones — page turn by tapping like a real magazine */}
+      {/* Tap zones — page turn by tapping like a real magazine: left half back,
+          right half forward. Inset vertically to clear the back chevron + folio. */}
       {pageIdx === 0 ? (
         <div
           onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
-          style={{ position:'absolute', top:'25%', right:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+          style={{ position:'absolute', top:'34%', bottom:'18%', right:0, width:'34%', zIndex:20, cursor:'pointer' }}
         />
       ) : (
         <>
           <div
             onClick={() => { if (!isTurningRef.current) runTurn('back') }}
-            style={{ position:'absolute', top:'25%', left:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+            style={{ position:'absolute', top:'12%', bottom:'14%', left:0, width:'48%', zIndex:20, cursor:'pointer' }}
           />
           <div
             onClick={() => { if (!isTurningRef.current) runTurn('fwd') }}
-            style={{ position:'absolute', top:'25%', right:0, width:'30%', height:'50%', zIndex:20, cursor:'pointer' }}
+            style={{ position:'absolute', top:'12%', bottom:'14%', right:0, width:'48%', zIndex:20, cursor:'pointer' }}
           />
         </>
       )}
