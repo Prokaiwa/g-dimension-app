@@ -15,6 +15,11 @@
 --   diy_steps        — ordered steps per guide (title + description)
 --   diy_step_photos  — MULTIPLE captioned photos per step
 --
+-- difficulty is stored as numeric(2,1) in 0.5 increments (1.0–5.0) to support
+-- the half-star rating system on the frontend. UI maps to labels:
+--   1.0–1.5 → Beginner  2.0–2.5 → Easy  3.0 → Intermediate
+--   3.5–4.0 → Hard      4.5–5.0 → Expert
+--
 -- car_id is denormalized on all three for 1-hop RLS (mirrors job_photos), which
 -- also keeps the future cross-car search queries cheap.
 --
@@ -35,7 +40,8 @@ create table if not exists public.diy_guides (
   id             uuid primary key default gen_random_uuid(),
   job_id         uuid not null unique references public.jobs(id) on delete cascade,
   car_id         uuid not null references public.cars(id) on delete cascade,
-  difficulty     text check (difficulty in ('beginner','intermediate','advanced','expert')),
+  -- 1.0–5.0 in 0.5 steps; NULL = unset. Maps to half-star rating on frontend.
+  difficulty     numeric(2,1) check (difficulty is null or (difficulty >= 1.0 and difficulty <= 5.0)),
   estimated_time text,                       -- free text: "2–3 hours", "full weekend"
   youtube_url    text,
   tools          text[] not null default '{}',

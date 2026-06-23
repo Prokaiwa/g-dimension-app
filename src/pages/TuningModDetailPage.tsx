@@ -91,6 +91,7 @@ export default function TuningModDetailPage() {
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
   const [links,         setLinks]         = useState<JobLink[]>([])
+  const [hasDiyGuide,   setHasDiyGuide]   = useState<boolean | null>(null)
 
   // Carousel + fullscreen viewer
   const [photoIndex,        setPhotoIndex]        = useState(0)
@@ -170,6 +171,10 @@ export default function TuningModDetailPage() {
       }
       setPhotos((photoData ?? []) as Photo[])
       setLinks((linksData ?? []) as JobLink[])
+      // Check if a DIY guide exists for this mod
+      const { data: diyData } = await supabase
+        .from('diy_guides').select('id').eq('job_id', modId).maybeSingle()
+      setHasDiyGuide(!!diyData)
       setLoading(false)
     }
     load()
@@ -651,6 +656,27 @@ export default function TuningModDetailPage() {
           >
             <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: COLOR_ACCENT }}>
               EDIT MOD
+            </span>
+          </button>
+        </div>
+
+        {/* ── DIY Guide ── */}
+        <div style={{ padding: '10px 20px 0' }}>
+          <button
+            onClick={() => navigate(hasDiyGuide ? `/tuning/mods/${modId}/diy` : `/tuning/mods/${modId}/diy/edit`)}
+            style={{
+              width: '100%', padding: '14px',
+              background: hasDiyGuide ? 'rgba(200,102,26,0.06)' : 'transparent',
+              border: `1.5px ${hasDiyGuide ? 'solid' : 'dashed'} rgba(200,102,26,0.35)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(200,102,26,0.7)" strokeWidth="2">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(200,102,26,0.7)' }}>
+              {hasDiyGuide ? 'VIEW DIY GUIDE' : 'ADD DIY GUIDE'}
             </span>
           </button>
         </div>

@@ -51,6 +51,7 @@ export default function PublicModDetailPage() {
   const [links,        setLinks]        = useState<JobLink[]>([])
   const [loading,      setLoading]      = useState(true)
   const [loadedUrls,   setLoadedUrls]   = useState<Set<string>>(new Set())
+  const [hasDiyGuide,  setHasDiyGuide]  = useState(false)
 
   // Carousel
   const [photoIndex, setPhotoIndex] = useState(0)
@@ -195,6 +196,9 @@ export default function PublicModDetailPage() {
       }
       setPhotos((photoData ?? []) as Photo[])
       setLinks((linksData ?? []) as JobLink[])
+      const { data: diyData } = await supabase
+        .from('diy_guides').select('id').eq('job_id', modId).maybeSingle()
+      setHasDiyGuide(!!diyData)
       setLoading(false)
     }
     load()
@@ -386,6 +390,29 @@ export default function PublicModDetailPage() {
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ── View Install Guide ── only shown when a guide exists */}
+          {hasDiyGuide && (
+            <div style={{ padding: '20px 20px 8px', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 20 }}>
+              <button
+                onClick={() => navigate(`/builds/${username}/mods/${modId}/diy`)}
+                style={{
+                  width: '100%', padding: '14px',
+                  background: 'rgba(200,102,26,0.08)',
+                  border: '1.5px solid rgba(200,102,26,0.45)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(200,102,26,0.8)" strokeWidth="2">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+                <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: 'rgba(200,102,26,0.85)' }}>
+                  VIEW INSTALL GUIDE
+                </span>
+              </button>
             </div>
           )}
 

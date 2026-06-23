@@ -37,6 +37,8 @@ import TuningAddPage from './pages/TuningAddPage'
 import TuningModGroupPage from './pages/TuningModGroupPage'
 import TuningModDetailPage from './pages/TuningModDetailPage'
 import TuningModEditPage from './pages/TuningModEditPage'
+import TuningDiyPage from './pages/TuningDiyPage'
+import TuningDiyEditPage from './pages/TuningDiyEditPage'
 import TuningPartDetailPage from './pages/TuningPartDetailPage'
 import TuningPartEditPage from './pages/TuningPartEditPage'
 
@@ -72,6 +74,7 @@ import PublicTimelinePage from './pages/PublicTimelinePage'
 import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
 import PublicGaragePage from './pages/PublicGaragePage'
 import PublicModDetailPage from './pages/PublicModDetailPage'
+import PublicDiyPage from './pages/PublicDiyPage'
 import PublicEntryDetailPage from './pages/PublicEntryDetailPage'
 import PublicFeaturedPage from './pages/PublicFeaturedPage'
 
@@ -192,6 +195,8 @@ export default function App() {
       <Route path="/tuning/mod-group/:sessionId" element={<ProtectedRoute><TuningModGroupPage /></ProtectedRoute>} />
       <Route path="/tuning/mods/:modId" element={<ProtectedRoute><TuningModDetailPage /></ProtectedRoute>} />
       <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/diy" element={<ProtectedRoute><TuningDiyPage /></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/diy/edit" element={<ProtectedRoute><TuningDiyEditPage /></ProtectedRoute>} />
 
       <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
       <Route path="/maintenance/service" element={<ProtectedRoute><MaintenanceServicePage /></ProtectedRoute>} />
@@ -220,6 +225,7 @@ export default function App() {
       <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
       <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
       <Route path="/builds/:username/mods/:modId" element={<PublicModDetailPage />} />
+      <Route path="/builds/:username/mods/:modId/diy" element={<PublicDiyPage />} />
       <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
 
