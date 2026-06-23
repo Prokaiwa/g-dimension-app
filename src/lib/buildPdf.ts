@@ -309,19 +309,22 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C_MID)
     doc.text('No modifications logged yet.', MX + 2, cy + 5); cy += 12
   } else {
-    // Column layout:  Date(28)  Mileage(22)  Shop(42)  Title(rest)  Cost(opt, 20)
-    const COL_DATE = MX + 2
-    const COL_MI   = MX + 32
-    const COL_SHOP = MX + 58
-    const COL_TITLE = MX + 102
-    const COL_COST = PW - MX - 2
+    // Column layout: Date(30) Mileage(26) Shop(32) Modification(rest) Cost(opt,22)
+    const COL_DATE  = MX + 2
+    const COL_MI    = MX + 32
+    const COL_SHOP  = MX + 58
+    const COL_TITLE = MX + 90   // shifted left 12mm vs old 102 — more room for mod name
+    const COL_COST  = PW - MX - 2
+    const LINE_H = 5.2
+    const ROW_VPAD = 2.5    // equal top AND bottom padding
+    const BASELINE_OFF = 3.0  // 8pt text: distance from row-top to first baseline
 
     // Column headers — registered so they repeat at the top of a continuation page.
     const modCols = () => {
       doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
-      doc.text('DATE',    COL_DATE,  cy + 4, { charSpace: 0.4 })
-      doc.text('MILEAGE', COL_MI,    cy + 4, { charSpace: 0.4 })
-      doc.text('SHOP',    COL_SHOP,  cy + 4, { charSpace: 0.4 })
+      doc.text('DATE',         COL_DATE,  cy + 4, { charSpace: 0.4 })
+      doc.text('MILEAGE',      COL_MI,    cy + 4, { charSpace: 0.4 })
+      doc.text('SHOP',         COL_SHOP,  cy + 4, { charSpace: 0.4 })
       doc.text('MODIFICATION', COL_TITLE, cy + 4, { charSpace: 0.4 })
       if (includePricing) doc.text('COST', COL_COST, cy + 4, { align: 'right', charSpace: 0.4 })
       cy += 5.5
@@ -334,21 +337,22 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : ''
       const hasLabor = m.installed_by === 'shop' && (m.labor_cost ?? 0) > 0
       const cost = includePricing ? ((m.parts_cost ?? 0) + (m.labor_cost ?? 0)) : 0
-      // Always reserve cost-column space so wrap is identical with/without pricing.
-      const titleW = COL_COST - COL_TITLE - 22
+      // Without pricing the title can use the full right margin; with pricing it
+      // must stop before the cost column. Width is set per-render so text fills
+      // the available space on either toggle without changing row height arbitrarily.
+      const titleW = includePricing
+        ? COL_COST - COL_TITLE - 22
+        : PW - MX - 4 - COL_TITLE
       const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
-      const LINE_H = 5.2
-      const ROW_PAD = 4
-      const rowH = Math.max(8, titleLines.length * LINE_H + ROW_PAD)
+      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, titleLines.length * LINE_H + 2 * ROW_VPAD)
 
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
 
-      const textY = titleLines.length === 1
-        ? cy + rowH / 2 + 2.5
-        : cy + ROW_PAD / 2 + LINE_H
+      // Symmetric padding: top padding = ROW_VPAD, baseline offset = BASELINE_OFF.
+      const textY = cy + ROW_VPAD + BASELINE_OFF
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(m.date_installed), COL_DATE, textY)
@@ -375,11 +379,15 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C_MID)
     doc.text('No service records logged yet.', MX + 2, cy + 5); cy += 12
   } else {
-    const COL_DATE  = MX + 2
-    const COL_MI    = MX + 32
-    const COL_SHOP  = MX + 58
-    const COL_DETAIL = MX + 102
-    const COL_COST  = PW - MX - 2
+    // Column layout: Date(30) Mileage(26) Shop(32) Service(rest) Cost(opt,22)
+    const COL_DATE   = MX + 2
+    const COL_MI     = MX + 32
+    const COL_SHOP   = MX + 58
+    const COL_DETAIL = MX + 90   // shifted left 12mm — more room for service text
+    const COL_COST   = PW - MX - 2
+    const LINE_H = 5.2
+    const ROW_VPAD = 2.5
+    const BASELINE_OFF = 3.0
 
     const svcCols = () => {
       doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...C_FAINT)
@@ -403,30 +411,23 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       const svcHasLabor = s.performed_by === 'shop' && (s.labor_cost ?? 0) > 0
       const totalCost = includePricing ? (s.total_cost ?? 0) : 0
 
-      // Always reserve cost-column space so text wraps identically regardless of
-      // whether pricing is shown — prevents the row height from changing on toggle.
-      const detailW = COL_COST - COL_DETAIL - 22
+      const detailW = includePricing
+        ? COL_COST - COL_DETAIL - 22
+        : PW - MX - 4 - COL_DETAIL
       const labelLines = doc.splitTextToSize(label, detailW) as string[]
-      const LINE_H = 5.2
-      const ROW_PAD = 4  // top + bottom breathing room
-      const rowH = Math.max(8, labelLines.length * LINE_H + ROW_PAD)
+      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, labelLines.length * LINE_H + 2 * ROW_VPAD)
 
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
 
-      // Baseline for first text line: vertically centred for single-line rows,
-      // starting from top-pad for multi-line rows.
-      const textY = labelLines.length === 1
-        ? cy + rowH / 2 + 2.5
-        : cy + ROW_PAD / 2 + LINE_H
+      const textY = cy + ROW_VPAD + BASELINE_OFF
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(s.date_performed), COL_DATE, textY)
       doc.text(s.mileage != null ? s.mileage.toLocaleString() : '—', COL_MI, textY)
       doc.text(shop, COL_SHOP, textY)
-      // All label lines stay C_INK — continuation lines are the same content, not notes.
       doc.setTextColor(...C_INK)
       labelLines.forEach((line, li) => {
         doc.text(line, COL_DETAIL, textY + li * LINE_H)
