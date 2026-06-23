@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import ImageLightbox from '../components/ImageLightbox'
-import { FONT_UI, COLOR_ACCENT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_BURGUNDY_M } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 
 const BG     = '#f0efec'
@@ -188,13 +188,9 @@ export default function PublicDiyPage() {
           <span style={{ color: 'rgba(245,240,228,0.6)', fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
         </button>
 
-        {/* G logo + wordmark centred */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-          <img src={gLogo} alt="G" style={{ height: 26, width: 'auto' }} />
-          <span style={{
-            fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic',
-            fontSize: 18, color: '#f5f5f5', letterSpacing: '0.1em',
-          }}>G-DIMENSION</span>
+        {/* G logo centred */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
+          <img src={gLogo} alt="G-Dimension" style={{ height: 34, width: 'auto' }} />
         </div>
 
         {/* BUILD GUIDE badge right */}
@@ -336,7 +332,7 @@ export default function PublicDiyPage() {
             onClick={() => navigate(`/builds/${username}`)}
             style={{
               marginTop: 8, padding: '10px 28px',
-              background: DARK, color: '#f5f5f5', border: 'none', borderRadius: 10,
+              background: COLOR_BURGUNDY_M, color: '#f5f5f5', border: 'none', borderRadius: 10,
               fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, cursor: 'pointer',
               letterSpacing: '0.04em',
             }}
