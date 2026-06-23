@@ -201,6 +201,7 @@ export default function TuningDiyEditPage() {
   const [carId, setCarId] = useState<string | null>(null)
   const [guideId, setGuideId] = useState<string | undefined>(undefined)
   const [addTimeline, setAddTimeline] = useState(false)
+  const [timelineAdded, setTimelineAdded] = useState(false)
 
   const [difficulty, setDifficulty] = useState<number | null>(null)
   const [estimatedTime, setEstimatedTime] = useState('')
@@ -229,6 +230,18 @@ export default function TuningDiyEditPage() {
 
         if (g) {
           setGuideId(g.id)
+
+          // Check if a timeline entry was already added for this guide
+          const { data: existing } = await supabase
+            .from('timeline_entries')
+            .select('id')
+            .eq('car_id', job.car_id)
+            .eq('entry_type', 'note')
+            .ilike('title', `DIY Guide:%`)
+            .eq('title', `DIY Guide: ${job.title}`)
+            .maybeSingle()
+          if (existing) setTimelineAdded(true)
+
           setDifficulty(g.difficulty ?? null)
           setEstimatedTime(g.estimated_time ?? '')
           setYoutubeUrl(g.youtube_url ?? '')
@@ -436,15 +449,16 @@ export default function TuningDiyEditPage() {
       }
       await Promise.all(photoOps)
 
-      if (addTimeline) {
+      if (addTimeline && !timelineAdded) {
         await supabase.from('timeline_entries').insert({
           car_id: carId,
           entry_type: 'note',
           title: `DIY Guide: ${modTitle}`,
-          entry_date: new Date().toISOString().slice(0, 10),
+          display_date: new Date().toISOString().slice(0, 10),
           session_id: null,
           is_origin: false,
         })
+        setTimelineAdded(true)
       }
 
       navigate(`/tuning/mods/${modId}/diy`)
@@ -723,9 +737,14 @@ export default function TuningDiyEditPage() {
         <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
             <p style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: DARK, margin: 0 }}>Add to Timeline</p>
-            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '2px 0 0' }}>Log this guide as a Timeline note</p>
+            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '2px 0 0' }}>
+              {timelineAdded ? 'Already logged on your Timeline' : 'Log this guide as a Timeline note'}
+            </p>
           </div>
-          <Toggle value={addTimeline} onChange={setAddTimeline} />
+          {timelineAdded
+            ? <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 700, color: MID, letterSpacing: '0.06em' }}>✓ ADDED</span>
+            : <Toggle value={addTimeline} onChange={setAddTimeline} />
+          }
         </div>
 
         {/* Save */}
