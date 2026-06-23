@@ -135,7 +135,7 @@ export default function TuningDiyPage() {
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.5)' }}>Mod</span>
         </button>
-        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.12em', color: 'rgba(245,240,228,0.55)' }}>DIY GUIDE</span>
+        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic', fontSize: 14, letterSpacing: '0.12em', color: '#ffffff' }}>G-DIMENSION</span>
         <button onClick={() => navigate(`/tuning/mods/${modId}/diy/edit`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 12px', WebkitTapHighlightColor: 'transparent', minHeight: 44 }}>
           <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', color: ACCENT }}>EDIT</span>
         </button>

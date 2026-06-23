@@ -54,43 +54,65 @@ function difficultyLabel(d: number | null): string {
 }
 
 function StarSelector({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  const display = value ?? 0
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ display: 'flex', gap: 2 }}>
-        {[1, 2, 3, 4, 5].map(n => {
-          const fill = value === null ? 0 : Math.min(1, Math.max(0, value - (n - 1)))
-          const fillPct = fill === 0 ? 0 : fill >= 1 ? 100 : 50
-          const uid = `star-clip-edit-${n}`
-          return (
-            <div key={n} style={{ position: 'relative', width: 28, height: 28 }}>
-              <svg width={28} height={28} viewBox="0 0 24 24" style={{ position: 'absolute', top: 0, left: 0 }}>
-                <path d={STAR_PATH} fill={FAINT} stroke="none" />
-              </svg>
-              {fillPct > 0 && (
+    <div>
+      {/* Star display */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {[1, 2, 3, 4, 5].map(n => {
+            const fill = display === 0 ? 0 : Math.min(1, Math.max(0, display - (n - 1)))
+            const fillPct = fill === 0 ? 0 : fill >= 1 ? 100 : 50
+            const uid = `star-clip-edit-${n}`
+            return (
+              <div key={n} style={{ position: 'relative', width: 28, height: 28 }}>
                 <svg width={28} height={28} viewBox="0 0 24 24" style={{ position: 'absolute', top: 0, left: 0 }}>
-                  <defs>
-                    <clipPath id={uid}>
-                      <rect x={0} y={0} width={fillPct === 100 ? 24 : 12} height={24} />
-                    </clipPath>
-                  </defs>
-                  <path d={STAR_PATH} fill={ACCENT} stroke="none" clipPath={`url(#${uid})`} />
+                  <path d={STAR_PATH} fill={FAINT} stroke="none" />
                 </svg>
-              )}
-              <div
-                style={{ position: 'absolute', top: 0, left: 0, width: '50%', height: '100%', cursor: 'pointer' }}
-                onClick={() => onChange(n - 0.5)}
-              />
-              <div
-                style={{ position: 'absolute', top: 0, right: 0, width: '50%', height: '100%', cursor: 'pointer' }}
-                onClick={() => onChange(n)}
-              />
-            </div>
-          )
-        })}
+                {fillPct > 0 && (
+                  <svg width={28} height={28} viewBox="0 0 24 24" style={{ position: 'absolute', top: 0, left: 0 }}>
+                    <defs>
+                      <clipPath id={uid}>
+                        <rect x={0} y={0} width={fillPct === 100 ? 24 : 12} height={24} />
+                      </clipPath>
+                    </defs>
+                    <path d={STAR_PATH} fill={ACCENT} stroke="none" clipPath={`url(#${uid})`} />
+                  </svg>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <span style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: value ? DARK : MID }}>
+          {value ? `${difficultyLabel(value)} (${value.toFixed(1)})` : 'Not set'}
+        </span>
       </div>
-      <span style={{ fontFamily: FONT_UI, fontSize: 13, color: MID }}>
-        {difficultyLabel(value)}{value !== null ? ` (${value.toFixed(1)})` : ''}
-      </span>
+      {/* Slider rail */}
+      <div style={{ position: 'relative' }}>
+        <style>{`
+          .diy-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; outline: none; background: transparent; cursor: pointer; }
+          .diy-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((display - 1) / 4) * 100}%, ${FAINT} ${((display - 1) / 4) * 100}%, ${FAINT} 100%); }
+          .diy-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; background: ${ACCENT}; margin-top: -8px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+          .diy-slider::-moz-range-track { height: 6px; border-radius: 3px; background: ${FAINT}; }
+          .diy-slider::-moz-range-progress { height: 6px; border-radius: 3px; background: ${ACCENT}; }
+          .diy-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: ${ACCENT}; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+        `}</style>
+        <input
+          type="range"
+          className="diy-slider"
+          min={1}
+          max={5}
+          step={0.5}
+          value={display || 1}
+          onChange={e => onChange(parseFloat(e.target.value))}
+        />
+        {/* Tick labels */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          {[1, 2, 3, 4, 5].map(n => (
+            <span key={n} style={{ fontFamily: FONT_UI, fontSize: 11, color: MID, width: 20, textAlign: 'center' }}>{n}</span>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -117,6 +139,55 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   )
 }
 
+// ── Caption modal ──────────────────────────────────────────────────────────
+type CaptionTarget = { stepIdx: number; photoIdx: number; value: string }
+
+function CaptionModal({ target, onSave, onClose }: {
+  target: CaptionTarget
+  onSave: (stepIdx: number, photoIdx: number, v: string) => void
+  onClose: () => void
+}) {
+  const [val, setVal] = useState(target.value)
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+      onClick={onClose}
+    >
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+      <div
+        style={{ position: 'relative', background: CARD, padding: '20px 20px 36px', borderTop: `2px solid ${BORDER}` }}
+        onClick={e => e.stopPropagation()}
+      >
+        <p style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: MID, margin: '0 0 10px' }}>PHOTO CAPTION</p>
+        <textarea
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder="Describe what's in this photo…"
+          autoFocus
+          rows={3}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            fontFamily: FONT_UI, fontSize: 16, color: DARK,
+            background: BG, border: `1px solid ${FAINT}`,
+            borderRadius: 0, padding: '10px 12px', outline: 'none',
+            resize: 'none', lineHeight: '1.5',
+          }}
+        />
+        <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, height: 46, background: 'none', border: `1px solid ${FAINT}`, cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, color: MID, borderRadius: RADIUS_BUTTON }}
+          >Cancel</button>
+          <button
+            onClick={() => { onSave(target.stepIdx, target.photoIdx, val); onClose() }}
+            style={{ flex: 2, height: 46, background: DARK, border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: '#f5f5f5', borderRadius: RADIUS_BUTTON, letterSpacing: '0.06em' }}
+          >SAVE CAPTION</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 export default function TuningDiyEditPage() {
   const { modId } = useParams<{ modId: string }>()
@@ -137,6 +208,7 @@ export default function TuningDiyEditPage() {
   const [steps, setSteps] = useState<Step[]>([])
   const [toolInput, setToolInput] = useState('')
 
+  const [captionModal, setCaptionModal] = useState<CaptionTarget | null>(null)
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -421,8 +493,8 @@ export default function TuningDiyEditPage() {
           color: '#ffffff', flex: 1, letterSpacing: '0.02em',
         }}>DIY Guide</span>
         <span style={{
-          fontFamily: FONT_UI, fontSize: 9, fontWeight: 800,
-          color: ACCENT, letterSpacing: '0.18em',
+          fontFamily: FONT_UI, fontSize: 14, fontWeight: 800, fontStyle: 'italic',
+          color: '#ffffff', letterSpacing: '0.12em',
         }}>G-DIMENSION</span>
       </div>
 
@@ -586,13 +658,15 @@ export default function TuningDiyEditPage() {
                               }}
                             >×</button>
                           </div>
-                          <input
-                            type="text"
-                            value={photo.caption}
-                            onChange={e => updatePhotoCaption(idx, pIdx, e.target.value)}
-                            placeholder="Caption"
-                            style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', marginTop: 4, width: 80 }}
-                          />
+                          <button
+                            onClick={() => setCaptionModal({ stepIdx: idx, photoIdx: pIdx, value: photo.caption })}
+                            style={{
+                              marginTop: 4, width: 80, padding: '4px 0', textAlign: 'center',
+                              fontFamily: FONT_UI, fontSize: 11, color: photo.caption ? DARK : ACCENT,
+                              background: 'none', border: `1px dashed ${photo.caption ? FAINT : ACCENT}`,
+                              cursor: 'pointer', borderRadius: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            }}
+                          >{photo.caption || '+ caption'}</button>
                         </div>
                       )
                     })}
@@ -657,6 +731,14 @@ export default function TuningDiyEditPage() {
           {saving ? 'SAVING…' : 'SAVE GUIDE'}
         </button>
       </div>
+
+      {captionModal && (
+        <CaptionModal
+          target={captionModal}
+          onSave={updatePhotoCaption}
+          onClose={() => setCaptionModal(null)}
+        />
+      )}
     </div>
   )
 }
