@@ -318,7 +318,7 @@ export default function PublicDiyPage() {
       {/* ── Footer brand + link ─────────────────────────────────────────────────── */}
       <div style={{ padding: '32px 20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, borderTop: `1px solid ${BORDER}`, marginTop: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <img src={gLogo} alt="G" style={{ height: 20, width: 'auto' }} />
+          <img src={gLogo} alt="G" style={{ height: 30, width: 'auto' }} />
           <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic', fontSize: 14, color: DARK, letterSpacing: '0.1em' }}>G-DIMENSION</span>
         </div>
         <a
