@@ -9,6 +9,15 @@
 // dynamically imported so the ~350 KB bundle only loads on generate.
 
 import type { jsPDF as JsPDFClass } from 'jspdf'
+import QRCode from 'qrcode'
+
+async function qrDataUrl(text: string): Promise<string | null> {
+  try {
+    const canvas = document.createElement('canvas')
+    await QRCode.toCanvas(canvas, text, { width: 128, margin: 1, color: { dark: '#111111', light: '#f4f4f2' } })
+    return canvas.toDataURL('image/png')
+  } catch { return null }
+}
 
 // ── palette ──────────────────────────────────────────────────────────────────
 const C_PAGE:   [number,number,number] = [244, 244, 242]  // warm off-white
@@ -116,14 +125,16 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   const PH = doc.internal.pageSize.getHeight()  // 297 mm
   const MX = 16                                  // outer margin
   const CW = PW - MX * 2                         // 178 mm content width
-  const { car, mods, services, investment, gLogoUrl, includePricing } = data
+  const { car, mods, services, investment, gLogoUrl, includePricing, ownerHandle } = data
 
   const carTitle = [car.year, car.model, car.variant].filter(Boolean).join(' ') || 'Unknown Build'
+  const publicUrl = ownerHandle ? `https://gdimension.app/builds/${ownerHandle}` : null
 
   // Load images concurrently
-  const [carPhoto, gLogo] = await Promise.all([
+  const [carPhoto, gLogo, qrImg] = await Promise.all([
     car.garage_photo_url ? imgToDataUrl(car.garage_photo_url) : Promise.resolve(null),
     imgToDataUrl(gLogoUrl),
+    publicUrl ? qrDataUrl(publicUrl) : Promise.resolve(null),
   ])
 
   // ── layout state ────────────────────────────────────────────────────────────
@@ -240,7 +251,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     iy2 += 8
   }
 
-  // Stats row
+  // Stats row + cosmetic summary line (mods · services · oldest date)
   const stats: { v: string; u: string }[] = []
   if (car.horsepower != null) stats.push({ v: String(car.horsepower), u: 'HP' })
   if (car.torque != null)     stats.push({ v: String(car.torque), u: 'LB-FT' })
@@ -263,6 +274,35 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     iy2 += 5
     doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...C_ACCENT)
     doc.text(money(investment) + '*', ID_X, iy2)
+    iy2 += 7
+  }
+
+  // Summary line: "5 mods · 8 services · since Jan 2023"
+  const oldestModDate = mods.filter(m => m.date_installed).map(m => m.date_installed!).sort()[0]
+  const oldestSvcDate = services.map(s => s.date_performed).sort()[0]
+  const oldestRaw = [oldestModDate, oldestSvcDate].filter(Boolean).sort()[0]
+  const sinceLabel = oldestRaw ? (() => {
+    const d = new Date(oldestRaw.slice(0,10) + 'T00:00:00')
+    return isNaN(d.getTime()) ? null : `since ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+  })() : null
+  const summaryParts = [
+    `${mods.length} mod${mods.length !== 1 ? 's' : ''}`,
+    `${services.length} service${services.length !== 1 ? 's' : ''}`,
+    sinceLabel,
+  ].filter(Boolean).join('  ·  ')
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...C_MID)
+  doc.text(summaryParts, ID_X, iy2, { charSpace: 0.2 })
+  iy2 += 7
+
+  // QR code — links to the owner's public build page. Sits at the bottom-right
+  // of the identity block, below the summary line.
+  if (qrImg && publicUrl) {
+    const QR_SZ = 18
+    const qrX = ID_X + ID_W - QR_SZ
+    doc.addImage(qrImg, 'PNG', qrX, iy2, QR_SZ, QR_SZ)
+    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(...C_MID)
+    doc.text('View full build', qrX + QR_SZ / 2, iy2 + QR_SZ + 3, { align: 'center' })
+    doc.text('gdimension.app', qrX + QR_SZ / 2, iy2 + QR_SZ + 6.5, { align: 'center' })
   }
 
   cy = Math.max(cy + PHOTO_H, iy2) + 10
@@ -333,41 +373,52 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     modCols()
     drawCols = modCols
 
+    const SHOP_W = COL_TITLE - COL_SHOP - 2  // 32mm — wrap shop names that overflow
+    let modTotal = 0
+
     mods.forEach((m, idx) => {
       const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : ''
       const hasLabor = m.installed_by === 'shop' && (m.labor_cost ?? 0) > 0
       const cost = includePricing ? ((m.parts_cost ?? 0) + (m.labor_cost ?? 0)) : 0
-      // Without pricing the title can use the full right margin; with pricing it
-      // must stop before the cost column. Width is set per-render so text fills
-      // the available space on either toggle without changing row height arbitrarily.
+      modTotal += cost
       const titleW = includePricing
         ? COL_COST - COL_TITLE - 22
         : PW - MX - 4 - COL_TITLE
       const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
-      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, titleLines.length * LINE_H + 2 * ROW_VPAD)
+      const shopLines  = doc.splitTextToSize(shop, SHOP_W) as string[]
+      const maxLines = Math.max(titleLines.length, shopLines.length)
+      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, maxLines * LINE_H + 2 * ROW_VPAD)
 
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
-
-      // Symmetric padding: top padding = ROW_VPAD, baseline offset = BASELINE_OFF.
       const textY = cy + ROW_VPAD + BASELINE_OFF
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(m.date_installed), COL_DATE, textY)
       doc.text(m.install_mileage != null ? m.install_mileage.toLocaleString() : '—', COL_MI, textY)
-      doc.text(shop, COL_SHOP, textY)
+      shopLines.forEach((line, li) => doc.text(line, COL_SHOP, textY + li * LINE_H))
       doc.setTextColor(...C_INK)
-      titleLines.forEach((line, li) => {
-        doc.text(line, COL_TITLE, textY + li * LINE_H)
-      })
+      titleLines.forEach((line, li) => doc.text(line, COL_TITLE, textY + li * LINE_H))
       if (includePricing && cost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
         doc.text(money(cost) + (hasLabor ? '*' : ''), COL_COST, textY, { align: 'right' })
       }
       cy += rowH
     })
+
+    // Totals row
+    if (includePricing && modTotal > 0) {
+      ensure(8)
+      doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy)
+      cy += 1
+      doc.setFillColor(...C_DARK); doc.rect(MX, cy, CW, 8, 'F')
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(244, 244, 242)
+      doc.text('TOTAL MODIFICATIONS', MX + 4, cy + 5.3, { charSpace: 0.6 })
+      doc.text(money(modTotal) + '*', COL_COST, cy + 5.3, { align: 'right' })
+      cy += 8
+    }
     cy += 6
   }
 
@@ -402,42 +453,56 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     svcCols()
     drawCols = svcCols
 
+    const SHOP_W = COL_DETAIL - COL_SHOP - 2
+    let svcTotal = 0
+
     services.forEach((s, idx) => {
-      // Service label: session title, or list of job titles, or type
       const label = s.title
         || (s.jobs.length > 0 ? s.jobs.map(j => j.title).join(', ') : null)
         || (s.type === 'detail' ? 'Detailing' : 'Maintenance')
       const shop = s.performed_by === 'shop' ? (s.shop_name || 'Shop') : ''
       const svcHasLabor = s.performed_by === 'shop' && (s.labor_cost ?? 0) > 0
       const totalCost = includePricing ? (s.total_cost ?? 0) : 0
+      svcTotal += totalCost
 
       const detailW = includePricing
         ? COL_COST - COL_DETAIL - 22
         : PW - MX - 4 - COL_DETAIL
       const labelLines = doc.splitTextToSize(label, detailW) as string[]
-      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, labelLines.length * LINE_H + 2 * ROW_VPAD)
+      const shopLines  = doc.splitTextToSize(shop, SHOP_W) as string[]
+      const maxLines = Math.max(labelLines.length, shopLines.length)
+      const rowH = Math.max(LINE_H + 2 * ROW_VPAD, maxLines * LINE_H + 2 * ROW_VPAD)
 
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
-
       const textY = cy + ROW_VPAD + BASELINE_OFF
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(s.date_performed), COL_DATE, textY)
       doc.text(s.mileage != null ? s.mileage.toLocaleString() : '—', COL_MI, textY)
-      doc.text(shop, COL_SHOP, textY)
+      shopLines.forEach((line, li) => doc.text(line, COL_SHOP, textY + li * LINE_H))
       doc.setTextColor(...C_INK)
-      labelLines.forEach((line, li) => {
-        doc.text(line, COL_DETAIL, textY + li * LINE_H)
-      })
+      labelLines.forEach((line, li) => doc.text(line, COL_DETAIL, textY + li * LINE_H))
       if (includePricing && totalCost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
         doc.text(money(totalCost) + (svcHasLabor ? '*' : ''), COL_COST, textY, { align: 'right' })
       }
       cy += rowH
     })
+
+    // Totals row
+    if (includePricing && svcTotal > 0) {
+      ensure(8)
+      doc.setDrawColor(...C_BURG); doc.setLineWidth(0.4); doc.line(MX, cy, PW - MX, cy)
+      cy += 1
+      doc.setFillColor(...C_DARK); doc.rect(MX, cy, CW, 8, 'F')
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(244, 244, 242)
+      doc.text('TOTAL SERVICE', MX + 4, cy + 5.3, { charSpace: 0.6 })
+      doc.text(money(svcTotal) + '*', COL_COST, cy + 5.3, { align: 'right' })
+      cy += 8
+    }
     cy += 6
   }
 
