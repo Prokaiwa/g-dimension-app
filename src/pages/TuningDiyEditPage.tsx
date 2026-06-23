@@ -779,17 +779,37 @@ export default function TuningDiyEditPage() {
         </div>
 
         {/* Timeline toggle */}
-        <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <p style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: DARK, margin: 0 }}>Add to Timeline</p>
-            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '2px 0 0' }}>
-              {timelineAdded ? 'Timeline entry updated on every save' : 'Log this guide as a Timeline note'}
-            </p>
+        <div style={{ ...cardStyle }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <p style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: DARK, margin: 0 }}>Add to Timeline</p>
+              <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '2px 0 0' }}>
+                {timelineAdded ? 'Timeline entry updated on every save' : 'Log this guide as a Timeline note'}
+              </p>
+            </div>
+            {timelineAdded
+              ? <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: '0.06em' }}>✓ ON</span>
+              : <Toggle value={addTimeline} onChange={setAddTimeline} />
+            }
           </div>
-          {timelineAdded
-            ? <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: '0.06em' }}>✓ ON</span>
-            : <Toggle value={addTimeline} onChange={setAddTimeline} />
-          }
+          {timelineAdded && timelineEntryId && (
+            <button
+              onClick={async () => {
+                await supabase.from('timeline_entries').delete().eq('id', timelineEntryId)
+                setTimelineAdded(false)
+                setTimelineEntryId(null)
+                setAddTimeline(false)
+              }}
+              style={{
+                marginTop: 10, background: 'none', border: 'none', cursor: 'pointer',
+                fontFamily: FONT_UI, fontSize: 12, fontWeight: 600, color: MID,
+                padding: 0, letterSpacing: '0.03em', textDecoration: 'underline',
+                textDecorationColor: FAINT,
+              }}
+            >
+              Remove from Timeline
+            </button>
+          )}
         </div>
 
         {/* Save */}
