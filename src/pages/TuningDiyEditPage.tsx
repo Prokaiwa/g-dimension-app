@@ -202,6 +202,7 @@ export default function TuningDiyEditPage() {
   const [guideId, setGuideId] = useState<string | undefined>(undefined)
   const [addTimeline, setAddTimeline] = useState(false)
   const [timelineAdded, setTimelineAdded] = useState(false)
+  const [timelineEntryId, setTimelineEntryId] = useState<string | null>(null)
 
   const [difficulty, setDifficulty] = useState<number | null>(null)
   const [estimatedTime, setEstimatedTime] = useState('')
@@ -240,7 +241,7 @@ export default function TuningDiyEditPage() {
             .ilike('title', `DIY Guide:%`)
             .eq('title', `DIY Guide: ${job.title}`)
             .maybeSingle()
-          if (existing) setTimelineAdded(true)
+          if (existing) { setTimelineAdded(true); setTimelineEntryId(existing.id) }
 
           setDifficulty(g.difficulty ?? null)
           setEstimatedTime(g.estimated_time ?? '')
@@ -449,8 +450,8 @@ export default function TuningDiyEditPage() {
       }
       await Promise.all(photoOps)
 
-      if (addTimeline && !timelineAdded) {
-        // Pull the now-persisted step photos so the Timeline entry isn't bare.
+      if (addTimeline || timelineAdded) {
+        // Pull the now-persisted step photos so the Timeline entry is rich.
         const { data: tlPhotos } = stepIds.length
           ? await supabase.from('diy_step_photos')
               .select('photo_url, display_order')
@@ -465,30 +466,42 @@ export default function TuningDiyEditPage() {
           + (stepCount ? ` — ${stepCount} step${stepCount > 1 ? 's' : ''}` : '')
           + (lbl ? `, ${lbl} difficulty.` : '.')
 
-        const { data: tlEntry } = await supabase.from('timeline_entries').insert({
-          car_id: carId,
-          entry_type: 'note',
-          title: `DIY Guide: ${modTitle}`,
-          journal_entry: journal,
-          photo_url: hero,
-          display_date: new Date().toISOString().slice(0, 10),
-          session_id: null,
-          is_origin: false,
-        }).select('id').single()
+        let eid = timelineEntryId
+        if (!eid) {
+          const { data: tlEntry } = await supabase.from('timeline_entries').insert({
+            car_id: carId,
+            entry_type: 'note',
+            title: `DIY Guide: ${modTitle}`,
+            journal_entry: journal,
+            photo_url: hero,
+            display_date: new Date().toISOString().slice(0, 10),
+            session_id: null,
+            is_origin: false,
+          }).select('id').single()
+          eid = (tlEntry as { id: string } | null)?.id ?? null
+          if (eid) setTimelineEntryId(eid)
+        } else {
+          // Update journal/hero in case steps changed
+          await supabase.from('timeline_entries').update({ journal_entry: journal, photo_url: hero }).eq('id', eid)
+        }
 
-        const eid = (tlEntry as { id: string } | null)?.id
         if (eid) {
+          // Always replace photos + link so the entry stays in sync with the guide
+          await Promise.all([
+            supabase.from('timeline_entry_photos').delete().eq('entry_id', eid),
+            supabase.from('timeline_entry_links').delete().eq('entry_id', eid),
+          ])
+          const inserts: PromiseLike<unknown>[] = []
           if (photoUrls.length) {
-            await supabase.from('timeline_entry_photos').insert(
+            inserts.push(supabase.from('timeline_entry_photos').insert(
               photoUrls.map((url, i) => ({ entry_id: eid, car_id: carId, photo_url: url, display_order: i })),
-            )
+            ))
           }
-          // Internal guide link — rendered as a "View Install Guide" button on the
-          // entry detail (owner → /tuning route, public → /builds route).
-          await supabase.from('timeline_entry_links').insert({
+          inserts.push(supabase.from('timeline_entry_links').insert({
             entry_id: eid, car_id: carId, url: `/tuning/mods/${modId}/diy`,
             label: 'View Install Guide', display_order: 0,
-          })
+          }))
+          await Promise.all(inserts)
         }
         setTimelineAdded(true)
       }
@@ -770,11 +783,11 @@ export default function TuningDiyEditPage() {
           <div>
             <p style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: DARK, margin: 0 }}>Add to Timeline</p>
             <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '2px 0 0' }}>
-              {timelineAdded ? 'Already logged on your Timeline' : 'Log this guide as a Timeline note'}
+              {timelineAdded ? 'Timeline entry updated on every save' : 'Log this guide as a Timeline note'}
             </p>
           </div>
           {timelineAdded
-            ? <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 700, color: MID, letterSpacing: '0.06em' }}>✓ ADDED</span>
+            ? <span style={{ fontFamily: FONT_UI, fontSize: 12, fontWeight: 700, color: ACCENT, letterSpacing: '0.06em' }}>✓ ON</span>
             : <Toggle value={addTimeline} onChange={setAddTimeline} />
           }
         </div>
