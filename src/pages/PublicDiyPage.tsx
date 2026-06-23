@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import ImageLightbox from '../components/ImageLightbox'
-import { FONT_UI, COLOR_ACCENT, COLOR_BURGUNDY_M } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_BRAND } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 
 const BG     = '#f0efec'
@@ -190,7 +190,7 @@ export default function PublicDiyPage() {
 
         {/* G logo centred */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
-          <img src={gLogo} alt="G-Dimension" style={{ height: 34, width: 'auto' }} />
+          <img src={gLogo} alt="G-Dimension" style={{ height: 49, width: 'auto' }} />
         </div>
 
         {/* BUILD GUIDE badge right */}
@@ -332,7 +332,7 @@ export default function PublicDiyPage() {
             onClick={() => navigate(`/builds/${username}`)}
             style={{
               marginTop: 8, padding: '10px 28px',
-              background: COLOR_BURGUNDY_M, color: '#f5f5f5', border: 'none', borderRadius: 10,
+              background: COLOR_BRAND, color: '#f5f5f5', border: 'none', borderRadius: 10,
               fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, cursor: 'pointer',
               letterSpacing: '0.04em',
             }}
