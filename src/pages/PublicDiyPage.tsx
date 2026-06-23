@@ -190,7 +190,7 @@ export default function PublicDiyPage() {
 
         {/* G logo centred */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center' }}>
-          <img src={gLogo} alt="G-Dimension" style={{ height: 49, width: 'auto' }} />
+          <img src={gLogo} alt="G-Dimension" style={{ height: 64, width: 'auto' }} />
         </div>
 
         {/* BUILD GUIDE badge right */}
