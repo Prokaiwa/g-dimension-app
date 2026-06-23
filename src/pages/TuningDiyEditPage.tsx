@@ -90,12 +90,12 @@ function StarSelector({ value, onChange }: { value: number | null; onChange: (v:
       {/* Slider rail */}
       <div style={{ position: 'relative' }}>
         <style>{`
-          .diy-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; outline: none; background: transparent; cursor: pointer; }
-          .diy-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((display - 1) / 4) * 100}%, ${FAINT} ${((display - 1) / 4) * 100}%, ${FAINT} 100%); }
-          .diy-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; border-radius: 50%; background: ${ACCENT}; margin-top: -8px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
-          .diy-slider::-moz-range-track { height: 6px; border-radius: 3px; background: ${FAINT}; }
-          .diy-slider::-moz-range-progress { height: 6px; border-radius: 3px; background: ${ACCENT}; }
-          .diy-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: ${ACCENT}; border: none; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+          .diy-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; outline: none; background: transparent; cursor: pointer; margin: 0; touch-action: none; }
+          .diy-slider::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((display - 1) / 4) * 100}%, ${FAINT} ${((display - 1) / 4) * 100}%, ${FAINT} 100%); }
+          .diy-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 32px; height: 32px; border-radius: 50%; background: ${ACCENT}; border: 3px solid #fff; margin-top: -12px; box-shadow: 0 1px 5px rgba(0,0,0,0.3); }
+          .diy-slider::-moz-range-track { height: 8px; border-radius: 4px; background: ${FAINT}; }
+          .diy-slider::-moz-range-progress { height: 8px; border-radius: 4px; background: ${ACCENT}; }
+          .diy-slider::-moz-range-thumb { width: 32px; height: 32px; border-radius: 50%; background: ${ACCENT}; border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.3); }
         `}</style>
         <input
           type="range"
@@ -195,6 +195,7 @@ export default function TuningDiyEditPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('Saving…')
   const [error, setError] = useState<string | null>(null)
   const [modTitle, setModTitle] = useState('')
   const [carId, setCarId] = useState<string | null>(null)
@@ -333,6 +334,7 @@ export default function TuningDiyEditPage() {
   const handleSave = async () => {
     if (!modId || !carId) return
     setSaving(true)
+    setSaveMsg('Saving guide…')
     setError(null)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -372,11 +374,10 @@ export default function TuningDiyEditPage() {
         }
       }
 
-      // Upsert steps + photos
+      // Upsert step rows first (sequential — each new row yields the id photos need)
+      const stepIds: string[] = []
       for (let i = 0; i < steps.length; i++) {
         const st = steps[i]
-        let stepId = st.id
-
         const stepPayload = {
           guide_id: finalGuideId!,
           car_id: carId,
@@ -384,43 +385,56 @@ export default function TuningDiyEditPage() {
           title: st.title,
           description: st.description,
         }
-
-        if (stepId) {
-          await supabase.from('diy_steps').update(stepPayload).eq('id', stepId)
+        if (st.id) {
+          await supabase.from('diy_steps').update(stepPayload).eq('id', st.id)
+          stepIds[i] = st.id
         } else {
           const { data: ins, error: insErr } = await supabase
             .from('diy_steps').insert(stepPayload).select('id').single()
           if (insErr) throw insErr
-          stepId = ins.id
+          stepIds[i] = ins.id
         }
+      }
+
+      // Photo work — run all uploads / deletes / caption updates in parallel.
+      setSaveMsg('Saving photos…')
+      const photoOps: PromiseLike<unknown>[] = []
+      for (let i = 0; i < steps.length; i++) {
+        const st = steps[i]
+        const stepId = stepIds[i]
 
         const deletedPhotoIds = st.photos.filter(p => p._deleted && p.id).map(p => p.id!)
         if (deletedPhotoIds.length > 0) {
-          await supabase.from('diy_step_photos').delete().in('id', deletedPhotoIds)
+          photoOps.push(supabase.from('diy_step_photos').delete().in('id', deletedPhotoIds))
         }
 
         for (const photo of st.photos.filter(p => !p._deleted && p._file)) {
-          const compressed = await imageCompression(photo._file!, COMPRESSION_OPTIONS)
-          const rand = Math.random().toString(36).slice(2)
-          const path = `${user.id}/${carId}/diy/${finalGuideId}/${stepId}/${Date.now()}-${rand}.jpg`
-          const { error: upErr } = await supabase.storage.from('job-photos').upload(path, compressed)
-          if (upErr) throw upErr
-          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
-          await supabase.from('diy_step_photos').insert({
-            step_id: stepId,
-            car_id: carId,
-            photo_url: urlData.publicUrl,
-            caption: photo.caption || null,
-            display_order: photo.display_order,
-          })
+          photoOps.push((async () => {
+            const compressed = await imageCompression(photo._file!, COMPRESSION_OPTIONS)
+            const rand = Math.random().toString(36).slice(2)
+            const path = `${user.id}/${carId}/diy/${finalGuideId}/${stepId}/${Date.now()}-${rand}.jpg`
+            const { error: upErr } = await supabase.storage.from('job-photos').upload(path, compressed)
+            if (upErr) throw upErr
+            const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
+            return supabase.from('diy_step_photos').insert({
+              step_id: stepId,
+              car_id: carId,
+              photo_url: urlData.publicUrl,
+              caption: photo.caption || null,
+              display_order: photo.display_order,
+            })
+          })())
         }
 
         for (const photo of st.photos.filter(p => !p._deleted && p.id)) {
-          await supabase.from('diy_step_photos')
-            .update({ caption: photo.caption || null })
-            .eq('id', photo.id!)
+          photoOps.push(
+            supabase.from('diy_step_photos')
+              .update({ caption: photo.caption || null })
+              .eq('id', photo.id!)
+          )
         }
       }
+      await Promise.all(photoOps)
 
       if (addTimeline) {
         await supabase.from('timeline_entries').insert({
@@ -738,6 +752,22 @@ export default function TuningDiyEditPage() {
           onSave={updatePhotoCaption}
           onClose={() => setCaptionModal(null)}
         />
+      )}
+
+      {saving && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          background: 'rgba(28,28,26,0.55)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.25)', borderTopColor: ACCENT,
+            animation: 'diy-spin 0.8s linear infinite',
+          }} />
+          <span style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 600, color: '#f5f5f5', letterSpacing: '0.04em' }}>{saveMsg}</span>
+          <style>{`@keyframes diy-spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
       )}
     </div>
   )

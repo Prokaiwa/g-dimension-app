@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
+import ImageLightbox from '../components/ImageLightbox'
 import { FONT_UI, COLOR_ACCENT } from '../tokens'
 
 const BG     = '#f0efec'
@@ -72,42 +73,45 @@ export default function PublicDiyPage() {
   const [photos,    setPhotos]    = useState<Photo[]>([])
   const [loading,   setLoading]   = useState(true)
   const [notFound,  setNotFound]  = useState(false)
+  const [lightbox,  setLightbox]  = useState<{ src: string; caption: string | null } | null>(null)
 
   useEffect(() => {
     if (!username || !modId) return
     async function load() {
-      // Verify car is public and get identity
-      const { data: car } = await supabase
-        .from('public_car_profiles')
-        .select('year, make, model, variant, show_buildsheet_publicly')
-        .eq('username', username)
-        .maybeSingle()
-
-      if (!car || car.show_buildsheet_publicly === false) {
-        setNotFound(true); setLoading(false); return
-      }
-
-      const variant = (car as { variant?: string }).variant
-      setCarName([car.year, car.make, car.model, variant].filter(Boolean).join(' '))
-
-      // Mod title
-      const { data: job } = await supabase
-        .from('jobs')
-        .select('name, brand')
-        .eq('id', modId)
-        .maybeSingle()
-
-      if (job) setModTitle([job.brand, job.name].filter(Boolean).join(' '))
-
-      // Guide
+      // Guide first — RLS only returns it when the car is public AND its Build
+      // Sheet is public (migration 059). This is the real visibility gate, and
+      // it sidesteps the multi-car ambiguity of looking a car up by username.
       const { data: g } = await supabase
         .from('diy_guides')
-        .select('id, difficulty, estimated_time, youtube_url, tools')
+        .select('id, car_id, difficulty, estimated_time, youtube_url, tools')
         .eq('job_id', modId)
         .maybeSingle()
 
       if (!g) { setNotFound(true); setLoading(false); return }
       setGuide(g)
+
+      // Mod title (jobs uses `title`, not `name`)
+      const { data: job } = await supabase
+        .from('jobs')
+        .select('title, brand')
+        .eq('id', modId)
+        .maybeSingle()
+
+      if (job) setModTitle([job.brand, (job as { title?: string }).title].filter(Boolean).join(' '))
+
+      // Car identity — resolve from the guide's car_id (user may have many cars)
+      const carId = (g as { car_id?: string }).car_id
+      if (carId) {
+        const { data: car } = await supabase
+          .from('public_car_profiles')
+          .select('year, make, model, variant')
+          .eq('id', carId)
+          .maybeSingle()
+        if (car) {
+          const variant = (car as { variant?: string }).variant
+          setCarName([car.year, car.make, car.model, variant].filter(Boolean).join(' '))
+        }
+      }
 
       // Steps
       const { data: ss } = await supabase
@@ -275,28 +279,22 @@ export default function PublicDiyPage() {
                     </div>
                   </div>
 
-                  {/* Step photos */}
+                  {/* Step photos — full-width, in order */}
                   {sp.length > 0 && (
-                    <div style={{ padding: sp.length === 1 ? '0 16px 16px' : '0 16px 16px' }}>
-                      {sp.length === 1 ? (
-                        <div>
-                          <img src={sp[0].photo_url} alt={sp[0].caption ?? ''} style={{ width: '100%', display: 'block', maxHeight: 260, objectFit: 'cover' }} />
-                          {sp[0].caption && (
-                            <div style={{ marginTop: 6, fontSize: 12, color: MID, lineHeight: 1.4 }}>{sp[0].caption}</div>
+                    <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {sp.map(ph => (
+                        <div key={ph.id}>
+                          <img
+                            src={ph.photo_url}
+                            alt={ph.caption ?? ''}
+                            onClick={() => setLightbox({ src: ph.photo_url, caption: ph.caption })}
+                            style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
+                          />
+                          {ph.caption && (
+                            <div style={{ marginTop: 6, fontSize: 12, color: MID, lineHeight: 1.5 }}>{ph.caption}</div>
                           )}
                         </div>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          {sp.map(ph => (
-                            <div key={ph.id}>
-                              <img src={ph.photo_url} alt={ph.caption ?? ''} style={{ width: '100%', height: 130, objectFit: 'cover', display: 'block' }} />
-                              {ph.caption && (
-                                <div style={{ marginTop: 4, fontSize: 11, color: MID, lineHeight: 1.3 }}>{ph.caption}</div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -336,6 +334,10 @@ export default function PublicDiyPage() {
           </button>
         )}
       </div>
+
+      {lightbox && (
+        <ImageLightbox src={lightbox.src} caption={lightbox.caption} onClose={() => setLightbox(null)} />
+      )}
     </div>
   )
 }

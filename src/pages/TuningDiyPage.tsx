@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
+import ImageLightbox from '../components/ImageLightbox'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 
 // ── DIY aesthetic ─────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export default function TuningDiyPage() {
   const [steps,    setSteps]    = useState<Step[]>([])
   const [photos,   setPhotos]   = useState<Photo[]>([])
   const [loading,  setLoading]  = useState(true)
+  const [lightbox, setLightbox] = useState<{ src: string; caption: string | null } | null>(null)
 
   useEffect(() => {
     if (!modId) return
@@ -225,17 +227,20 @@ export default function TuningDiyPage() {
                     )}
                     {/* Photos */}
                     {stepPhotos.length > 0 && (
-                      <div style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: stepPhotos.length === 1 ? '1fr' : 'repeat(2, 1fr)', gap: 8 }}>
-                          {stepPhotos.map(ph => (
-                            <div key={ph.id}>
-                              <img src={ph.photo_url} alt={ph.caption ?? ''} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
-                              {ph.caption && (
-                                <p style={{ fontFamily: FONT_UI, fontSize: 11, color: MID, margin: '4px 0 0', lineHeight: 1.4 }}>{ph.caption}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                      <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {stepPhotos.map(ph => (
+                          <div key={ph.id}>
+                            <img
+                              src={ph.photo_url}
+                              alt={ph.caption ?? ''}
+                              onClick={() => setLightbox({ src: ph.photo_url, caption: ph.caption })}
+                              style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
+                            />
+                            {ph.caption && (
+                              <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '6px 0 0', lineHeight: 1.5 }}>{ph.caption}</p>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -256,6 +261,10 @@ export default function TuningDiyPage() {
         </div>
 
       </div>
+
+      {lightbox && (
+        <ImageLightbox src={lightbox.src} caption={lightbox.caption} onClose={() => setLightbox(null)} />
+      )}
     </div>
   )
 }
