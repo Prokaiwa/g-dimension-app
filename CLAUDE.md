@@ -166,7 +166,7 @@ const carId = await getActiveCarId()
 
 ### Migration Files
 
-`supabase/migrations/001_users.sql` → `055_featured_layout.sql` — run in order.
+`supabase/migrations/001_users.sql` → `059_diy_guides.sql` — run in order.
 
 **MASTER_ARCHITECTURE.md Part 17 documents 001–023.** The following were added during build and are NOT in the architecture doc:
 
@@ -206,6 +206,7 @@ const carId = await getActiveCarId()
 | `056_source_us_manual.sql` | **Applied 2026-06-20.** Adds `'us_manual'` to the `vehicle_models.source` CHECK (now `nhtsa`/`carquery`/`jdm_manual`/`eu_manual`/`us_manual`/`user_added`). Removes NHTSA commercial/chassis junk under Chevrolet/Ford, tidies Shelby (keeps Cobra; Mustang-based Shelbys are Ford Mustang + trim), and backfills 18 classic/muscle nameplates missing from the modern-only NHTSA seed — Ford Torino/Fairlane/Falcon/Galaxie/Ranchero, Chevy Chevelle/Bel Air/Biscayne/Nomad/Chevy II, Dodge Charger/Challenger/Dart/Coronet/Polara/Viper/Magnum/Daytona. Family-level only (`source='us_manual'`); trims (SS, R/T, Boss, Mach 1, GT500) live on the car. Idempotent. |
 | `057_us_muscle_plymouth_buick_olds.sql` | **Applied 2026-06-20.** Second muscle pass — Plymouth Barracuda/Road Runner/GTX/Satellite/Belvedere/Duster/Valiant/Fury, Buick Gran Sport/Wildcat, Olds 442/F-85; drops Buick `Incomplete` junk. Pontiac was already covered. Idempotent. |
 | `058_exterior_full_aero_kit.sql` | **Applied 2026-06-22.** Adds the "Full Aero Kit" Exterior part type at `display_order` 4 (right after Side Skirts), shifting the rest of the Exterior list down one, plus a 4-field spec form (Type/Material/Brand/Model) mirroring Side Skirts. Guarded `do` block — idempotent and avoids a double display-order shift if re-run. |
+| `059_diy_guides.sql` | **Not yet applied.** DIY install guides for mods — three normalized tables: `diy_guides` (one per mod, UNIQUE `job_id`: `difficulty` CHECK beginner/intermediate/advanced/expert, `estimated_time` free text, `youtube_url`, `tools` text[]), `diy_steps` (ordered steps per guide: `step_order`/`title`/`description`), `diy_step_photos` (MULTIPLE captioned photos per step). `car_id` denormalized on all three for 1-hop RLS. A guide is a property OF a mod, surfaced as a sub-page off the mod detail — **no 5th home-map node**; public visitors reach it via Build Sheet → mod → "View Install Guide" (only shown when a guide exists). Owner full access; anon SELECT gated on `cars.is_public AND show_buildsheet_publicly` (mirrors the 053 jobs policy). Photos reuse the PUBLIC `job-photos` bucket under path `{userId}/{carId}/diy/{guideId}/{stepId}/{ts}-{rand}.jpg` and surface ONLY via `diy_step_photos` (no `job_photos` query can reach them — DIY images never leak onto the Build Sheet/carousel/Featured). DIY is a light-styled aesthetic island (like Parts Bin). Idempotent. |
 
 **`supabase/hotfixes.sql`** — ad-hoc SQL applied directly to the live Supabase DB outside the migration sequence. Keeps a record of manual fixes. Check here when debugging missing permissions (e.g. `job_specs` grants are in here).
 
@@ -304,7 +305,7 @@ src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–058
+supabase/migrations/                — Numbered SQL files 001–059
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
