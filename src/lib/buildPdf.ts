@@ -128,7 +128,9 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
   // ── layout state ────────────────────────────────────────────────────────────
   let cy = 0
-  const BOTTOM = PH - 14
+  // BOTTOM leaves room for the footer zone: disclaimer (~4mm) + footnote (optional, ~4mm)
+  // + rule + page number + a clear gap above all of that.
+  const BOTTOM = PH - 26
   // Active section context — re-drawn at the top of each continuation page so a
   // reader always knows which section the spilled rows belong to.
   let curSection: string | null = null
@@ -329,26 +331,36 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
     drawCols = modCols
 
     mods.forEach((m, idx) => {
-      const rowH = 7
+      const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : ''
+      const hasLabor = m.installed_by === 'shop' && (m.labor_cost ?? 0) > 0
+      const cost = includePricing ? ((m.parts_cost ?? 0) + (m.labor_cost ?? 0)) : 0
+      // Always reserve cost-column space so wrap is identical with/without pricing.
+      const titleW = COL_COST - COL_TITLE - 22
+      const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
+      const LINE_H = 5.2
+      const ROW_PAD = 4
+      const rowH = Math.max(8, titleLines.length * LINE_H + ROW_PAD)
+
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
-      const shop = m.installed_by === 'shop' ? (m.shop_name || 'Shop') : ''
-      const hasLabor = m.installed_by === 'shop' && (m.labor_cost ?? 0) > 0
-      const cost = includePricing ? ((m.parts_cost ?? 0) + (m.labor_cost ?? 0)) : 0
-      const titleW = includePricing ? COL_COST - COL_TITLE - 22 : PW - MX - COL_TITLE - 4
-      const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
+
+      const textY = titleLines.length === 1
+        ? cy + rowH / 2 + 2.5
+        : cy + ROW_PAD / 2 + LINE_H
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
-      doc.text(fmtDate(m.date_installed), COL_DATE, cy + 4.8)
-      doc.text(m.install_mileage != null ? m.install_mileage.toLocaleString() : '—', COL_MI, cy + 4.8)
-      doc.text(shop, COL_SHOP, cy + 4.8)
+      doc.text(fmtDate(m.date_installed), COL_DATE, textY)
+      doc.text(m.install_mileage != null ? m.install_mileage.toLocaleString() : '—', COL_MI, textY)
+      doc.text(shop, COL_SHOP, textY)
       doc.setTextColor(...C_INK)
-      doc.text(titleLines[0] || m.title, COL_TITLE, cy + 4.8)
+      titleLines.forEach((line, li) => {
+        doc.text(line, COL_TITLE, textY + li * LINE_H)
+      })
       if (includePricing && cost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(cost) + (hasLabor ? '*' : ''), COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(cost) + (hasLabor ? '*' : ''), COL_COST, textY, { align: 'right' })
       }
       cy += rowH
     })
@@ -391,28 +403,37 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       const svcHasLabor = s.performed_by === 'shop' && (s.labor_cost ?? 0) > 0
       const totalCost = includePricing ? (s.total_cost ?? 0) : 0
 
-      const detailW = includePricing ? COL_COST - COL_DETAIL - 22 : PW - MX - COL_DETAIL - 4
+      // Always reserve cost-column space so text wraps identically regardless of
+      // whether pricing is shown — prevents the row height from changing on toggle.
+      const detailW = COL_COST - COL_DETAIL - 22
       const labelLines = doc.splitTextToSize(label, detailW) as string[]
-      const rowH = Math.max(7, labelLines.length * 5)
+      const LINE_H = 5.2
+      const ROW_PAD = 4  // top + bottom breathing room
+      const rowH = Math.max(8, labelLines.length * LINE_H + ROW_PAD)
 
       ensure(rowH + 2)
       if (idx % 2 === 0) {
         doc.setFillColor(...C_STRIPE); doc.rect(MX, cy, CW, rowH, 'F')
       }
 
+      // Baseline for first text line: vertically centred for single-line rows,
+      // starting from top-pad for multi-line rows.
+      const textY = labelLines.length === 1
+        ? cy + rowH / 2 + 2.5
+        : cy + ROW_PAD / 2 + LINE_H
+
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
-      doc.text(fmtDate(s.date_performed), COL_DATE, cy + 4.8)
-      doc.text(s.mileage != null ? s.mileage.toLocaleString() : '—', COL_MI, cy + 4.8)
-      doc.text(shop, COL_SHOP, cy + 4.8)
+      doc.text(fmtDate(s.date_performed), COL_DATE, textY)
+      doc.text(s.mileage != null ? s.mileage.toLocaleString() : '—', COL_MI, textY)
+      doc.text(shop, COL_SHOP, textY)
+      // All label lines stay C_INK — continuation lines are the same content, not notes.
       doc.setTextColor(...C_INK)
-      doc.text(labelLines[0] || label, COL_DETAIL, cy + 4.8)
-      if (labelLines.length > 1) {
-        doc.setTextColor(...C_MID)
-        doc.text(labelLines.slice(1).join(' '), COL_DETAIL, cy + 9.8)
-      }
+      labelLines.forEach((line, li) => {
+        doc.text(line, COL_DETAIL, textY + li * LINE_H)
+      })
       if (includePricing && totalCost > 0) {
         doc.setFont('helvetica','bold'); doc.setTextColor(...C_INK)
-        doc.text(money(totalCost) + (svcHasLabor ? '*' : ''), COL_COST, cy + 4.8, { align: 'right' })
+        doc.text(money(totalCost) + (svcHasLabor ? '*' : ''), COL_COST, textY, { align: 'right' })
       }
       cy += rowH
     })
