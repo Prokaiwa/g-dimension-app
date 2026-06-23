@@ -1,10 +1,11 @@
 // Route: /builds/:username/mods/:modId/diy — Public read-only DIY guide
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import ImageLightbox from '../components/ImageLightbox'
 import { FONT_UI, COLOR_ACCENT } from '../tokens'
+import gLogo from '../assets/logo/gdimensionG.webp'
 
 const BG     = '#f0efec'
 const CARD   = '#ffffff'
@@ -65,6 +66,12 @@ type Photo = { id: string; step_id: string; photo_url: string; caption: string |
 export default function PublicDiyPage() {
   const { username, modId } = useParams<{ username: string; modId: string }>()
   const navigate = useNavigate()
+  // Track whether there's real in-app history to go back to
+  const hasHistory = useRef(window.history.length > 1)
+  const handleBack = () => {
+    if (hasHistory.current) navigate(-1)
+    else navigate(`/builds/${username}`)
+  }
 
   const [modTitle,  setModTitle]  = useState<string>('')
   const [carName,   setCarName]   = useState<string>('')
@@ -168,25 +175,33 @@ export default function PublicDiyPage() {
     <div style={{ minHeight: '100dvh', background: BG, fontFamily: FONT_UI }}>
 
       {/* ── Masthead header ────────────────────────────────────────────────────── */}
-      <div style={{ background: DARK, padding: '18px 20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-        {/* G-Dimension wordmark */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%', background: ACCENT,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: FONT_UI, fontWeight: 900, fontSize: 15, color: '#fff', letterSpacing: '-0.03em',
-          }}>G</div>
-          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 16, color: '#f5f5f5', letterSpacing: '0.12em' }}>
-            G-DIMENSION
-          </span>
+      <div style={{ background: DARK, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+        {/* Smart back button */}
+        <button
+          onClick={handleBack}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 4px',
+            minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', gap: 4,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ color: 'rgba(245,240,228,0.6)', fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
+        </button>
+
+        {/* G logo + wordmark centred */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          <img src={gLogo} alt="G" style={{ height: 26, width: 'auto' }} />
+          <span style={{
+            fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic',
+            fontSize: 18, color: '#f5f5f5', letterSpacing: '0.1em',
+          }}>G-DIMENSION</span>
         </div>
-        <div style={{
-          marginTop: 2,
-          fontFamily: FONT_UI, fontWeight: 600, fontSize: 10, color: ACCENT,
-          letterSpacing: '0.22em', textTransform: 'uppercase' as const,
-        }}>
-          BUILD GUIDE
-        </div>
+
+        {/* BUILD GUIDE badge right */}
+        <span style={{
+          fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,
+          color: ACCENT, letterSpacing: '0.2em',
+        }}>BUILD GUIDE</span>
       </div>
 
       {/* ── Mod + car identity ─────────────────────────────────────────────────── */}
@@ -307,12 +322,8 @@ export default function PublicDiyPage() {
       {/* ── Footer brand + link ─────────────────────────────────────────────────── */}
       <div style={{ padding: '32px 20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, borderTop: `1px solid ${BORDER}`, marginTop: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            width: 22, height: 22, borderRadius: '50%', background: ACCENT,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: FONT_UI, fontWeight: 900, fontSize: 12, color: '#fff',
-          }}>G</div>
-          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: DARK, letterSpacing: '0.1em' }}>G-DIMENSION</span>
+          <img src={gLogo} alt="G" style={{ height: 20, width: 'auto' }} />
+          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic', fontSize: 14, color: DARK, letterSpacing: '0.1em' }}>G-DIMENSION</span>
         </div>
         <a
           href="https://gdimension.app"
@@ -325,12 +336,12 @@ export default function PublicDiyPage() {
             onClick={() => navigate(`/builds/${username}`)}
             style={{
               marginTop: 8, padding: '10px 28px',
-              background: ACCENT, color: '#fff', border: 'none', borderRadius: 10,
+              background: DARK, color: '#f5f5f5', border: 'none', borderRadius: 10,
               fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, cursor: 'pointer',
-              letterSpacing: '0.06em',
+              letterSpacing: '0.04em',
             }}
           >
-            VIEW FULL BUILD
+            View @{username}'s Full Build
           </button>
         )}
       </div>

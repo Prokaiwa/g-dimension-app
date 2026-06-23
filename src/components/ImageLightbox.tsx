@@ -1,13 +1,38 @@
-// Full-screen image viewer — tap anywhere (or the ✕) to dismiss.
-// Used by the DIY guide pages (owner + public) to zoom a step photo.
+// Full-screen image viewer — tap anywhere, swipe, or press ✕ to dismiss.
+// Locks body scroll while open.
+import { useEffect, useRef } from 'react'
 import { FONT_UI } from '../tokens'
 
 export default function ImageLightbox({
   src, caption, onClose,
 }: { src: string; caption?: string | null; onClose: () => void }) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  // Lock background scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return
+    const dx = e.changedTouches[0].clientX - touchStart.current.x
+    const dy = e.changedTouches[0].clientY - touchStart.current.y
+    // Dismiss on swipe > 60px in any direction
+    if (Math.abs(dx) > 60 || Math.abs(dy) > 60) onClose()
+    touchStart.current = null
+  }
+
   return (
     <div
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.92)',
