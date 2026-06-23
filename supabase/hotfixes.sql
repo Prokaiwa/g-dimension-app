@@ -5,7 +5,10 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 058_exterior_full_aero_kit.sql (applied 2026-06-22)
+-- Last migration applied : 059_diy_guides.sql (applied 2026-06-23)
+--   - 059 (diy_guides / diy_steps / diy_step_photos — DIY install guides per mod;
+--     difficulty numeric(2,1) half-star, owner RLS + anon SELECT gated on
+--     is_public AND show_buildsheet_publicly; grants) applied 2026-06-23.
 --   - 054 (public_car_profiles exposes cars.variant) confirmed live 2026-06-19
 --     while applying 055 (the live view's last pre-055 column was c.variant).
 --   - 055 (cars.featured_layout jsonb — Featured cover editorial overrides +
