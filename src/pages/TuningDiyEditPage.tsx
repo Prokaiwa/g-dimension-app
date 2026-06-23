@@ -450,14 +450,46 @@ export default function TuningDiyEditPage() {
       await Promise.all(photoOps)
 
       if (addTimeline && !timelineAdded) {
-        await supabase.from('timeline_entries').insert({
+        // Pull the now-persisted step photos so the Timeline entry isn't bare.
+        const { data: tlPhotos } = stepIds.length
+          ? await supabase.from('diy_step_photos')
+              .select('photo_url, display_order')
+              .in('step_id', stepIds).order('display_order')
+          : { data: [] }
+        const photoUrls = ((tlPhotos ?? []) as Array<{ photo_url: string }>).map(p => p.photo_url).slice(0, 6)
+        const hero = photoUrls[0] ?? null
+
+        const stepCount = steps.length
+        const lbl = difficulty != null ? difficultyLabel(difficulty).toLowerCase() : null
+        const journal = `Wrote up the install guide for ${modTitle}`
+          + (stepCount ? ` — ${stepCount} step${stepCount > 1 ? 's' : ''}` : '')
+          + (lbl ? `, ${lbl} difficulty.` : '.')
+
+        const { data: tlEntry } = await supabase.from('timeline_entries').insert({
           car_id: carId,
           entry_type: 'note',
           title: `DIY Guide: ${modTitle}`,
+          journal_entry: journal,
+          photo_url: hero,
           display_date: new Date().toISOString().slice(0, 10),
           session_id: null,
           is_origin: false,
-        })
+        }).select('id').single()
+
+        const eid = (tlEntry as { id: string } | null)?.id
+        if (eid) {
+          if (photoUrls.length) {
+            await supabase.from('timeline_entry_photos').insert(
+              photoUrls.map((url, i) => ({ entry_id: eid, car_id: carId, photo_url: url, display_order: i })),
+            )
+          }
+          // Internal guide link — rendered as a "View Install Guide" button on the
+          // entry detail (owner → /tuning route, public → /builds route).
+          await supabase.from('timeline_entry_links').insert({
+            entry_id: eid, car_id: carId, url: `/tuning/mods/${modId}/diy`,
+            label: 'View Install Guide', display_order: 0,
+          })
+        }
         setTimelineAdded(true)
       }
 

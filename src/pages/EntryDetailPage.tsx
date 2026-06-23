@@ -280,6 +280,11 @@ export default function EntryDetailPage() {
   const meta = TYPE_META[entry.entry_type] ?? TYPE_META.note
   const isNote = entry.entry_type === 'note'
 
+  // Internal links (stored as app-relative paths, e.g. a DIY guide) render as a
+  // navigation button rather than an external link card.
+  const internalLinks = links.filter(l => l.url.startsWith('/'))
+  const externalLinks = links.filter(l => !l.url.startsWith('/'))
+
   return page(
     <div ref={scrollRef} style={{ paddingBottom: isNote ? 96 : 40 }}>
       {/* Photo carousel — all photos, hero first */}
@@ -338,13 +343,27 @@ export default function EntryDetailPage() {
           </p>
         )}
 
+        {/* Internal navigation buttons (e.g. View Install Guide) */}
+        {internalLinks.map(l => (
+          <button key={l.id} onClick={() => navigate(l.url)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', marginBottom: 22,
+              borderRadius: RADIUS_BUTTON, background: 'transparent', border: `1px solid ${COLOR_TIMELINE_RULE}`,
+              cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: COLOR_TIMELINE_TEXT, WebkitTapHighlightColor: 'transparent',
+            }}>
+            {l.label || 'View Install Guide'}
+            <span style={{ color: COLOR_TIMELINE_MUTED }}>›</span>
+          </button>
+        ))}
+
         {/* Links */}
-        {links.length > 0 && (
+        {externalLinks.length > 0 && (
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_YEAR, marginBottom: 10 }}>
               Links
             </div>
-            {links.map(l => {
+            {externalLinks.map(l => {
               const ytId = getYouTubeId(l.url)
               return (
                 <button key={l.id} onClick={() => window.open(l.url, '_blank', 'noopener')}

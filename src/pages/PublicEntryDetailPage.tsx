@@ -268,6 +268,17 @@ export default function PublicEntryDetailPage() {
 
   const meta = TYPE_META[entry.entry_type] ?? TYPE_META.note
 
+  // Internal links (app-relative paths). For visitors, rewrite an owner DIY
+  // route (/tuning/mods/:id/diy) to its public twin (/builds/:user/mods/:id/diy).
+  const toPublic = (url: string) => {
+    const m = url.match(/^\/tuning\/mods\/([^/]+)\/diy/)
+    return m ? `/builds/${username}/mods/${m[1]}/diy` : null
+  }
+  const internalLinks = links
+    .map(l => ({ ...l, pub: toPublic(l.url) }))
+    .filter(l => l.pub)
+  const externalLinks = links.filter(l => !l.url.startsWith('/'))
+
   return page(
     <div style={{ paddingBottom: 40 }}>
       {/* Photo carousel */}
@@ -328,13 +339,27 @@ export default function PublicEntryDetailPage() {
           </p>
         )}
 
+        {/* Internal navigation buttons (e.g. View Install Guide) */}
+        {internalLinks.map(l => (
+          <button key={l.id} onClick={() => navigate(l.pub!)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 18px', marginBottom: 22,
+              borderRadius: RADIUS_TIMELINE_CARD, background: 'transparent', border: `1px solid ${COLOR_TIMELINE_RULE}`,
+              cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em',
+              textTransform: 'uppercase', color: COLOR_TIMELINE_TEXT, WebkitTapHighlightColor: 'transparent',
+            }}>
+            {l.label || 'View Install Guide'}
+            <span style={{ color: COLOR_TIMELINE_MUTED }}>›</span>
+          </button>
+        ))}
+
         {/* Links */}
-        {links.length > 0 && (
+        {externalLinks.length > 0 && (
           <div style={{ marginBottom: 22 }}>
             <div style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_YEAR, marginBottom: 10 }}>
               Links
             </div>
-            {links.map(l => {
+            {externalLinks.map(l => {
               const ytId = getYouTubeId(l.url)
               return (
                 <button key={l.id} onClick={() => window.open(l.url, '_blank', 'noopener')}
