@@ -964,7 +964,7 @@ export default function TuningModDetailPage() {
 
       {/* ── Receipt lightbox ── */}
       {receiptLightbox.open && (() => {
-        const imgs = receipts.filter(r => r.file_type === 'image' && r.signedUrl).map(r => ({ url: r.signedUrl!, caption: r.file_name }))
+        const imgs = receipts.filter(r => r.file_type === 'image' && r.signedUrl).map(r => ({ url: r.signedUrl! }))
         return (
           <ImageCarouselLightbox
             images={imgs}

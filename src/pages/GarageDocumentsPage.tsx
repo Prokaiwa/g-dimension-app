@@ -212,6 +212,10 @@ export default function GarageDocumentsPage() {
   const [previewIdx, setPreviewIdx] = useState(0)   // current image in the inline preview strip
   const previewG = useRef({ x0: 0, dx: 0, lock: false })
   const previewStripRef = useRef<HTMLDivElement>(null)
+  const [detailDragY, setDetailDragY]       = useState(0)
+  const [detailDragging, setDetailDragging] = useState(false)
+  const detailPanelRef   = useRef<HTMLDivElement>(null)
+  const detailScrollRef  = useRef<HTMLDivElement>(null)
   // Full-screen PDF viewer overlay (stays in-app)
   const [pdfFullscreen, setPdfFullscreen] = useState(false)
   // Carousel lightbox
@@ -328,6 +332,48 @@ export default function GarageDocumentsPage() {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [detailItem])
+
+  // Swipe-to-dismiss the detail panel — mirrors GarageCarsPage sheet behaviour.
+  // Non-passive touchmove so we can preventDefault and stop native bounce.
+  useEffect(() => {
+    const el = detailPanelRef.current
+    if (!el) return
+    let startY = 0, curY = 0, dragging = false, fromGrip = false
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0]; if (!t) return
+      fromGrip = !!(e.target as HTMLElement).closest('[data-sheet-grip]')
+      startY = t.clientY; curY = 0; dragging = false
+    }
+    const onMove = (e: TouchEvent) => {
+      const t = e.touches[0]; if (!t) return
+      const dy = t.clientY - startY
+      if (!dragging) {
+        const atTop = (detailScrollRef.current?.scrollTop ?? 0) <= 0
+        if ((fromGrip || atTop) && dy > 4) { dragging = true; setDetailDragging(true) }
+        else return
+      }
+      if (dy <= 0) { curY = 0; setDetailDragY(0); return }
+      e.preventDefault()
+      curY = dy; setDetailDragY(dy)
+    }
+    const onEnd = () => {
+      if (!dragging) return
+      dragging = false; setDetailDragging(false)
+      if (curY > 110) { setDetailItem(null); setPdfFullscreen(false); setLightboxOpen(false) }
+      setDetailDragY(0)
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+    }
+  // Re-register when detailItem changes so the ref points at the mounted panel.
+  }, [detailItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load signed URL(s) for the detail panel — images become a carousel, PDFs use the primary URL.
   useEffect(() => {
@@ -1080,15 +1126,23 @@ export default function GarageDocumentsPage() {
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 40 }}
           />
           {/* Panel */}
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 41,
-            maxHeight: '92dvh', display: 'flex', flexDirection: 'column',
-            background: SHEET_BG, borderRadius: '12px 12px 0 0',
-            overflow: 'hidden',
-          }}>
-            {/* Handle + close */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 0', flexShrink: 0 }}>
-              <div style={{ width: 40, height: 4, background: 'rgba(240,228,200,0.2)', borderRadius: 2, margin: '0 auto' }} />
+          <div
+            ref={detailPanelRef}
+            style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 41,
+              maxHeight: '92dvh', display: 'flex', flexDirection: 'column',
+              background: SHEET_BG, borderRadius: '12px 12px 0 0',
+              overflow: 'hidden',
+              transform: `translateY(${detailDragY}px)`,
+              transition: detailDragging ? 'none' : `transform 400ms cubic-bezier(0.22,1,0.36,1)`,
+            }}
+          >
+            {/* Handle — drag target, closes on pull-down */}
+            <div
+              data-sheet-grip
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px 16px 4px', flexShrink: 0, touchAction: 'none', cursor: 'grab', WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div style={{ width: 40, height: 4, background: 'rgba(240,228,200,0.2)', borderRadius: 2 }} />
             </div>
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
               <button onClick={() => { setDetailItem(null); setPdfFullscreen(false); setLightboxOpen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
@@ -1096,7 +1150,7 @@ export default function GarageDocumentsPage() {
               </button>
             </div>
 
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div ref={detailScrollRef} style={{ overflowY: 'auto', flex: 1 }}>
               {/* Image or PDF indicator */}
               {(() => {
                 const fileType = detailItem.kind === 'buildReceiptGroup'
