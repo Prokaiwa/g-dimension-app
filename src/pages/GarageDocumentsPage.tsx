@@ -18,6 +18,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
+import ImageLightbox from '../components/ImageLightbox'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -207,6 +208,8 @@ export default function GarageDocumentsPage() {
   const [detailUrlLoading, setDetailUrlLoading] = useState(false)
   // Full-screen PDF viewer overlay (stays in-app)
   const [pdfFullscreen, setPdfFullscreen] = useState(false)
+  // Full-screen image lightbox (swipe-to-dismiss, same as the rest of the app)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -888,6 +891,11 @@ export default function GarageDocumentsPage() {
         </button>
       )}
 
+      {/* ── Full-screen image viewer (swipe-to-dismiss) — same as the rest of the app ── */}
+      {lightboxOpen && detailSignedUrl && (
+        <ImageLightbox src={detailSignedUrl} onClose={() => setLightboxOpen(false)} />
+      )}
+
       {/* ── Full-screen PDF viewer ── */}
       {pdfFullscreen && detailSignedUrl && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#0a0a0a', display: 'flex', flexDirection: 'column' }}>
@@ -923,7 +931,7 @@ export default function GarageDocumentsPage() {
         <>
           {/* Backdrop */}
           <div
-            onClick={() => { setDetailItem(null); setPdfFullscreen(false) }}
+            onClick={() => { setDetailItem(null); setPdfFullscreen(false); setLightboxOpen(false) }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 40 }}
           />
           {/* Panel */}
@@ -938,7 +946,7 @@ export default function GarageDocumentsPage() {
               <div style={{ width: 40, height: 4, background: 'rgba(240,228,200,0.2)', borderRadius: 2, margin: '0 auto' }} />
             </div>
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
-              <button onClick={() => { setDetailItem(null); setPdfFullscreen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+              <button onClick={() => { setDetailItem(null); setPdfFullscreen(false); setLightboxOpen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={DIM} strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
@@ -950,9 +958,24 @@ export default function GarageDocumentsPage() {
                 const hasFile = detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
                 if (fileType === 'image') {
                   return (
-                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
                       {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
-                      {detailSignedUrl && <img src={detailSignedUrl} alt="" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block' }} />}
+                      {detailSignedUrl && (
+                        <button
+                          onClick={() => setLightboxOpen(true)}
+                          style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'zoom-in', WebkitTapHighlightColor: 'transparent' }}
+                        >
+                          <img src={detailSignedUrl} alt="" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block' }} />
+                        </button>
+                      )}
+                      {/* Expand hint */}
+                      {detailSignedUrl && (
+                        <div style={{ position: 'absolute', bottom: 8, right: 8, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                          </svg>
+                        </div>
+                      )}
                     </div>
                   )
                 }
