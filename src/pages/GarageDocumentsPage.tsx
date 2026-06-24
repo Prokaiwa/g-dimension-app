@@ -100,6 +100,11 @@ function snapPreset(days: number | null | undefined): number {
 
 type Tab = 'documents' | 'receipts'
 
+// In-app detail panel state
+type DetailItem =
+  | { kind: 'doc'; doc: Doc }
+  | { kind: 'buildReceipt'; receipt: BuildReceipt }
+
 type Doc = {
   id: string
   doc_type: DocType
@@ -211,6 +216,11 @@ export default function GarageDocumentsPage() {
   const [draft, setDraft]   = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState<string | null>(null)
+
+  // In-app detail panel
+  const [detailItem, setDetailItem] = useState<DetailItem | null>(null)
+  const [detailSignedUrl, setDetailSignedUrl] = useState<string | null>(null)
+  const [detailUrlLoading, setDetailUrlLoading] = useState(false)
   // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -322,6 +332,28 @@ export default function GarageDocumentsPage() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  // Load signed URL for the detail panel image
+  useEffect(() => {
+    setDetailSignedUrl(null)
+    if (!detailItem) return
+    const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
+    const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
+    const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
+    if (!path || fileType !== 'image') return
+    setDetailUrlLoading(true)
+    supabase.storage.from(bucket).createSignedUrl(path, 300).then(({ data }) => {
+      setDetailUrlLoading(false)
+      if (data?.signedUrl) setDetailSignedUrl(data.signedUrl)
+    })
+  }, [detailItem])
+
+  function openDetailPdf() {
+    if (!detailItem) return
+    const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
+    const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
+    openSigned(bucket, path)
+  }
 
   // Fetch job titles + session info for build receipts
   useEffect(() => {
@@ -618,15 +650,14 @@ export default function GarageDocumentsPage() {
                         }}
                       >
                         <button
-                          onClick={() => openSigned('car-documents', d.file_url)}
-                          disabled={!d.file_url}
+                          onClick={() => setDetailItem({ kind: 'doc', doc: d })}
                           style={{
                             flexShrink: 0, width: 72, alignSelf: 'stretch',
                             background: thumbs[d.id] ? `center/cover no-repeat url(${thumbs[d.id]})` : 'rgba(31,26,18,0.06)',
                             opacity: thumbs[d.id] ? (thumbLoaded.has(d.id) ? 1 : 0) : 1,
                             transition: 'opacity 300ms ease',
                             border: 'none', borderRight: `1px solid ${PAPER_LINE}`,
-                            cursor: d.file_url ? 'pointer' : 'default',
+                            cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             WebkitTapHighlightColor: 'transparent',
                           }}
@@ -643,7 +674,7 @@ export default function GarageDocumentsPage() {
                         </button>
 
                         <button
-                          onClick={() => d.file_url ? openSigned('car-documents', d.file_url) : openEdit(d)}
+                          onClick={() => setDetailItem({ kind: 'doc', doc: d })}
                           style={{
                             flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px`,
                             background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -734,10 +765,9 @@ export default function GarageDocumentsPage() {
                         boxShadow: '0 2px 5px rgba(0,0,0,0.5), 0 10px 22px rgba(0,0,0,0.32)',
                         animation: `docIn 420ms ${EASING_SETTLE} ${i * 50}ms both`,
                       }}>
-                        {/* Left file thumbnail — always opens the file */}
+                        {/* Left file thumbnail — opens detail panel */}
                         <button
-                          onClick={() => openSigned('car-documents', d.file_url)}
-                          disabled={!d.file_url}
+                          onClick={() => setDetailItem({ kind: 'doc', doc: d })}
                           style={{
                             flexShrink: 0, width: 72, alignSelf: 'stretch',
                             background: thumbs[d.id] ? `center/cover no-repeat url(${thumbs[d.id]})` : 'rgba(31,26,18,0.06)',
@@ -756,9 +786,9 @@ export default function GarageDocumentsPage() {
                                 : <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.06em', color: 'rgba(31,26,18,0.3)', textAlign: 'center', lineHeight: 1.3 }}>NO<br/>FILE</span>
                           )}
                         </button>
-                        {/* Card body — tapping opens file if present, else edit sheet */}
+                        {/* Card body — opens detail panel */}
                         <button
-                          onClick={() => d.file_url ? openSigned('car-documents', d.file_url) : openEdit(d)}
+                          onClick={() => setDetailItem({ kind: 'doc', doc: d })}
                           style={{
                             flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px`,
                             background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -834,11 +864,7 @@ export default function GarageDocumentsPage() {
                         return (
                           <button
                             key={r.id}
-                            onClick={() => {
-                              if (r.file_url) openSigned('receipts', r.file_url)
-                              else if (!r.job_id && r.session_id) navigate(`/maintenance/${r.session_id}`)
-                              else if (r.job_id) navigate(`/tuning/mods/${r.job_id}`)
-                            }}
+                            onClick={() => setDetailItem({ kind: 'buildReceipt', receipt: r })}
                             style={{
                               display: 'flex', alignItems: 'center', gap: SPACE_MD, width: '100%', textAlign: 'left',
                               background: 'rgba(240,228,200,0.04)', border: `1px solid ${FAINT}`,
@@ -894,6 +920,169 @@ export default function GarageDocumentsPage() {
         >
           <span style={{ color: '#fff5dc', fontSize: 30, fontWeight: 300, lineHeight: 1, marginTop: -2 }}>+</span>
         </button>
+      )}
+
+      {/* ── Detail panel ── */}
+      {detailItem && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setDetailItem(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 40 }}
+          />
+          {/* Panel */}
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 41,
+            maxHeight: '92dvh', display: 'flex', flexDirection: 'column',
+            background: SHEET_BG, borderRadius: '12px 12px 0 0',
+            overflow: 'hidden',
+          }}>
+            {/* Handle + close */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 0', flexShrink: 0 }}>
+              <div style={{ width: 40, height: 4, background: 'rgba(240,228,200,0.2)', borderRadius: 2, margin: '0 auto' }} />
+            </div>
+            <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+              <button onClick={() => setDetailItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DIM, fontSize: 22, fontWeight: 300, WebkitTapHighlightColor: 'transparent' }}>✕</button>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {/* Image or PDF indicator */}
+              {(() => {
+                const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
+                const hasFile = detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
+                if (fileType === 'image') {
+                  return (
+                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
+                      {detailSignedUrl && <img src={detailSignedUrl} alt="" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block' }} />}
+                    </div>
+                  )
+                }
+                if (fileType === 'pdf' && hasFile) {
+                  return (
+                    <div style={{ padding: '16px 16px 0' }}>
+                      <button onClick={openDetailPdf} style={{
+                        width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
+                        cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      }}>
+                        <span style={{ color: COLOR_ACCENT }}>↗</span> View PDF
+                      </button>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+
+              {/* Details */}
+              <div style={{ padding: '16px 16px 32px' }}>
+                {detailItem.kind === 'doc' && (() => {
+                  const d = detailItem.doc
+                  const status = expiryStatus(d.expiry_date)
+                  return (
+                    <>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{DOC_TYPE_LABEL[d.doc_type]}</span>
+                      <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '4px 0 12px', lineHeight: 1.2 }}>
+                        {d.label || d.file_name || DOC_TYPE_LABEL[d.doc_type]}
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {d.issued_date && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Issued</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{fmtDate(d.issued_date)}</span>
+                          </div>
+                        )}
+                        {d.expiry_date && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Expires</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{fmtDate(d.expiry_date)}</span>
+                              {status && status !== 'ok' && (
+                                <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: status === 'expired' ? '#fff5dc' : COLOR_ACCENT, background: status === 'expired' ? COLOR_ACCENT : 'transparent', border: `1px solid ${COLOR_ACCENT}`, padding: '2px 6px' }}>
+                                  {status === 'expired' ? 'Expired' : 'Soon'}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={() => { setDetailItem(null); openEdit(d) }} style={{
+                        marginTop: 24, width: '100%', minHeight: 48,
+                        background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
+                        cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
+                        letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
+                      }}>Edit Document</button>
+                    </>
+                  )
+                })()}
+
+                {detailItem.kind === 'buildReceipt' && (() => {
+                  const r = detailItem.receipt
+                  const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
+                  const serviceWhat = (() => {
+                    const items = sessionInfo?.items ?? []
+                    if (items.length === 1) return items[0]
+                    if (items.length > 1) return items.join(', ')
+                    const lbl = sessionInfo?.label
+                    if (lbl && lbl !== 'Service' && lbl !== 'Mod') return lbl
+                    return r.vendor || 'Service'
+                  })()
+                  const title = r.job_id ? (jobTitleMap[r.job_id] || r.vendor || 'Part Receipt') : serviceWhat
+                  const shop = (() => {
+                    if (r.job_id) return r.vendor && r.vendor !== title ? r.vendor : null
+                    const s = sessionInfo?.shop
+                    if (s && s !== title) return s
+                    return r.vendor && r.vendor !== title ? r.vendor : null
+                  })()
+                  const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
+                  return (
+                    <>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{r.job_id ? 'Part Receipt' : 'Service Receipt'}</span>
+                      <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '4px 0 12px', lineHeight: 1.2 }}>{title}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                        {shop && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Shop / Vendor</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{shop}</span>
+                          </div>
+                        )}
+                        {displayDate && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Date</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{fmtDate(displayDate)}</span>
+                          </div>
+                        )}
+                        {fmtMoney(r.amount, r.currency) && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Amount</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(r.amount, r.currency)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Link to source record */}
+                      {!r.job_id && r.session_id && (
+                        <button onClick={() => { setDetailItem(null); navigate(`/maintenance/${r.session_id}`) }} style={{
+                          width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
+                          cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
+                          letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        }}>View Service Session <span style={{ color: COLOR_ACCENT }}>›</span></button>
+                      )}
+                      {r.job_id && (
+                        <button onClick={() => { setDetailItem(null); navigate(`/tuning/mods/${r.job_id}`) }} style={{
+                          width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
+                          cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
+                          letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        }}>View Mod <span style={{ color: COLOR_ACCENT }}>›</span></button>
+                      )}
+                    </>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ── Add / Edit sheet ── */}

@@ -1482,6 +1482,7 @@ export default function FeaturedPage() {
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
           onBack={capEditing ? undefined : onBack} onNext={capEditing ? undefined : onNext} dots={dotsProps}
+          showNavChips={!isPublished}
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={capEditing}
           captionSuggestion={captionSuggestionFor(spreadPhotos)}
@@ -1503,6 +1504,7 @@ export default function FeaturedPage() {
           carShortName={carShortName} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           onBack={storyEditing ? undefined : onBack} onNext={storyEditing ? undefined : onNext} dots={dotsProps}
+          showNavChips={!isPublished}
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={storyEditing}
           editHeadline={editHeadline} onHeadlineChange={setEditHeadline}
@@ -1526,6 +1528,7 @@ export default function FeaturedPage() {
         totalMods={jobs.length} carShortName={carShortName}
         backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
         onBack={onBack} onNext={onNext} dots={dotsProps}
+        showNavChips={!isPublished}
         isLast={!next}
         isPublished={isPublished} onTogglePublish={togglePublish} savingPublish={savingPublish}
         publishErr={publishErr} shareUrl={shareUrl} />
@@ -1639,7 +1642,9 @@ export default function FeaturedPage() {
           them mid-gesture detaches the target so touchmove/touchend stop reaching
           the container and the fold freezes, forcing a second swipe. The onClick
           guards on isTurningRef so taps still no-op while a turn is animating. */}
-      {pageIdx > 0 && !adjusting && !editing && capEditPage === null && !storyOpen && (
+      {/* Interior tap zones — public visitors only. Owners use PREV/NEXT folio chips so
+          edit controls (Replace, Captions, Headline, Adjust) are never hijacked. */}
+      {isPublished && pageIdx > 0 && !adjusting && !editing && capEditPage === null && !storyOpen && (
         <>
           <div onClick={() => { if (!isTurningRef.current) runTurn('back') }}
             style={{ position:'absolute', top:'12%', bottom:'14%', left:0, width:'48%', zIndex:16 }} />
@@ -1989,23 +1994,30 @@ function TopStrip({ accent, dark, vol, issue, purchaseYear, stripStyle }:{ accen
   )
 }
 
-// Folio bar — clean magazine chrome. Navigation happens by tap/swipe (tap zones
-// in the page stage), so the folio carries no Prev/Next buttons: just the dots
-// carousel indicator (centered) and the page number (right). backLabel/nextLabel/
-// onBack/onNext remain in the signature (callers still pass them) but are unused.
-function Folio({ theme, pageNum, dots }:
-  { theme: InteriorTheme; backLabel?: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
+// Folio bar — magazine chrome + optional owner nav chips.
+// showNavChips=true (owner mode): renders ‹ PREV PAGE and NEXT PAGE › buttons so
+// edit controls are never hijacked by tap zones. Public visitors use tap zones instead.
+function Folio({ theme, pageNum, dots, backLabel, nextLabel, onBack, onNext, showNavChips }:
+  { theme: InteriorTheme; backLabel?: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number }; showNavChips?: boolean }) {
+  const showBack = showNavChips && !!onBack
+  const showNext = showNavChips && !!onNext
   return (
-    <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
-      <div style={{ width:24, flexShrink:0 }} />
+    <div style={{ padding:'0 10px', height:44, display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
+      {showBack
+        ? <button onClick={onBack} data-feat-noturn
+            style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:theme.subInk, background:'none', border:'none', cursor:'pointer', padding:'0 6px', height:44, WebkitTapHighlightColor:'transparent', flexShrink:0 }}>‹ {backLabel ?? 'PREV'}</button>
+        : <div style={{ width:28, flexShrink:0 }} />}
       {dots && dots.count > 1
         ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>
             {Array.from({ length: dots.count }, (_, i) => (
               <div key={i} style={{ width: i === dots.active ? 12 : 4, height: 4, borderRadius: 2, background: i === dots.active ? theme.accent : theme.rule, transition:`all 200ms ${EASING_SETTLE}` }} />
             ))}
           </div>
-        : <span />}
-      <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, display:'inline-block', paddingRight:6 }}>{String(pageNum).padStart(2,'0')}</span>
+        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6 }}>{String(pageNum).padStart(2,'0')}</span>}
+      {showNext
+        ? <button onClick={onNext} data-feat-noturn
+            style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:theme.subInk, background:'none', border:'none', cursor:'pointer', padding:'0 6px', height:44, WebkitTapHighlightColor:'transparent', textAlign:'right', flexShrink:0 }}>{nextLabel ?? 'NEXT'} ›</button>
+        : <span style={{ fontFamily:FONT_MASTHEAD, color:theme.ink, fontSize:17, fontStyle:'italic', opacity:0.6, paddingRight:4, flexShrink:0 }}>{String(pageNum).padStart(2,'0')}</span>}
     </div>
   )
 }
@@ -2033,6 +2045,7 @@ interface PhotoSpreadProps {
   near?: boolean
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  showNavChips?: boolean
   // ── caption editing (055) ──
   canEdit?: boolean                 // owner + this page current + not mid-turn → show pencil
   editing?: boolean                 // this spread is in caption-edit mode
@@ -2157,7 +2170,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
   )
 }
 
-function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, backLabel, nextLabel, pageNum, onBack, onNext, dots, showNavChips,
   canEdit = false, editing = false, captionSuggestion = false, saving = false, captionErr = null, captionValue, onCaptionChange, onEnterEdit, onCancelEdit, onSaveEdit, onReplacePhoto }: PhotoSpreadProps) {
   const [aspects, setAspects] = useState<Record<string, number>>({})
   const [heroAspect, setHeroAspect] = useState<number | null>(null)
@@ -2306,7 +2319,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
         </div>
       )}
 
-      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} showNavChips={showNavChips} />
       <div style={NOISE_OVERLAY} />
 
       {/* ── caption edit affordance (055) ── */}
@@ -2483,6 +2496,7 @@ interface StoryPageProps {
   story: string; headline: string; carShortName: string; theme: InteriorTheme
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  showNavChips?: boolean
   // ── inline headline editing (reuses cover edit state) ──
   canEdit?: boolean
   editing?: boolean
@@ -2509,7 +2523,7 @@ interface StoryPageProps {
   savingFrame?: boolean
   frameErr?: string | null
 }
-function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel, pageNum, onBack, onNext, dots, showNavChips,
   canEdit, editing, editHeadline = '', onHeadlineChange, saving, err, hasSuggestion,
   onEnterEdit, onCancelEdit, onSaveEdit, storyPhoto, onChangePhoto,
   spAdjusting, spFx = 50, spFy = 50, spZoom = 1, spHeight = 32,
@@ -2620,7 +2634,7 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
         )}
       </div>
 
-      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} showNavChips={showNavChips} />
       <div style={NOISE_OVERLAY} />
     </div>
   )
@@ -2632,12 +2646,13 @@ interface SpecSheetProps {
   totalMods: number; carShortName: string
   backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void
   dots?: { count: number; active: number }
+  showNavChips?: boolean
   // ── publish (last page only) ──
   isLast?: boolean
   isPublished?: boolean; onTogglePublish?: () => void; savingPublish?: boolean
   publishErr?: string | null; shareUrl?: string | null
 }
-function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext, dots,
+function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel, nextLabel, pageNum, onBack, onNext, dots, showNavChips,
   isLast, isPublished, onTogglePublish, savingPublish, publishErr, shareUrl }: SpecSheetProps) {
   return (
     <div style={{ position:'absolute', inset:0, background:theme.pageBg, display:'flex', flexDirection:'column', overflow:'hidden' }}>
@@ -2718,7 +2733,7 @@ function SpecSheet({ sections, isCont, theme, totalMods, carShortName, backLabel
         </div>
       )}
 
-      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} />
+      <Folio theme={theme} backLabel={backLabel} nextLabel={nextLabel} pageNum={pageNum} onBack={onBack} onNext={onNext} dots={dots} showNavChips={showNavChips} />
       <div style={NOISE_OVERLAY} />
     </div>
   )
