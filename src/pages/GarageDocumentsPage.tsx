@@ -178,22 +178,6 @@ function fmtMoney(amount: number | null, currency: string | null): string | null
   }
 }
 
-// Open a file via a fresh short-lived signed URL (private buckets).
-// The window MUST be opened synchronously inside the tap handler — opening it
-// after the `await` loses the user-gesture context and mobile Safari blocks it
-// (this was the "nothing happens" bug). We open a blank tab first, then point it
-// at the signed URL once it resolves.
-async function openSigned(bucket: 'car-documents' | 'receipts', path: string | null) {
-  if (!path) return
-  const win = window.open('', '_blank')
-  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 120)
-  if (data?.signedUrl) {
-    if (win) win.location.href = data.signedUrl
-    else window.open(data.signedUrl, '_blank')   // fallback if the blank open was blocked
-  } else if (win) {
-    win.close()
-  }
-}
 
 const DOC_SEL_FULL = 'id, doc_type, label, file_url, file_type, file_name, issued_date, expiry_date, amount, currency'
 const DOC_SEL_BASE = 'id, doc_type, label, file_url, file_type, file_name, issued_date, expiry_date'
@@ -221,6 +205,8 @@ export default function GarageDocumentsPage() {
   const [detailItem, setDetailItem] = useState<DetailItem | null>(null)
   const [detailSignedUrl, setDetailSignedUrl] = useState<string | null>(null)
   const [detailUrlLoading, setDetailUrlLoading] = useState(false)
+  // Full-screen PDF viewer overlay (stays in-app)
+  const [pdfFullscreen, setPdfFullscreen] = useState(false)
   // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -347,13 +333,6 @@ export default function GarageDocumentsPage() {
       if (data?.signedUrl) setDetailSignedUrl(data.signedUrl)
     })
   }, [detailItem])
-
-  function openDetailPdf() {
-    if (!detailItem) return
-    const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
-    const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
-    openSigned(bucket, path)
-  }
 
   // Fetch job titles + session info for build receipts
   useEffect(() => {
@@ -922,12 +901,30 @@ export default function GarageDocumentsPage() {
         </button>
       )}
 
+      {/* ── Full-screen PDF viewer ── */}
+      {pdfFullscreen && detailSignedUrl && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#0a0a0a', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', background: '#111', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: DIM }}>PDF</span>
+            <button
+              onClick={() => setPdfFullscreen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DIM} strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <iframe src={detailSignedUrl} title="PDF viewer" style={{ flex: 1, border: 'none', display: 'block', width: '100%' }} />
+        </div>
+      )}
+
       {/* ── Detail panel ── */}
       {detailItem && (
         <>
           {/* Backdrop */}
           <div
-            onClick={() => setDetailItem(null)}
+            onClick={() => { setDetailItem(null); setPdfFullscreen(false) }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 40 }}
           />
           {/* Panel */}
@@ -942,7 +939,9 @@ export default function GarageDocumentsPage() {
               <div style={{ width: 40, height: 4, background: 'rgba(240,228,200,0.2)', borderRadius: 2, margin: '0 auto' }} />
             </div>
             <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
-              <button onClick={() => setDetailItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', color: DIM, fontSize: 22, fontWeight: 300, WebkitTapHighlightColor: 'transparent' }}>✕</button>
+              <button onClick={() => { setDetailItem(null); setPdfFullscreen(false) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={DIM} strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
 
             <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -960,24 +959,31 @@ export default function GarageDocumentsPage() {
                 }
                 if (fileType === 'pdf' && hasFile) {
                   return (
-                    <div style={{ width: '100%', height: '52vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
-                      {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
-                      {detailSignedUrl && (
-                        <iframe
-                          src={detailSignedUrl}
-                          title="Document"
-                          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-                        />
-                      )}
-                      {/* Fallback for browsers that won't inline-render the PDF (some iOS) */}
-                      {detailSignedUrl && (
-                        <button onClick={openDetailPdf} style={{
-                          position: 'absolute', bottom: 10, right: 10,
-                          background: 'rgba(0,0,0,0.7)', border: `1px solid ${FAINT}`, cursor: 'pointer',
-                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.06em',
-                          textTransform: 'uppercase', color: CREAM, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6,
-                        }}><span style={{ color: COLOR_ACCENT }}>↗</span> Full screen</button>
-                      )}
+                    <div style={{ padding: '20px 16px 4px' }}>
+                      <button
+                        onClick={() => { if (detailSignedUrl) setPdfFullscreen(true) }}
+                        disabled={detailUrlLoading || !detailSignedUrl}
+                        style={{
+                          width: '100%', minHeight: 64,
+                          background: 'rgba(240,228,200,0.05)', border: `1px solid ${FAINT}`,
+                          cursor: detailSignedUrl ? 'pointer' : 'default', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', gap: 12, padding: '0 20px',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        {/* PDF icon */}
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLOR_ACCENT} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/>
+                        </svg>
+                        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: CREAM }}>
+                          {detailUrlLoading ? 'Loading…' : 'View PDF'}
+                        </span>
+                        {detailSignedUrl && (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={DIM} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   )
                 }
