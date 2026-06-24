@@ -5,7 +5,9 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 059_diy_guides.sql (applied 2026-06-23)
+-- Last migration applied : 060_document_receipt_photos.sql (applied 2026-06-24)
+--   - 060 (car_document_photos — multi-image extras for car_documents rows;
+--     owner-only RLS, car-documents private bucket, grants) applied 2026-06-24.
 --   - 059 (diy_guides / diy_steps / diy_step_photos — DIY install guides per mod;
 --     difficulty numeric(2,1) half-star, owner RLS + anon SELECT gated on
 --     is_public AND show_buildsheet_publicly; grants) applied 2026-06-23.
