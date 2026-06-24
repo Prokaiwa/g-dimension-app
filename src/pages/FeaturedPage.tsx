@@ -1482,7 +1482,7 @@ export default function FeaturedPage() {
           carShortName={carShortName}
           near={Math.abs(i - pageIdx) <= 1}
           onBack={capEditing ? undefined : onBack} onNext={capEditing ? undefined : onNext} dots={dotsProps}
-          showNavChips={!isPublished}
+          showNavChips={true}
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={capEditing}
           captionSuggestion={captionSuggestionFor(spreadPhotos)}
@@ -1504,7 +1504,7 @@ export default function FeaturedPage() {
           carShortName={carShortName} theme={theme}
           backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
           onBack={storyEditing ? undefined : onBack} onNext={storyEditing ? undefined : onNext} dots={dotsProps}
-          showNavChips={!isPublished}
+          showNavChips={true}
           canEdit={!!car && i === pageIdx && !isTurning}
           editing={storyEditing}
           editHeadline={editHeadline} onHeadlineChange={setEditHeadline}
@@ -1528,7 +1528,7 @@ export default function FeaturedPage() {
         totalMods={jobs.length} carShortName={carShortName}
         backLabel={prev ? 'PREV PAGE' : 'COVER'} nextLabel={next ? 'NEXT PAGE' : undefined} pageNum={i}
         onBack={onBack} onNext={onNext} dots={dotsProps}
-        showNavChips={!isPublished}
+        showNavChips={true}
         isLast={!next}
         isPublished={isPublished} onTogglePublish={togglePublish} savingPublish={savingPublish}
         publishErr={publishErr} shareUrl={shareUrl} />
@@ -1634,24 +1634,11 @@ export default function FeaturedPage() {
         </>
       )}
 
-      {/* Interior tap zones — tap the left half to go back (incl. to the cover),
-          the right half to go forward (swipe also works). Vertically inset so they
-          clear the Captions pencil (top), the folio + story grip (bottom).
-          NOTE: these stay mounted during a turn (not gated on !isTurning) — they
-          cover most of the screen and are the touch target for a swipe; unmounting
-          them mid-gesture detaches the target so touchmove/touchend stop reaching
-          the container and the fold freezes, forcing a second swipe. The onClick
-          guards on isTurningRef so taps still no-op while a turn is animating. */}
-      {/* Interior tap zones — public visitors only. Owners use PREV/NEXT folio chips so
-          edit controls (Replace, Captions, Headline, Adjust) are never hijacked. */}
-      {isPublished && pageIdx > 0 && !adjusting && !editing && capEditPage === null && !storyOpen && (
-        <>
-          <div onClick={() => { if (!isTurningRef.current) runTurn('back') }}
-            style={{ position:'absolute', top:'12%', bottom:'14%', left:0, width:'48%', zIndex:16 }} />
-          <div onClick={() => { if (!isTurningRef.current && pageIdx < pages.length - 1) runTurn('fwd') }}
-            style={{ position:'absolute', top:'12%', bottom:'14%', right:0, width:'48%', zIndex:16 }} />
-        </>
-      )}
+      {/* Interior tap zones — REMOVED on the owner page. FeaturedPage is always the
+          owner's editable view (the public visitor sees PublicFeaturedPage), so we
+          never want tap-to-turn here: it hijacks edit chips (Replace, Captions,
+          Headline, Adjust). The owner navigates with the PREV/NEXT folio chips; swipe
+          still works via the #feat-container touch handlers. */}
 
       {/* ── Cover framing adjust mode ── */}
       {adjusting && (

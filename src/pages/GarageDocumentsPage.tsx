@@ -333,14 +333,14 @@ export default function GarageDocumentsPage() {
 
   useEffect(() => { loadData() }, [])
 
-  // Load signed URL for the detail panel image
+  // Load signed URL for the detail panel — both images and PDFs render in-app.
   useEffect(() => {
     setDetailSignedUrl(null)
     if (!detailItem) return
     const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
     const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
     const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
-    if (!path || fileType !== 'image') return
+    if (!path || (fileType !== 'image' && fileType !== 'pdf')) return
     setDetailUrlLoading(true)
     supabase.storage.from(bucket).createSignedUrl(path, 300).then(({ data }) => {
       setDetailUrlLoading(false)
@@ -960,14 +960,24 @@ export default function GarageDocumentsPage() {
                 }
                 if (fileType === 'pdf' && hasFile) {
                   return (
-                    <div style={{ padding: '16px 16px 0' }}>
-                      <button onClick={openDetailPdf} style={{
-                        width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
-                        cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em',
-                        textTransform: 'uppercase', color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      }}>
-                        <span style={{ color: COLOR_ACCENT }}>↗</span> View PDF
-                      </button>
+                    <div style={{ width: '100%', height: '52vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
+                      {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
+                      {detailSignedUrl && (
+                        <iframe
+                          src={detailSignedUrl}
+                          title="Document"
+                          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                        />
+                      )}
+                      {/* Fallback for browsers that won't inline-render the PDF (some iOS) */}
+                      {detailSignedUrl && (
+                        <button onClick={openDetailPdf} style={{
+                          position: 'absolute', bottom: 10, right: 10,
+                          background: 'rgba(0,0,0,0.7)', border: `1px solid ${FAINT}`, cursor: 'pointer',
+                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.06em',
+                          textTransform: 'uppercase', color: CREAM, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6,
+                        }}><span style={{ color: COLOR_ACCENT }}>↗</span> Full screen</button>
+                      )}
                     </div>
                   )
                 }
