@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { FONT_UI } from '../tokens'
 
-const SNAP = 'transform 300ms cubic-bezier(0.22,1,0.36,1)'
+const SNAP = 'transform 380ms cubic-bezier(0.22,1,0.36,1)'
 
 export default function ImageCarouselLightbox({
   images, startIndex = 0, onClose,
@@ -42,7 +42,7 @@ export default function ImageCarouselLightbox({
       tr.style.transform = `translate3d(${base + dx}px, ${dy}px, 0) scale(${scale})`
     }
     if (ov) {
-      ov.style.transition = animate ? 'background 300ms ease' : 'none'
+      ov.style.transition = animate ? 'background 380ms ease' : 'none'
       const alpha = g.current.axis === 'y' ? Math.max(0, 0.94 - Math.abs(dy) / 320) : 0.94
       ov.style.background = `rgba(0,0,0,${alpha})`
     }
@@ -66,7 +66,7 @@ export default function ImageCarouselLightbox({
     const dx = t.clientX - s.x0
     const dy = t.clientY - s.y0
     if (!s.axis) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) s.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) s.axis = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'y' : 'x'
     }
     s.dx = dx; s.dy = dy
     const now = performance.now(), dt = now - s.lt
@@ -93,7 +93,7 @@ export default function ImageCarouselLightbox({
         if (tr) { tr.style.transition = SNAP; tr.style.transform = `translate3d(${-idxRef.current * W}px, ${dir * window.innerHeight}px, 0) scale(0.85)` }
         const ov = overlayRef.current
         if (ov) { ov.style.transition = 'background 300ms ease'; ov.style.background = 'rgba(0,0,0,0)' }
-        window.setTimeout(() => onClose(idxRef.current), 220)
+        window.setTimeout(() => onClose(idxRef.current), 270)
       } else { paint(0, 0, true) }
       return
     }

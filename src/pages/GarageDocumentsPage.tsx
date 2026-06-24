@@ -12,7 +12,7 @@
 //               read-only build receipts pulled from public.receipts (service
 //               + part purchases). Build receipts open from the private
 //               `receipts` bucket; standalone ones from `car-documents`.
-import { useEffect, useRef, useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
@@ -105,6 +105,7 @@ type Tab = 'documents' | 'receipts'
 type DetailItem =
   | { kind: 'doc'; doc: Doc }
   | { kind: 'buildReceipt'; receipt: BuildReceipt }
+  | { kind: 'buildReceiptGroup'; receipts: BuildReceipt[] }
 
 type Doc = {
   id: string
@@ -207,6 +208,7 @@ export default function GarageDocumentsPage() {
   const [detailSignedUrl, setDetailSignedUrl] = useState<string | null>(null)  // primary (used for PDF)
   const [detailUrlLoading, setDetailUrlLoading] = useState(false)
   const [detailImages, setDetailImages] = useState<{ url: string }[]>([])      // all signed image URLs for carousel
+  const [pdfGroupUrls, setPdfGroupUrls] = useState<{ url: string; name: string | null }[]>([])
   // Full-screen PDF viewer overlay (stays in-app)
   const [pdfFullscreen, setPdfFullscreen] = useState(false)
   // Carousel lightbox
@@ -320,7 +322,35 @@ export default function GarageDocumentsPage() {
   useEffect(() => {
     setDetailSignedUrl(null)
     setDetailImages([])
+    setPdfGroupUrls([])
     if (!detailItem) return
+    ;(async () => {
+      if (detailItem.kind === 'buildReceiptGroup') {
+        const imageRcpts = detailItem.receipts.filter(r => r.file_type === 'image' && r.file_url)
+        const pdfRcpts   = detailItem.receipts.filter(r => r.file_type === 'pdf' && r.file_url)
+        setDetailUrlLoading(true)
+        const imgPaths = imageRcpts.map(r => r.file_url!)
+        const imgs: { url: string }[] = []
+        if (imgPaths.length > 0) {
+          const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(imgPaths, 300)
+          for (const s of signed ?? []) if (s.signedUrl) imgs.push({ url: s.signedUrl })
+          if (imgs[0]) setDetailSignedUrl(imgs[0].url)
+        }
+        const pdfSigned: { url: string; name: string | null }[] = []
+        if (pdfRcpts.length > 0) {
+          await Promise.all(pdfRcpts.map(async r => {
+            const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url!, 300)
+            if (data?.signedUrl) pdfSigned.push({ url: data.signedUrl, name: r.file_name })
+          }))
+          if (!imgs.length && pdfSigned[0]) setDetailSignedUrl(pdfSigned[0].url)
+        }
+        setDetailImages(imgs)
+        setPdfGroupUrls(pdfSigned)
+        setDetailUrlLoading(false)
+        return
+      }
+    })()
+    if (detailItem.kind === 'buildReceiptGroup') return
     const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
     const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
     const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
@@ -556,6 +586,18 @@ export default function GarageDocumentsPage() {
     setSaving(false)
     setDraft(null)
   }
+
+  const buildReceiptGroups = useMemo(() => {
+    const map = new Map<string, BuildReceipt[]>()
+    for (const r of buildReceipts) {
+      const key = r.job_id ?? r.session_id ?? r.id
+      const existing = map.get(key) ?? []
+      map.set(key, [...existing, r])
+    }
+    return Array.from(map.values())
+  }, [buildReceipts])
+  const serviceGroups = useMemo(() => buildReceiptGroups.filter(g => !g[0].job_id), [buildReceiptGroups])
+  const buildGroups   = useMemo(() => buildReceiptGroups.filter(g => !!g[0].job_id), [buildReceiptGroups])
 
   const isReceiptDraft = draft?.kind === 'receipt'
 
@@ -857,43 +899,34 @@ export default function GarageDocumentsPage() {
                 )}
 
                 {/* Build receipts — read-only, pulled from public.receipts */}
-                {buildReceipts.length > 0 && (
+                {serviceGroups.length > 0 && (
                   <>
                     <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: DIM, margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>
-                      From your build · {buildReceipts.length}
+                      Services · {serviceGroups.length}
                     </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
-                      {buildReceipts.map((r, i) => {
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM, marginBottom: buildGroups.length > 0 ? SPACE_XL : 0 }}>
+                      {serviceGroups.map((group, i) => {
+                        const r = group[0]
                         const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
-                        // "What was done" for a service: summarise its service items,
-                        // else the session title/notes. Part receipts use the part title.
                         const serviceWhat = (() => {
                           const items = sessionInfo?.items ?? []
                           if (items.length === 1) return items[0]
                           if (items.length === 2) return `${items[0]} + ${items[1]}`
-                          if (items.length > 2)  return `${items[0]} +${items.length - 1} more`
+                          if (items.length > 2) return `${items[0]} +${items.length - 1} more`
                           const lbl = sessionInfo?.label
-                          if (lbl && lbl !== 'Service' && lbl !== 'Mod' && lbl !== sessionInfo?.shop) return lbl
+                          if (lbl && lbl !== 'Service' && lbl !== sessionInfo?.shop) return lbl
                           if (sessionInfo?.notes) return sessionInfo.notes
                           return r.vendor || r.file_name || 'Service'
                         })()
-                        // Primary line = WHAT. Secondary line = WHERE (shop / vendor).
-                        const primaryTitle = r.job_id
-                          ? (jobTitleMap[r.job_id] || r.vendor || r.file_name || 'Part Receipt')
-                          : serviceWhat
-                        const secondaryLine = (() => {
-                          if (r.job_id) return r.vendor && r.vendor !== primaryTitle ? r.vendor : null
-                          const shop = sessionInfo?.shop
-                          if (shop && shop !== primaryTitle) return shop
-                          if (r.vendor && r.vendor !== primaryTitle) return r.vendor
-                          return null
-                        })()
-                        // Date: receipt_date → session date → created_at
+                        const shop = sessionInfo?.shop
+                        const secondaryLine = shop && shop !== serviceWhat ? shop : (r.vendor && r.vendor !== serviceWhat ? r.vendor : null)
                         const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
+                        const totalAmount = group.reduce((s, x) => s + (x.amount ?? 0), 0)
+                        const hasAmount = group.some(x => x.amount != null)
                         return (
                           <button
-                            key={r.id}
-                            onClick={() => setDetailItem({ kind: 'buildReceipt', receipt: r })}
+                            key={r.session_id ?? r.id}
+                            onClick={() => setDetailItem({ kind: 'buildReceiptGroup', receipts: group })}
                             style={{
                               display: 'flex', alignItems: 'center', gap: SPACE_MD, width: '100%', textAlign: 'left',
                               background: 'rgba(240,228,200,0.04)', border: `1px solid ${FAINT}`,
@@ -902,31 +935,67 @@ export default function GarageDocumentsPage() {
                               animation: `docIn 420ms ${EASING_SETTLE} ${i * 40}ms both`,
                             }}
                           >
-                            <span style={{
-                              flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase',
-                              color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '3px 6px',
-                            }}>{r.job_id ? 'Part' : 'Service'}</span>
+                            <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '3px 6px' }}>Service</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryTitle}</p>
-                              {secondaryLine && (
-                                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{secondaryLine}</p>
-                              )}
-                              {/* Date + file indicator */}
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{serviceWhat}</p>
+                              {secondaryLine && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{secondaryLine}</p>}
                               <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>
-                                {fmtDate(displayDate) ?? ''}{r.file_url ? ' · tap to view file' : ' · tap to view'}
+                                {fmtDate(displayDate) ?? ''}{group.length > 1 ? ` · ${group.length} files` : (group[0].file_url ? ' · tap to view' : '')}
                               </p>
                             </div>
-                            {fmtMoney(r.amount, r.currency) && (
-                              <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(r.amount, r.currency)}</span>
-                            )}
+                            {hasAmount && <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(totalAmount, r.currency)}</span>}
                           </button>
                         )
                       })}
                     </div>
-                    <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `${SPACE_MD}px 0 0`, lineHeight: 1.5, textAlign: 'center' }}>
-                      Build receipts are added with each service &amp; part — edit them there.
-                    </p>
                   </>
+                )}
+
+                {buildGroups.length > 0 && (
+                  <>
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: DIM, margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>
+                      Mods &amp; Parts · {buildGroups.length}
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
+                      {buildGroups.map((group, i) => {
+                        const r = group[0]
+                        const primaryTitle = jobTitleMap[r.job_id!] || r.vendor || r.file_name || 'Part Receipt'
+                        const secondaryLine = r.vendor && r.vendor !== primaryTitle ? r.vendor : null
+                        const displayDate = r.receipt_date ?? r.created_at
+                        const totalAmount = group.reduce((s, x) => s + (x.amount ?? 0), 0)
+                        const hasAmount = group.some(x => x.amount != null)
+                        return (
+                          <button
+                            key={r.job_id ?? r.id}
+                            onClick={() => setDetailItem({ kind: 'buildReceiptGroup', receipts: group })}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: SPACE_MD, width: '100%', textAlign: 'left',
+                              background: 'rgba(240,228,200,0.04)', border: `1px solid ${FAINT}`,
+                              padding: `${SPACE_SM}px ${SPACE_MD}px`, cursor: 'pointer',
+                              WebkitTapHighlightColor: 'transparent',
+                              animation: `docIn 420ms ${EASING_SETTLE} ${i * 40}ms both`,
+                            }}
+                          >
+                            <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '3px 6px' }}>Mod/Part</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{primaryTitle}</p>
+                              {secondaryLine && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{secondaryLine}</p>}
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>
+                                {fmtDate(displayDate) ?? ''}{group.length > 1 ? ` · ${group.length} files` : (group[0].file_url ? ' · tap to view' : '')}
+                              </p>
+                            </div>
+                            {hasAmount && <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(totalAmount, r.currency)}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {(serviceGroups.length > 0 || buildGroups.length > 0) && (
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `${SPACE_MD}px 0 0`, lineHeight: 1.5, textAlign: 'center' }}>
+                    Build receipts are added with each service &amp; part — edit them there.
+                  </p>
                 )}
               </>
             )}
@@ -1018,8 +1087,12 @@ export default function GarageDocumentsPage() {
             <div style={{ overflowY: 'auto', flex: 1 }}>
               {/* Image or PDF indicator */}
               {(() => {
-                const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
-                const hasFile = detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
+                const fileType = detailItem.kind === 'buildReceiptGroup'
+                  ? (detailItem.receipts[0]?.file_type ?? null)
+                  : detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
+                const hasFile = detailItem.kind === 'buildReceiptGroup'
+                  ? !!detailItem.receipts[0]?.file_url
+                  : detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
                 if (fileType === 'image') {
                   return (
                     <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
@@ -1182,6 +1255,75 @@ export default function GarageDocumentsPage() {
                           letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                         }}>View Mod <span style={{ color: COLOR_ACCENT }}>›</span></button>
+                      )}
+                    </>
+                  )
+                })()}
+
+                {detailItem.kind === 'buildReceiptGroup' && (() => {
+                  const receipts = detailItem.receipts
+                  const r = receipts[0]
+                  const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
+                  const serviceWhat = (() => {
+                    const items = sessionInfo?.items ?? []
+                    if (items.length === 1) return items[0]
+                    if (items.length > 1) return items.join(', ')
+                    const lbl = sessionInfo?.label
+                    if (lbl && lbl !== 'Service' && lbl !== 'Mod') return lbl
+                    return r.vendor || 'Service'
+                  })()
+                  const title = r.job_id ? (jobTitleMap[r.job_id] || r.vendor || 'Part Receipt') : serviceWhat
+                  const shop = (() => {
+                    if (r.job_id) return r.vendor && r.vendor !== title ? r.vendor : null
+                    const s = sessionInfo?.shop
+                    if (s && s !== title) return s
+                    return r.vendor && r.vendor !== title ? r.vendor : null
+                  })()
+                  const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
+                  const totalAmount = receipts.reduce((s, x) => s + (x.amount ?? 0), 0)
+                  const hasAmount = receipts.some(x => x.amount != null)
+                  return (
+                    <>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{r.job_id ? 'Part Receipt' : 'Service Receipt'}</span>
+                      <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '4px 0 12px', lineHeight: 1.2 }}>{title}</p>
+                      {/* Multiple PDFs in the group */}
+                      {pdfGroupUrls.map((p, idx) => (
+                        <button key={idx} onClick={() => { setDetailSignedUrl(p.url); setPdfFullscreen(true) }} style={{ width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.05)', border: `1px solid ${FAINT}`, cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLOR_ACCENT} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                          {p.name || `PDF ${idx + 1}`}
+                        </button>
+                      ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                        {shop && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Shop / Vendor</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{shop}</span>
+                          </div>
+                        )}
+                        {displayDate && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Date</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{fmtDate(displayDate)}</span>
+                          </div>
+                        )}
+                        {hasAmount && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>{receipts.length > 1 ? 'Total' : 'Amount'}</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(totalAmount, r.currency)}</span>
+                          </div>
+                        )}
+                        {receipts.length > 1 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Files</span>
+                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{receipts.length}</span>
+                          </div>
+                        )}
+                      </div>
+                      {!r.job_id && r.session_id && (
+                        <button onClick={() => { setDetailItem(null); navigate(`/maintenance/${r.session_id}`) }} style={{ width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`, cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>View Service Session <span style={{ color: COLOR_ACCENT }}>›</span></button>
+                      )}
+                      {r.job_id && (
+                        <button onClick={() => { setDetailItem(null); navigate(`/tuning/mods/${r.job_id}`) }} style={{ width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`, cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>View Mod <span style={{ color: COLOR_ACCENT }}>›</span></button>
                       )}
                     </>
                   )
