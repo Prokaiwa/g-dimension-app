@@ -18,7 +18,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
-import ImageLightbox from '../components/ImageLightbox'
+import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -204,15 +204,22 @@ export default function GarageDocumentsPage() {
 
   // In-app detail panel
   const [detailItem, setDetailItem] = useState<DetailItem | null>(null)
-  const [detailSignedUrl, setDetailSignedUrl] = useState<string | null>(null)
+  const [detailSignedUrl, setDetailSignedUrl] = useState<string | null>(null)  // primary (used for PDF)
   const [detailUrlLoading, setDetailUrlLoading] = useState(false)
+  const [detailImages, setDetailImages] = useState<{ url: string }[]>([])      // all signed image URLs for carousel
   // Full-screen PDF viewer overlay (stays in-app)
   const [pdfFullscreen, setPdfFullscreen] = useState(false)
-  // Full-screen image lightbox (swipe-to-dismiss, same as the rest of the app)
+  // Carousel lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxStartIdx, setLightboxStartIdx] = useState(0)
+  // Extra photos for the edit sheet (car_document_photos rows for the doc being edited)
+  const [extraPhotos, setExtraPhotos] = useState<{ id: string; file_url: string; signedUrl?: string }[]>([])
+  const [newExtraFiles, setNewExtraFiles] = useState<File[]>([])
+  const [removedExtraIds, setRemovedExtraIds] = useState<string[]>([])
   // doc id → linked expiry reminder lead time (days), for prefilling the edit sheet
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const extraFileInputRef = useRef<HTMLInputElement>(null)
 
   async function loadData() {
     const id = await getActiveCarId()
@@ -309,19 +316,39 @@ export default function GarageDocumentsPage() {
 
   useEffect(() => { loadData() }, [])
 
-  // Load signed URL for the detail panel — both images and PDFs render in-app.
+  // Load signed URL(s) for the detail panel — images become a carousel, PDFs use the primary URL.
   useEffect(() => {
     setDetailSignedUrl(null)
+    setDetailImages([])
     if (!detailItem) return
     const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
     const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
     const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
     if (!path || (fileType !== 'image' && fileType !== 'pdf')) return
     setDetailUrlLoading(true)
-    supabase.storage.from(bucket).createSignedUrl(path, 300).then(({ data }) => {
+    ;(async () => {
+      if (fileType === 'pdf') {
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300)
+        setDetailUrlLoading(false)
+        if (data?.signedUrl) setDetailSignedUrl(data.signedUrl)
+        return
+      }
+      // Image: sign primary + any car_document_photos extras
+      const primaryPromise = supabase.storage.from(bucket).createSignedUrl(path, 300)
+      const extrasPromise = detailItem.kind === 'doc'
+        ? supabase.from('car_document_photos').select('id, file_url, file_type').eq('document_id', detailItem.doc.id).order('display_order').order('created_at')
+        : Promise.resolve({ data: [] as { id: string; file_url: string; file_type: string | null }[] })
+      const [{ data: pData }, { data: extraRows }] = await Promise.all([primaryPromise, extrasPromise])
       setDetailUrlLoading(false)
-      if (data?.signedUrl) setDetailSignedUrl(data.signedUrl)
-    })
+      const imgs: { url: string }[] = []
+      if (pData?.signedUrl) { setDetailSignedUrl(pData.signedUrl); imgs.push({ url: pData.signedUrl }) }
+      const imagePaths = (extraRows ?? []).filter(r => r.file_type === 'image' && r.file_url).map(r => r.file_url)
+      if (imagePaths.length > 0) {
+        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(imagePaths, 300)
+        for (const s of signed ?? []) if (s.signedUrl) imgs.push({ url: s.signedUrl })
+      }
+      setDetailImages(imgs)
+    })()
   }, [detailItem])
 
   // Fetch job titles + session info for build receipts
@@ -378,10 +405,13 @@ export default function GarageDocumentsPage() {
     return () => { cancelled = true }
   }, [buildReceipts])
 
-  function openNewDoc(prefillType?: DocType) { setError(null); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
-  function openNewReceipt() { setError(null); setDraft({ ...EMPTY_RECEIPT }) }
+  function openNewDoc(prefillType?: DocType) { setError(null); setNewExtraFiles([]); setRemovedExtraIds([]); setExtraPhotos([]); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
+  function openNewReceipt() { setError(null); setNewExtraFiles([]); setRemovedExtraIds([]); setExtraPhotos([]); setDraft({ ...EMPTY_RECEIPT }) }
   function openEdit(d: Doc) {
     setError(null)
+    setNewExtraFiles([])
+    setRemovedExtraIds([])
+    setExtraPhotos([])
     const remindDays = d.doc_type !== 'receipt' ? (docReminders[d.id] ?? 0) : 0
     setDraft({
       id: d.id,
@@ -392,6 +422,15 @@ export default function GarageDocumentsPage() {
       remindDays,
       file: null, existingFileName: d.file_name,
     })
+    // Load existing extra photos
+    supabase.from('car_document_photos').select('id, file_url').eq('document_id', d.id).order('display_order').order('created_at')
+      .then(async ({ data: rows }) => {
+        if (!rows?.length) return
+        const paths = rows.map(r => r.file_url as string)
+        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(paths, 300)
+        const photos = rows.map((r, i) => ({ id: r.id as string, file_url: r.file_url as string, signedUrl: signed?.[i]?.signedUrl ?? undefined }))
+        setExtraPhotos(photos)
+      })
   }
 
   async function save() {
@@ -455,6 +494,23 @@ export default function GarageDocumentsPage() {
 
     if (error) { setError(`Couldn't save: ${error.message}`); setSaving(false); return }
 
+    // Extra photos (car_document_photos) — delete removed, upload new
+    const targetDocId = docId
+    if (targetDocId) {
+      if (removedExtraIds.length > 0) {
+        const toRemove = extraPhotos.filter(p => removedExtraIds.includes(p.id)).map(p => p.file_url)
+        if (toRemove.length > 0) await supabase.storage.from('car-documents').remove(toRemove)
+        await supabase.from('car_document_photos').delete().in('id', removedExtraIds)
+      }
+      for (const f of newExtraFiles) {
+        const extraPath = `${userId}/${carId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+        let upload: File | Blob = f
+        try { upload = await imageCompression(f, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, exifOrientation: -1, fileType: 'image/jpeg' }) } catch { /* use original */ }
+        const { error: upErr } = await supabase.storage.from('car-documents').upload(extraPath, upload, { contentType: 'image/jpeg' })
+        if (!upErr) await supabase.from('car_document_photos').insert({ document_id: targetDocId, car_id: carId, file_url: extraPath, file_type: 'image', file_name: f.name })
+      }
+    }
+
     // Expiry reminder — documents only. Upsert / delete the linked car_reminders row.
     // due_date is the real deadline (the expiry); remind_days_before just controls
     // how early it starts alerting — so it never reads as "overdue" before expiry.
@@ -488,6 +544,10 @@ export default function GarageDocumentsPage() {
     setError(null)
     const doc = [...docs, ...receiptDocs].find(d => d.id === draft.id)
     if (doc?.file_url) await supabase.storage.from('car-documents').remove([doc.file_url])
+    // Delete extra photos from storage (cascade deletes the DB rows)
+    if (extraPhotos.length > 0) {
+      await supabase.storage.from('car-documents').remove(extraPhotos.map(p => p.file_url))
+    }
     // Drop any expiry reminder linked to this document.
     await supabase.from('car_reminders').delete().eq('document_id', draft.id)
     const { error } = await supabase.from('car_documents').delete().eq('id', draft.id)
@@ -891,9 +951,13 @@ export default function GarageDocumentsPage() {
         </button>
       )}
 
-      {/* ── Full-screen image viewer (swipe-to-dismiss) — same as the rest of the app ── */}
-      {lightboxOpen && detailSignedUrl && (
-        <ImageLightbox src={detailSignedUrl} onClose={() => setLightboxOpen(false)} />
+      {/* ── Carousel lightbox (swipe L/R to page, swipe down to dismiss) ── */}
+      {lightboxOpen && detailImages.length > 0 && (
+        <ImageCarouselLightbox
+          images={detailImages}
+          startIndex={lightboxStartIdx}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
 
       {/* ── Full-screen PDF viewer ── */}
@@ -958,18 +1022,23 @@ export default function GarageDocumentsPage() {
                 const hasFile = detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
                 if (fileType === 'image') {
                   return (
-                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative' }}>
+                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
                       {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
                       {detailSignedUrl && (
                         <button
-                          onClick={() => setLightboxOpen(true)}
+                          onClick={() => { setLightboxStartIdx(0); setLightboxOpen(true) }}
                           style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'zoom-in', WebkitTapHighlightColor: 'transparent' }}
                         >
                           <img src={detailSignedUrl} alt="" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block' }} />
                         </button>
                       )}
-                      {/* Expand hint */}
-                      {detailSignedUrl && (
+                      {/* Expand / page count hint */}
+                      {detailImages.length > 1 && (
+                        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: '3px 10px', pointerEvents: 'none' }}>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: '#f5f5f5' }}>1 / {detailImages.length}</span>
+                        </div>
+                      )}
+                      {detailSignedUrl && detailImages.length <= 1 && (
                         <div style={{ position: 'absolute', bottom: 8, right: 8, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
@@ -1215,7 +1284,7 @@ export default function GarageDocumentsPage() {
               </>
             )}
 
-            {/* File picker */}
+            {/* File picker (primary — image or PDF) */}
             <FieldLabel>File (image or PDF)</FieldLabel>
             <input
               ref={fileInputRef}
@@ -1237,6 +1306,53 @@ export default function GarageDocumentsPage() {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {draft.file ? draft.file.name : draft.existingFileName ? `Replace — ${draft.existingFileName}` : 'Choose a file…'}
               </span>
+            </button>
+
+            {/* Additional images (front/back, multi-photo) */}
+            <FieldLabel>Additional images</FieldLabel>
+            <input
+              ref={extraFileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={e => {
+                const files = Array.from(e.target.files ?? [])
+                if (files.length) setNewExtraFiles(prev => [...prev, ...files])
+                e.target.value = ''
+              }}
+              style={{ display: 'none' }}
+            />
+            {/* Existing extras */}
+            {(extraPhotos.filter(p => !removedExtraIds.includes(p.id)).length > 0 || newExtraFiles.length > 0) && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                {extraPhotos.filter(p => !removedExtraIds.includes(p.id)).map(p => (
+                  <div key={p.id} style={{ position: 'relative', width: 72, height: 72 }}>
+                    {p.signedUrl
+                      ? <img src={p.signedUrl} alt="" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
+                      : <div style={{ width: 72, height: 72, background: 'rgba(240,228,200,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: DIM }}>IMG</span></div>
+                    }
+                    <button onClick={() => setRemovedExtraIds(prev => [...prev, p.id])} style={{ position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#f5f5f5', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                  </div>
+                ))}
+                {newExtraFiles.map((f, i) => (
+                  <div key={i} style={{ position: 'relative', width: 72, height: 72 }}>
+                    <img src={URL.createObjectURL(f)} alt="" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
+                    <button onClick={() => setNewExtraFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#f5f5f5', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => extraFileInputRef.current?.click()}
+              style={{
+                width: '100%', minHeight: 44, marginBottom: SPACE_LG,
+                background: 'rgba(240,228,200,0.05)', border: `1px dashed ${FAINT}`, cursor: 'pointer',
+                fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 14px',
+              }}
+            >
+              <span style={{ color: COLOR_ACCENT, fontSize: 14 }}>＋</span>
+              Add more images
             </button>
 
             {error && (

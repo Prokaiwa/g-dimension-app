@@ -8,6 +8,7 @@ import {
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
 } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
+import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,10 @@ export default function TuningPartDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [photoIndex,  setPhotoIndex]  = useState(0)
   const [links,       setLinks]       = useState<JobLink[]>([])
+  const [receipts,         setReceipts]         = useState<{ id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null; signedUrl: string | null }[]>([])
+  const [receiptLightbox, setReceiptLightbox] = useState(false)
+  const [receiptLightboxIdx, setReceiptLightboxIdx] = useState(0)
+  const [pdfReceiptUrl, setPdfReceiptUrl] = useState<string | null>(null)
 
   // Full-screen viewer (FB-Marketplace-style pager — DOM-ref driven, zero re-renders during drag)
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -214,6 +219,23 @@ export default function TuningPartDetailPage() {
       }
       setPhotos((photoData ?? []) as Photo[])
       setLinks((linksData ?? []) as JobLink[])
+      // Load receipts + sign URLs
+      const { data: receiptData } = await supabase
+        .from('receipts')
+        .select('id, file_url, file_type, file_name')
+        .eq('job_id', partId)
+        .order('created_at', { ascending: true })
+      if (receiptData && (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).length > 0) {
+        const paths = (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => r.file_url)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const urlMap: Record<string, string> = {}
+        if (signed) {
+          for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {
+            if (s.signedUrl) urlMap[s.path] = s.signedUrl
+          }
+        }
+        setReceipts((receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => ({ ...r, signedUrl: urlMap[r.file_url] ?? null })))
+      }
       if (carData) setCar(carData as Car)
       setLoading(false)
     }
@@ -569,6 +591,33 @@ export default function TuningPartDetailPage() {
           </div>
         )}
 
+        {/* Receipts */}
+        {receipts.length > 0 && (() => {
+          const imageReceipts = receipts.filter(r => r.file_type === 'image' && r.signedUrl)
+          const pdfReceipts   = receipts.filter(r => r.file_type === 'pdf')
+          return (
+            <div style={{ padding: '20px 20px 0' }}>
+              <p style={LABEL}>Receipts</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                {imageReceipts.map((r, i) => (
+                  <button key={r.id} onClick={() => { setReceiptLightboxIdx(i); setReceiptLightbox(true) }}
+                    style={{ padding: 0, border: 'none', cursor: 'pointer', background: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                    <img src={r.signedUrl!} alt="" style={{ width: 76, height: 76, objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+                {pdfReceipts.map(r => (
+                  <button key={r.id}
+                    onClick={() => { if (r.signedUrl) { if (r.signedUrl) setPdfReceiptUrl(r.signedUrl) } }}
+                    style={{ width: 76, height: 76, background: 'rgba(26,16,8,0.08)', border: `1px solid rgba(26,16,8,0.15)`, cursor: r.signedUrl ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, WebkitTapHighlightColor: 'transparent' }}>
+                    <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14, color: COLOR_CARDBOARD_STAMP, opacity: 0.7 }}>PDF</span>
+                    {r.file_name && <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 9, color: COLOR_CARDBOARD_INK2, opacity: 0.5, maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file_name}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Set a service reminder — only for serviceable/wear categories */}
         {part.category && SERVICEABLE_CATEGORIES.has(part.category) && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 20px 4px' }}>
@@ -582,6 +631,35 @@ export default function TuningPartDetailPage() {
         )}
 
       </div>
+
+      {/* Receipt lightbox */}
+      {receiptLightbox && (() => {
+        const imgs = receipts.filter(r => r.file_type === 'image' && r.signedUrl).map(r => ({ url: r.signedUrl!, caption: r.file_name }))
+        return (
+          <ImageCarouselLightbox
+            images={imgs}
+            startIndex={receiptLightboxIdx}
+            onClose={() => setReceiptLightbox(false)}
+          />
+        )
+      })()}
+
+      {/* PDF fullscreen */}
+      {pdfReceiptUrl && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#0a0a0a', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', background: '#111', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)' }}>Receipt</span>
+            <button onClick={() => setPdfReceiptUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 10, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,228,0.4)" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <object type="application/pdf" data={pdfReceiptUrl} style={{ flex: 1, display: 'block', width: '100%', height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <a href={pdfReceiptUrl} target="_blank" rel="noreferrer" style={{ color: '#c8661a', fontFamily: FONT_UI }}>Open PDF</a>
+            </div>
+          </object>
+        </div>
+      )}
 
       {/* ── Actions ── */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
@@ -732,6 +810,7 @@ export default function TuningPartDetailPage() {
           </div>
         </div>
       )}
+
 
     </div>
   )

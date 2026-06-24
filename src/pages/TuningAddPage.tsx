@@ -196,6 +196,7 @@ export default function TuningAddPage() {
   const [multiValues, setMultiValues]     = useState<Record<string, string[]>>({})
   const [photos, setPhotos]               = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [receiptFiles, setReceiptFiles]   = useState<{ file: File; preview: string | null; name: string }[]>([])
   const [wishlistMode, setWishlistMode]   = useState(false)
   const [newLinkUrl,   setNewLinkUrl]     = useState('')
   const [newLinkLabel, setNewLinkLabel]   = useState('')
@@ -314,6 +315,24 @@ export default function TuningAddPage() {
     URL.revokeObjectURL(photoPreviews[i])
     setPhotos(prev => prev.filter((_, idx) => idx !== i))
     setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  // ── Receipt handling ──────────────────────────────────────────────────────
+
+  const handleReceiptSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setReceiptFiles(prev => [
+      ...prev,
+      ...files.map(f => ({ file: f, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name })),
+    ])
+    e.target.value = ''
+  }
+
+  const removeReceipt = (i: number) => {
+    const r = receiptFiles[i]
+    if (r?.preview) URL.revokeObjectURL(r.preview)
+    setReceiptFiles(prev => prev.filter((_, idx) => idx !== i))
   }
 
   // ── Spec field helpers ──────────────────────────────────────────────────
@@ -598,6 +617,50 @@ export default function TuningAddPage() {
       await supabase.from('job_links').insert(
         newLinks.map((l, i) => ({ job_id: jobId, user_id: userId, url: l.url, label: l.label || null, display_order: i }))
       )
+    }
+
+    // 6. Receipts — attach to the mod's job (and the session that holds it).
+    //    receipts.session_id is NOT NULL, so ensure a session exists first.
+    //    Non-fatal: the job is already saved, never block navigation.
+    if (!partsBinMode && receiptFiles.length > 0) {
+      try {
+        if (!sessionId) {
+          const { data: sData } = await supabase
+            .from('sessions')
+            .insert({
+              car_id:          carId,
+              type:            'modification',
+              date_performed:  form.dateInstalled || today,
+              add_to_timeline: false,
+            })
+            .select('id')
+            .single()
+          if (sData) {
+            sessionId = (sData as { id: string }).id
+            await supabase.from('jobs').update({ session_id: sessionId }).eq('id', jobId)
+          }
+        }
+        if (sessionId) {
+          const sid = sessionId
+          await Promise.all(receiptFiles.map(async r => {
+            const isImg = r.file.type.startsWith('image/')
+            const ext   = isImg ? 'jpg' : 'pdf'
+            const path  = `${userId}/${carId}/${sid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+            let upload: File | Blob = r.file
+            if (isImg) {
+              try { upload = await imageCompression(r.file, COMPRESSION_OPTIONS) } catch { /* use original */ }
+            }
+            const { error: upErr } = await supabase.storage.from('receipts').upload(path, upload)
+            if (upErr) return
+            await supabase.from('receipts').insert({
+              session_id: sid, job_id: jobId, car_id: carId,
+              file_url: path, file_type: isImg ? 'image' : 'pdf', file_name: r.name,
+            })
+          }))
+        }
+      } catch (_) {
+        // Receipt upload failure is non-fatal — the mod is already saved
+      }
     }
 
     setSaving(false)
@@ -1117,6 +1180,56 @@ export default function TuningAddPage() {
                 />
               </label>
             </div>
+
+            {/* Receipts — build-sheet mode only (parts-bin items aren't on the car) */}
+            {!partsBinMode && (
+              <div style={{ padding: '20px 22px 0' }}>
+                <label style={lbl}>Receipts</label>
+
+                {receiptFiles.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {receiptFiles.map((r, i) => (
+                      <div key={i} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0, background: 'rgba(245,240,228,0.04)', border: '1px solid rgba(245,240,228,0.1)' }}>
+                        {r.preview
+                          ? <img src={r.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', color: 'rgba(245,240,228,0.4)' }}>PDF</span>
+                            </div>
+                        }
+                        <button
+                          onClick={() => removeReceipt(i)}
+                          style={{
+                            position: 'absolute', top: 3, right: 3,
+                            width: 20, height: 20, padding: 0,
+                            background: 'rgba(0,0,0,0.75)', border: 'none', cursor: 'pointer',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '13px 0', cursor: 'pointer',
+                  border: '1px dashed rgba(245,240,228,0.14)',
+                  fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                  letterSpacing: '0.16em', textTransform: 'uppercase' as const,
+                  color: 'rgba(245,240,228,0.3)',
+                }}>
+                  + Attach Receipts
+                  <input
+                    type="file" accept="image/*,application/pdf" multiple
+                    onChange={handleReceiptSelect}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            )}
 
             {/* Links */}
             <div style={{ padding: '24px 22px 0' }}>

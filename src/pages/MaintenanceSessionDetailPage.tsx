@@ -13,6 +13,7 @@ import {
   COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_BURGUNDY_L,
   FONT_UI, HEADER_HEIGHT,
 } from '../tokens'
+import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 
 const CW_BG     = '#f4f8fb'
 const CW_BLUE   = COLOR_TIMELINE_DETAIL   // '#8ab0c8'
@@ -74,6 +75,9 @@ export default function MaintenanceSessionDetailPage() {
   const [receipts,          setReceipts]          = useState<ReceiptRow[]>([])
   const [receiptUrls,       setReceiptUrls]       = useState<Record<string, string>>({})
   const [receiptsExpanded,  setReceiptsExpanded]  = useState(false)
+  const [receiptLightbox, setReceiptLightbox] = useState(false)
+  const [receiptLightboxIdx, setReceiptLightboxIdx] = useState(0)
+  const [pdfReceiptUrl, setPdfReceiptUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!sessionId) return
@@ -269,25 +273,38 @@ export default function MaintenanceSessionDetailPage() {
                   </button>
                   {receiptsExpanded && (
                     <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
-                      {receipts.map(r => {
-                        const url = receiptUrls[r.id]
-                        return (
-                          <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
-                            style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${CW_RULE}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 4 }}>
-                            {r.file_type === 'image' ? (
-                              url
-                                ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 2 }} />
-                                : <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: CW_DIM }}>Loading…</span></div>
-                            ) : (
-                              <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                                <span style={{ fontFamily: FONT_UI, fontSize: 16, fontWeight: 700, color: CW_BLUE }}>PDF</span>
-                                <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM }}>tap to open</span>
-                              </div>
-                            )}
-                            {r.file_name && <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
-                          </button>
-                        )
-                      })}
+                      {(() => {
+                        const imageRcpts = receipts.filter(rc => rc.file_type === 'image')
+                        return receipts.map(r => {
+                          const url = receiptUrls[r.id]
+                          const imgIdx = imageRcpts.indexOf(r)
+                          return (
+                            <button key={r.id}
+                              onClick={() => {
+                                if (!url) return
+                                if (r.file_type === 'image') {
+                                  setReceiptLightboxIdx(imgIdx); setReceiptLightbox(true)
+                                } else {
+                                  setPdfReceiptUrl(url)
+                                }
+                              }}
+                              disabled={!url}
+                              style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${CW_RULE}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 4 }}>
+                              {r.file_type === 'image' ? (
+                                url
+                                  ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 2 }} />
+                                  : <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: CW_DIM }}>Loading…</span></div>
+                              ) : (
+                                <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                  <span style={{ fontFamily: FONT_UI, fontSize: 16, fontWeight: 700, color: CW_BLUE }}>PDF</span>
+                                  <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM }}>tap to open</span>
+                                </div>
+                              )}
+                              {r.file_name && <span style={{ fontFamily: FONT_UI, fontSize: 8, color: CW_DIM, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
+                            </button>
+                          )
+                        })
+                      })()}
                     </div>
                   )}
                 </div>
@@ -481,25 +498,38 @@ export default function MaintenanceSessionDetailPage() {
                 </button>
                 {receiptsExpanded && (
                   <div style={{ padding: '2px 20px 16px', display: 'flex', flexWrap: 'wrap' as const, gap: 10 }}>
-                    {receipts.map(r => {
-                      const url = receiptUrls[r.id]
-                      return (
-                        <button key={r.id} onClick={() => url && window.open(url, '_blank')} disabled={!url}
-                          style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${INV_DIVIDER}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 0 }}>
-                          {r.file_type === 'image' ? (
-                            url
-                              ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover' }} />
-                              : <div style={{ width: 76, height: 76, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: MONO, fontSize: 9, color: '#bbb' }}>Loading…</span></div>
-                          ) : (
-                            <div style={{ width: 76, height: 76, background: '#f5f5f5', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                              <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: '#888' }}>PDF</span>
-                              <span style={{ fontFamily: MONO, fontSize: 8, color: '#bbb' }}>tap to open</span>
-                            </div>
-                          )}
-                          {r.file_name && <span style={{ fontFamily: MONO, fontSize: 8, color: INV_MUTED, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
-                        </button>
-                      )
-                    })}
+                    {(() => {
+                      const imageRcpts = receipts.filter(rc => rc.file_type === 'image')
+                      return receipts.map(r => {
+                        const url = receiptUrls[r.id]
+                        const imgIdx = imageRcpts.indexOf(r)
+                        return (
+                          <button key={r.id}
+                            onClick={() => {
+                              if (!url) return
+                              if (r.file_type === 'image') {
+                                setReceiptLightboxIdx(imgIdx); setReceiptLightbox(true)
+                              } else {
+                                setPdfReceiptUrl(url)
+                              }
+                            }}
+                            disabled={!url}
+                            style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${INV_DIVIDER}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 0 }}>
+                            {r.file_type === 'image' ? (
+                              url
+                                ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover' }} />
+                                : <div style={{ width: 76, height: 76, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: MONO, fontSize: 9, color: '#bbb' }}>Loading…</span></div>
+                            ) : (
+                              <div style={{ width: 76, height: 76, background: '#f5f5f5', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                                <span style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: '#888' }}>PDF</span>
+                                <span style={{ fontFamily: MONO, fontSize: 8, color: '#bbb' }}>tap to open</span>
+                              </div>
+                            )}
+                            {r.file_name && <span style={{ fontFamily: MONO, fontSize: 8, color: INV_MUTED, maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{r.file_name}</span>}
+                          </button>
+                        )
+                      })
+                    })()}
                   </div>
                 )}
               </div>
@@ -527,6 +557,30 @@ export default function MaintenanceSessionDetailPage() {
         )}
       </div>
 
+      {/* Receipt lightbox */}
+      {receiptLightbox && (() => {
+        const imgs = receipts
+          .filter(r => r.file_type === 'image' && receiptUrls[r.id])
+          .map(r => ({ url: receiptUrls[r.id], caption: r.file_name }))
+        return (
+          <ImageCarouselLightbox
+            images={imgs}
+            startIndex={receiptLightboxIdx}
+            onClose={() => setReceiptLightbox(false)}
+          />
+        )
+      })()}
+
+      {/* PDF fullscreen */}
+      {pdfReceiptUrl && (
+        <div onClick={() => setPdfReceiptUrl(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#000', display: 'flex', flexDirection: 'column' }}>
+          <button onClick={(e) => { e.stopPropagation(); setPdfReceiptUrl(null) }} style={{ position: 'absolute', top: 14, right: 14, zIndex: 61, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#f5f5f5', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <object type="application/pdf" data={pdfReceiptUrl} style={{ flex: 1, width: '100%', border: 'none' }}>
+            <p style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>PDF cannot be displayed. <a href={pdfReceiptUrl} target="_blank" rel="noreferrer" style={{ color: '#c8661a' }}>Open</a></p>
+          </object>
+        </div>
+      )}
+
       {/* ── Delete confirmation overlay ── */}
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}>
@@ -542,6 +596,8 @@ export default function MaintenanceSessionDetailPage() {
           </div>
         </div>
       )}
+
+
     </div>
   )
 }

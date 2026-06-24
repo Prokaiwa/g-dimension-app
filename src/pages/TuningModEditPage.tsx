@@ -108,6 +108,11 @@ export default function TuningModEditPage() {
   const [newLinkUrl,      setNewLinkUrl]      = useState('')
   const [newLinkLabel,    setNewLinkLabel]    = useState('')
 
+  // Receipts
+  const [existingReceipts,  setExistingReceipts]  = useState<{ id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null; signedUrl: string | null }[]>([])
+  const [removedReceiptIds, setRemovedReceiptIds] = useState<string[]>([])
+  const [receiptFiles,      setReceiptFiles]      = useState<{ file: File; preview: string | null; name: string }[]>([])
+
   // UI
   const [partTypeName, setPartTypeName] = useState('')
   const [carId,        setCarId]        = useState<string | null>(null)
@@ -146,6 +151,24 @@ export default function TuningModEditPage() {
       setCarId(job.car_id ?? null)
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
       setExistingLinks((linksData ?? []) as JobLink[])
+
+      // Load existing receipts and sign URLs
+      const { data: receiptData } = await supabase
+        .from('receipts')
+        .select('id, file_url, file_type, file_name')
+        .eq('job_id', modId)
+        .order('created_at', { ascending: true })
+      if (receiptData && (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).length > 0) {
+        const paths = (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => r.file_url)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const urlMap: Record<string, string> = {}
+        if (signed) {
+          for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {
+            if (s.signedUrl) urlMap[s.path] = s.signedUrl
+          }
+        }
+        setExistingReceipts((receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => ({ ...r, signedUrl: urlMap[r.file_url] ?? null })))
+      }
 
       // Timeline membership lives on the parent session, if there is one.
       if (job.session_id) {
@@ -224,6 +247,27 @@ export default function TuningModEditPage() {
   const removeExistingPhoto = (id: string) => {
     setRemovedPhotoIds(prev => [...prev, id])
     setExistingPhotos(prev => prev.filter(p => p.id !== id))
+  }
+
+  const handleReceiptSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setReceiptFiles(prev => [
+      ...prev,
+      ...files.map(f => ({ file: f, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name })),
+    ])
+    e.target.value = ''
+  }
+
+  const removeReceipt = (i: number) => {
+    const r = receiptFiles[i]
+    if (r?.preview) URL.revokeObjectURL(r.preview)
+    setReceiptFiles(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const removeExistingReceipt = (id: string) => {
+    setRemovedReceiptIds(prev => [...prev, id])
+    setExistingReceipts(prev => prev.filter(r => r.id !== id))
   }
 
   // ── Spec field helpers ─────────────────────────────────────────────────
@@ -449,6 +493,38 @@ export default function TuningModEditPage() {
         .single()
       if (sErr) { setSaveErr(sErr.message); setSaving(false); return }
       if (sData) await supabase.from('jobs').update({ session_id: (sData as { id: string }).id }).eq('id', modId!)
+    }
+
+    // 5. Receipts — delete removed, upload new
+    if (removedReceiptIds.length > 0) {
+      await supabase.from('receipts').delete().in('id', removedReceiptIds)
+    }
+    if (receiptFiles.length > 0 && userId && carId) {
+      let sid = sessionId
+      if (!sid) {
+        const { data: sData } = await supabase
+          .from('sessions')
+          .insert({ car_id: carId, type: 'modification', date_performed: dateInstalled || new Date().toISOString().split('T')[0], add_to_timeline: false })
+          .select('id').single()
+        if (sData) {
+          sid = (sData as { id: string }).id
+          await supabase.from('jobs').update({ session_id: sid }).eq('id', modId!)
+        }
+      }
+      if (sid) {
+        await Promise.all(receiptFiles.map(async r => {
+          const isImg = r.file.type.startsWith('image/')
+          const ext   = isImg ? 'jpg' : 'pdf'
+          const path  = `${userId}/${carId}/receipts/${modId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+          let upload: File | Blob = r.file
+          if (isImg) {
+            try { upload = await imageCompression(r.file, COMPRESSION_OPTIONS) } catch { /* use original */ }
+          }
+          const { error: upErr } = await supabase.storage.from('receipts').upload(path, upload)
+          if (upErr) return
+          await supabase.from('receipts').insert({ session_id: sid!, job_id: modId, car_id: carId, file_url: path, file_type: isImg ? 'image' : 'pdf', file_name: r.name })
+        }))
+      }
     }
 
     navigate(`/tuning/mods/${modId}`)
@@ -764,6 +840,62 @@ export default function TuningModEditPage() {
           }}>
             + Add Photos
             <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
+          </label>
+        </div>
+
+        {/* ── Receipts ── */}
+        <div style={{ padding: '24px 20px 0' }}>
+          <label style={LABEL}>Receipts</label>
+
+          {existingReceipts.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {existingReceipts.map(r => (
+                <div key={r.id} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  {r.file_type === 'image' && r.signedUrl ? (
+                    <img src={r.signedUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'rgba(245,240,228,0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.5)' }}>PDF</span>
+                      <span style={{ fontFamily: FONT_UI, fontSize: 8, color: 'rgba(245,240,228,0.28)', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file_name ?? ''}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeExistingReceipt(r.id)}
+                    style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, padding: 0, background: 'rgba(0,0,0,0.75)', border: 'none', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {receiptFiles.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              {receiptFiles.map((r, i) => (
+                <div key={i} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+                  {r.preview ? (
+                    <img src={r.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'rgba(245,240,228,0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.5)' }}>PDF</span>
+                      <span style={{ fontFamily: FONT_UI, fontSize: 8, color: 'rgba(245,240,228,0.28)', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeReceipt(i)}
+                    style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, padding: 0, background: 'rgba(0,0,0,0.75)', border: 'none', cursor: 'pointer', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span style={{ color: '#fff', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px 0', cursor: 'pointer', border: '1px dashed rgba(245,240,228,0.14)', fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.3)' }}>
+            + Add Receipt
+            <input type="file" accept="image/*,.pdf" multiple onChange={handleReceiptSelect} style={{ display: 'none' }} />
           </label>
         </div>
 
