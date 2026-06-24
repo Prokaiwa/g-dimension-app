@@ -2110,8 +2110,9 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
         />
         {onReplaceRequest && (
           <button onClick={e => { e.stopPropagation(); onReplaceRequest() }}
+            onTouchStart={e => e.stopPropagation()}
             style={{ position:'absolute', top: chipPos?.top ?? 5, right: chipPos?.right ?? 5, zIndex:4, background:'rgba(0,0,0,0.52)',
-              border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
+              border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
               display:'flex', alignItems:'center', gap:4,
               fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2237,8 +2238,9 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
           )}
           {onReplacePhoto && (
             <button onClick={() => onReplacePhoto(heroPhoto)}
+              onTouchStart={e => e.stopPropagation()}
               style={{ position:'absolute', top:8, right: doubleTruck ? 8 : 20, zIndex:4, background:'rgba(0,0,0,0.52)',
-                border:'1px solid rgba(245,245,245,0.3)', padding:'4px 7px', cursor:'pointer',
+                border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:4,
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2398,7 +2400,8 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
         <div style={{ position:'absolute', top:8, right:8, zIndex:7, display:'flex', gap:5 }}>
           {onChangePhoto && (
             <button onClick={onChangePhoto}
-              style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
+              onTouchStart={e => e.stopPropagation()}
+              style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:4,
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -2410,7 +2413,8 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
           )}
           {onAdjust && (
             <button onClick={onAdjust}
-              style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'4px 8px', cursor:'pointer',
+              onTouchStart={e => e.stopPropagation()}
+              style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
               ⤢ Adjust
             </button>
@@ -2424,7 +2428,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
           background:'linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.38) 100%)' }}>
           {onHeightDragStart && (
             <div onTouchStart={onHeightDragStart}
-              style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+              style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center',
                 cursor:'ns-resize', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <line x1="7" y1="1" x2="7" y2="13" stroke="rgba(245,245,245,0.85)" strokeWidth="1.8" strokeLinecap="round"/>
@@ -2435,7 +2439,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
           )}
           {onPosDragStart && (
             <div onTouchStart={onPosDragStart}
-              style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
+              style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center',
                 cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <circle cx="4" cy="4" r="1.3" fill="rgba(245,245,245,0.85)"/>

@@ -192,7 +192,7 @@ export default function GarageDocumentsPage() {
   const [receiptDocs, setReceiptDocs] = useState<Doc[]>([])   // doc_type === 'receipt'
   const [buildReceipts, setBuildReceipts] = useState<BuildReceipt[]>([])
   const [jobTitleMap, setJobTitleMap] = useState<Record<string, string>>({})
-  const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null }>>({}) // session_id → display label + date
+  const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null; shop: string | null }>>({}) // session_id → display label + date
   const [thumbs, setThumbs] = useState<Record<string, string>>({})        // car_documents id → signed image URL
   const [thumbLoaded, setThumbLoaded] = useState<Set<string>>(new Set())  // ids whose thumb has finished loading
   const [loading, setLoading] = useState(true)
@@ -324,8 +324,8 @@ export default function GarageDocumentsPage() {
       : Promise.resolve({ data: [] as { id: string; title: unknown; part_types: unknown }[] })
 
     const sessP = sessionIds.length > 0
-      ? supabase.from('sessions').select('id, title, type, date_performed').in('id', sessionIds)
-      : Promise.resolve({ data: [] as { id: string; title: unknown; type: unknown; date_performed: unknown }[] })
+      ? supabase.from('sessions').select('id, title, type, date_performed, shop_name').in('id', sessionIds)
+      : Promise.resolve({ data: [] as { id: string; title: unknown; type: unknown; date_performed: unknown; shop_name: unknown }[] })
 
     Promise.all([jobP, sessP]).then(([{ data: jobs }, { data: sessions }]) => {
       if (cancelled) return
@@ -336,11 +336,11 @@ export default function GarageDocumentsPage() {
       }
       setJobTitleMap(jMap)
 
-      const sMap: Record<string, { label: string; date: string | null }> = {}
+      const sMap: Record<string, { label: string; date: string | null; shop: string | null }> = {}
       for (const s of sessions ?? []) {
         const typeLabel = (s.type as string | null) === 'modification' ? 'Mod' : 'Service'
-        const label = (s.title as string | null) || typeLabel
-        sMap[s.id as string] = { label, date: (s.date_performed as string | null) ?? null }
+        const label = (s.title as string | null) || (s.shop_name as string | null) || typeLabel
+        sMap[s.id as string] = { label, date: (s.date_performed as string | null) ?? null, shop: (s.shop_name as string | null) ?? null }
       }
       setSessionInfoMap(sMap)
     })
@@ -612,15 +612,17 @@ export default function GarageDocumentsPage() {
                           )}
                         </button>
 
-                        <div style={{ flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px` }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACE_SM }}>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>
-                              {DOC_TYPE_LABEL[d.doc_type]}
-                            </span>
-                            <button onClick={() => openEdit(d)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: PAPER_MUTED }}>
-                              Edit
-                            </button>
-                          </div>
+                        <button
+                          onClick={() => d.file_url ? openSigned('car-documents', d.file_url) : openEdit(d)}
+                          style={{
+                            flex: 1, minWidth: 0, padding: `${SPACE_SM + 2}px ${SPACE_MD}px`,
+                            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>
+                            {DOC_TYPE_LABEL[d.doc_type]}{d.file_url ? ' · tap to view' : ''}
+                          </span>
 
                           <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15.5, color: PAPER_INK, margin: '3px 0 0', lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {d.label || d.file_name || DOC_TYPE_LABEL[d.doc_type]}
@@ -648,7 +650,17 @@ export default function GarageDocumentsPage() {
                               </span>
                             )}
                           </div>
-                        </div>
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); openEdit(d) }}
+                          style={{
+                            position: 'absolute', top: SPACE_SM + 2, right: SPACE_MD,
+                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                            fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em',
+                            textTransform: 'uppercase', color: PAPER_MUTED, WebkitTapHighlightColor: 'transparent',
+                            minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+                          }}
+                        >Edit</button>
                       </div>
                     )
                   })}
@@ -764,13 +776,21 @@ export default function GarageDocumentsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
                       {buildReceipts.map((r, i) => {
                         const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
-                        // Service receipt: show the service name as primary title.
-                        // Part receipt: show the job/part title as primary title.
+                        // Service receipt: show shop name → session title → vendor → fallback.
+                        // Part receipt: show job/part title → vendor → fallback.
                         const primaryTitle = r.job_id
                           ? (jobTitleMap[r.job_id] || r.vendor || r.file_name || 'Part Receipt')
-                          : (sessionInfo?.label || r.vendor || r.file_name || 'Service Receipt')
-                        // Secondary line: vendor name (if different from primary)
-                        const secondaryLine = r.vendor && r.vendor !== primaryTitle ? r.vendor : null
+                          : (sessionInfo?.shop || sessionInfo?.label || r.vendor || r.file_name || 'Service Receipt')
+                        // Secondary line: vendor or session label (if different from primary)
+                        const secondaryLine = (() => {
+                          if (r.job_id) return r.vendor && r.vendor !== primaryTitle ? r.vendor : null
+                          const shop = sessionInfo?.shop
+                          const lbl = sessionInfo?.label
+                          if (shop && shop !== primaryTitle) return shop
+                          if (lbl && lbl !== primaryTitle && lbl !== 'Service' && lbl !== 'Mod') return lbl
+                          if (r.vendor && r.vendor !== primaryTitle) return r.vendor
+                          return null
+                        })()
                         // Date: receipt_date → session date → created_at
                         const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
                         return (
