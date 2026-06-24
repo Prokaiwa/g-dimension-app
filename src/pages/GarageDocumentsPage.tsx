@@ -211,17 +211,13 @@ export default function GarageDocumentsPage() {
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Helper: sign a thumbnail URL with image transform (144×144 cover for 72px @2x).
-  // Falls back to plain signed URL if the transform call errors or returns no URL.
+  // Helper: sign a thumbnail URL. Plain signed URL (no on-demand transform) — the
+  // transform endpoint renders cold server-side and was the source of the multi-
+  // second thumbnail lag; the source images are already compressed (≤1MB, ≤1920px)
+  // at upload, so the browser downscales them to 72px cheaply.
   async function signThumb(path: string): Promise<string | null> {
-    try {
-      const { data: t } = await supabase.storage
-        .from('car-documents')
-        .createSignedUrl(path, 600, { transform: { width: 144, height: 144, resize: 'cover' } })
-      if (t?.signedUrl) return t.signedUrl
-    } catch { /* transform not supported on this tier */ }
-    const { data: plain } = await supabase.storage.from('car-documents').createSignedUrl(path, 600)
-    return plain?.signedUrl ?? null
+    const { data } = await supabase.storage.from('car-documents').createSignedUrl(path, 600)
+    return data?.signedUrl ?? null
   }
 
   async function loadData() {
@@ -271,13 +267,23 @@ export default function GarageDocumentsPage() {
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
-    // Kick off thumbnail signing and reminders query in parallel — thumbnails
-    // no longer wait for the reminders round-trip.
+    // Sign + preload each thumbnail INDEPENDENTLY — no Promise.all barrier, so a
+    // slow sign on one row never holds up the others. Each thumb fades in the
+    // moment its own pixels are ready.
     const imageRows = all.filter(d => d.file_type === 'image' && d.file_url)
-    const thumbP = Promise.all(imageRows.map(async d => {
-      const url = await signThumb(d.file_url as string)
-      return [d.id, url] as const
-    }))
+    for (const d of imageRows) {
+      signThumb(d.file_url as string).then(url => {
+        if (!url) return
+        const img = new Image()
+        const reveal = () => {
+          setThumbs(prev => ({ ...prev, [d.id]: url }))
+          setThumbLoaded(prev => { const n = new Set(prev); n.add(d.id); return n })
+        }
+        img.onload = reveal
+        img.onerror = reveal   // still set URL — network may succeed in the <div> later
+        img.src = url
+      })
+    }
 
     // Map document-linked expiry reminders (lead time) so the edit sheet can prefill.
     // Resilient to the pre-038 schema (remind_days_before may not exist yet).
@@ -296,25 +302,6 @@ export default function GarageDocumentsPage() {
     const remMap: Record<string, number> = {}
     for (const r of remRows ?? []) remMap[r.document_id] = snapPreset(r.remind_days_before)
     setDocReminders(remMap)
-
-    // Apply thumbnails when ready (parallel with reminders — resolves independently).
-    // Preload each image so we only reveal when the browser has the pixels — prevents
-    // the background-image pop. Fade-in is handled by opacity transition on each thumb.
-    const signed = await thumbP
-    for (const [docId, url] of signed) {
-      if (!url) continue
-      const img = new Image()
-      img.onload = () => {
-        setThumbs(prev => ({ ...prev, [docId]: url }))
-        setThumbLoaded(prev => { const n = new Set(prev); n.add(docId); return n })
-      }
-      img.onerror = () => {
-        // Still set the URL so background renders (network may succeed later)
-        setThumbs(prev => ({ ...prev, [docId]: url }))
-        setThumbLoaded(prev => { const n = new Set(prev); n.add(docId); return n })
-      }
-      img.src = url
-    }
   }
 
   useEffect(() => { loadData() }, [])
@@ -915,7 +902,10 @@ export default function GarageDocumentsPage() {
               </svg>
             </button>
           </div>
-          <iframe src={detailSignedUrl} title="PDF viewer" style={{ flex: 1, border: 'none', display: 'block', width: '100%' }} />
+          {/* #view=FitH + page=1 tells the native PDF viewer to fit the page WIDTH
+              and center it — avoids the actual-size render that overflows narrow
+              phones and leaves the page parked in the top-left corner. */}
+          <iframe src={`${detailSignedUrl}#view=FitH&page=1&toolbar=1`} title="PDF viewer" style={{ flex: 1, border: 'none', display: 'block', width: '100%' }} />
         </div>
       )}
 
