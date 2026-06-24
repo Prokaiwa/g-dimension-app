@@ -3,9 +3,8 @@
 // fades). A flick (velocity) commits a page-turn or dismiss even on a tiny drag —
 // that's what makes it feel instant. Axis locks once per gesture, biased toward
 // horizontal so a slight vertical wobble never kills a swipe. Landscape images are
-// centered (objectFit contain). The overlay owns ALL touches and locks body scroll
-// while open. Reports the index it closed on via onClose(index) so callers can keep
-// a thumbnail carousel in sync. Mirrors the TuningModDetailPage fullscreen viewer.
+// centered (objectFit contain, maxHeight 90dvh). The overlay owns ALL touches and
+// locks body scroll while open. Mirrors TuningModDetailPage's fullscreen viewer.
 import { useEffect, useRef, useState } from 'react'
 import { FONT_UI } from '../tokens'
 
@@ -23,26 +22,32 @@ export default function ImageCarouselLightbox({
   const idxRef = useRef(idx)
   idxRef.current = idx
 
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const vertRef    = useRef<HTMLDivElement>(null)
-  const stripRef   = useRef<HTMLDivElement>(null)
-  const chromeRef  = useRef<HTMLDivElement>(null)
-  // gesture state: start x/y, last x/y, last time, velocities, deltas, axis lock
+  const vertRef   = useRef<HTMLDivElement>(null)
+  const stripRef  = useRef<HTMLDivElement>(null)
+  const chromeRef = useRef<HTMLDivElement>(null)
   const g = useRef({ x0: 0, y0: 0, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, dx: 0, dy: 0, lock: null as null | 'h' | 'v' })
 
+  // Lock body scroll while open.
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [])
 
-  // Horizontal page offset (+ any in-progress drag).
+  // Initialise both transforms once on mount (handles startIndex > 0).
+  // IMPORTANT: do NOT depend on [idx] here — the touch handlers call paintStrip
+  // with animate=true then immediately call setIdx; if the effect re-ran on idx
+  // change it would fire transition:'none' during the snap and kill the animation.
+  useEffect(() => {
+    paintStrip(0, false)
+    paintVertical(0, false)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const paintStrip = (dx: number, animate: boolean) => {
     const el = stripRef.current; if (!el) return
     el.style.transition = animate ? H_SNAP : 'none'
     el.style.transform  = `translateX(calc(${-idxRef.current * 100}% + ${dx}px))`
   }
-  // Vertical dismiss drag — translate + scale the whole layer, fade the chrome.
   const paintVertical = (dy: number, animate: boolean) => {
     const v = vertRef.current, c = chromeRef.current
     const scale = Math.max(0.86, 1 - Math.abs(dy) / 1100)
@@ -50,12 +55,6 @@ export default function ImageCarouselLightbox({
     if (v) { v.style.transition = animate ? V_SNAP : 'none'; v.style.transform = `translateY(${dy}px) scale(${scale})` }
     if (c) { c.style.transition = animate ? 'opacity 340ms ease' : 'none'; c.style.opacity = String(alpha) }
   }
-
-  // Re-snap on index change (after a committed page-turn) and on first mount.
-  useEffect(() => {
-    paintStrip(0, false)
-    paintVertical(0, false)
-  }, [idx])
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0]
@@ -72,9 +71,9 @@ export default function ImageCarouselLightbox({
     if (s.lock === 'h') {
       const atStart = idxRef.current === 0 && dx > 0
       const atEnd   = idxRef.current === images.length - 1 && dx < 0
-      paintStrip(atStart || atEnd ? dx * 0.3 : dx, false)   // rubber-band at the ends
+      paintStrip(atStart || atEnd ? dx * 0.3 : dx, false)
     } else if (s.lock === 'v') {
-      paintVertical(dy < 0 ? dy * 0.3 : dy, false)          // resist upward
+      paintVertical(dy < 0 ? dy * 0.3 : dy, false)
     }
   }
   const onTouchEnd = () => {
@@ -85,12 +84,13 @@ export default function ImageCarouselLightbox({
       let ni = idxRef.current
       if      (s.dx < -w * 0.25 || (flick && s.vx < 0)) ni = Math.min(ni + 1, images.length - 1)
       else if (s.dx >  w * 0.25 || (flick && s.vx > 0)) ni = Math.max(ni - 1, 0)
-      idxRef.current = ni; setIdx(ni)
-      paintStrip(0, true)
+      idxRef.current = ni
+      paintStrip(0, true)   // animate FIRST, then React re-renders (state update is async)
+      setIdx(ni)
     } else if (s.lock === 'v') {
       const flickDown = Math.abs(s.vy) > 0.5 && s.dy > 0
       if (s.dy > 110 || flickDown) {
-        paintVertical(window.innerHeight, true)   // fling off-screen, then unmount
+        paintVertical(window.innerHeight, true)
         if (chromeRef.current) { chromeRef.current.style.transition = 'opacity 200ms ease'; chromeRef.current.style.opacity = '0' }
         window.setTimeout(() => onClose(idxRef.current), 200)
       } else {
@@ -99,11 +99,8 @@ export default function ImageCarouselLightbox({
     }
   }
 
-  const current = images[idx]
-
   return (
     <div
-      ref={overlayRef}
       onClick={() => onClose(idxRef.current)}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,1)',
@@ -111,7 +108,7 @@ export default function ImageCarouselLightbox({
         touchAction: 'none', overflow: 'hidden', overscrollBehavior: 'none',
       }}
     >
-      {/* Vertical-dismiss layer (owns the gesture) */}
+      {/* Vertical-dismiss layer */}
       <div
         ref={vertRef}
         style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform' }}
@@ -121,7 +118,7 @@ export default function ImageCarouselLightbox({
         onTouchCancel={onTouchEnd}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Horizontal strip — each slide is full width */}
+        {/* Horizontal strip */}
         <div ref={stripRef} style={{ display: 'flex', width: '100%', willChange: 'transform' }}>
           {images.map((im, i) => (
             <div key={i} style={{ width: '100%', flexShrink: 0, height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -140,7 +137,7 @@ export default function ImageCarouselLightbox({
         </div>
       </div>
 
-      {/* Chrome (close × + counter + caption + dots) — fades with the dismiss drag, passes touches through */}
+      {/* Chrome — fades with the dismiss drag */}
       <div ref={chromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
         <button
           onClick={(e) => { e.stopPropagation(); onClose(idxRef.current) }}
@@ -155,16 +152,14 @@ export default function ImageCarouselLightbox({
           <span style={{ color: 'rgba(245,240,228,0.85)', fontSize: 20, lineHeight: 1 }}>×</span>
         </button>
 
-        {/* Caption */}
-        {current?.caption && (
+        {images[idx]?.caption && (
           <p style={{
-            position: 'absolute', left: 24, right: 24, bottom: 56, textAlign: 'center',
+            position: 'absolute', left: 24, right: 24, bottom: 52, textAlign: 'center',
             fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.85)',
             lineHeight: 1.5, margin: 0,
-          }}>{current.caption}</p>
+          }}>{images[idx].caption}</p>
         )}
 
-        {/* Counter + hint */}
         <p style={{
           position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center',
           fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em',

@@ -209,6 +209,9 @@ export default function GarageDocumentsPage() {
   const [detailUrlLoading, setDetailUrlLoading] = useState(false)
   const [detailImages, setDetailImages] = useState<{ url: string }[]>([])      // all signed image URLs for carousel
   const [pdfGroupUrls, setPdfGroupUrls] = useState<{ url: string; name: string | null }[]>([])
+  const [previewIdx, setPreviewIdx] = useState(0)   // current image in the inline preview strip
+  const previewG = useRef({ x0: 0, dx: 0, lock: false })
+  const previewStripRef = useRef<HTMLDivElement>(null)
   // Full-screen PDF viewer overlay (stays in-app)
   const [pdfFullscreen, setPdfFullscreen] = useState(false)
   // Carousel lightbox
@@ -331,6 +334,7 @@ export default function GarageDocumentsPage() {
     setDetailSignedUrl(null)
     setDetailImages([])
     setPdfGroupUrls([])
+    setPreviewIdx(0)
     if (!detailItem) return
     ;(async () => {
       if (detailItem.kind === 'buildReceiptGroup') {
@@ -1103,23 +1107,60 @@ export default function GarageDocumentsPage() {
                   : detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
                 if (fileType === 'image') {
                   return (
-                    <div style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
-                      {detailUrlLoading && <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>}
-                      {detailSignedUrl && (
-                        <button
-                          onClick={() => { setLightboxStartIdx(0); setLightboxOpen(true) }}
-                          style={{ display: 'block', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'zoom-in', WebkitTapHighlightColor: 'transparent' }}
-                        >
-                          <img src={detailSignedUrl} alt="" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block' }} />
-                        </button>
-                      )}
-                      {/* Expand / page count hint */}
-                      {detailImages.length > 1 && (
-                        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: '3px 10px', pointerEvents: 'none' }}>
-                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: '#f5f5f5' }}>1 / {detailImages.length}</span>
+                    <div
+                      style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', flexShrink: 0, position: 'relative', overflow: 'hidden', touchAction: 'pan-y' }}
+                      onTouchStart={e => {
+                        const t = e.touches[0]
+                        previewG.current = { x0: t.clientX, dx: 0, lock: false }
+                      }}
+                      onTouchMove={e => {
+                        const s = previewG.current
+                        const dx = e.touches[0].clientX - s.x0
+                        s.dx = dx; s.lock = true
+                        const el = previewStripRef.current; if (!el) return
+                        const atStart = previewIdx === 0 && dx > 0
+                        const atEnd   = previewIdx === detailImages.length - 1 && dx < 0
+                        el.style.transition = 'none'
+                        el.style.transform  = `translateX(calc(${-previewIdx * 100}% + ${atStart || atEnd ? dx * 0.3 : dx}px))`
+                      }}
+                      onTouchEnd={() => {
+                        const s = previewG.current
+                        if (!s.lock) return
+                        const el = previewStripRef.current
+                        const snap = (ni: number) => {
+                          setPreviewIdx(ni)
+                          if (el) { el.style.transition = 'transform 300ms cubic-bezier(0.22,1,0.36,1)'; el.style.transform = `translateX(${-ni * 100}%)` }
+                        }
+                        const W = (el?.parentElement?.offsetWidth ?? window.innerWidth)
+                        if      (s.dx < -W * 0.25 && previewIdx < detailImages.length - 1) snap(previewIdx + 1)
+                        else if (s.dx >  W * 0.25 && previewIdx > 0) snap(previewIdx - 1)
+                        else snap(previewIdx)
+                      }}
+                      onClick={() => { setLightboxStartIdx(previewIdx); setLightboxOpen(true) }}
+                    >
+                      {detailUrlLoading && (
+                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: DIM }}>Loading…</span>
                         </div>
                       )}
-                      {detailSignedUrl && detailImages.length <= 1 && (
+                      {/* Swipeable strip */}
+                      <div
+                        ref={previewStripRef}
+                        style={{ display: 'flex', width: '100%', height: '100%', transform: `translateX(${-previewIdx * 100}%)` }}
+                      >
+                        {detailImages.map((im, i) => (
+                          <div key={i} style={{ width: '100%', flexShrink: 0, minHeight: 200, maxHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <img src={im.url} alt="" draggable={false} style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Counter + expand hint */}
+                      {detailImages.length > 1 && (
+                        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: '3px 10px', pointerEvents: 'none' }}>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: '#f5f5f5' }}>{previewIdx + 1} / {detailImages.length}</span>
+                        </div>
+                      )}
+                      {detailImages.length <= 1 && detailImages.length > 0 && (
                         <div style={{ position: 'absolute', bottom: 8, right: 8, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5f5f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
