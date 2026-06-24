@@ -104,7 +104,6 @@ type Tab = 'documents' | 'receipts'
 // In-app detail panel state
 type DetailItem =
   | { kind: 'doc'; doc: Doc }
-  | { kind: 'buildReceipt'; receipt: BuildReceipt }
   | { kind: 'buildReceiptGroup'; receipts: BuildReceipt[] }
 
 type Doc = {
@@ -409,9 +408,9 @@ export default function GarageDocumentsPage() {
       }
     })()
     if (detailItem.kind === 'buildReceiptGroup') return
-    const bucket = detailItem.kind === 'buildReceipt' ? 'receipts' : 'car-documents'
-    const path = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_url : detailItem.doc.file_url
-    const fileType = detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
+    const bucket = 'car-documents'
+    const path = detailItem.doc.file_url
+    const fileType = detailItem.doc.file_type
     if (!path || (fileType !== 'image' && fileType !== 'pdf')) return
     setDetailUrlLoading(true)
     ;(async () => {
@@ -1155,10 +1154,10 @@ export default function GarageDocumentsPage() {
               {(() => {
                 const fileType = detailItem.kind === 'buildReceiptGroup'
                   ? (detailItem.receipts[0]?.file_type ?? null)
-                  : detailItem.kind === 'buildReceipt' ? detailItem.receipt.file_type : detailItem.doc.file_type
+                  : detailItem.doc.file_type
                 const hasFile = detailItem.kind === 'buildReceiptGroup'
                   ? !!detailItem.receipts[0]?.file_url
-                  : detailItem.kind === 'buildReceipt' ? !!detailItem.receipt.file_url : !!detailItem.doc.file_url
+                  : !!detailItem.doc.file_url
                 if (fileType === 'image') {
                   return (
                     <div
@@ -1295,70 +1294,6 @@ export default function GarageDocumentsPage() {
                         cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
                         letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
                       }}>Edit Document</button>
-                    </>
-                  )
-                })()}
-
-                {detailItem.kind === 'buildReceipt' && (() => {
-                  const r = detailItem.receipt
-                  const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
-                  const serviceWhat = (() => {
-                    const items = sessionInfo?.items ?? []
-                    if (items.length === 1) return items[0]
-                    if (items.length > 1) return items.join(', ')
-                    const lbl = sessionInfo?.label
-                    if (lbl && lbl !== 'Service' && lbl !== 'Mod') return lbl
-                    return r.vendor || 'Service'
-                  })()
-                  const title = r.job_id ? (jobTitleMap[r.job_id] || r.vendor || 'Part Receipt') : serviceWhat
-                  const shop = (() => {
-                    if (r.job_id) return r.vendor && r.vendor !== title ? r.vendor : null
-                    const s = sessionInfo?.shop
-                    if (s && s !== title) return s
-                    return r.vendor && r.vendor !== title ? r.vendor : null
-                  })()
-                  const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
-                  return (
-                    <>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{r.job_id ? 'Part Receipt' : 'Service Receipt'}</span>
-                      <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '4px 0 12px', lineHeight: 1.2 }}>{title}</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                        {shop && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Shop / Vendor</span>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{shop}</span>
-                          </div>
-                        )}
-                        {displayDate && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Date</span>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM }}>{fmtDate(displayDate)}</span>
-                          </div>
-                        )}
-                        {fmtMoney(r.amount, r.currency) && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: DIM }}>Amount</span>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(r.amount, r.currency)}</span>
-                          </div>
-                        )}
-                      </div>
-                      {/* Link to source record */}
-                      {!r.job_id && r.session_id && (
-                        <button onClick={() => { setDetailItem(null); navigate(`/maintenance/${r.session_id}`) }} style={{
-                          width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
-                          cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
-                          letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        }}>View Service Session <span style={{ color: COLOR_ACCENT }}>›</span></button>
-                      )}
-                      {r.job_id && (
-                        <button onClick={() => { setDetailItem(null); navigate(`/tuning/mods/${r.job_id}`) }} style={{
-                          width: '100%', minHeight: 48, background: 'rgba(240,228,200,0.07)', border: `1px solid ${FAINT}`,
-                          cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
-                          letterSpacing: '0.1em', textTransform: 'uppercase', color: CREAM,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        }}>View Mod <span style={{ color: COLOR_ACCENT }}>›</span></button>
-                      )}
                     </>
                   )
                 })()}
