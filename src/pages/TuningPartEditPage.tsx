@@ -35,6 +35,7 @@ type Part = {
   notes: string | null
   status: string
   car_id: string
+  session_id: string | null
   part_type_id: number | null
 }
 
@@ -117,6 +118,12 @@ export default function TuningPartEditPage() {
   const [newLinkUrl,      setNewLinkUrl]      = useState('')
   const [newLinkLabel,    setNewLinkLabel]    = useState('')
 
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  // Receipts
+  const [existingReceipts,  setExistingReceipts]  = useState<{ id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null; signedUrl: string | null }[]>([])
+  const [removedReceiptIds, setRemovedReceiptIds] = useState<string[]>([])
+  const [receiptFiles,      setReceiptFiles]      = useState<{ file: File; preview: string | null; name: string }[]>([])
+
   const [carId,   setCarId]   = useState<string | null>(null)
   const [userId,  setUserId]  = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -132,7 +139,7 @@ export default function TuningPartEditPage() {
       const [{ data: job }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, category, date_removed, date_installed, parts_cost, notes, status, car_id, part_type_id')
+          .select('title, brand, category, date_removed, date_installed, parts_cost, notes, status, car_id, part_type_id, session_id')
           .eq('id', partId)
           .single(),
         supabase
@@ -160,6 +167,25 @@ export default function TuningPartEditPage() {
       setNotes(part.notes ?? '')
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
       setExistingLinks((linksData ?? []) as JobLink[])
+      setSessionId((job as unknown as { session_id: string | null }).session_id ?? null)
+
+      // Load existing receipts and sign URLs
+      const { data: receiptData } = await supabase
+        .from('receipts')
+        .select('id, file_url, file_type, file_name')
+        .eq('job_id', partId)
+        .order('created_at', { ascending: true })
+      if (receiptData && (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).length > 0) {
+        const paths = (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => r.file_url)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const urlMap: Record<string, string> = {}
+        if (signed) {
+          for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {
+            if (s.signedUrl) urlMap[s.path] = s.signedUrl
+          }
+        }
+        setExistingReceipts((receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => ({ ...r, signedUrl: urlMap[r.file_url] ?? null })))
+      }
 
       if (part.part_type_id) {
         const { data: templates } = await supabase
@@ -311,6 +337,27 @@ export default function TuningPartEditPage() {
     setExistingPhotos(prev => prev.filter(p => p.id !== id))
   }
 
+  const handleReceiptSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
+    setReceiptFiles(prev => [
+      ...prev,
+      ...files.map(f => ({ file: f, preview: f.type.startsWith('image/') ? URL.createObjectURL(f) : null, name: f.name })),
+    ])
+    e.target.value = ''
+  }
+
+  const removeReceiptFile = (i: number) => {
+    const r = receiptFiles[i]
+    if (r?.preview) URL.revokeObjectURL(r.preview)
+    setReceiptFiles(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  const removeExistingReceipt = (id: string) => {
+    setRemovedReceiptIds(prev => [...prev, id])
+    setExistingReceipts(prev => prev.filter(r => r.id !== id))
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
@@ -389,6 +436,40 @@ export default function TuningPartEditPage() {
         }))
         const { error: linkErr } = await supabase.from('job_links').insert(linkRows)
         if (linkErr) { setSaveErr(linkErr.message); setSaving(false); return }
+      }
+    }
+
+    // Receipts — delete removed, upload new
+    if (removedReceiptIds.length > 0) {
+      await supabase.from('receipts').delete().in('id', removedReceiptIds)
+    }
+    if (receiptFiles.length > 0 && userId && carId) {
+      let sid = sessionId
+      if (!sid) {
+        // Parts may not have a session — create an anonymous modification session
+        const { data: sData } = await supabase
+          .from('sessions')
+          .insert({ car_id: carId, type: 'modification', date_performed: new Date().toISOString().slice(0, 10), add_to_timeline: false })
+          .select('id').single()
+        if (sData) {
+          sid = (sData as { id: string }).id
+          await supabase.from('jobs').update({ session_id: sid }).eq('id', partId!)
+          setSessionId(sid)
+        }
+      }
+      if (sid) {
+        await Promise.all(receiptFiles.map(async r => {
+          const isImg = r.file.type.startsWith('image/')
+          const ext   = isImg ? 'jpg' : 'pdf'
+          const path  = `${userId}/${carId}/receipts/${partId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+          let upload: File | Blob = r.file
+          if (isImg) {
+            try { upload = await imageCompression(r.file, COMPRESSION_OPTIONS) } catch { /* use original */ }
+          }
+          const { error: upErr } = await supabase.storage.from('receipts').upload(path, upload)
+          if (upErr) return
+          await supabase.from('receipts').insert({ session_id: sid!, job_id: partId, car_id: carId, file_url: path, file_type: isImg ? 'image' : 'pdf', file_name: r.name })
+        }))
       }
     }
 
@@ -579,6 +660,56 @@ export default function TuningPartEditPage() {
             >
               + Add Link
             </button>
+          </div>
+        </div>
+
+        {/* ── Receipts ── */}
+        <div style={{ padding: '28px 20px 0' }}>
+          <label style={LABEL}>Receipts</label>
+
+          {existingReceipts.length > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4, marginBottom: 10 }}>
+              {existingReceipts.map(r => (
+                <div key={r.id} style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+                  {r.file_type === 'image' && r.signedUrl ? (
+                    <img src={r.signedUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: 'rgba(26,16,8,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>PDF</span>
+                      <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 9, color: COLOR_CARDBOARD_INK2, opacity: 0.4, maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file_name ?? ''}</span>
+                    </div>
+                  )}
+                  <button onClick={() => removeExistingReceipt(r.id)}
+                    style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                    <span style={{ color: '#e8c98a', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: existingReceipts.length > 0 ? 0 : 4 }}>
+            {receiptFiles.map((r, i) => (
+              <div key={i} style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+                {r.preview ? (
+                  <img src={r.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.75 }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', background: 'rgba(26,16,8,0.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>PDF</span>
+                    <span style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 9, color: COLOR_CARDBOARD_INK2, opacity: 0.4, maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                  </div>
+                )}
+                <button onClick={() => removeReceiptFile(i)}
+                  style={{ position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: '50%', background: 'rgba(26,16,8,0.75)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent' }}>
+                  <span style={{ color: '#e8c98a', fontSize: 12, lineHeight: 1, fontWeight: 700 }}>×</span>
+                </button>
+              </div>
+            ))}
+            <label style={{ width: 80, height: 80, flexShrink: 0, border: `1.5px dashed rgba(26,16,8,0.25)`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 2 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 22, color: COLOR_CARDBOARD_INK2, opacity: 0.35, lineHeight: 1 }}>+</span>
+              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.3 }}>Receipt</span>
+              <input type="file" accept="image/*,.pdf" multiple onChange={handleReceiptSelect} style={{ display: 'none' }} />
+            </label>
           </div>
         </div>
 

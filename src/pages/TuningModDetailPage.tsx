@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
+import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,11 @@ export default function TuningModDetailPage() {
   const [salePrice,     setSalePrice]     = useState('')
   const [links,         setLinks]         = useState<JobLink[]>([])
   const [hasDiyGuide,   setHasDiyGuide]   = useState<boolean | null>(null)
+  // Receipts
+  const [receipts,    setReceipts]    = useState<{ id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null; signedUrl: string | null }[]>([])
+  const [receiptLightbox, setReceiptLightbox] = useState<{ open: boolean; startIndex: number }>({ open: false, startIndex: 0 })
+  const [pdfFullscreen, setPdfFullscreen] = useState(false)
+  const [pdfUrl,        setPdfUrl]        = useState<string | null>(null)
 
   // Carousel + fullscreen viewer
   const [photoIndex,        setPhotoIndex]        = useState(0)
@@ -175,6 +181,23 @@ export default function TuningModDetailPage() {
       const { data: diyData } = await supabase
         .from('diy_guides').select('id').eq('job_id', modId).maybeSingle()
       setHasDiyGuide(!!diyData)
+      // Load receipts + sign URLs
+      const { data: receiptData } = await supabase
+        .from('receipts')
+        .select('id, file_url, file_type, file_name, amount, currency, receipt_date')
+        .eq('job_id', modId)
+        .order('created_at', { ascending: true })
+      if (receiptData && receiptData.length > 0) {
+        const paths = receiptData.map((r: { file_url: string }) => r.file_url)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const urlMap: Record<string, string> = {}
+        if (signed) {
+          for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {
+            if (s.signedUrl) urlMap[s.path] = s.signedUrl
+          }
+        }
+        setReceipts(receiptData.map((r: { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null; amount: number | null; currency: string | null; receipt_date: string | null }) => ({ ...r, signedUrl: urlMap[r.file_url] ?? null })))
+      }
       setLoading(false)
     }
     load()
@@ -621,6 +644,33 @@ export default function TuningModDetailPage() {
           </div>
         )}
 
+        {/* Receipts */}
+        {receipts.length > 0 && (() => {
+          const imageReceipts = receipts.filter(r => r.file_type === 'image' && r.signedUrl)
+          const pdfReceipts   = receipts.filter(r => r.file_type === 'pdf')
+          return (
+            <div style={{ padding: '20px 20px 0' }}>
+              <p style={LABEL}>Receipts</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                {imageReceipts.map((r, i) => (
+                  <button key={r.id} onClick={() => setReceiptLightbox({ open: true, startIndex: i })}
+                    style={{ padding: 0, border: 'none', cursor: 'pointer', background: 'none', WebkitTapHighlightColor: 'transparent' }}>
+                    <img src={r.signedUrl!} alt="" style={{ width: 76, height: 76, objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+                {pdfReceipts.map(r => (
+                  <button key={r.id}
+                    onClick={() => { setPdfUrl(r.signedUrl); setPdfFullscreen(true) }}
+                    style={{ width: 76, height: 76, background: 'rgba(245,240,228,0.06)', border: '1px solid rgba(245,240,228,0.1)', cursor: r.signedUrl ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, WebkitTapHighlightColor: 'transparent' }}>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.55)' }}>PDF</span>
+                    {r.file_name && <span style={{ fontFamily: FONT_UI, fontSize: 8, color: 'rgba(245,240,228,0.28)', maxWidth: 64, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file_name}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ── Actions ── */}
         <div style={{ padding: '28px 20px 0', display: 'flex', gap: 10, borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 28 }}>
           <button
@@ -909,6 +959,28 @@ export default function TuningModDetailPage() {
           zIndex: 50,
         }}>
           ✓ Set as {setSuccess} Photo
+        </div>
+      )}
+
+      {/* ── Receipt lightbox ── */}
+      {receiptLightbox.open && (() => {
+        const imgs = receipts.filter(r => r.file_type === 'image' && r.signedUrl).map(r => ({ url: r.signedUrl!, caption: r.file_name }))
+        return (
+          <ImageCarouselLightbox
+            images={imgs}
+            startIndex={receiptLightbox.startIndex}
+            onClose={() => setReceiptLightbox({ open: false, startIndex: 0 })}
+          />
+        )
+      })()}
+
+      {/* ── PDF fullscreen ── */}
+      {pdfFullscreen && pdfUrl && (
+        <div onClick={() => setPdfFullscreen(false)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: '#000', display: 'flex', flexDirection: 'column' }}>
+          <button onClick={(e) => { e.stopPropagation(); setPdfFullscreen(false) }} style={{ position: 'absolute', top: 14, right: 14, zIndex: 61, width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: 'none', color: '#f5f5f5', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <object type="application/pdf" data={pdfUrl} style={{ flex: 1, width: '100%', border: 'none' }}>
+            <p style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>PDF cannot be displayed. <a href={pdfUrl} target="_blank" rel="noreferrer" style={{ color: '#c8661a' }}>Open</a></p>
+          </object>
         </div>
       )}
 
