@@ -211,15 +211,6 @@ export default function GarageDocumentsPage() {
   const [docReminders, setDocReminders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Helper: sign a thumbnail URL. Plain signed URL (no on-demand transform) — the
-  // transform endpoint renders cold server-side and was the source of the multi-
-  // second thumbnail lag; the source images are already compressed (≤1MB, ≤1920px)
-  // at upload, so the browser downscales them to 72px cheaply.
-  async function signThumb(path: string): Promise<string | null> {
-    const { data } = await supabase.storage.from('car-documents').createSignedUrl(path, 600)
-    return data?.signedUrl ?? null
-  }
-
   async function loadData() {
     const id = await getActiveCarId()
     if (!id) { setLoading(false); setNoCar(true); return }
@@ -267,22 +258,31 @@ export default function GarageDocumentsPage() {
     setBuildReceipts((receiptRows ?? []) as BuildReceipt[])
     setLoading(false)
 
-    // Sign + preload each thumbnail INDEPENDENTLY — no Promise.all barrier, so a
-    // slow sign on one row never holds up the others. Each thumb fades in the
-    // moment its own pixels are ready.
+    // Sign ALL image thumbnails in ONE request (createSignedUrls — plural).
+    // Previously each doc made its own round-trip; with N documents that's N
+    // serial HTTP calls. One batch call is dramatically faster.
     const imageRows = all.filter(d => d.file_type === 'image' && d.file_url)
-    for (const d of imageRows) {
-      signThumb(d.file_url as string).then(url => {
-        if (!url) return
-        const img = new Image()
-        const reveal = () => {
-          setThumbs(prev => ({ ...prev, [d.id]: url }))
-          setThumbLoaded(prev => { const n = new Set(prev); n.add(d.id); return n })
+    if (imageRows.length > 0) {
+      const paths = imageRows.map(d => d.file_url as string)
+      const { data: signedList } = await supabase.storage
+        .from('car-documents')
+        .createSignedUrls(paths, 600)
+      if (signedList) {
+        for (const item of signedList) {
+          if (!item.signedUrl) continue
+          const signedUrl = item.signedUrl
+          const doc = imageRows.find(d => d.file_url === item.path)
+          if (!doc) continue
+          const img = new Image()
+          const reveal = () => {
+            setThumbs(prev => ({ ...prev, [doc.id]: signedUrl }))
+            setThumbLoaded(prev => { const n = new Set(prev); n.add(doc.id); return n })
+          }
+          img.onload = reveal
+          img.onerror = reveal
+          img.src = item.signedUrl
         }
-        img.onload = reveal
-        img.onerror = reveal   // still set URL — network may succeed in the <div> later
-        img.src = url
-      })
+      }
     }
 
     // Map document-linked expiry reminders (lead time) so the edit sheet can prefill.
@@ -902,10 +902,19 @@ export default function GarageDocumentsPage() {
               </svg>
             </button>
           </div>
-          {/* #view=FitH + page=1 tells the native PDF viewer to fit the page WIDTH
-              and center it — avoids the actual-size render that overflows narrow
-              phones and leaves the page parked in the top-left corner. */}
-          <iframe src={`${detailSignedUrl}#view=FitH&page=1&toolbar=1`} title="PDF viewer" style={{ flex: 1, border: 'none', display: 'block', width: '100%' }} />
+          {/* <object> triggers iOS Safari's native PDF viewer (fit-to-width by default)
+              and Chrome's built-in viewer which honours #view=FitH. Plain <iframe>
+              on iOS uses an embedded renderer that ignores all zoom fragments. */}
+          <object
+            data={`${detailSignedUrl}#view=FitH&toolbar=1`}
+            type="application/pdf"
+            style={{ flex: 1, display: 'block', width: '100%', height: '100%' }}
+          >
+            {/* Fallback: browser can't render PDF inline — shouldn't happen on modern iOS/Android */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 16, padding: 32 }}>
+              <span style={{ fontFamily: FONT_UI, fontSize: 13, color: DIM, textAlign: 'center', lineHeight: 1.5 }}>Your browser can't display this PDF inline.</span>
+            </div>
+          </object>
         </div>
       )}
 
