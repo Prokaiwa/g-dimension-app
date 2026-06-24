@@ -1,11 +1,16 @@
 // Full-screen image carousel viewer — swipe LEFT/RIGHT to page between images,
-// swipe UP/DOWN to dismiss (the image tracks your finger and the backdrop fades).
-// Tap the backdrop or ✕ to close. Locks body scroll while open. Reports the index
-// it closed on via onClose(index) so callers can keep a thumbnail carousel in sync.
+// swipe UP/DOWN to dismiss (the image tracks your finger, scales, and the chrome
+// fades). A flick (velocity) commits a page-turn or dismiss even on a tiny drag —
+// that's what makes it feel instant. Axis locks once per gesture, biased toward
+// horizontal so a slight vertical wobble never kills a swipe. Landscape images are
+// centered (objectFit contain). The overlay owns ALL touches and locks body scroll
+// while open. Reports the index it closed on via onClose(index) so callers can keep
+// a thumbnail carousel in sync. Mirrors the TuningModDetailPage fullscreen viewer.
 import { useEffect, useRef, useState } from 'react'
 import { FONT_UI } from '../tokens'
 
-const SNAP = 'transform 380ms cubic-bezier(0.22,1,0.36,1)'
+const H_SNAP = 'transform 300ms cubic-bezier(0.22,1,0.36,1)'
+const V_SNAP = 'transform 340ms cubic-bezier(0.22,1,0.36,1)'
 
 export default function ImageCarouselLightbox({
   images, startIndex = 0, onClose,
@@ -19,9 +24,11 @@ export default function ImageCarouselLightbox({
   idxRef.current = idx
 
   const overlayRef = useRef<HTMLDivElement>(null)
-  const trackRef   = useRef<HTMLDivElement>(null)
-  // gesture state: start x/y, last deltas, axis lock, velocity
-  const g = useRef({ x0: 0, y0: 0, dx: 0, dy: 0, axis: '' as '' | 'x' | 'y', ly: 0, lt: 0, vy: 0, active: false })
+  const vertRef    = useRef<HTMLDivElement>(null)
+  const stripRef   = useRef<HTMLDivElement>(null)
+  const chromeRef  = useRef<HTMLDivElement>(null)
+  // gesture state: start x/y, last x/y, last time, velocities, deltas, axis lock
+  const g = useRef({ x0: 0, y0: 0, lx: 0, ly: 0, lt: 0, vx: 0, vy: 0, dx: 0, dy: 0, lock: null as null | 'h' | 'v' })
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -29,83 +36,67 @@ export default function ImageCarouselLightbox({
     return () => { document.body.style.overflow = prev }
   }, [])
 
-  const W = typeof window !== 'undefined' ? window.innerWidth : 390
-
-  // Paint the track (horizontal page offset + any in-progress drag) and backdrop.
-  const paint = (dx: number, dy: number, animate: boolean) => {
-    const tr = trackRef.current, ov = overlayRef.current
-    const base = -idxRef.current * W
-    if (tr) {
-      tr.style.transition = animate ? SNAP : 'none'
-      // vertical dismiss drags the whole track down/up with a slight scale
-      const scale = g.current.axis === 'y' ? Math.max(0.85, 1 - Math.abs(dy) / 1100) : 1
-      tr.style.transform = `translate3d(${base + dx}px, ${dy}px, 0) scale(${scale})`
-    }
-    if (ov) {
-      ov.style.transition = animate ? 'background 380ms ease' : 'none'
-      const alpha = g.current.axis === 'y' ? Math.max(0, 0.94 - Math.abs(dy) / 320) : 0.94
-      ov.style.background = `rgba(0,0,0,${alpha})`
-    }
+  // Horizontal page offset (+ any in-progress drag).
+  const paintStrip = (dx: number, animate: boolean) => {
+    const el = stripRef.current; if (!el) return
+    el.style.transition = animate ? H_SNAP : 'none'
+    el.style.transform  = `translateX(calc(${-idxRef.current * 100}% + ${dx}px))`
+  }
+  // Vertical dismiss drag — translate + scale the whole layer, fade the chrome.
+  const paintVertical = (dy: number, animate: boolean) => {
+    const v = vertRef.current, c = chromeRef.current
+    const scale = Math.max(0.86, 1 - Math.abs(dy) / 1100)
+    const alpha = Math.max(0, 1 - Math.abs(dy) / 280)
+    if (v) { v.style.transition = animate ? V_SNAP : 'none'; v.style.transform = `translateY(${dy}px) scale(${scale})` }
+    if (c) { c.style.transition = animate ? 'opacity 340ms ease' : 'none'; c.style.opacity = String(alpha) }
   }
 
-  // Snap to a given index (re-render moves the base offset).
-  const settle = (next: number) => {
-    g.current.axis = ''
-    setIdx(next)
-    requestAnimationFrame(() => paint(0, 0, true))
-  }
+  // Re-snap on index change (after a committed page-turn) and on first mount.
+  useEffect(() => {
+    paintStrip(0, false)
+    paintVertical(0, false)
+  }, [idx])
 
   const onTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0]
-    g.current = { x0: t.clientX, y0: t.clientY, dx: 0, dy: 0, axis: '', ly: t.clientY, lt: performance.now(), vy: 0, active: true }
+    g.current = { x0: t.clientX, y0: t.clientY, lx: t.clientX, ly: t.clientY, lt: performance.now(), vx: 0, vy: 0, dx: 0, dy: 0, lock: null }
   }
   const onTouchMove = (e: React.TouchEvent) => {
-    const s = g.current
-    if (!s.active) return
-    const t = e.touches[0]
-    const dx = t.clientX - s.x0
-    const dy = t.clientY - s.y0
-    if (!s.axis) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) s.axis = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'y' : 'x'
-    }
-    s.dx = dx; s.dy = dy
+    const t = e.touches[0], s = g.current
+    const dx = t.clientX - s.x0, dy = t.clientY - s.y0
     const now = performance.now(), dt = now - s.lt
-    if (dt > 0) s.vy = (t.clientY - s.ly) / dt
-    s.ly = t.clientY; s.lt = now
-    if (s.axis === 'x') {
-      // resist past the first/last edge
-      let eff = dx
-      if ((idxRef.current === 0 && dx > 0) || (idxRef.current === images.length - 1 && dx < 0)) eff = dx * 0.35
-      paint(eff, 0, false)
-    } else if (s.axis === 'y') {
-      paint(0, dy, false)
+    if (dt > 0) { s.vx = (t.clientX - s.lx) / dt; s.vy = (t.clientY - s.ly) / dt }
+    s.lx = t.clientX; s.ly = t.clientY; s.lt = now; s.dx = dx; s.dy = dy
+    if (s.lock === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
+      s.lock = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'v' : 'h'
+    if (s.lock === 'h') {
+      const atStart = idxRef.current === 0 && dx > 0
+      const atEnd   = idxRef.current === images.length - 1 && dx < 0
+      paintStrip(atStart || atEnd ? dx * 0.3 : dx, false)   // rubber-band at the ends
+    } else if (s.lock === 'v') {
+      paintVertical(dy < 0 ? dy * 0.3 : dy, false)          // resist upward
     }
   }
   const onTouchEnd = () => {
     const s = g.current
-    if (!s.active) return
-    s.active = false
-    if (s.axis === 'y') {
-      const flick = Math.abs(s.vy) > 0.5
-      if (Math.abs(s.dy) > 110 || flick) {
-        const dir = s.dy >= 0 ? 1 : -1
-        const tr = trackRef.current
-        if (tr) { tr.style.transition = SNAP; tr.style.transform = `translate3d(${-idxRef.current * W}px, ${dir * window.innerHeight}px, 0) scale(0.85)` }
-        const ov = overlayRef.current
-        if (ov) { ov.style.transition = 'background 300ms ease'; ov.style.background = 'rgba(0,0,0,0)' }
-        window.setTimeout(() => onClose(idxRef.current), 270)
-      } else { paint(0, 0, true) }
-      return
+    if (s.lock === 'h') {
+      const w = window.innerWidth
+      const flick = Math.abs(s.vx) > 0.4 && Math.abs(s.dx) > 12
+      let ni = idxRef.current
+      if      (s.dx < -w * 0.25 || (flick && s.vx < 0)) ni = Math.min(ni + 1, images.length - 1)
+      else if (s.dx >  w * 0.25 || (flick && s.vx > 0)) ni = Math.max(ni - 1, 0)
+      idxRef.current = ni; setIdx(ni)
+      paintStrip(0, true)
+    } else if (s.lock === 'v') {
+      const flickDown = Math.abs(s.vy) > 0.5 && s.dy > 0
+      if (s.dy > 110 || flickDown) {
+        paintVertical(window.innerHeight, true)   // fling off-screen, then unmount
+        if (chromeRef.current) { chromeRef.current.style.transition = 'opacity 200ms ease'; chromeRef.current.style.opacity = '0' }
+        window.setTimeout(() => onClose(idxRef.current), 200)
+      } else {
+        paintVertical(0, true)
+      }
     }
-    if (s.axis === 'x') {
-      const threshold = W * 0.22
-      if (s.dx < -threshold && idxRef.current < images.length - 1) settle(idxRef.current + 1)
-      else if (s.dx > threshold && idxRef.current > 0) settle(idxRef.current - 1)
-      else paint(0, 0, true)
-      return
-    }
-    // no axis movement → treat as nothing
-    paint(0, 0, true)
   }
 
   const current = images[idx]
@@ -114,70 +105,76 @@ export default function ImageCarouselLightbox({
     <div
       ref={overlayRef}
       onClick={() => onClose(idxRef.current)}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchEnd}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.94)',
-        overflow: 'hidden', touchAction: 'none',
+        position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        touchAction: 'none', overflow: 'hidden', overscrollBehavior: 'none',
       }}
     >
-      <button
-        onClick={(e) => { e.stopPropagation(); onClose(idxRef.current) }}
-        style={{
-          position: 'absolute', top: 14, right: 14, zIndex: 3,
-          width: 40, height: 40, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.12)', border: 'none',
-          color: '#f5f5f5', fontSize: 22, lineHeight: 1, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >×</button>
-
-      {/* Counter */}
-      {images.length > 1 && (
-        <div style={{
-          position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', zIndex: 2,
-          fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', color: 'rgba(245,245,245,0.7)',
-          pointerEvents: 'none',
-        }}>{idx + 1} / {images.length}</div>
-      )}
-
-      {/* Horizontal track of slides */}
+      {/* Vertical-dismiss layer (owns the gesture) */}
       <div
-        ref={trackRef}
-        style={{
-          position: 'absolute', inset: 0, display: 'flex', willChange: 'transform',
-          transform: `translate3d(${-idx * W}px, 0, 0)`,
-        }}
+        ref={vertRef}
+        style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform' }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         onClick={(e) => e.stopPropagation()}
       >
-        {images.map((im, i) => (
-          <div key={i} style={{ width: W, height: '100%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, boxSizing: 'border-box' }}>
-            <img
-              src={im.url} alt={im.caption ?? ''} draggable={false}
-              style={{ maxWidth: '100%', maxHeight: '88vh', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
-            />
-          </div>
-        ))}
+        {/* Horizontal strip — each slide is full width */}
+        <div ref={stripRef} style={{ display: 'flex', width: '100%', willChange: 'transform' }}>
+          {images.map((im, i) => (
+            <div key={i} style={{ width: '100%', flexShrink: 0, height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img
+                src={im.url} alt={im.caption ?? ''} draggable={false}
+                style={{
+                  maxWidth: '100%', maxHeight: '90dvh',
+                  width: 'auto', height: 'auto',
+                  objectFit: 'contain', display: 'block',
+                  userSelect: 'none', pointerEvents: 'none',
+                  WebkitUserSelect: 'none' as React.CSSProperties['WebkitUserSelect'],
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Caption + dots */}
-      {(current?.caption || images.length > 1) && (
-        <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, zIndex: 2, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          {current?.caption && (
-            <p style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,245,245,0.85)', textAlign: 'center', margin: '0 24px', lineHeight: 1.5, maxWidth: 600 }}>{current.caption}</p>
-          )}
-          {images.length > 1 && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              {images.map((_, i) => (
-                <div key={i} style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 3, background: i === idx ? '#f5f5f5' : 'rgba(245,245,245,0.35)', transition: 'all 200ms ease' }} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Chrome (close × + counter + caption + dots) — fades with the dismiss drag, passes touches through */}
+      <div ref={chromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onClose(idxRef.current) }}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto',
+          }}
+        >
+          <span style={{ color: 'rgba(245,240,228,0.85)', fontSize: 20, lineHeight: 1 }}>×</span>
+        </button>
+
+        {/* Caption */}
+        {current?.caption && (
+          <p style={{
+            position: 'absolute', left: 24, right: 24, bottom: 56, textAlign: 'center',
+            fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.85)',
+            lineHeight: 1.5, margin: 0,
+          }}>{current.caption}</p>
+        )}
+
+        {/* Counter + hint */}
+        <p style={{
+          position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center',
+          fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em',
+          color: 'rgba(245,240,228,0.35)', margin: 0,
+        }}>
+          {images.length > 1
+            ? `${idx + 1} / ${images.length}  ·  swipe down to close`
+            : 'swipe down to close'}
+        </p>
+      </div>
     </div>
   )
 }

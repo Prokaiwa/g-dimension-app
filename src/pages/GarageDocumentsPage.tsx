@@ -318,6 +318,14 @@ export default function GarageDocumentsPage() {
 
   useEffect(() => { loadData() }, [])
 
+  // Lock background scroll while the detail panel (doc/receipt) is open.
+  useEffect(() => {
+    if (!detailItem) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [detailItem])
+
   // Load signed URL(s) for the detail panel — images become a carousel, PDFs use the primary URL.
   useEffect(() => {
     setDetailSignedUrl(null)
