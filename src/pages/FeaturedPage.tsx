@@ -319,6 +319,10 @@ export default function FeaturedPage() {
   const touchStartYRef  = useRef<number|null>(null)
   const touchStartTRef  = useRef<number>(0)   // gesture start time → flick velocity
   const isDragTurnRef   = useRef(false)
+  // True when the gesture started on an edit control (Replace/Adjust/grip/chip) —
+  // the native touchmove turn handler reads this to stand down so taps land. A
+  // React stopPropagation can't reach the native listener, so we gate via a ref.
+  const noTurnRef       = useRef(false)
 
   // ── data fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -348,6 +352,9 @@ export default function FeaturedPage() {
           .eq('car_id', carId)
           .eq('entry_type', 'note')
           .not('photo_url', 'is', null)
+          // DIY guide notes carry step photos that must never bleed into the
+          // magazine — Featured pulls only from the Build Sheet + genuine notes.
+          .not('title', 'ilike', 'DIY Guide:%')
           .order('created_at', { ascending: false })
           .limit(6),
         user ? supabase.from('users').select('distance_unit,power_unit,username').eq('id', user.id).single() : Promise.resolve({ data: null }),
@@ -1236,7 +1243,7 @@ export default function FeaturedPage() {
       if (foldLineRef.current)    { foldLineRef.current.style.zIndex = '5';    foldLineRef.current.style.opacity    = '0' }
     }
     const onMove = (e: TouchEvent) => {
-      if (adjustingRef.current || editingRef.current || capEditRef.current || spAdjustingRef.current || spHeightDragRef.current || spPosDragRef.current) return
+      if (adjustingRef.current || editingRef.current || capEditRef.current || spAdjustingRef.current || spHeightDragRef.current || spPosDragRef.current || noTurnRef.current) return
       if (touchStartXRef.current === null) return
       const dx = e.touches[0].clientX - touchStartXRef.current
       const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0)
@@ -1280,6 +1287,9 @@ export default function FeaturedPage() {
   }, [loading])
 
   function handleTouchStart(e: React.TouchEvent) {
+    // Record up-front whether the touch began on an edit control, before any
+    // early-return — the native touchmove handler reads this to skip the turn.
+    noTurnRef.current = !!(e.target as HTMLElement).closest?.('[data-feat-noturn]')
     if (isTurningRef.current || adjustingRef.current || editingRef.current || capEditRef.current || storyOpen) return
     touchStartXRef.current = e.touches[0].clientX
     touchStartYRef.current = e.touches[0].clientY
@@ -1309,7 +1319,7 @@ export default function FeaturedPage() {
       return
     }
     // Template cycling on cover via swipe — only while UNPUBLISHED (locked once live)
-    if (touchStartXRef.current !== null && pageIdx === 0 && !isTurning && !isPublished) {
+    if (!noTurnRef.current && touchStartXRef.current !== null && pageIdx === 0 && !isTurning && !isPublished) {
       const dx = endX - touchStartXRef.current
       const dy = e.changedTouches[0].clientY - (touchStartYRef.current ?? 0)
       if (Math.abs(dx) > 44 && Math.abs(dy) < 70) cycleCover(dx < 0 ? 1 : -1)
@@ -1568,7 +1578,7 @@ export default function FeaturedPage() {
           <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
             Cover {coverIdx+1}/{TEMPLATES.length} · {t.name}
           </div>
-          <div style={{ position:'absolute', top:48, right:12, zIndex:20, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
+          <div data-feat-noturn style={{ position:'absolute', top:48, right:12, zIndex:20, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
             {photos.length > 1 && (
               <div onClick={() => setPhotoIdx(p=>(p+1)%photos.length)} style={COVER_CHIP}>
                 Photo ▸ {photo?.label??'—'}
@@ -2109,8 +2119,7 @@ function PhotoCell({ item, theme, flexVal, figureNum, near = true, justify = 'ce
             filter: PHOTO_FILTER }}
         />
         {onReplaceRequest && (
-          <button onClick={e => { e.stopPropagation(); onReplaceRequest() }}
-            onTouchStart={e => e.stopPropagation()}
+          <button onClick={e => { e.stopPropagation(); onReplaceRequest() }} data-feat-noturn
             style={{ position:'absolute', top: chipPos?.top ?? 5, right: chipPos?.right ?? 5, zIndex:4, background:'rgba(0,0,0,0.52)',
               border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
               display:'flex', alignItems:'center', gap:4,
@@ -2237,8 +2246,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
             </>
           )}
           {onReplacePhoto && (
-            <button onClick={() => onReplacePhoto(heroPhoto)}
-              onTouchStart={e => e.stopPropagation()}
+            <button onClick={() => onReplacePhoto(heroPhoto)} data-feat-noturn
               style={{ position:'absolute', top:8, right: doubleTruck ? 8 : 20, zIndex:4, background:'rgba(0,0,0,0.52)',
                 border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:4,
@@ -2304,7 +2312,7 @@ function PhotoSpread({ photos, arrangement, theme, carShortName, near = true, ba
       {/* ── caption edit affordance (055) ── */}
       {/* Pencil chip (owner, page at rest) — enters caption-edit mode for this spread */}
       {canEdit && !editing && (
-        <div onClick={onEnterEdit}
+        <div onClick={onEnterEdit} data-feat-noturn
           style={{ position:'absolute', top:6, right:10, zIndex:6, display:'flex', alignItems:'center', gap:5,
             fontFamily:FONT_DECK, fontWeight:600, fontSize:8.5, letterSpacing:'0.16em', textTransform:'uppercase',
             color:theme.ink, background:theme.pageBg, border:`1px solid ${theme.rule}`, padding:'4px 8px', cursor:'pointer' }}>
@@ -2399,8 +2407,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
       {showGrips && (
         <div style={{ position:'absolute', top:8, right:8, zIndex:7, display:'flex', gap:5 }}>
           {onChangePhoto && (
-            <button onClick={onChangePhoto}
-              onTouchStart={e => e.stopPropagation()}
+            <button onClick={onChangePhoto} data-feat-noturn
               style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 display:'flex', alignItems:'center', gap:4,
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
@@ -2412,8 +2419,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
             </button>
           )}
           {onAdjust && (
-            <button onClick={onAdjust}
-              onTouchStart={e => e.stopPropagation()}
+            <button onClick={onAdjust} data-feat-noturn
               style={{ background:'rgba(0,0,0,0.52)', border:'1px solid rgba(245,245,245,0.3)', padding:'9px 12px', cursor:'pointer',
                 fontFamily:FONT_DECK, fontWeight:600, fontSize:7.5, letterSpacing:'0.14em', textTransform:'uppercase', color:'#f0ede8' }}>
               ⤢ Adjust
@@ -2427,7 +2433,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
         <div style={{ position:'absolute', bottom:0, right:0, zIndex:5, display:'flex', alignItems:'flex-end',
           background:'linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.38) 100%)' }}>
           {onHeightDragStart && (
-            <div onTouchStart={onHeightDragStart}
+            <div onTouchStart={onHeightDragStart} data-feat-noturn
               style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center',
                 cursor:'ns-resize', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -2438,7 +2444,7 @@ function StoryPhotoBlock({ storyPhoto, spAdjusting, spFx = 50, spFy = 50, spZoom
             </div>
           )}
           {onPosDragStart && (
-            <div onTouchStart={onPosDragStart}
+            <div onTouchStart={onPosDragStart} data-feat-noturn
               style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center',
                 cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none' }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -2530,12 +2536,12 @@ function StoryPage({ story, headline, carShortName, theme, backLabel, nextLabel,
           THE FEATURE · {carShortName.toUpperCase()}
         </div>
         {canEdit && !editing && (
-          <div onClick={onEnterEdit}
+          <div onClick={onEnterEdit} data-feat-noturn
             style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
               fontFamily:FONT_DECK, fontWeight:600, fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase',
-              color:theme.subInk, border:`1px solid ${theme.rule}`, padding:'3px 8px', cursor:'pointer',
+              color:theme.ink, background:theme.pageBg, border:`1px solid ${theme.rule}`, padding:'4px 8px', cursor:'pointer',
               display:'flex', alignItems:'center', gap:4 }}>
-            Headline <PencilIcon size={9} color={theme.subInk} />
+            Headline <PencilIcon size={9} color={theme.ink} />
             {hasSuggestion && (
               <span style={{ position:'absolute', top:-3, right:-3, width:6, height:6, borderRadius:'50%', background:COLOR_ACCENT, boxShadow:'0 0 0 1px rgba(0,0,0,0.4)' }} />
             )}

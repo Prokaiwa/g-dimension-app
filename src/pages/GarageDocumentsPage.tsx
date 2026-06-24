@@ -174,10 +174,20 @@ function fmtMoney(amount: number | null, currency: string | null): string | null
 }
 
 // Open a file via a fresh short-lived signed URL (private buckets).
+// The window MUST be opened synchronously inside the tap handler — opening it
+// after the `await` loses the user-gesture context and mobile Safari blocks it
+// (this was the "nothing happens" bug). We open a blank tab first, then point it
+// at the signed URL once it resolves.
 async function openSigned(bucket: 'car-documents' | 'receipts', path: string | null) {
   if (!path) return
+  const win = window.open('', '_blank')
   const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 120)
-  if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  if (data?.signedUrl) {
+    if (win) win.location.href = data.signedUrl
+    else window.open(data.signedUrl, '_blank')   // fallback if the blank open was blocked
+  } else if (win) {
+    win.close()
+  }
 }
 
 const DOC_SEL_FULL = 'id, doc_type, label, file_url, file_type, file_name, issued_date, expiry_date, amount, currency'
@@ -192,7 +202,7 @@ export default function GarageDocumentsPage() {
   const [receiptDocs, setReceiptDocs] = useState<Doc[]>([])   // doc_type === 'receipt'
   const [buildReceipts, setBuildReceipts] = useState<BuildReceipt[]>([])
   const [jobTitleMap, setJobTitleMap] = useState<Record<string, string>>({})
-  const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null; shop: string | null }>>({}) // session_id → display label + date
+  const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null; shop: string | null; items: string[]; notes: string | null }>>({}) // session_id → display label + date + service items
   const [thumbs, setThumbs] = useState<Record<string, string>>({})        // car_documents id → signed image URL
   const [thumbLoaded, setThumbLoaded] = useState<Set<string>>(new Set())  // ids whose thumb has finished loading
   const [loading, setLoading] = useState(true)
@@ -324,10 +334,15 @@ export default function GarageDocumentsPage() {
       : Promise.resolve({ data: [] as { id: string; title: unknown; part_types: unknown }[] })
 
     const sessP = sessionIds.length > 0
-      ? supabase.from('sessions').select('id, title, type, date_performed, shop_name').in('id', sessionIds)
-      : Promise.resolve({ data: [] as { id: string; title: unknown; type: unknown; date_performed: unknown; shop_name: unknown }[] })
+      ? supabase.from('sessions').select('id, title, type, date_performed, shop_name, notes').in('id', sessionIds)
+      : Promise.resolve({ data: [] as { id: string; title: unknown; type: unknown; date_performed: unknown; shop_name: unknown; notes: unknown }[] })
 
-    Promise.all([jobP, sessP]).then(([{ data: jobs }, { data: sessions }]) => {
+    // Service items (jobs) belonging to those sessions — the "what was done".
+    const sessJobsP = sessionIds.length > 0
+      ? supabase.from('jobs').select('session_id, title').in('session_id', sessionIds).order('created_at', { ascending: true })
+      : Promise.resolve({ data: [] as { session_id: string; title: unknown }[] })
+
+    Promise.all([jobP, sessP, sessJobsP]).then(([{ data: jobs }, { data: sessions }, { data: sessJobs }]) => {
       if (cancelled) return
       const jMap: Record<string, string> = {}
       for (const j of jobs ?? []) {
@@ -336,11 +351,26 @@ export default function GarageDocumentsPage() {
       }
       setJobTitleMap(jMap)
 
-      const sMap: Record<string, { label: string; date: string | null; shop: string | null }> = {}
+      // Group service-item titles by session for a "what was done" summary.
+      const itemsBySession: Record<string, string[]> = {}
+      for (const j of sessJobs ?? []) {
+        const sid = (j as { session_id: string }).session_id
+        const t = (j as { title: string | null }).title
+        if (!t) continue
+        ;(itemsBySession[sid] ??= []).push(t)
+      }
+
+      const sMap: Record<string, { label: string; date: string | null; shop: string | null; items: string[]; notes: string | null }> = {}
       for (const s of sessions ?? []) {
         const typeLabel = (s.type as string | null) === 'modification' ? 'Mod' : 'Service'
         const label = (s.title as string | null) || (s.shop_name as string | null) || typeLabel
-        sMap[s.id as string] = { label, date: (s.date_performed as string | null) ?? null, shop: (s.shop_name as string | null) ?? null }
+        sMap[s.id as string] = {
+          label,
+          date: (s.date_performed as string | null) ?? null,
+          shop: (s.shop_name as string | null) ?? null,
+          items: itemsBySession[s.id as string] ?? [],
+          notes: (s.notes as string | null) ?? null,
+        }
       }
       setSessionInfoMap(sMap)
     })
@@ -776,18 +806,26 @@ export default function GarageDocumentsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM }}>
                       {buildReceipts.map((r, i) => {
                         const sessionInfo = r.session_id ? sessionInfoMap[r.session_id] : null
-                        // Service receipt: show shop name → session title → vendor → fallback.
-                        // Part receipt: show job/part title → vendor → fallback.
+                        // "What was done" for a service: summarise its service items,
+                        // else the session title/notes. Part receipts use the part title.
+                        const serviceWhat = (() => {
+                          const items = sessionInfo?.items ?? []
+                          if (items.length === 1) return items[0]
+                          if (items.length === 2) return `${items[0]} + ${items[1]}`
+                          if (items.length > 2)  return `${items[0]} +${items.length - 1} more`
+                          const lbl = sessionInfo?.label
+                          if (lbl && lbl !== 'Service' && lbl !== 'Mod' && lbl !== sessionInfo?.shop) return lbl
+                          if (sessionInfo?.notes) return sessionInfo.notes
+                          return r.vendor || r.file_name || 'Service'
+                        })()
+                        // Primary line = WHAT. Secondary line = WHERE (shop / vendor).
                         const primaryTitle = r.job_id
                           ? (jobTitleMap[r.job_id] || r.vendor || r.file_name || 'Part Receipt')
-                          : (sessionInfo?.shop || sessionInfo?.label || r.vendor || r.file_name || 'Service Receipt')
-                        // Secondary line: vendor or session label (if different from primary)
+                          : serviceWhat
                         const secondaryLine = (() => {
                           if (r.job_id) return r.vendor && r.vendor !== primaryTitle ? r.vendor : null
                           const shop = sessionInfo?.shop
-                          const lbl = sessionInfo?.label
                           if (shop && shop !== primaryTitle) return shop
-                          if (lbl && lbl !== primaryTitle && lbl !== 'Service' && lbl !== 'Mod') return lbl
                           if (r.vendor && r.vendor !== primaryTitle) return r.vendor
                           return null
                         })()
