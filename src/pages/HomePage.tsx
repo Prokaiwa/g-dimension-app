@@ -87,6 +87,17 @@ const TOUR_TRAIL: { road: string; to: TourNode }[] = [
 const TOUR_CLOSING_ROAD = ROAD_GARAGE_TIMELINE // closes the loop: Timeline → Home
 const TOUR_FULL_TRACK = [...TOUR_TRAIL.map(t => t.road), TOUR_CLOSING_ROAD]
 
+// Driver-dot tour script: the order the dot drives the unlocking trail. On a
+// node step the dot drives Home → … → target and parks (no random wandering).
+const TOUR_NODE_SEQ = ['home', 'tuning', 'maintenance', 'featured', 'timeline'] as const
+function tourEdgeBetween(a: string, b: string): RoadId | null {
+  for (const id of Object.keys(ROADS) as RoadId[]) {
+    const r = ROADS[id]
+    if ((r.from === a && r.to === b) || (r.from === b && r.to === a)) return id
+  }
+  return null
+}
+
 // Node centers in the 390×800 road viewBox (for the pulsing target ring).
 const NODE_POS: Record<TourNode, { x: number; y: number }> = {
   home:        { x: MAP_NODE_HOME.left,        y: MAP_NODE_HOME.top },
@@ -134,6 +145,13 @@ export default function HomePage() {
   // On home-map tour steps, glow the cumulative trail + pulse the target node.
   const glow = tourGlowFor(tourActive ? tourStep : null)
   const glowRef = useRef(glow); glowRef.current = glow
+  // Drives the dot along the unlocking trail during the tour (target = the node
+  // step's node; null on welcome/closing/Home → dot stays hidden, no wandering).
+  const tourDotRef = useRef<{ active: boolean; target: TourNode | null }>({ active: false, target: null })
+  tourDotRef.current = {
+    active: tourActive && tourStep?.route === '/home',
+    target: glow.ring && glow.ring !== 'home' ? glow.ring : null,
+  }
   // After the closing step's "whole track lit", fade it back to the white roads.
   const [fadingTrail, setFadingTrail] = useState(false)
   const lastStepIdRef = useRef<string | null>(null)
@@ -271,23 +289,47 @@ export default function HomePage() {
       const dot = driverRef.current
       if (dot && !reduced) {
         if (driver.mode === 'dwell') {
-          if (driver.until === 0) driver.until = t + 2600
+          const tourDot = tourDotRef.current
+          if (driver.until === 0) driver.until = t + (tourDot.active ? 500 : 2600)
           if (isEntered && t >= driver.until) {
-            const options = ROAD_ADJ[driver.node]
-            const pool = options.length > 1 && driver.lastEdge
-              ? options.filter(e => e !== driver.lastEdge)
-              : options
-            const edge = pool[Math.floor(Math.random() * pool.length)]
-            const el = roadElsRef.current[edge]
-            if (el) {
-              driver.edge = edge
-              driver.dir = ROADS[edge].from === driver.node ? 1 : -1
-              driver.len = el.getTotalLength()
-              driver.dist = 0
-              driver.cruise = 30 + Math.random() * 26 // viewBox px/s, varies per leg
-              driver.mode = 'drive'
+            if (tourDot.active) {
+              // Scripted: step one edge toward the target, then park at it.
+              const seqI = TOUR_NODE_SEQ.indexOf(driver.node as TourNode)
+              const tgtI = tourDot.target ? TOUR_NODE_SEQ.indexOf(tourDot.target) : -1
+              if (seqI >= 0 && tgtI > seqI) {
+                const nextNode = TOUR_NODE_SEQ[seqI + 1]
+                const edge = tourEdgeBetween(driver.node, nextNode)
+                const el = edge ? roadElsRef.current[edge] : null
+                if (edge && el) {
+                  driver.edge = edge
+                  driver.dir = ROADS[edge].from === driver.node ? 1 : -1
+                  driver.len = el.getTotalLength()
+                  driver.dist = 0
+                  driver.cruise = 54
+                  driver.mode = 'drive'
+                } else {
+                  driver.until = t + 300
+                }
+              } else {
+                driver.until = t + 300 // parked at target (or nothing to do)
+              }
             } else {
-              driver.until = t + 1000
+              const options = ROAD_ADJ[driver.node]
+              const pool = options.length > 1 && driver.lastEdge
+                ? options.filter(e => e !== driver.lastEdge)
+                : options
+              const edge = pool[Math.floor(Math.random() * pool.length)]
+              const el = roadElsRef.current[edge]
+              if (el) {
+                driver.edge = edge
+                driver.dir = ROADS[edge].from === driver.node ? 1 : -1
+                driver.len = el.getTotalLength()
+                driver.dist = 0
+                driver.cruise = 30 + Math.random() * 26 // viewBox px/s, varies per leg
+                driver.mode = 'drive'
+              } else {
+                driver.until = t + 1000
+              }
             }
           }
         } else if (driver.edge) {
@@ -302,7 +344,9 @@ export default function HomePage() {
             driver.lastEdge = driver.edge
             driver.edge = null
             driver.mode = 'dwell'
-            driver.until = t + 1800 + Math.random() * 3400
+            // During the tour, chain to the next edge almost immediately so the
+            // dot flows Home → … → target in one continuous run.
+            driver.until = t + (tourDotRef.current.active ? 120 : 1800 + Math.random() * 3400)
           }
           if (el) {
             const s = driver.dir === 1 ? driver.dist : driver.len - driver.dist
@@ -310,8 +354,12 @@ export default function HomePage() {
             dot.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`)
           }
         }
-        // Fade out while parked at a destination, back in when departing
-        driver.opacity += ((driver.mode === 'drive' ? 1 : 0) - driver.opacity) * 0.07
+        // Fade out while parked at a destination, back in when departing. During
+        // the tour, stay lit while parked AT the target node; hide otherwise.
+        const td = tourDotRef.current
+        const tourParked = td.active && !!td.target && driver.node === td.target && driver.mode === 'dwell'
+        const wantOpacity = (driver.mode === 'drive' || tourParked) ? 1 : 0
+        driver.opacity += (wantOpacity - driver.opacity) * 0.07
         dot.setAttribute('opacity', driver.opacity.toFixed(3))
       }
 
