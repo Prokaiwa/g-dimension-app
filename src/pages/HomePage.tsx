@@ -73,14 +73,20 @@ const DESTINATIONS = [
   { id: 'featured',      label: 'Featured',      icon: iconFeatured,      pos: MAP_NODE_PHOTOS,      size: ICON_WRAPPER_STANDARD, route: '/featured',      focal: false },
 ]
 
-// Tour glow line — the road(s) from Home to each node (home itself just pulses).
-const TOUR_LINE: Record<TourNode, string[]> = {
-  home:        [],
-  tuning:      [ROAD_GARAGE_TUNING],
-  timeline:    [ROAD_GARAGE_TIMELINE],
-  maintenance: [ROAD_GARAGE_TUNING, ROAD_TUNING_MAINT],
-  featured:    [ROAD_GARAGE_TIMELINE, ROAD_TIMELINE_PHOTOS],
-}
+// Cumulative tour trail — roads light up progressively as the tour advances
+// along the loop Home → Tuning → Maintenance → Featured → Timeline → (home).
+// Each node step lights every road up to and including the one reaching it, so
+// Featured shows 3/5 of the track, Timeline 4/5, and the closing step the whole
+// loop.
+const TOUR_TRAIL: { road: string; to: TourNode }[] = [
+  { road: ROAD_GARAGE_TUNING,   to: 'tuning' },
+  { road: ROAD_TUNING_MAINT,    to: 'maintenance' },
+  { road: ROAD_MAINT_PHOTOS,    to: 'featured' },
+  { road: ROAD_TIMELINE_PHOTOS, to: 'timeline' },
+]
+const TOUR_CLOSING_ROAD = ROAD_GARAGE_TIMELINE // closes the loop: Timeline → Home
+const TOUR_FULL_TRACK = [...TOUR_TRAIL.map(t => t.road), TOUR_CLOSING_ROAD]
+
 // Node centers in the 390×800 road viewBox (for the pulsing target ring).
 const NODE_POS: Record<TourNode, { x: number; y: number }> = {
   home:        { x: MAP_NODE_HOME.left,        y: MAP_NODE_HOME.top },
@@ -88,6 +94,18 @@ const NODE_POS: Record<TourNode, { x: number; y: number }> = {
   timeline:    { x: MAP_NODE_TIMELINE.left,    y: MAP_NODE_TIMELINE.top },
   maintenance: { x: MAP_NODE_MAINTENANCE.left, y: MAP_NODE_MAINTENANCE.top },
   featured:    { x: MAP_NODE_PHOTOS.left,      y: MAP_NODE_PHOTOS.top },
+}
+
+// Resolve the glowing-trail state for the current home-map tour step.
+function tourGlowFor(step: { id?: string; route?: string; node?: TourNode } | null | undefined):
+  { lit: string[]; active: string | null; ring: TourNode | null } {
+  if (!step || step.route !== '/home') return { lit: [], active: null, ring: null }
+  if (step.id === 'closing') return { lit: TOUR_FULL_TRACK, active: null, ring: null }
+  if (!step.node) return { lit: [], active: null, ring: null }
+  if (step.node === 'home') return { lit: [], active: null, ring: 'home' }
+  const idx = TOUR_TRAIL.findIndex(t => t.to === step.node)
+  if (idx < 0) return { lit: [], active: null, ring: step.node }
+  return { lit: TOUR_TRAIL.slice(0, idx + 1).map(t => t.road), active: TOUR_TRAIL[idx].road, ring: step.node }
 }
 
 const STAGGER_MS = [400, 540, 580, 720, 760]
@@ -112,9 +130,21 @@ const TAP_DEBUG = typeof window !== 'undefined' && window.location.search.includ
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { active: tourActive, step: tourStep } = useTour()
-  // On home-map tour steps, glow the road(s) to this node + pulse it.
-  const tourNode = tourActive && tourStep?.route === '/home' ? tourStep.node : undefined
+  const { active: tourActive, step: tourStep, next: tourNext } = useTour()
+  // On home-map tour steps, glow the cumulative trail + pulse the target node.
+  const glow = tourGlowFor(tourActive ? tourStep : null)
+  const glowRef = useRef(glow); glowRef.current = glow
+  // After the closing step's "whole track lit", fade it back to the white roads.
+  const [fadingTrail, setFadingTrail] = useState(false)
+  const lastStepIdRef = useRef<string | null>(null)
+  if (tourStep) lastStepIdRef.current = tourStep.id
+  useEffect(() => {
+    if (!tourActive && lastStepIdRef.current === 'closing') {
+      setFadingTrail(true)
+      const t = setTimeout(() => setFadingTrail(false), 1500)
+      return () => clearTimeout(t)
+    }
+  }, [tourActive])
   const worldRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const rafRef   = useRef<number>(0)
@@ -303,6 +333,12 @@ export default function HomePage() {
   // black, then navigate once the zoom lands.
   const handleSelect = (dest: typeof DESTINATIONS[number]) => {
     if (exitingRef.current) return
+    // During the tour, only the highlighted node advances; ignore other taps
+    // (and skip the zoom-navigate — the engine drives navigation).
+    if (tourActive) {
+      if (glowRef.current.ring === dest.id) tourNext()
+      return
+    }
     exitingRef.current = true
     setExiting(true)
     playConfirm()
@@ -399,6 +435,11 @@ export default function HomePage() {
         @keyframes tourRing {
           0%, 100% { opacity: 0.35; transform: scale(0.92); transform-origin: center; transform-box: fill-box; }
           50%      { opacity: 1;    transform: scale(1.12); transform-origin: center; transform-box: fill-box; }
+        }
+        @keyframes tourTrailFade {
+          0%   { opacity: 1; }
+          35%  { opacity: 1; }
+          100% { opacity: 0; }
         }
         @keyframes roadDashIn {
           from { opacity: 0; }
@@ -718,24 +759,43 @@ export default function HomePage() {
               <text><textPath href="#rlD" startOffset="125">To Featured</textPath></text>
             </g>
 
-            {/* Onboarding tour — glowing guide line to the active node + a ring */}
-            {tourNode && (
+            {/* Onboarding tour — cumulative glowing trail + target-node pulse.
+                On finish (closing step) the full track fades back to white. */}
+            {fadingTrail && (
               <g style={{ pointerEvents: 'none' }}>
-                {TOUR_LINE[tourNode].map((d, i) => (
-                  <path
-                    key={`tour-${tourNode}-${i}`}
-                    d={d} fill="none" stroke={COLOR_ACCENT} strokeWidth={3.6}
-                    strokeLinecap="round" filter="url(#tourGlow)" pathLength={1}
-                    style={{ strokeDasharray: 1, animation: `tourLineDraw 650ms ease-out ${i * 240}ms both` }}
-                  />
+                {TOUR_FULL_TRACK.map((d, i) => (
+                  <path key={`tour-fade-${i}`} d={d} fill="none" stroke={COLOR_ACCENT}
+                    strokeWidth={3.4} strokeLinecap="round" filter="url(#tourGlow)"
+                    style={{ animation: 'tourTrailFade 1500ms ease-out both' }} />
                 ))}
-                <circle
-                  key={`tour-ring-${tourNode}`}
-                  cx={NODE_POS[tourNode].x} cy={NODE_POS[tourNode].y} r={24}
-                  fill="none" stroke={COLOR_ACCENT} strokeWidth={2.2}
-                  filter="url(#tourGlow)"
-                  style={{ animation: 'tourRing 1.5s ease-in-out infinite' }}
-                />
+              </g>
+            )}
+            {!fadingTrail && (glow.lit.length > 0 || glow.ring) && (
+              <g style={{ pointerEvents: 'none' }}>
+                {glow.lit.map((d, i) => {
+                  const isActive = d === glow.active
+                  return (
+                    <path
+                      key={`tour-lit-${i}`}
+                      d={d} fill="none" stroke={COLOR_ACCENT}
+                      strokeWidth={isActive ? 3.8 : 3} strokeLinecap="round"
+                      filter="url(#tourGlow)" pathLength={1}
+                      style={isActive
+                        ? { strokeDasharray: 1, animation: 'tourLineDraw 700ms ease-out both' }
+                        : { opacity: 0.72 }}
+                    />
+                  )
+                })}
+                {glow.ring && (
+                  <g style={{ transformOrigin: `${NODE_POS[glow.ring].x}px ${NODE_POS[glow.ring].y}px` }}>
+                    <circle cx={NODE_POS[glow.ring].x} cy={NODE_POS[glow.ring].y} r={32}
+                      fill={COLOR_ACCENT} opacity={0.16} filter="url(#tourGlow)"
+                      style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
+                    <circle cx={NODE_POS[glow.ring].x} cy={NODE_POS[glow.ring].y} r={21}
+                      fill="none" stroke={COLOR_ACCENT} strokeWidth={2.4} filter="url(#tourGlow)"
+                      style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
+                  </g>
+                )}
               </g>
             )}
 

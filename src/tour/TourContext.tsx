@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { hasSeenTutorial, markTutorialSeen, resetTutorial } from '../lib/userProfile'
+import { markTutorialSeen, resetTutorial } from '../lib/userProfile'
 import { TOUR_STEPS, type TourStep } from './tourSteps'
 
 interface TourValue {
@@ -62,16 +62,34 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, [navigate])
 
   // Auto-start once per session, when landing on /home, if not yet seen.
+  // Retries the tutorial_seen read: right after sign-in the auth token may not
+  // be attached yet, and a transient query failure must not silently suppress
+  // the tour (which looked like "it only starts after a refresh").
   useEffect(() => {
     if (autoChecked.current) return
     if (location.pathname !== '/home') return
-    autoChecked.current = true
-    supabase.auth.getUser().then(async ({ data }) => {
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase.auth.getUser()
       const uid = data.user?.id
-      if (!uid) return
-      const seen = await hasSeenTutorial(uid)
-      if (!seen) { uidRef.current = uid; setIndex(0); setActive(true) }
-    })
+      if (!uid || cancelled) return
+      for (let i = 0; i < 4; i++) {
+        const { data: row, error } = await supabase
+          .from('users').select('tutorial_seen').eq('id', uid).single()
+        if (cancelled) return
+        if (!error) {
+          autoChecked.current = true
+          if ((row as { tutorial_seen?: boolean })?.tutorial_seen === false) {
+            uidRef.current = uid; setIndex(0); setActive(true)
+          }
+          return
+        }
+        // transient (token not ready / column cache) — back off and retry
+        await new Promise(r => setTimeout(r, 400 * (i + 1)))
+      }
+      // all retries errored — leave autoChecked false so a later /home visit retries
+    })()
+    return () => { cancelled = true }
   }, [location.pathname])
 
   // Keep the URL on the active step's route (this is the "walk into each

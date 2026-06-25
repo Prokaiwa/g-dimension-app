@@ -46,6 +46,9 @@ export default function TourOverlay() {
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'
   const isLast = index >= total - 1
+  // Node steps: let taps fall through to the map node (HomePage advances the
+  // tour when the highlighted node is tapped). The bubble stays interactive.
+  const passThrough = !!step.node
 
   // Render revealed text across segments.
   let remaining = shown
@@ -71,6 +74,7 @@ export default function TourOverlay() {
       background: onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)',
       padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
       animation: `tourFade 220ms ${EASING_SETTLE} both`,
+      pointerEvents: passThrough ? 'none' : 'auto',
     }}>
       <style>{`@keyframes tourFade { from { opacity: 0 } to { opacity: 1 } }`}</style>
 
@@ -81,6 +85,7 @@ export default function TourOverlay() {
         borderTop: `2px solid ${COLOR_ACCENT}`,
         boxShadow: '0 18px 50px rgba(0,0,0,0.6)',
         padding: '18px 18px 14px',
+        pointerEvents: 'auto',
         // square corners per design system
       }}>
         {/* Body */}
