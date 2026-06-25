@@ -48,9 +48,21 @@ export async function getActiveCarId(): Promise<string | null> {
 }
 
 /**
- * Called once after sign-in. Reads active_car_id from the user's profile
- * and seeds localStorage so the current browser knows which car is active.
- * If the server has no preference yet, keeps whatever is in localStorage.
+ * Clears the locally-cached active car id. Call on sign-out so a different
+ * account signing in on the same browser never inherits the previous user's
+ * selection (localStorage is not namespaced per user).
+ */
+export function clearActiveCar(): void {
+  localStorage.removeItem(KEY)
+}
+
+/**
+ * Called once after sign-in. The SERVER is the source of truth here: the
+ * localStorage cache is not namespaced per user, so a value left by a previous
+ * account on this browser must not be trusted. If the server has an
+ * active_car_id we seed localStorage with it; if it doesn't, we CLEAR the cache
+ * (otherwise a stale cross-account id could leak another user's car into the
+ * header views, which fetch by getActiveCarId()).
  */
 export async function syncActiveCarFromServer(): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession()
@@ -64,5 +76,7 @@ export async function syncActiveCarFromServer(): Promise<void> {
 
   if (data?.active_car_id) {
     localStorage.setItem(KEY, data.active_car_id)
+  } else {
+    localStorage.removeItem(KEY)
   }
 }

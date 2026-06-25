@@ -508,6 +508,10 @@ export default function GarageCarsPage() {
       supabase
         .from('cars')
         .select(CAR_COLUMNS)
+        // MUST scope to the owner: the cars table also has a public-read RLS
+        // policy (is_public = true), so without this filter the carousel would
+        // return the user's own cars PLUS every public car in the database.
+        .eq('user_id', session.user.id)
         .is('deleted_at', null)
         .order('created_at')
         .then(async ({ data }) => {

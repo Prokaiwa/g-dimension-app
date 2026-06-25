@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { syncActiveCarFromServer } from './lib/activeCar'
+import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { isOnboarded } from './lib/userProfile'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
@@ -150,6 +150,9 @@ export default function App() {
       // which needs the auth lock this callback is still holding (see the note in
       // useAuthGate). Calling it inline can deadlock.
       if (event === 'SIGNED_IN') setTimeout(() => { syncActiveCarFromServer() }, 0)
+      // Drop the cached active car on sign-out so the next account on this
+      // browser can't inherit it (localStorage is not namespaced per user).
+      if (event === 'SIGNED_OUT') clearActiveCar()
     })
     return () => subscription.unsubscribe()
   }, [])
