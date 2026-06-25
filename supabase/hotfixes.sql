@@ -5,7 +5,9 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 060_document_receipt_photos.sql (applied 2026-06-24)
+-- Last migration applied : 061_car_private.sql (applied 2026-06-25)
+--   - 061 (car_private — owner-only VIN/plate/purchase fields split out of cars;
+--     closes the public-read column leak; backfilled then dropped from cars) applied 2026-06-25.
 --   - 060 (car_document_photos — multi-image extras for car_documents rows;
 --     owner-only RLS, car-documents private bucket, grants) applied 2026-06-24.
 --   - 059 (diy_guides / diy_steps / diy_step_photos — DIY install guides per mod;

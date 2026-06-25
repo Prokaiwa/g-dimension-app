@@ -18,7 +18,6 @@ import iconDocs      from '../assets/icons/garage/docs.png'
 import iconContacts  from '../assets/icons/garage/contacts.png'
 import iconReminders from '../assets/icons/garage/reminders.png'
 import {
-  COLOR_ACCENT,
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
   COLOR_HEADER_TITLE,
@@ -26,7 +25,6 @@ import {
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
   FONT_UI,
-  FONT_TITLE,
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
@@ -127,10 +125,6 @@ export default function GaragePage() {
         @keyframes floorPulse {
           0%, 100% { opacity: 0.35; }
           50%       { opacity: 0.6;  }
-        }
-        @keyframes addPulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(200,102,26,0.35), 0 0 0 0 rgba(200,102,26,0.0); }
-          50%       { box-shadow: 0 0 24px rgba(200,102,26,0.85), 0 0 0 14px rgba(200,102,26,0.14); }
         }
         .icon-tile { user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
       `}</style>
@@ -281,37 +275,6 @@ export default function GaragePage() {
         </div>
       </div>
 
-      {/* Add car prompt — centered in upper half */}
-      {hasCar === false && (
-        <div style={{
-          position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0,
-          bottom: '45%',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'flex-end',
-          paddingBottom: SPACE_LG, zIndex: 4,
-        }}>
-          <button
-            onClick={() => navigate('/garage/cars')}
-            style={{
-              width: 48, height: 48, borderRadius: '50%',
-              background: 'rgba(200,102,26,0.22)',
-              border: '1.5px solid rgba(200,102,26,0.75)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', marginBottom: SPACE_SM,
-              animation: 'addPulse 3s ease-in-out infinite',
-            }}
-          >
-            <span style={{ color: COLOR_ACCENT, fontSize: 26, fontWeight: 300, lineHeight: 1, marginTop: -1, textShadow: '0 0 10px rgba(200,102,26,0.9)' }}>+</span>
-          </button>
-          <p style={{
-            fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
-            fontSize: 13.5, color: 'rgba(245,245,245,0.65)',
-            textAlign: 'center', margin: 0, maxWidth: 210, lineHeight: 1.55,
-          }}>
-            When you're ready, tap here to place your car in the garage.
-          </p>
-        </div>
-      )}
     </div>
   )
 }
