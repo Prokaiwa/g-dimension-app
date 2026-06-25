@@ -159,6 +159,40 @@ export async function isOnboarded(uid: string): Promise<boolean> {
   return ok
 }
 
+// ── Onboarding tour (migration 062) ──────────────────────────────────────────
+// `tutorial_seen` is false for new signups → the guided home-map tour auto-runs
+// once after the handle claim. Replayable from Settings (resets it to false).
+
+const tutorialSeenCache = new Set<string>()
+
+// Fail SAFE: if the column doesn't exist yet (062 not run) or the query errors,
+// treat the tour as already seen so it never spams on a DB hiccup.
+export async function hasSeenTutorial(uid: string): Promise<boolean> {
+  if (tutorialSeenCache.has(uid)) return true
+  const { data, error } = await supabase
+    .from('users')
+    .select('tutorial_seen')
+    .eq('id', uid)
+    .single()
+  if (error) { tutorialSeenCache.add(uid); return true }
+  const seen = (data as { tutorial_seen?: boolean })?.tutorial_seen === true
+  if (seen) tutorialSeenCache.add(uid)
+  return seen
+}
+
+// Mark the tour complete. Best-effort DB write + session cache.
+export function markTutorialSeen(uid: string): void {
+  tutorialSeenCache.add(uid)
+  supabase.from('users').update({ tutorial_seen: true }).eq('id', uid)
+    .then(() => {}, () => {})
+}
+
+// Replay: clear the flag so the tour runs again.
+export async function resetTutorial(uid: string): Promise<void> {
+  tutorialSeenCache.delete(uid)
+  await supabase.from('users').update({ tutorial_seen: false }).eq('id', uid)
+}
+
 // Handles that would shadow routes, impersonate the brand, or read as system
 // values. Checked in addition to the DB unique constraint.
 export const RESERVED_USERNAMES = new Set([

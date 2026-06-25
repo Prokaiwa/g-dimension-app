@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
+import { TourProvider } from './tour/TourContext'
+import TourOverlay from './tour/TourOverlay'
 import { isOnboarded } from './lib/userProfile'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
@@ -170,8 +172,9 @@ export default function App() {
   }, [])
 
   return (
-    <>
+    <TourProvider>
       <ErrorBanner />
+      <TourOverlay />
       <Routes>
       {/* Part 10 — Full Route Map */}
       <Route path="/" element={<LandingPage />} />
@@ -236,6 +239,6 @@ export default function App() {
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
       <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
       </Routes>
-    </>
+    </TourProvider>
   )
 }

@@ -27,8 +27,6 @@ import {
   GRADIENT_HEADER_SHADOW,
   ICON_WRAPPER_FOCAL,
   ICON_WRAPPER_STANDARD,
-  FOCAL_UNDERLINE_W,
-  FOCAL_UNDERLINE_H,
   MAP_NODE_HOME,
   MAP_NODE_TUNING,
   MAP_NODE_TIMELINE,
@@ -37,6 +35,8 @@ import {
   RADIUS_AVATAR,
   EASING_SETTLE,
 } from '../tokens'
+import { useTour } from '../tour/TourContext'
+import type { TourNode } from '../tour/tourSteps'
 
 
 // Road bezier paths (390×800 viewBox) — single source for the glow line and
@@ -73,6 +73,23 @@ const DESTINATIONS = [
   { id: 'featured',      label: 'Featured',      icon: iconFeatured,      pos: MAP_NODE_PHOTOS,      size: ICON_WRAPPER_STANDARD, route: '/featured',      focal: false },
 ]
 
+// Tour glow line — the road(s) from Home to each node (home itself just pulses).
+const TOUR_LINE: Record<TourNode, string[]> = {
+  home:        [],
+  tuning:      [ROAD_GARAGE_TUNING],
+  timeline:    [ROAD_GARAGE_TIMELINE],
+  maintenance: [ROAD_GARAGE_TUNING, ROAD_TUNING_MAINT],
+  featured:    [ROAD_GARAGE_TIMELINE, ROAD_TIMELINE_PHOTOS],
+}
+// Node centers in the 390×800 road viewBox (for the pulsing target ring).
+const NODE_POS: Record<TourNode, { x: number; y: number }> = {
+  home:        { x: MAP_NODE_HOME.left,        y: MAP_NODE_HOME.top },
+  tuning:      { x: MAP_NODE_TUNING.left,      y: MAP_NODE_TUNING.top },
+  timeline:    { x: MAP_NODE_TIMELINE.left,    y: MAP_NODE_TIMELINE.top },
+  maintenance: { x: MAP_NODE_MAINTENANCE.left, y: MAP_NODE_MAINTENANCE.top },
+  featured:    { x: MAP_NODE_PHOTOS.left,      y: MAP_NODE_PHOTOS.top },
+}
+
 const STAGGER_MS = [400, 540, 580, 720, 760]
 
 // Glint timing per node (matches DESTINATIONS order) — co-prime periods and
@@ -95,6 +112,9 @@ const TAP_DEBUG = typeof window !== 'undefined' && window.location.search.includ
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const { active: tourActive, step: tourStep } = useTour()
+  // On home-map tour steps, glow the road(s) to this node + pulse it.
+  const tourNode = tourActive && tourStep?.route === '/home' ? tourStep.node : undefined
   const worldRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const rafRef   = useRef<number>(0)
@@ -372,6 +392,14 @@ export default function HomePage() {
           from { stroke-dashoffset: 1; }
           to   { stroke-dashoffset: 0; }
         }
+        @keyframes tourLineDraw {
+          from { stroke-dashoffset: 1; opacity: 0.2; }
+          to   { stroke-dashoffset: 0; opacity: 1; }
+        }
+        @keyframes tourRing {
+          0%, 100% { opacity: 0.35; transform: scale(0.92); transform-origin: center; transform-box: fill-box; }
+          50%      { opacity: 1;    transform: scale(1.12); transform-origin: center; transform-box: fill-box; }
+        }
         @keyframes roadDashIn {
           from { opacity: 0; }
           to   { opacity: 1; }
@@ -625,6 +653,10 @@ export default function HomePage() {
                 <feGaussianBlur stdDeviation="1.8" result="blur"/>
                 <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
+              <filter id="tourGlow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3.2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
             </defs>
             {/* Garage → Tuning */}
             <g fill="none" stroke="rgba(255,250,232,0.52)" strokeLinecap="round" filter="url(#roadGlow)">
@@ -685,6 +717,27 @@ export default function HomePage() {
               <path id="rlD" d="M 120 622 C 115 612, 105 600, 90 570 C 60 520, 72 470, 92 420" fill="none"/>
               <text><textPath href="#rlD" startOffset="125">To Featured</textPath></text>
             </g>
+
+            {/* Onboarding tour — glowing guide line to the active node + a ring */}
+            {tourNode && (
+              <g style={{ pointerEvents: 'none' }}>
+                {TOUR_LINE[tourNode].map((d, i) => (
+                  <path
+                    key={`tour-${tourNode}-${i}`}
+                    d={d} fill="none" stroke={COLOR_ACCENT} strokeWidth={3.6}
+                    strokeLinecap="round" filter="url(#tourGlow)" pathLength={1}
+                    style={{ strokeDasharray: 1, animation: `tourLineDraw 650ms ease-out ${i * 240}ms both` }}
+                  />
+                ))}
+                <circle
+                  key={`tour-ring-${tourNode}`}
+                  cx={NODE_POS[tourNode].x} cy={NODE_POS[tourNode].y} r={24}
+                  fill="none" stroke={COLOR_ACCENT} strokeWidth={2.2}
+                  filter="url(#tourGlow)"
+                  style={{ animation: 'tourRing 1.5s ease-in-out infinite' }}
+                />
+              </g>
+            )}
 
             {/* Wandering driver — positioned each frame by the RAF loop */}
             <g ref={driverRef} opacity="0">
@@ -807,18 +860,6 @@ export default function HomePage() {
                 }}>
                   {dest.label}
                 </span>
-
-                {/* Focal underline accent */}
-                {dest.focal && (
-                  <div style={{
-                    width: FOCAL_UNDERLINE_W,
-                    height: FOCAL_UNDERLINE_H,
-                    background: COLOR_ACCENT,
-                    borderRadius: 1,
-                    marginTop: 3,
-                    opacity: 0.9,
-                  }} />
-                )}
               </div>
             </div>
           ))}

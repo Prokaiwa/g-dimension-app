@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
+import { useTour } from '../tour/TourContext'
 import BottomSheet from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
@@ -134,6 +135,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const { replay } = useTour()
   const [uid, setUid] = useState<string | null>(null)
   const [prefs, setPrefs] = useState<UnitPrefs | null>(null)
   const [loading, setLoading] = useState(true)
@@ -230,6 +232,12 @@ export default function SettingsPage() {
                 onPick={pickSound}
                 disabled={false}
               />
+            </div>
+
+            {/* Help */}
+            <SectionLabel>Help</SectionLabel>
+            <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
+              <NavRow label="Replay App Tour" sub="Take the guided walkthrough again from the Home map" onClick={replay} />
             </div>
 
             {/* Cars */}
