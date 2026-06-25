@@ -41,14 +41,18 @@ export default function TourOverlay() {
     return () => window.clearInterval(t)
   }, [step, fullLen])
 
+  // Node steps: "Got it" dismisses the bubble + dim, leaving a clean map with the
+  // glowing node; tapping the real node then advances (video-game style).
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => { setDismissed(false) }, [step?.id])
+
   if (!active || !step) return null
+  const isNode = !!step.node
+  if (isNode && dismissed) return null
 
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'
   const isLast = index >= total - 1
-  // Node steps: tapping the dimmed map (where the highlighted node sits) advances
-  // the tour. Reliable regardless of the bubble's position over the node.
-  const tapToAdvance = !!step.node
 
   // Render revealed text across segments.
   let remaining = shown
@@ -67,7 +71,6 @@ export default function TourOverlay() {
 
   return (
     <div
-      onClick={tapToAdvance ? () => next() : undefined}
       style={{
         position: 'fixed', inset: 0, zIndex: 100000,
         display: 'flex', flexDirection: 'column', justifyContent: justify,
@@ -76,7 +79,6 @@ export default function TourOverlay() {
         background: onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)',
         padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
         animation: `tourFade 220ms ${EASING_SETTLE} both`,
-        cursor: tapToAdvance ? 'pointer' : 'default',
       }}
     >
       <style>{`@keyframes tourFade { from { opacity: 0 } to { opacity: 1 } }`}</style>
@@ -125,7 +127,9 @@ export default function TourOverlay() {
             <button onClick={back} style={ghostBtn}>Back</button>
           )}
           <button onClick={skip} style={ghostBtn}>Skip</button>
-          <button onClick={next} style={primaryBtn}>{isLast ? 'Finish' : 'Next'}</button>
+          {isNode
+            ? <button onClick={() => setDismissed(true)} style={primaryBtn}>Got it</button>
+            : <button onClick={next} style={primaryBtn}>{isLast ? 'Finish' : 'Next'}</button>}
         </div>
       </div>
     </div>
