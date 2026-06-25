@@ -46,9 +46,9 @@ export default function TourOverlay() {
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'
   const isLast = index >= total - 1
-  // Node steps: let taps fall through to the map node (HomePage advances the
-  // tour when the highlighted node is tapped). The bubble stays interactive.
-  const passThrough = !!step.node
+  // Node steps: tapping the dimmed map (where the highlighted node sits) advances
+  // the tour. Reliable regardless of the bubble's position over the node.
+  const tapToAdvance = !!step.node
 
   // Render revealed text across segments.
   let remaining = shown
@@ -66,28 +66,34 @@ export default function TourOverlay() {
   const justify = place === 'center' ? 'center' : place === 'top' ? 'flex-start' : 'flex-end'
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100000,
-      display: 'flex', flexDirection: 'column', justifyContent: justify,
-      alignItems: 'center',
-      // Lighter scrim on the home map so the glowing line + nodes read through.
-      background: onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)',
-      padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
-      animation: `tourFade 220ms ${EASING_SETTLE} both`,
-      pointerEvents: passThrough ? 'none' : 'auto',
-    }}>
+    <div
+      onClick={tapToAdvance ? () => next() : undefined}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100000,
+        display: 'flex', flexDirection: 'column', justifyContent: justify,
+        alignItems: 'center',
+        // Lighter scrim on the home map so the glowing line + nodes read through.
+        background: onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)',
+        padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
+        animation: `tourFade 220ms ${EASING_SETTLE} both`,
+        cursor: tapToAdvance ? 'pointer' : 'default',
+      }}
+    >
       <style>{`@keyframes tourFade { from { opacity: 0 } to { opacity: 1 } }`}</style>
 
-      <div style={{
-        width: '100%', maxWidth: 360,
-        background: COLOR_CAVITY_BG,
-        border: '1px solid rgba(245,245,245,0.10)',
-        borderTop: `2px solid ${COLOR_ACCENT}`,
-        boxShadow: '0 18px 50px rgba(0,0,0,0.6)',
-        padding: '18px 18px 14px',
-        pointerEvents: 'auto',
-        // square corners per design system
-      }}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 360,
+          background: COLOR_CAVITY_BG,
+          border: '1px solid rgba(245,245,245,0.10)',
+          borderTop: `2px solid ${COLOR_ACCENT}`,
+          boxShadow: '0 18px 50px rgba(0,0,0,0.6)',
+          padding: '18px 18px 14px',
+          cursor: 'default',
+          // square corners per design system
+        }}
+      >
         {/* Body */}
         <p style={{
           margin: 0,

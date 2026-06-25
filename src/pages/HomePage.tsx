@@ -786,15 +786,23 @@ export default function HomePage() {
                     />
                   )
                 })}
-                {glow.ring && (
-                  <g style={{ transformOrigin: `${NODE_POS[glow.ring].x}px ${NODE_POS[glow.ring].y}px` }}>
-                    <circle cx={NODE_POS[glow.ring].x} cy={NODE_POS[glow.ring].y} r={32}
-                      fill={COLOR_ACCENT} opacity={0.16} filter="url(#tourGlow)"
+                {glow.ring === 'home' ? (
+                  // Home gets a fuller glow (no road leads to it, so the node
+                  // itself is the cue): soft disc + ring.
+                  <g>
+                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={30}
+                      fill={COLOR_ACCENT} opacity={0.14} filter="url(#tourGlow)"
                       style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
-                    <circle cx={NODE_POS[glow.ring].x} cy={NODE_POS[glow.ring].y} r={21}
-                      fill="none" stroke={COLOR_ACCENT} strokeWidth={2.4} filter="url(#tourGlow)"
+                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={21}
+                      fill="none" stroke={COLOR_ACCENT} strokeWidth={2.2} filter="url(#tourGlow)"
                       style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
                   </g>
+                ) : glow.ring && (
+                  // Other nodes: the subtle ring (matches the earlier look).
+                  <circle cx={NODE_POS[glow.ring].x} cy={NODE_POS[glow.ring].y} r={24}
+                    fill="none" stroke={COLOR_ACCENT} strokeWidth={2.2} opacity={0.85}
+                    filter="url(#tourGlow)"
+                    style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
                 )}
               </g>
             )}

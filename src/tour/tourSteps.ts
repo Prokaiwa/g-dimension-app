@@ -44,7 +44,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/home',
     node: 'tuning',
     place: 'top',
-    body: 'Now follow the line to **Tuning**, where the build comes alive. Tap the node to head in.',
+    body: 'Now follow the line to **Tuning**, where the build comes alive. Tap it when you’re ready.',
   },
   {
     id: 'tuning',
@@ -63,14 +63,14 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'maintenance',
     route: '/maintenance',
     place: 'top',
-    body: 'Log every **Service** here, from an oil change to a brake job, and every **Detail** that keeps her looking her best.',
+    body: 'Log every **Service** here, from an oil change to a brake job, and every **Detail** that keeps your car looking her best.',
   },
   {
     id: 'node-featured',
     route: '/home',
     node: 'featured',
     place: 'top',
-    body: 'Now follow the line to **Featured**, the fun one. Tap the node when you’re ready.',
+    body: 'Now follow the line to **Featured**. This is the fun one. Tap it when you’re ready.',
   },
   {
     id: 'featured',
