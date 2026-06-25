@@ -790,11 +790,11 @@ export default function HomePage() {
                   // Home gets a fuller glow (no road leads to it, so the node
                   // itself is the cue): soft disc + ring.
                   <g>
-                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={30}
-                      fill={COLOR_ACCENT} opacity={0.14} filter="url(#tourGlow)"
+                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={32}
+                      fill={COLOR_ACCENT} opacity={0.18} filter="url(#tourGlow)"
                       style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
-                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={21}
-                      fill="none" stroke={COLOR_ACCENT} strokeWidth={2.2} filter="url(#tourGlow)"
+                    <circle cx={NODE_POS.home.x} cy={NODE_POS.home.y} r={22}
+                      fill="none" stroke={COLOR_ACCENT} strokeWidth={2.4} filter="url(#tourGlow)"
                       style={{ animation: 'tourRing 1.6s ease-in-out infinite' }} />
                   </g>
                 ) : glow.ring && (

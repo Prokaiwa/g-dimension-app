@@ -30,7 +30,8 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'node-home',
     route: '/home',
     node: 'home',
-    place: 'top',
+    // Home sits high on the map — keep the bubble low so it never covers the glow.
+    place: 'bottom',
     body: 'First, follow the glow to **Home** and tap it. This opens your Garage, your car’s home base.',
   },
   {
