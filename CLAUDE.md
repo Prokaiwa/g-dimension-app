@@ -14,7 +14,10 @@ Car build journal PWA. React + Vite + Supabase. Live at gdimension.app.
 - **Never force-push to `main`.** History on `main` is append-only. Reconcile divergence with a normal merge or a fresh commit — never `--force`, never a history rewrite that drops published commits.
 - **Every session must land its work on `main` before ending.** If anything is left unmerged for any reason, the session's final message MUST explicitly name the branch the work is parked on, so it can never be silently stranded.
 
----
+## Source-of-truth — verify freshness before trusting the local clone
+
+- **GitHub `main` is the source of truth — NOT the local container clone.** The web container can provision a **stale, shallow** clone whose `origin/main` ref is frozen days behind, while `git status` still reports "up to date" (it compares against the stale ref). This has caused real incidents (confidently declaring committed files "don't exist").
+- The session-start hook (`.claude/hooks/session-start.sh`) now force-syncs to the real `origin/main` and prints `On main @ <sha> — <subject> (<date>)` at startup. **Glance at that line** — if the date looks old, or before claiming a file/feature doesn't exist, run `git fetch origin main` (un-shallow if needed) or verify via the GitHub API. **Never tell the user something isn't in the repo based on the local clone alone.**
 
 ---
 
