@@ -4,6 +4,28 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 
 ---
 
+## Beta Readiness Checklist (pre-friends test, no payment yet)
+
+### Planned next sessions (in priority order)
+1. **Error observability (Sentry)** — `ErrorBanner` is device-local; add Sentry free tier so crashes surface without friends having to report them. Wire into `App.tsx` before anything else.
+2. **Empty states** — walk every section as a brand-new user (no car, no mods, no timeline). Each screen should look intentional when empty, not just blank.
+3. **Safe area insets** — audit fixed headers/footers for `env(safe-area-inset-top/bottom)`. Notch + home indicator on newer iPhones clip content that isn't padded.
+4. **Account deletion** — "Delete my account" in Settings (Edge Function → wipes user data + calls `supabase.auth.admin.deleteUser`). Required even pre-payment.
+5. **Public profile end-to-end** — test `/builds/:username` as a logged-out visitor on mobile. Often silently broken.
+6. **Onboarding walkthrough** — video-game style first-run guide directing new users through adding a car → first mod → first service. Triggered by `users.username_set` becoming true (already in schema).
+7. **UI sounds** — new sounds for home-map node taps and key actions (save, delete confirm, etc.). Extend `src/lib/sound.ts`.
+8. **Security audit** — thorough review of RLS policies, storage bucket policies, Edge Function auth, and any client-side secrets.
+9. **Inconsistency check** — cross-file audit: token usage, shared component props, route links, category/group mapping sync (`CATEGORY_TO_GROUP` in two files).
+10. **Dead code / file cleanup** — unused imports, unreferenced assets, stale routes.
+11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
+
+### Known lower-priority items
+- WASM background-removal bundle is ~24MB — measure first-load on mobile data
+- Signed URL expiry mid-session (currently 300s on receipts/documents — may need extending or refresh logic)
+- Multi-car stress test: 3+ cars in the carousel
+
+---
+
 ## What's Built
 
 All primary routes are implemented:
