@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
+import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import { GarageBg, GarageHeader } from './GarageCarsPage'
 import {
@@ -47,7 +48,10 @@ type CarMeta = { year: number | null; make: string | null; model: string | null;
 type Details = Record<string, string>
 
 const DETAIL_COLUMNS =
-  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, vin, license_plate, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url, is_public, show_buildsheet_publicly, show_timeline_publicly, show_featured_publicly'
+  // Sensitive fields (vin, license_plate, purchase_price/currency/dealer,
+  // mileage_at_purchase) now live in car_private (migration 061) — read via
+  // getCarPrivate, not from this list.
+  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url, is_public, show_buildsheet_publicly, show_timeline_publicly, show_featured_publicly'
 
 // A from-scratch switch (no component libraries). Amber when on.
 function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
@@ -101,8 +105,11 @@ export default function GarageCarsEditPage() {
   useEffect(() => {
     if (!carId) return
     let active = true
-    supabase.from('cars').select(DETAIL_COLUMNS).eq('id', carId).is('deleted_at', null).single()
-      .then(({ data: row }) => {
+    Promise.all([
+      supabase.from('cars').select(DETAIL_COLUMNS).eq('id', carId).is('deleted_at', null).single(),
+      getCarPrivate(carId),
+    ])
+      .then(([{ data: row }, priv]) => {
         if (!active) return
         if (!row) { setLoading(false); return }
         setMeta({ year: row.year, make: row.make, model: row.model, variant: row.variant })
@@ -115,8 +122,8 @@ export default function GarageCarsEditPage() {
           mileage:           row.current_mileage    != null ? String(row.current_mileage) : '',
           mileageUnit:       'mi',
           chassisCode:       row.chassis_code       ?? '',
-          vin:               row.vin                ?? '',
-          licensePlate:      row.license_plate      ?? '',
+          vin:               priv.vin               ?? '',
+          licensePlate:      priv.license_plate     ?? '',
           engineType:        row.engine_type         ?? '',
           engineOrigin:      row.engine_origin       ?? '',
           usageType:         row.usage_type          ?? '',
@@ -129,10 +136,10 @@ export default function GarageCarsEditPage() {
           tireSize:          row.tire_size          ?? '',
           batteryModel:      row.battery_model      ?? '',
           purchaseDate:      row.purchase_date      ?? '',
-          purchasePrice:     row.purchase_price     != null ? String(row.purchase_price) : '',
-          purchaseCurrency:  row.purchase_currency  ?? 'USD',
-          mileageAtPurchase: row.mileage_at_purchase != null ? String(row.mileage_at_purchase) : '',
-          wherePurchased:    row.purchase_dealer    ?? '',
+          purchasePrice:     priv.purchase_price     != null ? String(priv.purchase_price) : '',
+          purchaseCurrency:  priv.purchase_currency  ?? 'USD',
+          mileageAtPurchase: priv.mileage_at_purchase != null ? String(priv.mileage_at_purchase) : '',
+          wherePurchased:    priv.purchase_dealer    ?? '',
           originStory:       row.purchase_story     ?? '',
         })
         setPhotoUrl(row.garage_photo_url ?? null)
@@ -168,8 +175,6 @@ export default function GarageCarsEditPage() {
       variant:           data.variant?.trim()         || null,
       current_mileage:   mileageInMiles,
       chassis_code:      data.chassisCode?.trim()     || null,
-      vin:               data.vin?.trim()             || null,
-      license_plate:     data.licensePlate?.trim()    || null,
       engine_type:       data.engineType?.trim()      || null,
       engine_origin:     data.engineOrigin            || null,
       usage_type:        data.usageType               || null,
@@ -182,10 +187,6 @@ export default function GarageCarsEditPage() {
       tire_size:         data.tireSize?.trim()        || null,
       battery_model:     data.batteryModel?.trim()    || null,
       purchase_date:     data.purchaseDate            || null,
-      purchase_price:    parseFloat(data.purchasePrice) || null,
-      purchase_currency: data.purchaseCurrency        || 'USD',
-      mileage_at_purchase: parseInt(data.mileageAtPurchase) || null,
-      purchase_dealer:   data.wherePurchased.trim()   || null,
       purchase_story:    data.originStory.trim()      || null,
       is_public:                 privacy.isPublic,
       show_buildsheet_publicly:  privacy.buildsheet,
@@ -210,6 +211,21 @@ export default function GarageCarsEditPage() {
     const { error } = await supabase.from('cars').update(update).eq('id', carId)
     setSaving(false)
     if (error) { setErr(error.message); return }
+    // Sensitive fields live in car_private (migration 061) — owner-only, never
+    // exposed by the public cars policy. Written separately, best-effort.
+    {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await upsertCarPrivate(carId, user.id, {
+          vin:                 data.vin?.trim()                 || null,
+          license_plate:       data.licensePlate?.trim()        || null,
+          purchase_price:      parseFloat(data.purchasePrice)   || null,
+          purchase_currency:   data.purchaseCurrency            || 'USD',
+          mileage_at_purchase: parseInt(data.mileageAtPurchase) || null,
+          purchase_dealer:     data.wherePurchased.trim()       || null,
+        })
+      }
+    }
     // Persist the original separately so a pre-migration column gap can never block the main save.
     if (originalUrl) {
       try { await supabase.from('cars').update({ original_photo_url: originalUrl }).eq('id', carId) } catch { /* ignore */ }

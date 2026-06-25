@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { getCarPrivate } from '../lib/carPrivate'
 import { playBack } from '../lib/sound'
 import { generateBuildPdf, pdfFilename, type PdfData, type PdfMod, type PdfService } from '../lib/buildPdf'
 import gLogoAsset from '../assets/logo/gdimensionG.webp'
@@ -55,7 +56,7 @@ export default function GaragePdfPage() {
       const [carRes, modsRes, , svcRes, ownerRes] = await Promise.all([
         supabase
           .from('cars')
-          .select('id,year,make,model,variant,vin,current_mileage,horsepower,torque,weight_lbs,garage_photo_url,original_photo_url')
+          .select('id,year,make,model,variant,current_mileage,horsepower,torque,weight_lbs,garage_photo_url,original_photo_url')
           .eq('id', carId).single(),
         supabase
           .from('jobs')
@@ -79,6 +80,8 @@ export default function GaragePdfPage() {
 
       const car = carRes.data
       if (!car) { setLoading(false); return }
+      // VIN lives in car_private (migration 061) — owner-only.
+      const priv = await getCarPrivate(carId)
 
       type JobRow = { id:string; title:string; brand:string|null; category:string|null; date_installed:string|null; install_mileage:number|null; installed_by:'self'|'shop'|null; parts_cost:number|null; labor_cost:number|null; session_id:string|null }
       type SvcRow = { id:string; type:string; date_performed:string; performed_by:'self'|'shop'|null; shop_name:string|null; mileage:number|null; total_cost:number|null; labor_cost:number|null; tax_amount:number|null; notes:string|null; title:string|null; jobs:{id:string;title:string;cost:number|null}[] }
@@ -118,7 +121,7 @@ export default function GaragePdfPage() {
       const logoUrl = new URL(gLogoAsset, window.location.origin).href
 
       setPdfData({
-        car: car as unknown as PdfData['car'],
+        car: { ...car, vin: priv.vin } as unknown as PdfData['car'],
         ownerName: owner?.display_name ?? null,
         ownerHandle: owner?.username ?? null,
         mods,

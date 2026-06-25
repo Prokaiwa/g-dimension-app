@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getCarPrivate } from '../lib/carPrivate'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
   COLOR_HEADER_BLACK,
@@ -176,7 +177,7 @@ export default function GarageSnapshotPage() {
       const chosenId = localStorage.getItem('gdim_chosen_car_id')
       const COLS = [
         'id', 'year', 'make', 'model', 'variant', 'nickname', 'color', 'is_import',
-        'vin', 'license_plate', 'engine_type',
+        'engine_type',
         'oil_type', 'tire_size', 'battery_model', 'current_mileage',
         'garage_photo_url', 'photo_y_offset',
       ].join(', ')
@@ -209,6 +210,9 @@ export default function GarageSnapshotPage() {
         setLoading(false)
         return
       }
+      // VIN + plate live in car_private (migration 061) — owner-only.
+      const priv = await getCarPrivate(resolvedCar.id)
+      resolvedCar = { ...resolvedCar, vin: priv.vin, license_plate: priv.license_plate }
       setCar(resolvedCar)
 
       // Per-car data — last service, upcoming reminders, renewal dates.

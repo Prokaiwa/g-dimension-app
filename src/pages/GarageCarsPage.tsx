@@ -9,6 +9,7 @@ import { setActiveCar, getActiveCarId } from '../lib/activeCar'
 import { playBack } from '../lib/sound'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
+import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
   COLOR_CAVITY_BG,
@@ -615,15 +616,18 @@ export default function GarageCarsPage() {
         nickname,
         current_mileage: mileageInMiles,
         purchase_date: form.purchaseDate || null,
-        purchase_price: parseFloat(form.purchasePrice) || null,
-        purchase_currency: form.purchaseCurrency || 'USD',
-        mileage_at_purchase: parseInt(form.mileageAtPurchase) || null,
-        purchase_dealer: form.wherePurchased.trim() || null,
         purchase_story: form.originStory.trim() || null,
       })
       .select(CAR_COLUMNS)
       .single()
     if (error || !data) { setSaving(false); setSaveErr(error?.message ?? 'Save failed'); return }
+    // Sensitive purchase fields live in car_private (migration 061), owner-only.
+    await upsertCarPrivate(data.id, user.id, {
+      purchase_price:      parseFloat(form.purchasePrice)   || null,
+      purchase_currency:   form.purchaseCurrency            || 'USD',
+      mileage_at_purchase: parseInt(form.mileageAtPurchase) || null,
+      purchase_dealer:     form.wherePurchased.trim()       || null,
+    })
     let savedCar: Car = data
     if (addPhotoBlob) {
       try {
@@ -657,11 +661,14 @@ export default function GarageCarsPage() {
     setSheetDragY(0)
     setSheetDragging(false)
     setShowDetails(true)
-    const { data } = await supabase
-      .from('cars')
-      .select('color, paint_code, nickname, trim, variant, current_mileage, chassis_code, vin, license_plate, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_price, purchase_currency, mileage_at_purchase, purchase_dealer, purchase_story, garage_photo_url')
-      .eq('id', car.id)
-      .single()
+    const [{ data }, priv] = await Promise.all([
+      supabase
+        .from('cars')
+        .select('color, paint_code, nickname, trim, variant, current_mileage, chassis_code, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url')
+        .eq('id', car.id)
+        .single(),
+      getCarPrivate(car.id),
+    ])
     if (detailsCarId.current !== car.id) return  // a newer open superseded this fetch
     const autoNick = [car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')
     setDetailsData({
@@ -673,8 +680,8 @@ export default function GarageCarsPage() {
       mileage:           data?.current_mileage    != null ? String(data.current_mileage) : '',
       mileageUnit:       'mi',
       chassisCode:       data?.chassis_code       ?? '',
-      vin:               data?.vin                ?? '',
-      licensePlate:      data?.license_plate      ?? '',
+      vin:               priv.vin                 ?? '',
+      licensePlate:      priv.license_plate       ?? '',
       engineType:        data?.engine_type        ?? '',
       forcedInduction:   data?.forced_induction   ?? 'none',
       horsepower:        data?.horsepower         != null ? String(data.horsepower) : '',
@@ -685,10 +692,10 @@ export default function GarageCarsPage() {
       tireSize:          data?.tire_size          ?? '',
       batteryModel:      data?.battery_model      ?? '',
       purchaseDate:      data?.purchase_date      ?? '',
-      purchasePrice:     data?.purchase_price     != null ? String(data.purchase_price)  : '',
-      purchaseCurrency:  data?.purchase_currency  ?? 'USD',
-      mileageAtPurchase: data?.mileage_at_purchase != null ? String(data.mileage_at_purchase) : '',
-      wherePurchased:    data?.purchase_dealer    ?? '',
+      purchasePrice:     priv.purchase_price      != null ? String(priv.purchase_price)  : '',
+      purchaseCurrency:  priv.purchase_currency   ?? 'USD',
+      mileageAtPurchase: priv.mileage_at_purchase != null ? String(priv.mileage_at_purchase) : '',
+      wherePurchased:    priv.purchase_dealer     ?? '',
       originStory:       data?.purchase_story     ?? '',
     })
   }
