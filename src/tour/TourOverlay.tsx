@@ -1,6 +1,13 @@
-// Onboarding tour overlay — the global speech bubble + dim + controls. Renders
-// nothing unless the tour is active. The glowing line itself is drawn inside
-// HomePage (so it aligns with the map), not here.
+// Onboarding tour overlay — speech bubble + dim + controls. Renders nothing
+// unless the tour is active. The glowing line is drawn inside HomePage.
+//
+// Modes per step:
+//   node step   — light dim + bubble; "Got it" dismisses, then tap the map node.
+//   target step — spotlight: dims everything except the tagged element (which
+//                 stays interactive); advances on its waitFor event, or Next.
+//   wait + no target — non-blocking: bubble only, screen fully usable (e.g. the
+//                 Add-Car form); advances on the waitFor event.
+//   plain       — full dim + Next/Finish.
 import { useEffect, useMemo, useState } from 'react'
 import { useTour } from './TourContext'
 import {
@@ -8,7 +15,6 @@ import {
   FONT_UI, FONT_TITLE, EASING_SETTLE, RADIUS_BUTTON,
 } from '../tokens'
 
-// Split body copy into plain + **accent** segments.
 function parseSegments(body: string): { text: string; accent: boolean }[] {
   return body
     .split(/(\*\*[^*]+\*\*)/g)
@@ -17,6 +23,8 @@ function parseSegments(body: string): { text: string; accent: boolean }[] {
       ? { text: p.slice(2, -2), accent: true }
       : { text: p, accent: false })
 }
+
+const SPOT_PAD = 8
 
 export default function TourOverlay() {
   const { active, step, index, total, next, back, skip } = useTour()
@@ -41,10 +49,30 @@ export default function TourOverlay() {
     return () => window.clearInterval(t)
   }, [step, fullLen])
 
-  // Node steps: "Got it" dismisses the bubble + dim, leaving a clean map with the
-  // glowing node; tapping the real node then advances (video-game style).
+  // Node steps: "Got it" dismisses the bubble, leaving a clean map; tap the node.
   const [dismissed, setDismissed] = useState(false)
   useEffect(() => { setDismissed(false) }, [step?.id])
+
+  // Spotlight: locate the tagged element and track its rect (poll through the
+  // page's entry animation, then settle).
+  const [rect, setRect] = useState<DOMRect | null>(null)
+  const targetKey = step?.target
+  useEffect(() => {
+    setRect(null)
+    if (!targetKey) return
+    let raf = 0, tries = 0
+    const measure = () => {
+      const el = document.querySelector(`[data-tour="${targetKey}"]`) as HTMLElement | null
+      if (el) {
+        const r = el.getBoundingClientRect()
+        setRect(prev => (prev && prev.top === r.top && prev.left === r.left
+          && prev.width === r.width && prev.height === r.height) ? prev : r)
+      }
+      if (++tries < 90) raf = requestAnimationFrame(measure)
+    }
+    raf = requestAnimationFrame(measure)
+    return () => cancelAnimationFrame(raf)
+  }, [step?.id, targetKey])
 
   if (!active || !step) return null
   const isNode = !!step.node
@@ -53,6 +81,10 @@ export default function TourOverlay() {
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'
   const isLast = index >= total - 1
+  const isTarget = !!step.target
+  const isWait = !!step.waitFor
+  const nonBlocking = isWait && !isTarget
+  const DIM = onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)'
 
   // Render revealed text across segments.
   let remaining = shown
@@ -69,67 +101,93 @@ export default function TourOverlay() {
 
   const justify = place === 'center' ? 'center' : place === 'top' ? 'flex-start' : 'flex-end'
 
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 100000,
-        display: 'flex', flexDirection: 'column', justifyContent: justify,
-        alignItems: 'center',
-        // Lighter scrim on the home map so the glowing line + nodes read through.
-        background: onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)',
-        padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
-        animation: `tourFade 220ms ${EASING_SETTLE} both`,
-      }}
-    >
-      <style>{`@keyframes tourFade { from { opacity: 0 } to { opacity: 1 } }`}</style>
+  // Background / dim layer.
+  let dimLayer: React.ReactNode = null
+  if (!nonBlocking) {
+    if (isTarget && rect) {
+      const t = Math.max(0, rect.top - SPOT_PAD)
+      const l = Math.max(0, rect.left - SPOT_PAD)
+      const w = rect.width + SPOT_PAD * 2
+      const h = rect.height + SPOT_PAD * 2
+      const seg: React.CSSProperties = { position: 'absolute', background: DIM, pointerEvents: 'auto' }
+      dimLayer = (
+        <>
+          <div style={{ ...seg, left: 0, top: 0, right: 0, height: t }} />
+          <div style={{ ...seg, left: 0, top: t + h, right: 0, bottom: 0 }} />
+          <div style={{ ...seg, left: 0, top: t, width: l, height: h }} />
+          <div style={{ ...seg, left: l + w, top: t, right: 0, height: h }} />
+          <div style={{
+            position: 'absolute', left: l, top: t, width: w, height: h,
+            border: `2px solid ${COLOR_ACCENT}`, borderRadius: 10,
+            boxShadow: `0 0 16px ${COLOR_ACCENT}`, pointerEvents: 'none',
+            animation: 'tourSpot 1.6s ease-in-out infinite',
+          }} />
+        </>
+      )
+    } else {
+      dimLayer = <div style={{ position: 'absolute', inset: 0, background: DIM, pointerEvents: 'auto' }} />
+    }
+  }
 
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 360,
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100000,
+      pointerEvents: nonBlocking ? 'none' : 'auto',
+      animation: `tourFade 220ms ${EASING_SETTLE} both`,
+    }}>
+      <style>{`
+        @keyframes tourFade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes tourCaret { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
+        @keyframes tourSpot { 0%,100% { box-shadow: 0 0 10px ${COLOR_ACCENT} } 50% { box-shadow: 0 0 22px ${COLOR_ACCENT} } }
+      `}</style>
+
+      {dimLayer}
+
+      {/* Bubble layer — positioned by place; only the bubble captures taps. */}
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        justifyContent: justify, alignItems: 'center', pointerEvents: 'none',
+        padding: place === 'top' ? '64px 20px 0' : place === 'center' ? '0 20px' : '0 20px 38px',
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 360, pointerEvents: 'auto',
           background: COLOR_CAVITY_BG,
           border: '1px solid rgba(245,245,245,0.10)',
           borderTop: `2px solid ${COLOR_ACCENT}`,
           boxShadow: '0 18px 50px rgba(0,0,0,0.6)',
           padding: '18px 18px 14px',
-          cursor: 'default',
-          // square corners per design system
-        }}
-      >
-        {/* Body */}
-        <p style={{
-          margin: 0,
-          fontFamily: step.voice ? FONT_TITLE : FONT_UI,
-          fontStyle: step.voice ? 'italic' : 'normal',
-          fontSize: step.voice ? 19 : 15,
-          lineHeight: step.voice ? 1.5 : 1.55,
-          minHeight: 48,
-          letterSpacing: step.voice ? 0 : '0.01em',
         }}>
-          {text}
-          <span style={{
-            display: shown < fullLen ? 'inline-block' : 'none',
-            width: 7, height: step.voice ? 18 : 14, marginLeft: 1,
-            background: COLOR_ACCENT, verticalAlign: 'text-bottom',
-            animation: 'tourCaret 0.7s steps(1) infinite',
-          }} />
-          <style>{`@keyframes tourCaret { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }`}</style>
-        </p>
+          <p style={{
+            margin: 0,
+            fontFamily: step.voice ? FONT_TITLE : FONT_UI,
+            fontStyle: step.voice ? 'italic' : 'normal',
+            fontSize: step.voice ? 19 : 15,
+            lineHeight: step.voice ? 1.5 : 1.55,
+            minHeight: 48,
+            letterSpacing: step.voice ? 0 : '0.01em',
+          }}>
+            {text}
+            <span style={{
+              display: shown < fullLen ? 'inline-block' : 'none',
+              width: 7, height: step.voice ? 18 : 14, marginLeft: 1,
+              background: COLOR_ACCENT, verticalAlign: 'text-bottom',
+              animation: 'tourCaret 0.7s steps(1) infinite',
+            }} />
+          </p>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', marginTop: 16, gap: 10 }}>
-          {/* Progress */}
-          <span style={{ fontFamily: FONT_UI, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: COLOR_TEXT_SECONDARY }}>
-            {index + 1} / {total}
-          </span>
-          <div style={{ flex: 1 }} />
-          {index > 0 && (
-            <button onClick={back} style={ghostBtn}>Back</button>
-          )}
-          <button onClick={skip} style={ghostBtn}>Skip</button>
-          {isNode
-            ? <button onClick={() => setDismissed(true)} style={primaryBtn}>Got it</button>
-            : <button onClick={next} style={primaryBtn}>{isLast ? 'Finish' : 'Next'}</button>}
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 16, gap: 10 }}>
+            <span style={{ fontFamily: FONT_UI, fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', color: COLOR_TEXT_SECONDARY }}>
+              {index + 1} / {total}
+            </span>
+            <div style={{ flex: 1 }} />
+            {index > 0 && <button onClick={back} style={ghostBtn}>Back</button>}
+            <button onClick={skip} style={ghostBtn}>Skip</button>
+            {isNode
+              ? <button onClick={() => setDismissed(true)} style={primaryBtn}>Got it</button>
+              : isWait
+                ? null
+                : <button onClick={next} style={primaryBtn}>{isLast ? 'Finish' : 'Next'}</button>}
+          </div>
         </div>
       </div>
     </div>

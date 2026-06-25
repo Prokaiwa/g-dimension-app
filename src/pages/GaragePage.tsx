@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { useTour } from '../tour/TourContext'
 import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import garageHero    from '../assets/backgrounds/garage_hero.webp'
@@ -48,6 +49,7 @@ const GRID_TILES = [
 
 export default function GaragePage() {
   const navigate = useNavigate()
+  const { notify } = useTour()
   const [displayName, setDisplayName] = useState('')
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [hasCar, setHasCar] = useState<boolean | null>(null)
@@ -204,7 +206,7 @@ export default function GaragePage() {
         justifyContent: 'center',
         padding: `${SPACE_SM}px ${SPACE_SM}px 37px`,
       }}>
-        <div style={{
+        <div data-tour="garage-tiles" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gridTemplateRows: 'repeat(2, auto)',
@@ -214,7 +216,8 @@ export default function GaragePage() {
           {GRID_TILES.map((tile, i) => (
             <button
               key={tile.id}
-              onClick={() => navigate(tile.route)}
+              data-tour={tile.id === 'cars' ? 'garage-tile-cars' : undefined}
+              onClick={() => { if (tile.id === 'cars') notify('cars-opened'); navigate(tile.route) }}
               className="icon-tile"
               onPointerDown={() => { setPressed(tile.id); playTick() }}
               onPointerUp={() => setPressed(null)}

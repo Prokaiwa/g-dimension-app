@@ -16,12 +16,14 @@ interface TourValue {
   back: () => void
   skip: () => void
   replay: () => void
+  notify: (event: string) => void
+  jump: (stepId: string) => void
 }
 
 const noop = () => {}
 const TourCtx = createContext<TourValue>({
   active: false, step: null, index: 0, total: TOUR_STEPS.length,
-  next: noop, back: noop, skip: noop, replay: noop,
+  next: noop, back: noop, skip: noop, replay: noop, notify: noop, jump: noop,
 })
 
 export const useTour = () => useContext(TourCtx)
@@ -29,6 +31,7 @@ export const useTour = () => useContext(TourCtx)
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false)
   const [index, setIndex] = useState(0)
+  const indexRef = useRef(0); indexRef.current = index
   const uidRef = useRef<string | null>(null)
   const autoChecked = useRef(false)
   const navigate = useNavigate()
@@ -51,6 +54,23 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   const back = useCallback(() => setIndex(i => Math.max(0, i - 1)), [])
   const skip = useCallback(() => finish(), [finish])
+
+  // Pages call notify() at key moments (e.g. 'car-added'); if the active step is
+  // waiting on that event, the tour advances. This is how the interactive
+  // Garage flow (tap My Cars → add a car → Choose Car) gates on real actions.
+  const activeRef = useRef(active); activeRef.current = active
+  const notify = useCallback((event: string) => {
+    if (!activeRef.current) return
+    if (TOUR_STEPS[indexRef.current]?.waitFor === event) next()
+  }, [next])
+
+  // Jump straight to a step by id (e.g. skip the add-car steps when a car
+  // already exists, on replay).
+  const jump = useCallback((stepId: string) => {
+    if (!activeRef.current) return
+    const i = TOUR_STEPS.findIndex(s => s.id === stepId)
+    if (i >= 0 && i !== indexRef.current) setIndex(i)
+  }, [])
 
   const replay = useCallback(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -92,15 +112,17 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [location.pathname])
 
-  // Keep the URL on the active step's route (this is the "walk into each
-  // section" mechanism — advancing a step navigates the app).
+  // Keep the URL on the active step's route. Fires only when the STEP changes
+  // (not on every location change) so the user's own taps/navigations during
+  // the interactive Garage flow aren't yanked back.
   useEffect(() => {
     if (!active || !step) return
-    if (location.pathname !== step.route) navigate(step.route)
-  }, [active, step, location.pathname, navigate])
+    if (window.location.pathname !== step.route) navigate(step.route)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, index])
 
   return (
-    <TourCtx.Provider value={{ active, step, index, total: TOUR_STEPS.length, next, back, skip, replay }}>
+    <TourCtx.Provider value={{ active, step, index, total: TOUR_STEPS.length, next, back, skip, replay, notify, jump }}>
       {children}
     </TourCtx.Provider>
   )

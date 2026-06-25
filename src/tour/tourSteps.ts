@@ -13,6 +13,8 @@ export interface TourStep {
   id: string
   route: string                       // the engine keeps the URL on this route
   node?: TourNode                     // home-map steps: glow trail + pulse this node (tap to advance)
+  target?: string                     // data-tour key to spotlight + leave interactive
+  waitFor?: string                    // advance when a page calls notify(<this>) (no Next button)
   body: string
   voice?: boolean
   place?: 'center' | 'top' | 'bottom' // bubble position (default: bottom)
@@ -37,8 +39,48 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'garage',
     route: '/garage',
-    place: 'bottom',
-    body: 'This is your **Garage**: your car’s identity, documents, reminders, snapshot, and build PDF all live here.',
+    target: 'garage-tile-cars',
+    waitFor: 'cars-opened',
+    place: 'top',
+    body: 'This is your **Garage**, the home base for everything about your car. Let’s start by adding it. Tap **My Cars**.',
+  },
+  {
+    id: 'add-car',
+    route: '/garage/cars',
+    target: 'add-car',
+    waitFor: 'add-open',
+    place: 'top',
+    body: 'Tap the **+** to add your first car.',
+  },
+  {
+    id: 'add-car-fill',
+    route: '/garage/cars',
+    waitFor: 'car-added',
+    place: 'top',
+    body: 'Fill in your car’s details and tap Save. I’ll be right here.',
+  },
+  {
+    id: 'car-success',
+    route: '/garage/cars',
+    target: 'car-details',
+    place: 'top',
+    voice: true,
+    body: 'Beautiful. That’s your car in the garage. Tap **Details** any time to view or edit everything about it.',
+  },
+  {
+    id: 'choose-car',
+    route: '/garage/cars',
+    target: 'choose-car',
+    waitFor: 'car-chosen',
+    place: 'top',
+    body: 'Now tap **Choose** to set it as your active car. Everything you log follows it.',
+  },
+  {
+    id: 'garage-tiles',
+    route: '/garage',
+    target: 'garage-tiles',
+    place: 'top',
+    body: 'Your Garage holds more too: documents, reminders, contacts, and a shareable Build PDF. Explore these whenever you like.',
   },
   {
     id: 'node-tuning',

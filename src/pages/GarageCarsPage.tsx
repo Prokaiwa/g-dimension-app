@@ -10,6 +10,7 @@ import { playBack } from '../lib/sound'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
+import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
   COLOR_CAVITY_BG,
@@ -470,6 +471,7 @@ export function GarageHeader({ onBack, subtitle }: { onBack: () => void; subtitl
 export default function GarageCarsPage() {
   const navigate                              = useNavigate()
   const location                              = useLocation()
+  const { notify, step: tourStep, jump }      = useTour()
   const [cars, setCars]                       = useState<Car[]>([])
   const [loading, setLoading]                 = useState(true)
   const [showAdd, setShowAdd]                 = useState(false)
@@ -542,12 +544,19 @@ export default function GarageCarsPage() {
     return () => clearTimeout(t)
   }, [showHints])
 
+  // Onboarding tour: if a car already exists (e.g. on replay), skip the
+  // "add your first car" steps and go straight to the Details/Choose tour.
+  useEffect(() => {
+    if (tourStep?.id === 'add-car' && cars.length > 0) jump('car-success')
+  }, [tourStep, cars.length, jump])
+
   function onCarouselScroll() {
     const el = scrollRef.current; if (!el) return
     setActiveIdx(Math.round(el.scrollLeft / el.clientWidth))
   }
 
   async function openAdd() {
+    notify('add-open')
     setStep(1); setForm(EMPTY_FORM); setSaveErr(null)
     setAllMakes([]); setMakeModels([])
     setSelectedMakeId(null); setSelectedModelId(null); setShowAdd(true)
@@ -650,6 +659,7 @@ export default function GarageCarsPage() {
       if (el) el.scrollLeft = (updated.length - 1) * el.clientWidth
     })
     if (updated.length > 1) setShowHints(true)
+    notify('car-added') // onboarding tour: car saved → advance to the success step
   }
 
   async function openDetails() {
@@ -786,7 +796,7 @@ export default function GarageCarsPage() {
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           {cars.length === 0 ? (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
-              <button onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
+              <button data-tour="add-car" onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
                 <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, animation: 'addPhotoTextBeat 2.8s ease-in-out infinite' }}>+</span>
               </button>
               <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 15, color: 'rgba(245,245,245,0.55)', margin: 0, textAlign: 'center', maxWidth: 200, lineHeight: 1.5 }}>
@@ -901,10 +911,11 @@ export default function GarageCarsPage() {
                       {/* Actions */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
-                          { src: iconChoose, label: 'Choose', onPress: () => { setActiveCar(cars[activeIdx].id).then(() => { setChosenCarId(cars[activeIdx].id); navigate('/garage') }) } },
+                          { src: iconChoose, label: 'Choose', onPress: () => { notify('car-chosen'); setActiveCar(cars[activeIdx].id).then(() => { setChosenCarId(cars[activeIdx].id); navigate('/garage') }) } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },
                         ] as const).map(({ src, label, onPress }) => (
                           <button key={label} onClick={onPress}
+                            data-tour={label === 'Choose' ? 'choose-car' : 'car-details'}
                             onPointerDown={() => setPressedAction(label)}
                             onPointerUp={() => setPressedAction(null)}
                             onPointerLeave={() => setPressedAction(null)}
@@ -931,7 +942,7 @@ export default function GarageCarsPage() {
                   )
                 })}
                 <div style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
-                  <button onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
+                  <button data-tour="add-car" onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
                     <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, animation: 'addPhotoTextBeat 2.8s ease-in-out infinite' }}>+</span>
                   </button>
                   <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 15, color: 'rgba(245,245,245,0.45)', margin: 0 }}>Add another car</p>
