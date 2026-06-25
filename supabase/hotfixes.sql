@@ -5,7 +5,9 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 061_car_private.sql (applied 2026-06-25)
+-- Last migration applied : 062_tutorial_seen.sql (applied 2026-06-25)
+--   - 062 (users.tutorial_seen — onboarding-tour completion flag; new signups
+--     false → guided tour auto-starts once; replayable from Settings) applied 2026-06-25.
 --   - 061 (car_private — owner-only VIN/plate/purchase fields split out of cars;
 --     closes the public-read column leak; backfilled then dropped from cars) applied 2026-06-25.
 --   - 060 (car_document_photos — multi-image extras for car_documents rows;
