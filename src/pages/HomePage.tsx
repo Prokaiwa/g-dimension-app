@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
+import { playConfirm } from '../lib/sound'
 import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, iconFeatured } from '../lib/destinationIcons'
 import {
   GRADIENT_APP_BG,
@@ -385,11 +386,13 @@ export default function HomePage() {
     if (tourActive) {
       if (glowRef.current.ring === dest.id) {
         exitingRef.current = true
+        playConfirm()
         tourNext()
       }
       return
     }
     exitingRef.current = true
+    playConfirm()
     setExiting(true)
     const world = worldRef.current
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -867,7 +870,10 @@ export default function HomePage() {
           {DESTINATIONS.map((dest, i) => (
             <div
               key={dest.id}
-              data-sfx="confirm"
+              // Confirm fires in handleSelect (the real selection path) rather
+              // than via the global data-sfx handler — the node's custom pointer
+              // handling + entry animation made the delegated pointerdown miss
+              // on a fast re-tap after returning to Home.
               // Arms the press — the document-level pointerup listener
               // completes it, and native click is a redundant fallback path
               // (exitingRef dedupes if both fire).
