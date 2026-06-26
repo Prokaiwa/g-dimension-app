@@ -464,10 +464,10 @@ export default function TimelinePage() {
     <>
     <div style={{
       position: 'relative', zIndex: 2,
-      transform: settled ? 'none' : 'translateY(26px) scale(1.035)',
+      transform: settled ? 'none' : 'translateY(30px) scale(1.04)',
       opacity: settled ? 1 : 0,
       transformOrigin: '50% 0',
-      transition: settled ? `transform 820ms ${EASING_SETTLE}, opacity 820ms ${EASING_SETTLE}` : 'none',
+      transition: settled ? `transform 900ms ${EASING_SETTLE}, opacity 700ms ${EASING_SETTLE}` : 'none',
     }}>
       {/* ── Origin hero — full-bleed magazine opener ── */}
       {origin && (
@@ -600,13 +600,23 @@ export default function TimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 76, display: 'flex', alignItems: 'center' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 88, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                {/* One confident chapter year, led by a small amber tick */}
+                {/* Oversized faint year — centered in the row, sitting behind the
+                    crisp label as a soft chapter plate (not clipped off the edge). */}
+                <span aria-hidden style={{
+                  position: 'absolute', left: CARD_LEFT, right: 0, top: '50%', transform: 'translateY(-52%)',
+                  textAlign: 'center', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
+                  fontSize: 96, lineHeight: 1, color: COLOR_TIMELINE_YEAR, opacity: 0.14,
+                  fontVariantNumeric: 'tabular-nums', pointerEvents: 'none', whiteSpace: 'nowrap',
+                }}>
+                  {year}
+                </span>
+                {/* The crisp chapter label, led by a small amber tick */}
                 <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 12,
-                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 46,
+                  position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 12,
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 42,
                   letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
                 }}>
                   <span aria-hidden style={{ width: 22, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.85 }} />

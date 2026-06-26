@@ -20,7 +20,7 @@ const REDUCED = typeof window !== 'undefined' &&
 
 // Sequence timings (ms). Hold then leave; total ≈ ENTER_HOLD + LEAVE_MS.
 const ENTER_HOLD = REDUCED ? 650 : 2050
-const LEAVE_MS   = REDUCED ? 340 : 820
+const LEAVE_MS   = REDUCED ? 340 : 900
 
 export default function TimelineOverture({
   title, subtitle, onDone, onLeaveStart,
@@ -44,6 +44,7 @@ export default function TimelineOverture({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const lift = leaving && !REDUCED
   return (
     <div
       onClick={finish}
@@ -51,13 +52,17 @@ export default function TimelineOverture({
         position: 'fixed', inset: 0, zIndex: 95,
         background: VOID,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        opacity: leaving ? 0 : 1,
-        // The whole curtain lifts away (drift up + slight scale + soft blur) as
-        // it dissolves, so it eases into the timeline rather than hard-cutting.
-        transform: leaving && !REDUCED ? 'translateY(-12px) scale(1.02)' : 'none',
-        filter: leaving && !REDUCED ? 'blur(3px)' : 'none',
-        transition: `opacity ${LEAVE_MS}ms ${EASING_SETTLE}, transform ${LEAVE_MS}ms ${EASING_SETTLE}, filter ${LEAVE_MS}ms ${EASING_SETTLE}`,
+        // The curtain physically lifts off the screen (a soft-edged garage-door
+        // raise) rather than fading in place — a slide reads as a real camera
+        // move, so the timeline beneath is seen settling into view. Reduced
+        // motion falls back to a plain fade.
+        transform: lift ? 'translateY(-100%)' : 'none',
+        opacity: (leaving && REDUCED) ? 0 : 1,
+        maskImage: lift ? 'linear-gradient(180deg, #000 78%, transparent 100%)' : undefined,
+        WebkitMaskImage: lift ? 'linear-gradient(180deg, #000 78%, transparent 100%)' : undefined,
+        transition: `transform ${LEAVE_MS}ms cubic-bezier(0.6, 0, 0.2, 1), opacity ${LEAVE_MS}ms ${EASING_SETTLE}`,
         cursor: 'pointer', WebkitTapHighlightColor: 'transparent', overflow: 'hidden',
+        willChange: 'transform',
       }}
     >
       <style>{`
