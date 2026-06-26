@@ -196,16 +196,19 @@ export default function TimelinePage() {
   const [carName, setCarName] = useState('Your Build')
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // Play the cinematic Overture only on a fresh dive from the Home map. The
-  // flag is consumed once here so back-navigation into the Timeline is instant.
-  const [overture, setOverture] = useState(() => {
+  // Arrival treatment, decided once on mount:
+  //   'overture' — cinematic cold open (fresh dive from the Home map)
+  //   'fade'     — plain fade-from-dark (back-nav / direct load)
+  //   'none'     — overture finished; render nothing (no flash)
+  // The Home-dive flag is consumed here so back-navigation stays instant.
+  const [arrival, setArrival] = useState<'overture' | 'fade' | 'none'>(() => {
     try {
       if (sessionStorage.getItem(OVERTURE_KEY) === '1') {
         sessionStorage.removeItem(OVERTURE_KEY)
-        return true
+        return 'overture'
       }
-    } catch { /* private mode — just skip the overture */ }
-    return false
+    } catch { /* private mode — just fade */ }
+    return 'fade'
   })
 
   useEffect(() => {
@@ -400,11 +403,11 @@ export default function TimelinePage() {
       }}
     >
       {/* Arrival: cinematic Overture on a fresh dive from Home; plain fade otherwise */}
-      {overture
+      {arrival === 'overture'
         ? (loading
             ? <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: '#0a0805' }} />
-            : <TimelineOverture title={carName} subtitle={overtureSubtitle} onDone={() => setOverture(false)} />)
-        : <ArrivalFade />}
+            : <TimelineOverture title={carName} subtitle={overtureSubtitle} onDone={() => setArrival('none')} />)
+        : arrival === 'fade' ? <ArrivalFade /> : null}
 
       {/* Ambient material — warm light-leak at the top + a soft vignette + faint grain */}
       <div aria-hidden style={{
@@ -466,9 +469,16 @@ export default function TimelinePage() {
               {/* Top scrim — keeps the floating chevron legible over bright photos */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 130, pointerEvents: 'none',
                 background: 'linear-gradient(180deg, rgba(10,8,5,0.55) 0%, rgba(10,8,5,0) 100%)' }} />
-              {/* Bottom scrim — text legibility */}
-              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%', pointerEvents: 'none',
-                background: 'linear-gradient(180deg, rgba(10,8,5,0) 0%, rgba(10,8,5,0.30) 42%, rgba(10,8,5,0.88) 100%)' }} />
+              {/* "Developing tray" — a masked backdrop-blur + deepening ramp that
+                  fades in only under the text, so the story stays legible over any
+                  car color while the upper photo stays crisp. */}
+              <div style={{
+                position: 'absolute', left: 0, right: 0, bottom: 0, height: '76%', pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(10,8,5,0) 0%, rgba(10,8,5,0.34) 40%, rgba(10,8,5,0.72) 72%, rgba(10,8,5,0.93) 100%)',
+                backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+                maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.45) 42%, #000 70%)',
+                WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.45) 42%, #000 70%)',
+              }} />
 
               <button
                 onClick={() => !uploading && fileRef.current?.click()}
@@ -572,19 +582,23 @@ export default function TimelinePage() {
               <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 14, height: 88, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                {/* oversized faint year, bleeding off the right margin — a chapter plate */}
+                {/* Decorative oversized year, bleeding off the right margin as a
+                    faint chapter plate behind the crisp label. */}
                 <span aria-hidden style={{
-                  position: 'absolute', right: -4, top: '50%', transform: 'translateY(-52%)',
-                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 96, lineHeight: 1,
-                  color: COLOR_TIMELINE_YEAR, opacity: 0.14, fontVariantNumeric: 'tabular-nums',
+                  position: 'absolute', right: -18, top: '50%', transform: 'translateY(-52%)',
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 104, lineHeight: 1,
+                  color: COLOR_TIMELINE_YEAR, opacity: 0.10, fontVariantNumeric: 'tabular-nums',
                   pointerEvents: 'none', whiteSpace: 'nowrap',
                 }}>
                   {year}
                 </span>
+                {/* The crisp chapter label, led by a small amber tick */}
                 <span style={{
-                  position: 'relative', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 38,
+                  position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 10,
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 40,
                   letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
                 }}>
+                  <span aria-hidden style={{ width: 18, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.8 }} />
                   {year}
                 </span>
               </div>

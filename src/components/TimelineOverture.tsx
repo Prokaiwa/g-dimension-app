@@ -19,8 +19,8 @@ const REDUCED = typeof window !== 'undefined' &&
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // Sequence timings (ms). Hold then leave; total ≈ ENTER_HOLD + LEAVE_MS.
-const ENTER_HOLD = REDUCED ? 650 : 2150
-const LEAVE_MS   = REDUCED ? 320 : 620
+const ENTER_HOLD = REDUCED ? 650 : 2050
+const LEAVE_MS   = REDUCED ? 340 : 820
 
 export default function TimelineOverture({
   title, subtitle, onDone,
@@ -49,7 +49,11 @@ export default function TimelineOverture({
         background: VOID,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         opacity: leaving ? 0 : 1,
-        transition: `opacity ${LEAVE_MS}ms ${EASING_SETTLE}`,
+        // The whole curtain lifts away (drift up + slight scale + soft blur) as
+        // it dissolves, so it eases into the timeline rather than hard-cutting.
+        transform: leaving && !REDUCED ? 'translateY(-12px) scale(1.02)' : 'none',
+        filter: leaving && !REDUCED ? 'blur(3px)' : 'none',
+        transition: `opacity ${LEAVE_MS}ms ${EASING_SETTLE}, transform ${LEAVE_MS}ms ${EASING_SETTLE}, filter ${LEAVE_MS}ms ${EASING_SETTLE}`,
         cursor: 'pointer', WebkitTapHighlightColor: 'transparent', overflow: 'hidden',
       }}
     >
