@@ -6,6 +6,8 @@ import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded } from './lib/userProfile'
+import { initMusic } from './lib/music'
+import { prewarmSfx } from './lib/sound'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
 // during the Home zoom transition. (The other node icons are inline base64
@@ -158,6 +160,19 @@ export default function App() {
       if (event === 'SIGNED_OUT') clearActiveCar()
     })
     return () => subscription.unsubscribe()
+  }, [])
+
+  // Background music (default on, starts on first gesture) + warm the
+  // file-based UI sounds so the first confirm uses the real sample.
+  useEffect(() => {
+    initMusic()
+    const warmSfx = () => { prewarmSfx() }
+    window.addEventListener('pointerdown', warmSfx, { once: true })
+    window.addEventListener('touchstart', warmSfx, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', warmSfx)
+      window.removeEventListener('touchstart', warmSfx)
+    }
   }, [])
 
   // Idle-preload Home-map node icon assets so they don't pop in mid-zoom.

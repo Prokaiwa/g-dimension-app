@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
+import { isMusicEnabled, setMusicEnabled } from '../lib/music'
 import { useTour } from '../tour/TourContext'
 import BottomSheet from '../components/BottomSheet'
 import {
@@ -142,6 +143,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [eggOpen, setEggOpen] = useState(false)
   const [sound, setSound] = useState(isSoundEnabled())
+  const [music, setMusic] = useState(isMusicEnabled())
 
   useEffect(() => {
     let cancelled = false
@@ -179,6 +181,13 @@ export default function SettingsPage() {
     setSound(on)
     setSoundEnabled(on)
     if (on) playConfirm()
+  }
+
+  // Background music — device-local, separate from menu sounds.
+  function pickMusic(v: 'on' | 'off') {
+    const on = v === 'on'
+    setMusic(on)
+    setMusicEnabled(on) // starts/stops the loop immediately
   }
 
   return (
@@ -230,6 +239,14 @@ export default function SettingsPage() {
                 value={sound ? 'on' : 'off'}
                 options={SOUND_OPTS}
                 onPick={pickSound}
+                disabled={false}
+              />
+              <UnitRow
+                label="Background Music"
+                sub="A low ambient loop while you browse — saved to this device"
+                value={music ? 'on' : 'off'}
+                options={SOUND_OPTS}
+                onPick={pickMusic}
                 disabled={false}
               />
             </div>
