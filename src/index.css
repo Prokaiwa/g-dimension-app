@@ -14,6 +14,12 @@ html, body, #root {
   padding: 0;
 }
 
+/* Kill the browser's pull-down-to-refresh and rubber-band overscroll chaining
+   on every screen (the app manages its own scroll regions). */
+html, body {
+  overscroll-behavior: none;
+}
+
 body {
   font-family: 'Hanken Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   background: #050507;
