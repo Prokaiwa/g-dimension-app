@@ -16,6 +16,7 @@ import mapNodeFeatured from './assets/icons/home/home_featured.png'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
 import WelcomePage from './pages/WelcomePage'
 
 // Hub
@@ -180,6 +181,9 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      {/* Public: email-confirmation + OAuth landing. Must NOT be protected —
+          the gate would bounce before the URL token becomes a session. */}
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/welcome" element={<WelcomeRoute><WelcomePage /></WelcomeRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 

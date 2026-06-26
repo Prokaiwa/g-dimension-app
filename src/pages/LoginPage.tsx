@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ConcretePanelInput from '../components/ConcretePanelInput'
-import logo from '../assets/logo/gdimensionlight.png'
+import logo from '../assets/logo/gdimensionG.webp'
 import {
   GRADIENT_APP_BG,
   COLOR_CAVITY_BG,
@@ -45,7 +45,7 @@ export default function LoginPage() {
     setGoogleLoading(true)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
   }
 
@@ -63,11 +63,11 @@ export default function LoginPage() {
         fontFamily: FONT_UI,
       }}
     >
-      {/* Logo */}
+      {/* Logo — G mark only (transparent, no white plate on the dark bg) */}
       <img
         src={logo}
         alt="G-Dimension"
-        style={{ width: 140, marginBottom: SPACE_LG }}
+        style={{ width: 72, height: 'auto', marginBottom: SPACE_LG }}
       />
 
       {/* Title */}

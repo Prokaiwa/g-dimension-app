@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ConcretePanelInput from '../components/ConcretePanelInput'
-import logo from '../assets/logo/gdimensionlight.png'
+import logo from '../assets/logo/gdimensionG.webp'
 import {
   GRADIENT_APP_BG,
   COLOR_CAVITY_BG,
@@ -41,9 +41,10 @@ export default function SignupPage() {
     const { error: authError } = await supabase.auth.signUp({
       email,
       password,
-      // Land confirmed users in the app; the auth gate routes them to /welcome
-      // to claim a handle before /home.
-      options: { emailRedirectTo: `${window.location.origin}/home` },
+      // Land on the public callback page, which waits for the session to settle
+      // out of the URL token, then routes to /welcome (handle claim) or /home.
+      // (Redirecting straight to a protected route races the auth gate.)
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
     setLoading(false)
     if (authError) {
@@ -57,7 +58,7 @@ export default function SignupPage() {
     setGoogleLoading(true)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/home` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
   }
 
@@ -77,7 +78,7 @@ export default function SignupPage() {
           textAlign: 'center',
         }}
       >
-        <img src={logo} alt="G-Dimension" style={{ width: 140, marginBottom: SPACE_LG }} />
+        <img src={logo} alt="G-Dimension" style={{ width: 72, height: 'auto', marginBottom: SPACE_LG }} />
         <p
           style={{
             fontFamily: FONT_TITLE,
@@ -137,11 +138,11 @@ export default function SignupPage() {
         fontFamily: FONT_UI,
       }}
     >
-      {/* Logo */}
+      {/* Logo — G mark only (transparent, no white plate on the dark bg) */}
       <img
         src={logo}
         alt="G-Dimension"
-        style={{ width: 140, marginBottom: SPACE_LG }}
+        style={{ width: 72, height: 'auto', marginBottom: SPACE_LG }}
       />
 
       {/* Title */}
