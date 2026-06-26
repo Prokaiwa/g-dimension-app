@@ -9,7 +9,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { useTour } from '../tour/TourContext'
-import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import garageHero    from '../assets/backgrounds/garage_hero.webp'
 import iconMyCars    from '../assets/icons/garage/my_cars.png'
@@ -151,7 +150,7 @@ export default function GaragePage() {
         </svg>
 
         <button
-          onClick={() => { playBack(); navigate('/home') }}
+          onClick={() => navigate('/home')}
           style={{
             position: 'absolute', left: 10, top: 0, height: '100%',
             display: 'flex', alignItems: 'center', gap: 6,
@@ -216,10 +215,11 @@ export default function GaragePage() {
           {GRID_TILES.map((tile, i) => (
             <button
               key={tile.id}
+              data-sfx="confirm"
               data-tour={tile.id === 'cars' ? 'garage-tile-cars' : undefined}
               onClick={() => { if (tile.id === 'cars') notify('cars-opened'); navigate(tile.route) }}
               className="icon-tile"
-              onPointerDown={() => { setPressed(tile.id); playTick() }}
+              onPointerDown={() => setPressed(tile.id)}
               onPointerUp={() => setPressed(null)}
               onPointerLeave={() => setPressed(null)}
               onPointerCancel={() => setPressed(null)}

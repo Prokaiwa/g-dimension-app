@@ -20,7 +20,6 @@ import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { playBack, playTick } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import { CameraIcon } from '../components/CameraIcon'
 import {
@@ -325,7 +324,7 @@ export default function TimelinePage() {
 
   const chevron = (
     <button
-      onClick={() => { playBack(); navigate('/home') }}
+      onClick={() => navigate('/home')}
       aria-label="Back to home"
       style={{
         position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
@@ -471,7 +470,8 @@ export default function TimelinePage() {
               <Reveal>
                 <article
                   className="tl-press"
-                  onClick={() => { playTick(); navigate(`/timeline/entry/${e.id}`) }}
+                  data-sfx="tick"
+                  onClick={() => navigate(`/timeline/entry/${e.id}`)}
                   style={{
                     background: COLOR_TIMELINE_CARD,
                     borderRadius: RADIUS_TIMELINE_CARD,
@@ -530,7 +530,7 @@ export default function TimelinePage() {
     {/* Floating "Add Entry" — free-form note (track day, car show, a story) */}
     <button
       className="tl-press"
-      onClick={() => { playTick(); navigate('/timeline/new') }}
+      onClick={() => navigate('/timeline/new')}
       style={{
         position: 'fixed', right: 18, bottom: 'calc(24px + env(safe-area-inset-bottom))', zIndex: 20,
         height: 46, padding: '0 18px', borderRadius: RADIUS_BUTTON,

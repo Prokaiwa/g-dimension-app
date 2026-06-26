@@ -7,7 +7,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import iconService    from '../assets/icons/maintenance/service.png'
 import iconDetail     from '../assets/icons/maintenance/maintenance_detail.png'
@@ -121,7 +120,7 @@ export default function MaintenancePage() {
           <path d={HEADER_WEDGE_LEFT}  fill="url(#mntHdrGrad)" />
           <path d={HEADER_WEDGE_RIGHT} fill="url(#mntHdrGrad)" />
         </svg>
-        <button onClick={() => { playBack(); navigate('/home') }} style={{ position: 'absolute', left: 10, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
+        <button onClick={() => navigate('/home')} style={{ position: 'absolute', left: 10, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ color: COLOR_HEADER_TITLE, fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em' }}>Maintenance &amp; Service</span>
         </button>
@@ -134,8 +133,8 @@ export default function MaintenancePage() {
 
       {/* ── Icon tiles ── */}
       {TILES.map((tile, i) => (
-        <button key={tile.id} onClick={() => navigate(tile.route)} className="mnt-tile"
-          onPointerDown={() => { setPressed(tile.id); playTick() }} onPointerUp={() => setPressed(null)}
+        <button key={tile.id} data-sfx="confirm" onClick={() => navigate(tile.route)} className="mnt-tile"
+          onPointerDown={() => setPressed(tile.id)} onPointerUp={() => setPressed(null)}
           onPointerLeave={() => setPressed(null)} onPointerCancel={() => setPressed(null)}
           style={{ position: 'absolute', left: tile.left, bottom: tile.bottom, display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0, animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both`, willChange: 'opacity, transform', WebkitTapHighlightColor: 'transparent', zIndex: 5 }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', transform: pressed === tile.id ? 'scale(0.92)' : 'scale(1)', transition: pressed === tile.id ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)' }}>

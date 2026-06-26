@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded } from './lib/userProfile'
-import { initMusic } from './lib/music'
+import { initMusic, setMusicAllowed } from './lib/music'
 import { prewarmSfx } from './lib/sound'
+import { initUiSfx } from './lib/uiSfx'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
 // during the Home zoom transition. (The other node icons are inline base64
@@ -145,6 +146,16 @@ function WelcomeRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Background music plays only on authenticated in-app routes, never on the
+  // landing / auth / public build pages (visitors there have no toggle).
+  const location = useLocation()
+  useEffect(() => {
+    const p = location.pathname
+    const isPublic = p === '/' || p.startsWith('/login') || p.startsWith('/signup')
+      || p.startsWith('/welcome') || p.startsWith('/auth') || p.startsWith('/builds')
+    setMusicAllowed(!isPublic)
+  }, [location.pathname])
+
   useEffect(() => {
     // Seed localStorage from server on every sign-in and on page load
     // when a session already exists (e.g. returning user, page refresh).
@@ -166,6 +177,7 @@ export default function App() {
   // file-based UI sounds so the first confirm uses the real sample.
   useEffect(() => {
     initMusic()
+    initUiSfx() // one delegated listener: back / confirm / tick for every button
     const warmSfx = () => { prewarmSfx() }
     window.addEventListener('pointerdown', warmSfx, { once: true })
     window.addEventListener('touchstart', warmSfx, { once: true })

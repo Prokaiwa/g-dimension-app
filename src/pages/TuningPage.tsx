@@ -8,7 +8,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { playTick, playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import tuningHero     from '../assets/backgrounds/tuning_hero.webp'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
@@ -108,7 +107,7 @@ export default function TuningPage() {
 
         {/* Back + Title */}
         <button
-          onClick={() => { playBack(); navigate('/home') }}
+          onClick={() => navigate('/home')}
           style={{
             position: 'absolute', left: 10, top: 0, height: '100%',
             display: 'flex', alignItems: 'center', gap: 6,
@@ -166,9 +165,10 @@ export default function TuningPage() {
       {TILES.map((tile, i) => (
         <button
           key={tile.id}
+          data-sfx="confirm"
           onClick={() => navigate(tile.route)}
           className="icon-tile"
-          onPointerDown={() => { setPressed(tile.id); playTick() }}
+          onPointerDown={() => setPressed(tile.id)}
           onPointerUp={() => setPressed(null)}
           onPointerLeave={() => setPressed(null)}
           onPointerCancel={() => setPressed(null)}

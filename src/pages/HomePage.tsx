@@ -9,7 +9,6 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
-import { playTick, playConfirm } from '../lib/sound'
 import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, iconFeatured } from '../lib/destinationIcons'
 import {
   GRADIENT_APP_BG,
@@ -392,7 +391,6 @@ export default function HomePage() {
     }
     exitingRef.current = true
     setExiting(true)
-    playConfirm()
     const world = worldRef.current
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (world && !reduced) {
@@ -869,13 +867,13 @@ export default function HomePage() {
           {DESTINATIONS.map((dest, i) => (
             <div
               key={dest.id}
+              data-sfx="confirm"
               // Arms the press — the document-level pointerup listener
               // completes it, and native click is a redundant fallback path
               // (exitingRef dedupes if both fire).
               onPointerDown={e => {
                 pressStartRef.current = { id: dest.id, x: e.clientX, y: e.clientY }
                 setPressedNode(dest.id)
-                playTick()
                 if (TAP_DEBUG) setTapLog(l => [...l.slice(-7), `down ${dest.id}`])
                 try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* non-critical */ }
               }}

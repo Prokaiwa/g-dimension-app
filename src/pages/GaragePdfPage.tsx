@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCarPrivate } from '../lib/carPrivate'
-import { playBack } from '../lib/sound'
 import { generateBuildPdf, pdfFilename, type PdfData, type PdfMod, type PdfService } from '../lib/buildPdf'
 import gLogoAsset from '../assets/logo/gdimensionG.webp'
 import {
@@ -168,7 +167,7 @@ export default function GaragePdfPage() {
       {/* ── Header ── */}
       <div style={{ position:'relative', height:HEADER_HEIGHT, background:COLOR_HEADER_BLACK, display:'flex', alignItems:'center', justifyContent:'space-between', paddingLeft:10, paddingRight:14, flexShrink:0, zIndex:10, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <button onClick={() => { playBack(); navigate('/garage') }} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px 4px 4px', display:'flex', alignItems:'center' }}>
+          <button onClick={() => navigate('/garage')} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px 4px 4px', display:'flex', alignItems:'center' }}>
             <span style={{ color:COLOR_HEADER_WARM, fontSize:22, fontWeight:300, lineHeight:1 }}>‹</span>
           </button>
           <span style={{ fontFamily:FONT_TITLE, fontStyle:'italic', fontWeight:600, fontSize:22, color:COLOR_HEADER_TITLE, letterSpacing:'0.01em' }}>Build Report</span>

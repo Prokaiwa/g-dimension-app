@@ -12,7 +12,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { playBack } from '../lib/sound'
 import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
@@ -1568,7 +1567,7 @@ export default function FeaturedPage() {
       </div>
 
       {/* ─── chrome (always on top) ─── */}
-      <div onClick={() => { playBack(); navigate('/home') }}
+      <div data-sfx="back" onClick={() => navigate('/home')}
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>

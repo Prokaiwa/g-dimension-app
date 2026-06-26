@@ -25,6 +25,18 @@ export function setMusicEnabled(on: boolean): void {
   else stopMusic()
 }
 
+// Whether the current screen permits music. Off by default so it never plays
+// on the landing / auth / public build pages (a random visitor to someone's
+// shared build shouldn't get autoplaying music, and they have no toggle).
+// App flips this on for authenticated in-app routes.
+let allowed = false
+
+export function setMusicAllowed(on: boolean): void {
+  allowed = on
+  if (on) void startMusic()
+  else stopMusic()
+}
+
 let el: HTMLAudioElement | null = null
 
 function ensureEl(): HTMLAudioElement {
@@ -38,7 +50,7 @@ function ensureEl(): HTMLAudioElement {
 }
 
 export async function startMusic(): Promise<void> {
-  if (!isMusicEnabled()) return
+  if (!isMusicEnabled() || !allowed) return
   const a = ensureEl()
   try { await a.play() } catch { /* needs a user gesture — initMusic re-arms one */ }
 }

@@ -877,7 +877,7 @@ export default function PublicFeaturedPage() {
       )}
 
       {/* Back chevron */}
-      <div onClick={() => navigate(`/builds/${username ?? ''}`)}
+      <div data-sfx="back" onClick={() => navigate(`/builds/${username ?? ''}`)}
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
