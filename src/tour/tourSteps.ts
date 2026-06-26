@@ -62,7 +62,6 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'car-success',
     route: '/garage/cars',
-    target: 'car-details',
     place: 'top',
     voice: true,
     body: 'Beautiful. That’s your car in the garage. Tap **Details** any time to view or edit everything about it.',
@@ -73,7 +72,7 @@ export const TOUR_STEPS: TourStep[] = [
     target: 'choose-car',
     waitFor: 'car-chosen',
     place: 'top',
-    body: 'Now tap **Choose** to set it as your active car. Everything you log follows it.',
+    body: 'Now tap **Choose** to make it your active car. Anything you add next, like mods, services, and photos, gets saved to this car.',
   },
   {
     id: 'garage-tiles',
