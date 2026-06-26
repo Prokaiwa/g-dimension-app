@@ -5,6 +5,9 @@
 /* Reset */
 *, *::before, *::after {
   box-sizing: border-box;
+  /* No blue/grey tap flash on any element — reads as a native app, not a web
+     page. (Was previously set per-component; now global.) */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Base app shell — Part 3 */
