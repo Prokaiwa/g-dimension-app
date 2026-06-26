@@ -23,8 +23,8 @@ const ENTER_HOLD = REDUCED ? 650 : 2050
 const LEAVE_MS   = REDUCED ? 340 : 820
 
 export default function TimelineOverture({
-  title, subtitle, onDone,
-}: { title: string; subtitle: string; onDone: () => void }) {
+  title, subtitle, onDone, onLeaveStart,
+}: { title: string; subtitle: string; onDone: () => void; onLeaveStart?: () => void }) {
   const [leaving, setLeaving] = useState(false)
   const doneRef = useRef(false)
 
@@ -32,6 +32,9 @@ export default function TimelineOverture({
     if (doneRef.current) return
     doneRef.current = true
     setLeaving(true)
+    // Tell the host the curtain is lifting now, so the timeline can settle into
+    // place concurrently — the two motions hand off instead of cutting.
+    onLeaveStart?.()
     window.setTimeout(onDone, LEAVE_MS)
   }
 

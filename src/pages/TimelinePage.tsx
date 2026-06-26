@@ -211,6 +211,15 @@ export default function TimelinePage() {
     return 'fade'
   })
 
+  // The timeline settles into place as the Overture's curtain lifts — it starts
+  // slightly raised + scaled and eases to rest, so the camera feels like it
+  // lands on the story instead of the overlay just vanishing off a static page.
+  const [settled, setSettled] = useState(() => {
+    if (arrival !== 'overture') return true
+    return typeof window !== 'undefined' &&
+      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  })
+
   useEffect(() => {
     let active = true
     ;(async () => {
@@ -406,7 +415,11 @@ export default function TimelinePage() {
       {arrival === 'overture'
         ? (loading
             ? <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: '#0a0805' }} />
-            : <TimelineOverture title={carName} subtitle={overtureSubtitle} onDone={() => setArrival('none')} />)
+            : <TimelineOverture
+                title={carName} subtitle={overtureSubtitle}
+                onLeaveStart={() => setSettled(true)}
+                onDone={() => setArrival('none')}
+              />)
         : arrival === 'fade' ? <ArrivalFade /> : null}
 
       {/* Ambient material — warm light-leak at the top + a soft vignette + faint grain */}
@@ -449,14 +462,21 @@ export default function TimelinePage() {
 
   return shell(
     <>
-    <div style={{ position: 'relative', zIndex: 2 }}>
+    <div style={{
+      position: 'relative', zIndex: 2,
+      transform: settled ? 'none' : 'translateY(26px) scale(1.035)',
+      opacity: settled ? 1 : 0,
+      transformOrigin: '50% 0',
+      transition: settled ? `transform 820ms ${EASING_SETTLE}, opacity 820ms ${EASING_SETTLE}` : 'none',
+    }}>
       {/* ── Origin hero — full-bleed magazine opener ── */}
       {origin && (
         <Reveal>
           {origin.photo_url ? (
+            <>
             <section style={{
-              position: 'relative', width: '100%', height: '62vh', minHeight: 380, maxHeight: 560,
-              overflow: 'hidden', background: '#0a0805', marginBottom: 8,
+              position: 'relative', width: '100%', height: '54vh', minHeight: 320, maxHeight: 500,
+              overflow: 'hidden', background: '#0a0805',
             }}>
               {/* Parallax layer — Ken Burns drift on the image, scroll-lag on this wrapper */}
               <div ref={heroRef} style={{ position: 'absolute', left: 0, right: 0, top: '-12%', bottom: '-12%', willChange: 'transform' }}>
@@ -467,18 +487,11 @@ export default function TimelinePage() {
                 />
               </div>
               {/* Top scrim — keeps the floating chevron legible over bright photos */}
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 130, pointerEvents: 'none',
-                background: 'linear-gradient(180deg, rgba(10,8,5,0.55) 0%, rgba(10,8,5,0) 100%)' }} />
-              {/* "Developing tray" — a masked backdrop-blur + deepening ramp that
-                  fades in only under the text, so the story stays legible over any
-                  car color while the upper photo stays crisp. */}
-              <div style={{
-                position: 'absolute', left: 0, right: 0, bottom: 0, height: '76%', pointerEvents: 'none',
-                background: 'linear-gradient(180deg, rgba(10,8,5,0) 0%, rgba(10,8,5,0.34) 40%, rgba(10,8,5,0.72) 72%, rgba(10,8,5,0.93) 100%)',
-                backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
-                maskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.45) 42%, #000 70%)',
-                WebkitMaskImage: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.45) 42%, #000 70%)',
-              }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120, pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(10,8,5,0.5) 0%, rgba(10,8,5,0) 100%)' }} />
+              {/* Bottom scrim — just enough to seat the kicker; the photo stays the hero */}
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '40%', pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(10,8,5,0) 0%, rgba(10,8,5,0.64) 100%)' }} />
 
               <button
                 onClick={() => !uploading && fileRef.current?.click()}
@@ -496,28 +509,36 @@ export default function TimelinePage() {
                 </span>
               </button>
 
-              {/* Overlaid story */}
-              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '0 24px 32px' }}>
+              {/* The only text on the photo — a short kicker + date */}
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '0 24px 20px' }}>
                 <div style={{
                   fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.2em',
-                  textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON, marginBottom: 12,
+                  textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON,
+                  textShadow: '0 1px 12px rgba(0,0,0,0.7)',
                 }}>
                   Where it began{origin.display_date ? ` · ${fmtDate(origin.display_date)}` : ''}
                 </div>
-                <p style={{
-                  margin: 0, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
-                  fontSize: 23, lineHeight: 1.42, color: '#f3ede1', textShadow: '0 1px 16px rgba(0,0,0,0.5)',
-                }}>
-                  {origin.story || 'Every build starts somewhere. This is where yours begins.'}
-                </p>
-                {uploadErr && (
-                  <p onClick={() => fileRef.current?.click()}
-                    style={{ margin: '12px 0 0', fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, cursor: 'pointer' }}>
-                    {uploadErr}
-                  </p>
-                )}
               </div>
             </section>
+
+            {/* Story panel — on parchment below the photo: always legible, any length,
+                and the car keeps the spotlight. */}
+            <div style={{ maxWidth: CANVAS_W, margin: '0 auto', padding: '28px 26px 6px' }}>
+              <div aria-hidden style={{ width: 40, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.7, marginBottom: 18 }} />
+              <p style={{
+                margin: 0, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
+                fontSize: 21, lineHeight: 1.6, color: COLOR_TIMELINE_TEXT,
+              }}>
+                {origin.story || 'Every build starts somewhere. This is where yours begins.'}
+              </p>
+              {uploadErr && (
+                <p onClick={() => fileRef.current?.click()}
+                  style={{ margin: '12px 0 0', fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, cursor: 'pointer' }}>
+                  {uploadErr}
+                </p>
+              )}
+            </div>
+            </>
           ) : (
             // No photo yet — a grand parchment opener inviting the first photo
             <section style={{
@@ -579,26 +600,16 @@ export default function TimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 14, height: 88, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 76, display: 'flex', alignItems: 'center' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                {/* Decorative oversized year, bleeding off the right margin as a
-                    faint chapter plate behind the crisp label. */}
-                <span aria-hidden style={{
-                  position: 'absolute', right: -18, top: '50%', transform: 'translateY(-52%)',
-                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 104, lineHeight: 1,
-                  color: COLOR_TIMELINE_YEAR, opacity: 0.10, fontVariantNumeric: 'tabular-nums',
-                  pointerEvents: 'none', whiteSpace: 'nowrap',
-                }}>
-                  {year}
-                </span>
-                {/* The crisp chapter label, led by a small amber tick */}
+                {/* One confident chapter year, led by a small amber tick */}
                 <span style={{
-                  position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 10,
-                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 40,
+                  display: 'inline-flex', alignItems: 'center', gap: 12,
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 46,
                   letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
                 }}>
-                  <span aria-hidden style={{ width: 18, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.8 }} />
+                  <span aria-hidden style={{ width: 22, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.85 }} />
                   {year}
                 </span>
               </div>
