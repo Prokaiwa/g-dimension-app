@@ -78,7 +78,7 @@ export default function SignupPage() {
           textAlign: 'center',
         }}
       >
-        <img src={logo} alt="G-Dimension" style={{ width: 172, height: 'auto', marginBottom: SPACE_LG }} />
+        <img src={logo} alt="G-Dimension" style={{ width: 222, height: 'auto', marginBottom: SPACE_LG }} />
         <p
           style={{
             fontFamily: FONT_TITLE,
@@ -142,7 +142,7 @@ export default function SignupPage() {
       <img
         src={logo}
         alt="G-Dimension"
-        style={{ width: 172, height: 'auto', marginBottom: SPACE_LG }}
+        style={{ width: 222, height: 'auto', marginBottom: SPACE_LG }}
       />
 
       {/* Title */}
