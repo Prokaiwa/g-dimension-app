@@ -28,6 +28,7 @@ function CountUp({ value, delay = 0 }: { value: number; delay?: number }) {
 import { useNavigate }          from 'react-router-dom'
 import { supabase }             from '../lib/supabase'
 import { getActiveCarId }       from '../lib/activeCar'
+import { MOD_GROUPS, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import garagePlaceholder        from '../assets/garage_placeholder.webp'
 import iconEngine      from '../assets/icons/tuning/tuning_engine.png'
 import iconDrivetrain  from '../assets/icons/tuning/tuning_drivetrain.png'
@@ -72,20 +73,6 @@ export const TUNING_CATEGORIES: { id: string; label: string; icon: string | null
 ]
 
 // 4 display groups (frontend-only, no DB equivalent). Electrical legacy data → Power.
-const MOD_GROUPS = [
-  { id: 'power',    label: 'Power',    categories: ['Engine','Drivetrain','Forced Induction','Exhaust','Cooling','Fuel System','Electrical'] },
-  { id: 'chassis',  label: 'Chassis',  categories: ['Suspension','Brakes','Wheels & Tires'] },
-  { id: 'exterior', label: 'Exterior', categories: ['Exterior','Paint & Wrap','Lighting'] },
-  { id: 'interior', label: 'Interior', categories: ['Interior','Audio','Safety'] },
-  { id: 'other',    label: 'Other',    categories: ['Other'] },
-]
-
-const GROUP_PHOTO_COL: Record<string, string> = {
-  power:    'build_sheet_power_photo',
-  chassis:  'build_sheet_chassis_photo',
-  exterior: 'build_sheet_exterior_photo',
-  interior: 'build_sheet_interior_photo',
-}
 
 type Car = {
   id: string

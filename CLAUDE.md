@@ -239,31 +239,31 @@ The `jobs` table has these columns beyond what MASTER_ARCHITECTURE.md shows:
 
 ### Build Sheet Groups
 
-Frontend-only grouping — no DB equivalent. Categories map to display groups:
+Frontend-only grouping — no DB equivalent. Categories map to display groups.
+
+**Single source of truth: `src/lib/buildGroups.ts`** — exports `MOD_GROUPS` (the
+group→categories array), `CATEGORY_TO_GROUP` (derived from it, so it can never
+drift), and `GROUP_PHOTO_COL` (group id → `cars.build_sheet_*_photo` column).
 
 ```ts
-const CATEGORY_TO_GROUP: Record<string, string> = {
-  'Engine': 'power', 'Drivetrain': 'power', 'Forced Induction': 'power',
-  'Exhaust': 'power', 'Cooling': 'power', 'Fuel System': 'power', 'Electrical': 'power',
-  'Suspension': 'chassis', 'Brakes': 'chassis', 'Wheels & Tires': 'chassis',
-  'Exterior': 'exterior', 'Paint & Wrap': 'exterior', 'Lighting': 'exterior',
-  'Interior': 'interior', 'Audio': 'interior', 'Safety': 'interior',
-}
+// src/lib/buildGroups.ts
+export const MOD_GROUPS = [
+  { id: 'power',    label: 'Power',    categories: ['Engine','Drivetrain','Forced Induction','Exhaust','Cooling','Fuel System','Electrical'] },
+  { id: 'chassis',  label: 'Chassis',  categories: ['Suspension','Brakes','Wheels & Tires'] },
+  { id: 'exterior', label: 'Exterior', categories: ['Exterior','Paint & Wrap','Lighting'] },
+  { id: 'interior', label: 'Interior', categories: ['Interior','Audio','Safety'] },
+  { id: 'other',    label: 'Other',    categories: ['Other'] },
+]
+export const CATEGORY_TO_GROUP = /* derived from MOD_GROUPS */
+export const GROUP_PHOTO_COL = { power:'build_sheet_power_photo', chassis:'build_sheet_chassis_photo', exterior:'build_sheet_exterior_photo', interior:'build_sheet_interior_photo' }
 ```
 
-This mapping exists in **two places** that must stay in sync:
-- `TuningBuildSheetPage.tsx` — `MOD_GROUPS` array
-- `TuningModDetailPage.tsx` — `CATEGORY_TO_GROUP` object
-
-The group → DB column mapping:
-```ts
-const GROUP_PHOTO_COL = {
-  power:    'build_sheet_power_photo',
-  chassis:  'build_sheet_chassis_photo',
-  exterior: 'build_sheet_exterior_photo',
-  interior: 'build_sheet_interior_photo',
-}
-```
+Consumers import from there instead of redefining it: `TuningBuildSheetPage`,
+`PublicBuildSheetPage` (`MOD_GROUPS`), `TuningModDetailPage`, `FeaturedPage`,
+`PublicFeaturedPage` (`CATEGORY_TO_GROUP`, aliased `CAT_TO_GROUP` in the Featured
+pages). **Presentation-only** constants stay local on purpose — the Featured pages
+use UPPERCASE labels + a `GROUP_ORDER` that omits `other`; the Build Sheet uses
+title-case labels. Only the category→group *data* is shared.
 
 ### RLS
 

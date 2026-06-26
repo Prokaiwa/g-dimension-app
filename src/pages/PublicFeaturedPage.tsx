@@ -5,6 +5,7 @@ import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { CATEGORY_TO_GROUP as CAT_TO_GROUP } from '../lib/buildGroups'
 import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
@@ -111,12 +112,6 @@ const INTERIOR_THEMES: Record<string, InteriorTheme> = {
 }
 
 // ─── build-sheet grouping ────────────────────────────────────────────────────
-const CAT_TO_GROUP: Record<string, 'power' | 'chassis' | 'exterior' | 'interior'> = {
-  'Engine':'power','Drivetrain':'power','Forced Induction':'power','Exhaust':'power','Cooling':'power','Fuel System':'power','Electrical':'power',
-  'Suspension':'chassis','Brakes':'chassis','Wheels & Tires':'chassis',
-  'Exterior':'exterior','Paint & Wrap':'exterior','Lighting':'exterior',
-  'Interior':'interior','Audio':'interior','Safety':'interior',
-}
 const GROUP_ORDER = ['power','chassis','exterior','interior'] as const
 const GROUP_LABELS: Record<string,string> = { power:'POWER', chassis:'CHASSIS', exterior:'EXTERIOR', interior:'INTERIOR' }
 const MAX_ROWS_PER_GROUP = 8

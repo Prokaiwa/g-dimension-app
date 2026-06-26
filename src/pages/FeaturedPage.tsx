@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { CATEGORY_TO_GROUP as CAT_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
@@ -137,18 +138,8 @@ const COVER_CHIP: React.CSSProperties = {
 }
 
 // ─── build-sheet grouping (frontend display logic ONLY — no DB column) ──────────
-const CAT_TO_GROUP: Record<string, 'power' | 'chassis' | 'exterior' | 'interior'> = {
-  'Engine':'power','Drivetrain':'power','Forced Induction':'power','Exhaust':'power','Cooling':'power','Fuel System':'power','Electrical':'power',
-  'Suspension':'chassis','Brakes':'chassis','Wheels & Tires':'chassis',
-  'Exterior':'exterior','Paint & Wrap':'exterior','Lighting':'exterior',
-  'Interior':'interior','Audio':'interior','Safety':'interior',
-}
 const GROUP_ORDER = ['power','chassis','exterior','interior'] as const
 const GROUP_LABELS: Record<string,string> = { power:'POWER', chassis:'CHASSIS', exterior:'EXTERIOR', interior:'INTERIOR' }
-const GROUP_PHOTO_COL: Record<string, string> = {
-  power:'build_sheet_power_photo', chassis:'build_sheet_chassis_photo',
-  exterior:'build_sheet_exterior_photo', interior:'build_sheet_interior_photo',
-}
 const MAX_ROWS_PER_GROUP = 8
 
 // ─── spec-sheet section builder ─────────────────────────────────────────────────

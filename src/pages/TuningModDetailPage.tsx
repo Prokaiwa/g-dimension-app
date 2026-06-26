@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { CATEGORY_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
@@ -28,14 +29,6 @@ type SpecRow = { label: string; value: string; unit: string | null; inputType: s
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const CATEGORY_TO_GROUP: Record<string, string> = {
-  'Engine': 'power', 'Drivetrain': 'power', 'Forced Induction': 'power',
-  'Exhaust': 'power', 'Cooling': 'power', 'Fuel System': 'power', 'Electrical': 'power',
-  'Suspension': 'chassis', 'Brakes': 'chassis', 'Wheels & Tires': 'chassis',
-  'Exterior': 'exterior', 'Paint & Wrap': 'exterior', 'Lighting': 'exterior',
-  'Interior': 'interior', 'Audio': 'interior', 'Safety': 'interior',
-}
-
 const GROUP_LABEL: Record<string, string> = {
   power: 'Power', chassis: 'Chassis', exterior: 'Exterior', interior: 'Interior',
 }
@@ -48,13 +41,6 @@ const SERVICEABLE_CATEGORIES = new Set([
   'Engine', 'Drivetrain', 'Forced Induction', 'Suspension',
   'Brakes', 'Wheels & Tires', 'Cooling', 'Fuel System', 'Exhaust',
 ])
-
-const GROUP_PHOTO_COL: Record<string, string> = {
-  power:    'build_sheet_power_photo',
-  chassis:  'build_sheet_chassis_photo',
-  exterior: 'build_sheet_exterior_photo',
-  interior: 'build_sheet_interior_photo',
-}
 
 const LABEL: React.CSSProperties = {
   fontFamily: FONT_UI, fontWeight: 700, fontSize: 9,

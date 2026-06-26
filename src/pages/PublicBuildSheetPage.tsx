@@ -16,6 +16,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
+import { MOD_GROUPS } from '../lib/buildGroups'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
   COLOR_BURGUNDY_M, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
@@ -23,14 +24,6 @@ import {
 } from '../tokens'
 
 // 4 display groups — mirrors TuningBuildSheetPage
-const MOD_GROUPS = [
-  { id: 'power',    label: 'Power',    categories: ['Engine','Drivetrain','Forced Induction','Exhaust','Cooling','Fuel System','Electrical'] },
-  { id: 'chassis',  label: 'Chassis',  categories: ['Suspension','Brakes','Wheels & Tires'] },
-  { id: 'exterior', label: 'Exterior', categories: ['Exterior','Paint & Wrap','Lighting'] },
-  { id: 'interior', label: 'Interior', categories: ['Interior','Audio','Safety'] },
-  { id: 'other',    label: 'Other',    categories: ['Other'] },
-]
-
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 const COLLAPSE_AT = 5
