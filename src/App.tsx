@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -15,79 +15,86 @@ import { initUiSfx } from './lib/uiSfx'
 // data URIs already embedded in the bundle, so only this one hits the network.)
 import mapNodeFeatured from './assets/icons/home/home_featured.png'
 
-// Auth / marketing
-import LandingPage from './pages/LandingPage'
-import LoginPage from './pages/LoginPage'
-import SignupPage from './pages/SignupPage'
-import AuthCallbackPage from './pages/AuthCallbackPage'
-import WelcomePage from './pages/WelcomePage'
-
-// Hub
-import HomePage from './pages/HomePage'
-
-// Garage
-import GaragePage from './pages/GaragePage'
-import GarageCarsPage from './pages/GarageCarsPage'
-import GarageCarsEditPage from './pages/GarageCarsEditPage'
-import GarageSnapshotPage from './pages/GarageSnapshotPage'
-import GarageDocumentsPage from './pages/GarageDocumentsPage'
-import GarageContactsPage from './pages/GarageContactsPage'
-import GarageRemindersPage from './pages/GarageRemindersPage'
-import GaragePdfPage from './pages/GaragePdfPage'
-
-// Tuning
-import TuningPage from './pages/TuningPage'
-import TuningBuildSheetPage from './pages/TuningBuildSheetPage'
-import TuningPartsPage from './pages/TuningPartsPage'
-import TuningAddPage from './pages/TuningAddPage'
-import TuningModGroupPage from './pages/TuningModGroupPage'
-import TuningModDetailPage from './pages/TuningModDetailPage'
-import TuningModEditPage from './pages/TuningModEditPage'
-import TuningDiyPage from './pages/TuningDiyPage'
-import TuningDiyEditPage from './pages/TuningDiyEditPage'
-import TuningPartDetailPage from './pages/TuningPartDetailPage'
-import TuningPartEditPage from './pages/TuningPartEditPage'
-
-// Maintenance
-import MaintenancePage from './pages/MaintenancePage'
-import MaintenanceServicePage from './pages/MaintenanceServicePage'
-import MaintenanceServiceNewPage from './pages/MaintenanceServiceNewPage'
-import MaintenanceServiceEditPage from './pages/MaintenanceServiceEditPage'
-import MaintenanceSessionDetailPage from './pages/MaintenanceSessionDetailPage'
-import MaintenanceDetailPage from './pages/MaintenanceDetailPage'
-import MaintenanceDetailNewPage from './pages/MaintenanceDetailNewPage'
-import MaintenanceDetailEditPage from './pages/MaintenanceDetailEditPage'
-
-// Timeline
-import TimelinePage from './pages/TimelinePage'
-import TimelineEntryNewPage from './pages/TimelineEntryNewPage'
-import EntryDetailPage from './pages/EntryDetailPage'
-
-// Featured (magazine)
-import FeaturedPage from './pages/FeaturedPage'
-
-// Profile & settings
-import ProfilePage from './pages/ProfilePage'
-import SettingsPage from './pages/SettingsPage'
-import SettingsArchivedPage from './pages/SettingsArchivedPage'
-
-// Public (non-auth)
-import PublicProfilePage from './pages/PublicProfilePage'
-import PublicTimelinePage from './pages/PublicTimelinePage'
-import PublicBuildSheetPage from './pages/PublicBuildSheetPage'
-import PublicGaragePage from './pages/PublicGaragePage'
-import PublicModDetailPage from './pages/PublicModDetailPage'
-import PublicDiyPage from './pages/PublicDiyPage'
-import PublicEntryDetailPage from './pages/PublicEntryDetailPage'
-import PublicFeaturedPage from './pages/PublicFeaturedPage'
-
-// Monitoring
+// Eager — the app shell that must always be present (no route chunk of its own).
 import AuthGateFallback from './components/AuthGateFallback'
 import ErrorBanner from './components/ErrorBanner'
+import RouteFallback from './components/RouteFallback'
+
+// Every route page is code-split (React.lazy). The app and the public /builds
+// pages become separate chunks, so an in-app user never downloads public-page
+// code and a public visitor never downloads the whole authenticated app. Each
+// chunk loads on demand behind a dark Suspense fallback; the common chunks for
+// the current "world" are prefetched on idle so navigation stays instant.
+
+// Auth / marketing
+const LandingPage = lazy(() => import('./pages/LandingPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const SignupPage = lazy(() => import('./pages/SignupPage'))
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
+const WelcomePage = lazy(() => import('./pages/WelcomePage'))
+
+// Hub
+const HomePage = lazy(() => import('./pages/HomePage'))
+
+// Garage
+const GaragePage = lazy(() => import('./pages/GaragePage'))
+const GarageCarsPage = lazy(() => import('./pages/GarageCarsPage'))
+const GarageCarsEditPage = lazy(() => import('./pages/GarageCarsEditPage'))
+const GarageSnapshotPage = lazy(() => import('./pages/GarageSnapshotPage'))
+const GarageDocumentsPage = lazy(() => import('./pages/GarageDocumentsPage'))
+const GarageContactsPage = lazy(() => import('./pages/GarageContactsPage'))
+const GarageRemindersPage = lazy(() => import('./pages/GarageRemindersPage'))
+const GaragePdfPage = lazy(() => import('./pages/GaragePdfPage'))
+
+// Tuning
+const TuningPage = lazy(() => import('./pages/TuningPage'))
+const TuningBuildSheetPage = lazy(() => import('./pages/TuningBuildSheetPage'))
+const TuningPartsPage = lazy(() => import('./pages/TuningPartsPage'))
+const TuningAddPage = lazy(() => import('./pages/TuningAddPage'))
+const TuningModGroupPage = lazy(() => import('./pages/TuningModGroupPage'))
+const TuningModDetailPage = lazy(() => import('./pages/TuningModDetailPage'))
+const TuningModEditPage = lazy(() => import('./pages/TuningModEditPage'))
+const TuningDiyPage = lazy(() => import('./pages/TuningDiyPage'))
+const TuningDiyEditPage = lazy(() => import('./pages/TuningDiyEditPage'))
+const TuningPartDetailPage = lazy(() => import('./pages/TuningPartDetailPage'))
+const TuningPartEditPage = lazy(() => import('./pages/TuningPartEditPage'))
+
+// Maintenance
+const MaintenancePage = lazy(() => import('./pages/MaintenancePage'))
+const MaintenanceServicePage = lazy(() => import('./pages/MaintenanceServicePage'))
+const MaintenanceServiceNewPage = lazy(() => import('./pages/MaintenanceServiceNewPage'))
+const MaintenanceServiceEditPage = lazy(() => import('./pages/MaintenanceServiceEditPage'))
+const MaintenanceSessionDetailPage = lazy(() => import('./pages/MaintenanceSessionDetailPage'))
+const MaintenanceDetailPage = lazy(() => import('./pages/MaintenanceDetailPage'))
+const MaintenanceDetailNewPage = lazy(() => import('./pages/MaintenanceDetailNewPage'))
+const MaintenanceDetailEditPage = lazy(() => import('./pages/MaintenanceDetailEditPage'))
+
+// Timeline
+const TimelinePage = lazy(() => import('./pages/TimelinePage'))
+const TimelineEntryNewPage = lazy(() => import('./pages/TimelineEntryNewPage'))
+const EntryDetailPage = lazy(() => import('./pages/EntryDetailPage'))
+
+// Featured (magazine)
+const FeaturedPage = lazy(() => import('./pages/FeaturedPage'))
+
+// Profile & settings
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SettingsArchivedPage = lazy(() => import('./pages/SettingsArchivedPage'))
+
+// Public (non-auth)
+const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
+const PublicTimelinePage = lazy(() => import('./pages/PublicTimelinePage'))
+const PublicBuildSheetPage = lazy(() => import('./pages/PublicBuildSheetPage'))
+const PublicGaragePage = lazy(() => import('./pages/PublicGaragePage'))
+const PublicModDetailPage = lazy(() => import('./pages/PublicModDetailPage'))
+const PublicDiyPage = lazy(() => import('./pages/PublicDiyPage'))
+const PublicEntryDetailPage = lazy(() => import('./pages/PublicEntryDetailPage'))
+const PublicFeaturedPage = lazy(() => import('./pages/PublicFeaturedPage'))
 
 // Dev tools
-import SpecTestPage from './pages/SpecTestPage'
-import SoundTestPage from './pages/SoundTestPage'
+const SpecTestPage = lazy(() => import('./pages/SpecTestPage'))
+const SoundTestPage = lazy(() => import('./pages/SoundTestPage'))
 
 // Auth + onboarding gate. 'loading' until resolved, then one of:
 //   'anon'       — no session → /login
@@ -196,10 +203,52 @@ export default function App() {
     return () => clearTimeout(id)
   }, [])
 
+  // Route prefetch (code-splitting companion). Warm the likely-first chunk for
+  // this "world" immediately (parallel with the auth check, so the first screen
+  // doesn't wait on a second round-trip), then warm the rest of that world on
+  // idle so subsequent navigation never shows the dark fallback. import() is
+  // module-cached, so these resolve to the same chunks the routes load.
+  useEffect(() => {
+    const isPublic = window.location.pathname.startsWith('/builds')
+
+    if (isPublic) void import('./pages/PublicProfilePage')
+    else void import('./pages/HomePage')
+
+    const warm = () => {
+      if (isPublic) {
+        void import('./pages/PublicGaragePage')
+        void import('./pages/PublicTimelinePage')
+        void import('./pages/PublicBuildSheetPage')
+        void import('./pages/PublicModDetailPage')
+        void import('./pages/PublicFeaturedPage')
+      } else {
+        void import('./pages/GaragePage')
+        void import('./pages/GarageCarsPage')
+        void import('./pages/TuningPage')
+        void import('./pages/TuningBuildSheetPage')
+        void import('./pages/MaintenancePage')
+        void import('./pages/TimelinePage')
+        void import('./pages/FeaturedPage')
+        void import('./pages/ProfilePage')
+      }
+    }
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(warm, { timeout: 3000 })
+      return () => w.cancelIdleCallback?.(id)
+    }
+    const t = setTimeout(warm, 1500)
+    return () => clearTimeout(t)
+  }, [])
+
   return (
     <TourProvider>
       <ErrorBanner />
       <TourOverlay />
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
       {/* Part 10 — Full Route Map */}
       <Route path="/" element={<LandingPage />} />
@@ -266,6 +315,7 @@ export default function App() {
       <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
       <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
       </Routes>
+      </Suspense>
     </TourProvider>
   )
 }
