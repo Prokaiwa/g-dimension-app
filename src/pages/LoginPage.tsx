@@ -67,7 +67,7 @@ export default function LoginPage() {
       <img
         src={logo}
         alt="G-Dimension"
-        style={{ width: 72, height: 'auto', marginBottom: SPACE_LG }}
+        style={{ width: 122, height: 'auto', marginBottom: SPACE_LG }}
       />
 
       {/* Title */}

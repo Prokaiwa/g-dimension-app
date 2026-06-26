@@ -132,7 +132,11 @@ export default function TourOverlay() {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100000,
-      pointerEvents: nonBlocking ? 'none' : 'auto',
+      // The container itself must NOT capture taps — otherwise it covers the
+      // spotlight "hole" and swallows the tap meant for the highlighted tile
+      // (the stuck "can't tap My Cars" bug). The dim segments and the bubble
+      // each opt back in with pointerEvents:'auto'; the hole stays click-through.
+      pointerEvents: 'none',
       animation: `tourFade 220ms ${EASING_SETTLE} both`,
     }}>
       <style>{`
