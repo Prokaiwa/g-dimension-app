@@ -17,6 +17,7 @@ export function setSoundEnabled(on: boolean): void {
 }
 
 let ctx: AudioContext | null = null
+let visibilityWired = false
 
 function audioCtx(): AudioContext | null {
   try {
@@ -25,8 +26,20 @@ function audioCtx(): AudioContext | null {
         ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!AC) return null
       ctx = new AC()
+      // iOS Safari drops the context into 'interrupted' (or 'suspended') when
+      // you leave the tab/app and come back, and it stays muted until something
+      // resumes it — previously only a page refresh did, which is the "tap
+      // sounds stop until I reload" bug. Resume when the tab returns to front.
+      if (!visibilityWired && typeof document !== 'undefined') {
+        visibilityWired = true
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && ctx && ctx.state !== 'running') void ctx.resume()
+        })
+      }
     }
-    if (ctx.state === 'suspended') void ctx.resume()
+    // Resume from ANY non-running state: 'suspended' (before the first gesture)
+    // AND 'interrupted' (after returning from background) — not just 'suspended'.
+    if (ctx.state !== 'running') void ctx.resume()
     return ctx
   } catch {
     return null
