@@ -21,6 +21,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import ArrivalFade from '../components/ArrivalFade'
+import TimelineOverture from '../components/TimelineOverture'
 import { CameraIcon } from '../components/CameraIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
@@ -36,6 +37,11 @@ const SPINE_LEFT = 9   // center of the connecting thread, from content left edg
 const CARD_LEFT  = 34  // where standard cards begin (clears the thread + node)
 const NODE_SIZE  = 11
 const THUMB      = 90  // standard-card "photo print" thumbnail size
+
+// One-shot flag set by the Home map when diving into the Timeline, so the
+// cinematic Overture plays only on that arrival — never when returning from an
+// entry detail or the compose screen.
+const OVERTURE_KEY = 'gdim_tl_overture'
 
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 1, maxWidthOrHeight: 1920,
@@ -187,7 +193,20 @@ export default function TimelinePage() {
   const [meta, setMeta] = useState<Record<string, SessionMeta>>({})
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
+  const [carName, setCarName] = useState('Your Build')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Play the cinematic Overture only on a fresh dive from the Home map. The
+  // flag is consumed once here so back-navigation into the Timeline is instant.
+  const [overture, setOverture] = useState(() => {
+    try {
+      if (sessionStorage.getItem(OVERTURE_KEY) === '1') {
+        sessionStorage.removeItem(OVERTURE_KEY)
+        return true
+      }
+    } catch { /* private mode — just skip the overture */ }
+    return false
+  })
 
   useEffect(() => {
     let active = true
@@ -203,7 +222,7 @@ export default function TimelinePage() {
 
       const [carRes, entRes] = await Promise.all([
         supabase.from('cars')
-          .select('purchase_story, purchase_date, created_at')
+          .select('purchase_story, purchase_date, created_at, nickname, year, model, variant')
           .eq('id', cid).single(),
         supabase.from('timeline_entries')
           .select('id, entry_type, is_origin, title, photo_url, journal_entry, display_date, session_id')
@@ -216,6 +235,14 @@ export default function TimelinePage() {
       const all = (entRes.data ?? []) as TLEntry[]
       const originRow = all.find(e => e.is_origin) ?? null
       const std = all.filter(e => !e.is_origin)
+
+      // Build the Overture's hero title: nickname if set, else "year model variant".
+      const carMeta = carRes.data as
+        { nickname: string | null; year: number | null; model: string | null; variant: string | null } | null
+      if (carMeta) {
+        const full = [carMeta.year, carMeta.model, carMeta.variant].filter(Boolean).join(' ').trim()
+        setCarName(carMeta.nickname?.trim() || full || 'Your Build')
+      }
 
       if (originRow) {
         setOrigin({
@@ -322,6 +349,32 @@ export default function TimelinePage() {
     }
   }
 
+  // Scroll-driven parallax for the Origin hero (mutated directly — no re-render).
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLImageElement>(null)
+  const onScroll = () => {
+    const y = scrollRef.current?.scrollTop ?? 0
+    if (heroRef.current) heroRef.current.style.transform = `translateY(${(y * 0.12).toFixed(1)}px)`
+  }
+
+  // Overture stats line: "N entries · YYYY – now"
+  const startYear = origin?.display_date ? yearOf(origin.display_date)
+    : (entries[0] ? yearOf(entries[0].display_date) : null)
+  const lastEntry = entries[entries.length - 1]
+  const endYearNum = lastEntry ? Number(yearOf(lastEntry.display_date))
+    : (startYear ? Number(startYear) : null)
+  const nowYear = new Date().getFullYear()
+  const count = entries.length + (origin ? 1 : 0)
+  const rangeLabel = startYear
+    ? (endYearNum && endYearNum >= nowYear
+        ? `${startYear} – now`
+        : (endYearNum && String(endYearNum) !== startYear ? `${startYear} – ${endYearNum}` : startYear))
+    : ''
+  const overtureSubtitle = [
+    count > 0 ? `${count} ${count === 1 ? 'entry' : 'entries'}` : '',
+    rangeLabel,
+  ].filter(Boolean).join('   ·   ')
+
   const chevron = (
     <button
       onClick={() => navigate('/home')}
@@ -338,14 +391,40 @@ export default function TimelinePage() {
   )
 
   const shell = (children: React.ReactNode) => (
-    <div style={{
-      height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
-      background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative',
-    }}>
-      <ArrivalFade />
+    <div
+      ref={scrollRef}
+      onScroll={onScroll}
+      style={{
+        height: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        background: COLOR_TIMELINE_BG, fontFamily: FONT_UI, position: 'relative',
+      }}
+    >
+      {/* Arrival: cinematic Overture on a fresh dive from Home; plain fade otherwise */}
+      {overture
+        ? (loading
+            ? <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: '#0a0805' }} />
+            : <TimelineOverture title={carName} subtitle={overtureSubtitle} onDone={() => setOverture(false)} />)
+        : <ArrivalFade />}
+
+      {/* Ambient material — warm light-leak at the top + a soft vignette + faint grain */}
+      <div aria-hidden style={{
+        position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none',
+        background:
+          'radial-gradient(140% 38% at 50% -4%, rgba(200,150,70,0.10) 0%, rgba(200,150,70,0) 60%),' +
+          'radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0) 62%, rgba(40,30,18,0.06) 100%)',
+      }} />
+      <div aria-hidden style={{
+        position: 'fixed', inset: 0, zIndex: 1, pointerEvents: 'none', opacity: 0.035,
+        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        mixBlendMode: 'multiply',
+      }} />
+
       <style>{`
         .tl-press { transition: transform 140ms ease-out; }
         .tl-press:active { transform: scale(0.97); }
+        @keyframes tlKen { from { transform: scale(1.05); } to { transform: scale(1.16); } }
+        .tl-ken { animation: tlKen 26s ease-in-out infinite alternate; }
+        @media (prefers-reduced-motion: reduce) { .tl-ken { animation: none; transform: scale(1.05); } }
       `}</style>
       {chevron}
       <input ref={fileRef} type="file" accept="image/*" onChange={onPickOriginPhoto} style={{ display: 'none' }} />
@@ -367,82 +446,114 @@ export default function TimelinePage() {
 
   return shell(
     <>
-    <div style={{ maxWidth: CANVAS_W, margin: '0 auto', padding: '64px 20px 96px' }}>
-      {/* ── Origin cover card (full-bleed, no stripe) ── */}
+    <div style={{ position: 'relative', zIndex: 2 }}>
+      {/* ── Origin hero — full-bleed magazine opener ── */}
       {origin && (
         <Reveal>
-          <article style={{
-            background: COLOR_TIMELINE_CARD,
-            borderRadius: RADIUS_TIMELINE_CARD,
-            overflow: 'hidden',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',
-            marginBottom: 28,
-          }}>
-            {origin.photo_url ? (
-              // Cover photo with a small "change" button overlay
-              <div style={{ position: 'relative' }}>
+          {origin.photo_url ? (
+            <section style={{
+              position: 'relative', width: '100%', height: '62vh', minHeight: 380, maxHeight: 560,
+              overflow: 'hidden', background: '#0a0805', marginBottom: 8,
+            }}>
+              {/* Parallax layer — Ken Burns drift on the image, scroll-lag on this wrapper */}
+              <div ref={heroRef} style={{ position: 'absolute', left: 0, right: 0, top: '-12%', bottom: '-12%', willChange: 'transform' }}>
                 <img
-                  src={origin.photo_url} alt="" aria-hidden
-                  style={{ display: 'block', width: '100%', height: 230, objectFit: 'cover',
-                    filter: uploading ? 'brightness(0.6)' : 'none', transition: 'filter 200ms' }}
+                  src={origin.photo_url} alt="" aria-hidden className="tl-ken"
+                  style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover',
+                    filter: uploading ? 'brightness(0.5)' : 'none', transition: 'filter 220ms' }}
                 />
-                <button
-                  onClick={() => !uploading && fileRef.current?.click()}
-                  aria-label="Change cover photo"
-                  style={{
-                    position: 'absolute', bottom: 10, right: 10, height: 32, padding: '0 12px',
-                    display: 'flex', alignItems: 'center', gap: 6, borderRadius: 16,
-                    background: 'rgba(20,18,16,0.55)', border: '1px solid rgba(255,255,255,0.25)',
-                    backdropFilter: 'blur(4px)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center' }}><CameraIcon size={15} color="#f5f5f5" /></span>
-                  <span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f5f5f5' }}>
-                    {uploading ? 'Saving…' : 'Change'}
-                  </span>
-                </button>
               </div>
-            ) : (
-              // No photo yet — tappable prompt to add the first one
+              {/* Top scrim — keeps the floating chevron legible over bright photos */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 130, pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(10,8,5,0.55) 0%, rgba(10,8,5,0) 100%)' }} />
+              {/* Bottom scrim — text legibility */}
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '70%', pointerEvents: 'none',
+                background: 'linear-gradient(180deg, rgba(10,8,5,0) 0%, rgba(10,8,5,0.30) 42%, rgba(10,8,5,0.88) 100%)' }} />
+
+              <button
+                onClick={() => !uploading && fileRef.current?.click()}
+                aria-label="Change cover photo"
+                style={{
+                  position: 'absolute', top: 12, right: 12, height: 32, padding: '0 12px', zIndex: 2,
+                  display: 'flex', alignItems: 'center', gap: 6, borderRadius: 16,
+                  background: 'rgba(20,18,16,0.5)', border: '1px solid rgba(255,255,255,0.25)',
+                  backdropFilter: 'blur(4px)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center' }}><CameraIcon size={15} color="#f5f5f5" /></span>
+                <span style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f5f5f5' }}>
+                  {uploading ? 'Saving…' : 'Change'}
+                </span>
+              </button>
+
+              {/* Overlaid story */}
+              <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '0 24px 32px' }}>
+                <div style={{
+                  fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.2em',
+                  textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON, marginBottom: 12,
+                }}>
+                  Where it began{origin.display_date ? ` · ${fmtDate(origin.display_date)}` : ''}
+                </div>
+                <p style={{
+                  margin: 0, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
+                  fontSize: 23, lineHeight: 1.42, color: '#f3ede1', textShadow: '0 1px 16px rgba(0,0,0,0.5)',
+                }}>
+                  {origin.story || 'Every build starts somewhere. This is where yours begins.'}
+                </p>
+                {uploadErr && (
+                  <p onClick={() => fileRef.current?.click()}
+                    style={{ margin: '12px 0 0', fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, cursor: 'pointer' }}>
+                    {uploadErr}
+                  </p>
+                )}
+              </div>
+            </section>
+          ) : (
+            // No photo yet — a grand parchment opener inviting the first photo
+            <section style={{
+              position: 'relative', width: '100%', padding: '96px 26px 44px', textAlign: 'center',
+              background: 'linear-gradient(180deg, rgba(200,160,80,0.09) 0%, rgba(245,242,238,0) 72%)',
+              borderBottom: `1px solid ${COLOR_TIMELINE_RULE}`, marginBottom: 8,
+            }}>
+              <div style={{
+                fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.2em',
+                textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON, marginBottom: 14,
+              }}>
+                Where it began{origin.display_date ? ` · ${fmtDate(origin.display_date)}` : ''}
+              </div>
+              <p style={{
+                margin: '0 auto 24px', maxWidth: 320, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
+                fontSize: 22, lineHeight: 1.45, color: COLOR_TIMELINE_TEXT,
+              }}>
+                {origin.story || 'Every build starts somewhere. This is where yours begins.'}
+              </p>
               <button
                 onClick={() => !uploading && fileRef.current?.click()}
                 style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  width: '100%', height: 150, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                  background: 'rgba(200,160,80,0.06)',
-                  border: 'none', borderBottom: `1px dashed ${COLOR_TIMELINE_RULE}`,
+                  display: 'inline-flex', alignItems: 'center', gap: 8, height: 44, padding: '0 18px',
+                  borderRadius: RADIUS_BUTTON, background: 'rgba(200,160,80,0.10)',
+                  border: `1px solid ${COLOR_TIMELINE_CHEVRON}`, cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent', opacity: uploading ? 0.5 : 1,
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', opacity: uploading ? 0.4 : 1 }}><CameraIcon size={24} color={COLOR_TIMELINE_CHEVRON} /></span>
+                <CameraIcon size={18} color={COLOR_TIMELINE_CHEVRON} />
                 <span style={{ fontFamily: FONT_UI, fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON }}>
                   {uploading ? 'Saving…' : 'Add the first photo'}
                 </span>
               </button>
-            )}
-
-            <div style={{ padding: '20px 18px 22px' }}>
-              <div style={{
-                fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.18em',
-                textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON, marginBottom: 10,
-              }}>
-                The Beginning{origin.display_date ? ` · ${fmtDate(origin.display_date)}` : ''}
-              </div>
-              <p style={{
-                margin: 0, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
-                fontSize: 19, lineHeight: 1.5, color: COLOR_TIMELINE_TEXT,
-              }}>
-                {origin.story || 'Every build starts somewhere. This is where yours begins.'}
-              </p>
               {uploadErr && (
                 <p onClick={() => fileRef.current?.click()}
-                  style={{ margin: '12px 0 0', fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, cursor: 'pointer' }}>
+                  style={{ margin: '14px 0 0', fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, cursor: 'pointer' }}>
                   {uploadErr}
                 </p>
               )}
-            </div>
-          </article>
+            </section>
+          )}
         </Reveal>
       )}
+
+      {/* ── Entries column ── */}
+      <div style={{ maxWidth: CANVAS_W, margin: '0 auto', padding: `${origin ? 30 : 64}px 20px 96px` }}>
 
       {/* ── Standard entries — oldest first, year dividers, connecting thread ── */}
       {entries.map((e, i) => {
@@ -458,9 +569,22 @@ export default function TimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, height: 52, display: 'flex', alignItems: 'center' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 14, height: 88, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                <span style={{ fontFamily: FONT_UI, fontSize: 22, fontWeight: 800, letterSpacing: '0.04em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums' }}>
+                {/* oversized faint year, bleeding off the right margin — a chapter plate */}
+                <span aria-hidden style={{
+                  position: 'absolute', right: -4, top: '50%', transform: 'translateY(-52%)',
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 96, lineHeight: 1,
+                  color: COLOR_TIMELINE_YEAR, opacity: 0.14, fontVariantNumeric: 'tabular-nums',
+                  pointerEvents: 'none', whiteSpace: 'nowrap',
+                }}>
+                  {year}
+                </span>
+                <span style={{
+                  position: 'relative', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 38,
+                  letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
+                }}>
                   {year}
                 </span>
               </div>
@@ -525,6 +649,7 @@ export default function TimelinePage() {
           </div>
         )
       })}
+    </div>
     </div>
 
     {/* Floating "Add Entry" — free-form note (track day, car show, a story) */}

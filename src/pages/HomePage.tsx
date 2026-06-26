@@ -393,6 +393,11 @@ export default function HomePage() {
     exitingRef.current = true
     playConfirm()
     setExiting(true)
+    // Arm the Timeline's cinematic Overture for this dive only (consumed once
+    // on arrival, so back-navigation into the Timeline stays instant).
+    if (dest.route === '/timeline') {
+      try { sessionStorage.setItem('gdim_tl_overture', '1') } catch { /* private mode */ }
+    }
     const world = worldRef.current
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (world && !reduced) {
