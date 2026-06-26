@@ -603,9 +603,9 @@ export default function TimelinePage() {
               <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                {/* A crisp amber tick anchors the chapter; the year itself stays the
-                    soft oversized plate (no duplicate number to collide with). */}
-                <span aria-hidden style={{ position: 'relative', flexShrink: 0, width: 24, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.85 }} />
+                {/* A soft tick at the same faintness as the year, so it reads as
+                    part of the chapter plate rather than a floating amber hyphen. */}
+                <span aria-hidden style={{ position: 'relative', flexShrink: 0, width: 24, height: 2, background: COLOR_TIMELINE_YEAR, opacity: 0.16 }} />
                 <span style={{
                   fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 72, lineHeight: 1,
                   letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, opacity: 0.16,
