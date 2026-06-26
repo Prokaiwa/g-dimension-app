@@ -600,26 +600,17 @@ export default function TimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 88, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
-                {/* Oversized faint year — centered in the row, sitting behind the
-                    crisp label as a soft chapter plate (not clipped off the edge). */}
-                <span aria-hidden style={{
-                  position: 'absolute', left: CARD_LEFT, right: 0, top: '50%', transform: 'translateY(-52%)',
-                  textAlign: 'center', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
-                  fontSize: 96, lineHeight: 1, color: COLOR_TIMELINE_YEAR, opacity: 0.14,
-                  fontVariantNumeric: 'tabular-nums', pointerEvents: 'none', whiteSpace: 'nowrap',
-                }}>
-                  {year}
-                </span>
-                {/* The crisp chapter label, led by a small amber tick */}
+                {/* A crisp amber tick anchors the chapter; the year itself stays the
+                    soft oversized plate (no duplicate number to collide with). */}
+                <span aria-hidden style={{ position: 'relative', flexShrink: 0, width: 24, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.85 }} />
                 <span style={{
-                  position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 12,
-                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 42,
-                  letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
+                  fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 72, lineHeight: 1,
+                  letterSpacing: '0.01em', color: COLOR_TIMELINE_YEAR, opacity: 0.16,
+                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
                 }}>
-                  <span aria-hidden style={{ width: 22, height: 2, background: COLOR_TIMELINE_CHEVRON, opacity: 0.85 }} />
                   {year}
                 </span>
               </div>
