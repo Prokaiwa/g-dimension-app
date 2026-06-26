@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import gIcon from '../assets/logo/gdimensionG.webp'
 import imageCompression from 'browser-image-compression'
 
@@ -81,6 +82,7 @@ export default function MaintenanceServiceEditPage() {
   const [carId,         setCarId]         = useState<string | null>(null)
   const [date,          setDate]          = useState('')
   const [mileage,       setMileage]       = useState('')
+  const [mileageUnit,   setMileageUnit]   = useState<MileageUnit>('mi')
   const [performedBy,   setPerformedBy]   = useState<'self' | 'shop'>('self')
   const [shopName,      setShopName]      = useState('')
   const [jobs,          setJobs]          = useState<JobRow[]>([])
@@ -127,7 +129,14 @@ export default function MaintenanceServiceEditPage() {
         setDate(sess.date_performed)
         setPerformedBy(sess.performed_by === 'shop' ? 'shop' : 'self')
         setShopName(sess.shop_name ?? '')
-        setMileage(sess.mileage != null ? String(sess.mileage) : '')
+        if (sess.car_id) {
+          const { data: carRow } = await supabase.from('cars').select('mileage_unit').eq('id', sess.car_id).single()
+          const unit = asMileageUnit((carRow as { mileage_unit: string | null } | null)?.mileage_unit)
+          setMileageUnit(unit)
+          setMileage(sess.mileage != null ? String(milesToUnit(sess.mileage, unit)) : '')
+        } else {
+          setMileage(sess.mileage != null ? String(sess.mileage) : '')
+        }
         setLaborCost(sess.labor_cost != null ? String(sess.labor_cost) : '')
         setTaxAmount(sess.tax_amount != null ? String(sess.tax_amount) : '')
         setTotalCost(sess.total_cost != null ? String(sess.total_cost) : '')
@@ -197,7 +206,7 @@ export default function MaintenanceServiceEditPage() {
     const { error } = await supabase.from('sessions').update({
       date_performed: date, performed_by: performedBy,
       shop_name: performedBy === 'shop' && shopName.trim() ? shopName.trim() : null,
-      mileage: mileage ? parseInt(mileage, 10) : null,
+      mileage: mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : null,
       labor_cost: laborCost ? parseFloat(laborCost) : null,
       tax_amount: taxAmount ? parseFloat(taxAmount) : null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
@@ -340,7 +349,7 @@ export default function MaintenanceServiceEditPage() {
                 className="xp-date xp-input" style={{ ...xpInput, width: 170, colorScheme: 'light' }} />
             </div>
             <div>
-              <label style={xpLabel}>Odometer (mi):</label>
+              <label style={xpLabel}>Odometer ({mileageUnit}):</label>
               <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
                 placeholder="0" className="xp-input" style={{ ...xpInput, width: 120 }} />
             </div>

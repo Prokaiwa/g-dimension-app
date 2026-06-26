@@ -6,6 +6,7 @@ const DAY_LABEL   = String(_now.getDate())
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import gLogo from '../assets/logo/gdimensionG.webp'
 import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
 import {
@@ -56,6 +57,7 @@ type Car = {
   make: string | null
   model: string | null
   variant: string | null
+  mileage_unit: string | null
 }
 
 const MONO = "'Courier New', Courier, monospace"
@@ -97,7 +99,7 @@ export default function MaintenanceSessionDetailPage() {
       if (s) {
         setSession(s as Session)
         if (s.car_id) {
-          const { data: c } = await supabase.from('cars').select('year,make,model,variant').eq('id', s.car_id).single()
+          const { data: c } = await supabase.from('cars').select('year,make,model,variant,mileage_unit').eq('id', s.car_id).single()
           if (c) setCar(c as Car)
         }
       }
@@ -190,7 +192,7 @@ export default function MaintenanceSessionDetailPage() {
                   {session.mileage != null && (
                     <div>
                       <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: CW_DIM, marginBottom: 4 }}>Mileage</div>
-                      <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 12, color: CW_DIM }}>mi</span></div>
+                      <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 15, color: CW_INK }}>{milesToUnit(session.mileage, asMileageUnit(car?.mileage_unit)).toLocaleString()} <span style={{ fontWeight: 400, fontSize: 12, color: CW_DIM }}>{asMileageUnit(car?.mileage_unit)}</span></div>
                     </div>
                   )}
                   {session.performed_by && (
@@ -377,7 +379,7 @@ export default function MaintenanceSessionDetailPage() {
               {session.mileage != null ? (
                 <div style={{ flex: 1, padding: '14px 20px' }}>
                   <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: INV_MUTED, marginBottom: 4 }}>Odometer</div>
-                  <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{session.mileage.toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>mi</span></div>
+                  <div style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: INV_TEXT }}>{milesToUnit(session.mileage, asMileageUnit(car?.mileage_unit)).toLocaleString()} <span style={{ fontWeight: 400, fontSize: 11, color: INV_MUTED }}>{asMileageUnit(car?.mileage_unit)}</span></div>
                 </div>
               ) : car ? (
                 <div style={{ flex: 1, padding: '14px 20px' }}>

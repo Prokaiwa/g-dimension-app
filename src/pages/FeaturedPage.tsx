@@ -164,7 +164,6 @@ function buildSpecSections(car: Car | null, grouped: Record<string,Job[]>, purch
   if (car?.forced_induction && car.forced_induction !== 'none')      info.push({ label:'Forced Induction', value: car.forced_induction.replace('-',' ') })
   if (car?.drivetrain)                                               info.push({ label:'Drivetrain', value: car.drivetrain.toUpperCase() })
   if (car?.transmission)                                             info.push({ label:'Transmission', value: car.transmission })
-  if (car?.current_mileage != null)                                  info.push({ label:'Mileage', value:`${car.current_mileage.toLocaleString()} mi` })
   if (purchaseYear)                                                  info.push({ label:'Owned Since', value: String(purchaseYear) })
 
   const sections: SpecSection[] = [{ title:'VEHICLE INFORMATION', rows: info }]

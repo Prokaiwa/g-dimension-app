@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import gIcon from '../assets/logo/gdimensionG.webp'
 import imageCompression from 'browser-image-compression'
 
@@ -69,6 +70,7 @@ export default function MaintenanceServiceNewPage() {
   const [carInfo,       setCarInfo]       = useState('')
   const [carId,         setCarId]         = useState<string | null>(null)
   const [currentMileage, setCurrentMileage] = useState<number | null>(null)
+  const [mileageUnit,    setMileageUnit]    = useState<MileageUnit>('mi')
   const [updateOdometer, setUpdateOdometer] = useState(true)
   const [date,          setDate]          = useState(TODAY)
   const [mileage,       setMileage]       = useState('')
@@ -91,12 +93,13 @@ export default function MaintenanceServiceNewPage() {
     getActiveCarId().then(id => {
       if (!id) return
       setCarId(id)
-      supabase.from('cars').select('year, make, model, variant, current_mileage').eq('id', id).single()
+      supabase.from('cars').select('year, make, model, variant, current_mileage, mileage_unit').eq('id', id).single()
         .then(({ data }) => {
           if (data) {
-            const d = data as { year: number | null; make: string | null; model: string | null; variant: string | null; current_mileage: number | null }
+            const d = data as { year: number | null; make: string | null; model: string | null; variant: string | null; current_mileage: number | null; mileage_unit: string | null }
             setCarInfo([d.year, d.make, d.model, d.variant].filter(Boolean).join(' '))
             setCurrentMileage(d.current_mileage ?? null)
+            setMileageUnit(asMileageUnit(d.mileage_unit))
           }
         })
     })
@@ -128,7 +131,7 @@ export default function MaintenanceServiceNewPage() {
       car_id: carId, type: 'maintenance',
       date_performed: date, performed_by: performedBy,
       shop_name: performedBy === 'shop' && shopName.trim() ? shopName.trim() : null,
-      mileage: mileage ? parseInt(mileage, 10) : null,
+      mileage: mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : null,
       labor_cost: laborCost ? parseFloat(laborCost) : null,
       tax_amount: taxAmount ? parseFloat(taxAmount) : null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
@@ -139,7 +142,7 @@ export default function MaintenanceServiceNewPage() {
     }).select('id').single()
     if (error || !session) { setSaving(false); return }
     // Keep the odometer fresh from the logged mileage (opt-in, only if higher).
-    const enteredMi = mileage ? parseInt(mileage, 10) : NaN
+    const enteredMi = mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : NaN
     if (updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
       await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
     }
@@ -262,7 +265,7 @@ export default function MaintenanceServiceNewPage() {
                 className="xp-date xp-input" style={{ ...xpInput, width: 170, colorScheme: 'light' }} />
             </div>
             <div>
-              <label style={xpLabel}>Odometer (mi):</label>
+              <label style={xpLabel}>Odometer ({mileageUnit}):</label>
               <input type="number" value={mileage} onChange={e => setMileage(e.target.value)}
                 placeholder="0" className="xp-input" style={{ ...xpInput, width: 120 }} />
             </div>
@@ -270,12 +273,13 @@ export default function MaintenanceServiceNewPage() {
 
           {(() => {
             const entered = mileage ? parseInt(mileage, 10) : NaN
-            if (!Number.isFinite(entered) || entered <= (currentMileage ?? -1)) return null
+            const enteredInMiles = Number.isFinite(entered) ? unitToMiles(entered, mileageUnit) : NaN
+            if (!Number.isFinite(enteredInMiles) || enteredInMiles <= (currentMileage ?? -1)) return null
             return (
               <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, fontFamily: XP_FONT, fontSize: 12, color: XP_TEXT, cursor: 'pointer' }}>
                 <input type="checkbox" checked={updateOdometer} onChange={e => setUpdateOdometer(e.target.checked)} />
-                Update {carInfo || 'this car'}'s odometer to {entered.toLocaleString()} mi
-                {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {currentMileage.toLocaleString()})</span>}
+                Update {carInfo || 'this car'}'s odometer to {entered.toLocaleString()} {mileageUnit}
+                {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {milesToUnit(currentMileage, mileageUnit).toLocaleString()})</span>}
               </label>
             )
           })()}

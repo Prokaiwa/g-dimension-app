@@ -10,6 +10,7 @@ import { playBack } from '../lib/sound'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
+import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
@@ -43,10 +44,10 @@ type Car = {
   id: string; year: number | null; make: string | null
   model: string | null; variant: string | null; trim: string | null
   nickname: string; current_mileage: number | null; color: string | null
-  garage_photo_url: string | null
+  garage_photo_url: string | null; mileage_unit: string | null
 }
 
-const CAR_COLUMNS = 'id, year, make, model, variant, trim, nickname, current_mileage, color, garage_photo_url'
+const CAR_COLUMNS = 'id, year, make, model, variant, trim, nickname, current_mileage, color, garage_photo_url, mileage_unit'
 type MakeItem  = { id: number; name: string; priority: number }
 type ModelItem = { id: number; name: string }
 
@@ -624,6 +625,7 @@ export default function GarageCarsPage() {
         trim: form.trim.trim() || null,
         nickname,
         current_mileage: mileageInMiles,
+        mileage_unit: form.mileageUnit,
         purchase_date: form.purchaseDate || null,
         purchase_story: form.originStory.trim() || null,
       })
@@ -674,7 +676,7 @@ export default function GarageCarsPage() {
     const [{ data }, priv] = await Promise.all([
       supabase
         .from('cars')
-        .select('color, paint_code, nickname, trim, variant, current_mileage, chassis_code, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url')
+        .select('color, paint_code, nickname, trim, variant, current_mileage, mileage_unit, chassis_code, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url')
         .eq('id', car.id)
         .single(),
       getCarPrivate(car.id),
@@ -687,8 +689,8 @@ export default function GarageCarsPage() {
       nickname:          data?.nickname === autoNick ? '' : (data?.nickname ?? ''),
       trim:              data?.trim               ?? '',
       variant:           data?.variant            ?? '',
-      mileage:           data?.current_mileage    != null ? String(data.current_mileage) : '',
-      mileageUnit:       'mi',
+      mileage:           data?.current_mileage    != null ? String(milesToUnit(data.current_mileage, asMileageUnit(data?.mileage_unit))) : '',
+      mileageUnit:       asMileageUnit(data?.mileage_unit),
       chassisCode:       data?.chassis_code       ?? '',
       vin:               priv.vin                 ?? '',
       licensePlate:      priv.license_plate       ?? '',
@@ -904,8 +906,8 @@ export default function GarageCarsPage() {
                         )}
                         <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
                           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Mileage</span>
-                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.current_mileage != null ? car.current_mileage.toLocaleString() : '—'}</span>
-                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>mi</span>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.current_mileage != null ? milesToUnit(car.current_mileage, asMileageUnit(car.mileage_unit)).toLocaleString() : '—'}</span>
+                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{asMileageUnit(car.mileage_unit)}</span>
                         </div>
                       </div>
                       {/* Actions */}
@@ -1036,7 +1038,7 @@ export default function GarageCarsPage() {
                     ['Nickname', d.nickname],
                     ['Variant', d.variant],
                     ['Trim', d.trim],
-                    ['Mileage', d.mileage ? `${num(d.mileage)} mi` : ''],
+                    ['Mileage', d.mileage ? `${num(d.mileage)} ${d.mileageUnit}` : ''],
                   ]
                   const specs: [string, string][] = [
                     ['Chassis Code', d.chassisCode],
@@ -1055,7 +1057,7 @@ export default function GarageCarsPage() {
                   const purchase: [string, string][] = [
                     ['Purchase Date', d.purchaseDate],
                     ['Purchase Price', d.purchasePrice ? `${d.purchaseCurrency || 'USD'} ${num(d.purchasePrice)}` : ''],
-                    ['Mileage at Purchase', d.mileageAtPurchase ? `${num(d.mileageAtPurchase)} mi` : ''],
+                    ['Mileage at Purchase', d.mileageAtPurchase ? `${num(d.mileageAtPurchase)} ${d.mileageUnit}` : ''],
                     ['Acquired Via', d.wherePurchased],
                   ]
                   const hasStory = !!d.originStory && d.originStory.trim() !== ''

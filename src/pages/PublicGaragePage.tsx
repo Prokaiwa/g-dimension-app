@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import iconChoose from '../assets/icons/car-carousel/choose.png'
@@ -58,6 +59,7 @@ type Car = {
   nickname: string | null
   color: string | null
   current_mileage: number | null
+  mileage_unit: string | null
   chassis_code: string | null
   engine_type: string | null
   forced_induction: string | null
@@ -340,8 +342,8 @@ export default function PublicGaragePage() {
                     )}
                     <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
                       <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Mileage</span>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.current_mileage != null ? car.current_mileage.toLocaleString() : '—'}</span>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>mi</span>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{car.current_mileage != null ? milesToUnit(car.current_mileage, asMileageUnit(car.mileage_unit)).toLocaleString() : '—'}</span>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{asMileageUnit(car.mileage_unit)}</span>
                     </div>
                   </div>
                   {/* Actions */}
@@ -418,7 +420,7 @@ export default function PublicGaragePage() {
           ['Nickname', car.nickname ?? ''],
           ['Variant', car.variant ?? ''],
           ['Trim', car.trim ?? ''],
-          ['Mileage', car.current_mileage != null ? `${num(car.current_mileage)} mi` : ''],
+          ['Mileage', car.current_mileage != null ? `${milesToUnit(car.current_mileage, asMileageUnit(car.mileage_unit)).toLocaleString()} ${asMileageUnit(car.mileage_unit)}` : ''],
         ] : []
         const specs: [string, string][] = car ? [
           ['Chassis Code', car.chassis_code ?? ''],

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import imageCompression from 'browser-image-compression'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
@@ -149,6 +150,7 @@ export default function MaintenanceDetailEditPage() {
   const [carId, setCarId]             = useState<string | null>(null)
   const [date, setDate]               = useState('')
   const [mileage, setMileage]         = useState('')
+  const [mileageUnit, setMileageUnit] = useState<MileageUnit>('mi')
   const [performedBy, setPerformedBy] = useState<'self' | 'shop'>('self')
   const [shopName, setShopName]       = useState('')
   const [timeTaken, setTimeTaken]     = useState('')
@@ -198,7 +200,14 @@ export default function MaintenanceDetailEditPage() {
         setDate(sess.date_performed)
         setPerformedBy(sess.performed_by === 'shop' ? 'shop' : 'self')
         setShopName(sess.shop_name ?? '')
-        setMileage(sess.mileage != null ? String(sess.mileage) : '')
+        if (sess.car_id) {
+          const { data: carRow } = await supabase.from('cars').select('mileage_unit').eq('id', sess.car_id).single()
+          const unit = asMileageUnit((carRow as { mileage_unit: string | null } | null)?.mileage_unit)
+          setMileageUnit(unit)
+          setMileage(sess.mileage != null ? String(milesToUnit(sess.mileage, unit)) : '')
+        } else {
+          setMileage(sess.mileage != null ? String(sess.mileage) : '')
+        }
         setTotalCost(sess.total_cost != null ? String(sess.total_cost) : '')
         setTimeTaken(sess.time_taken ?? '')
         setNotes(sess.notes ?? '')
@@ -256,7 +265,7 @@ export default function MaintenanceDetailEditPage() {
     const { error } = await supabase.from('sessions').update({
       date_performed: date, performed_by: performedBy,
       shop_name: performedBy === 'shop' && shopName.trim() ? shopName.trim() : null,
-      mileage: mileage ? parseInt(mileage, 10) : null,
+      mileage: mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : null,
       time_taken: timeTaken.trim() || null,
       total_cost: totalCost ? parseFloat(totalCost) : null,
       notes: notes.trim() || null, add_to_timeline: addToTimeline,
@@ -362,7 +371,7 @@ export default function MaintenanceDetailEditPage() {
               <div style={fieldLabel}>Mileage</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
                 <input type="number" value={mileage} onChange={e => setMileage(e.target.value)} placeholder="—" className="cw-input" style={{ ...fieldInput, flex: 1 }} />
-                <span style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM }}>mi</span>
+                <span style={{ fontFamily: FONT_UI, fontSize: 11, color: INK_DIM }}>{mileageUnit}</span>
               </div>
             </div>
           </div>

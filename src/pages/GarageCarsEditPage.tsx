@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabase'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
+import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import { GarageBg, GarageHeader } from './GarageCarsPage'
 import {
@@ -51,7 +52,7 @@ const DETAIL_COLUMNS =
   // Sensitive fields (vin, license_plate, purchase_price/currency/dealer,
   // mileage_at_purchase) now live in car_private (migration 061) — read via
   // getCarPrivate, not from this list.
-  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, chassis_code, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url, is_public, show_buildsheet_publicly, show_timeline_publicly, show_featured_publicly'
+  'year, make, model, variant, color, paint_code, nickname, trim, current_mileage, mileage_unit, chassis_code, engine_type, engine_origin, forced_induction, horsepower, torque, transmission, drivetrain, usage_type, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url, is_public, show_buildsheet_publicly, show_timeline_publicly, show_featured_publicly'
 
 // A from-scratch switch (no component libraries). Amber when on.
 function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
@@ -119,8 +120,8 @@ export default function GarageCarsEditPage() {
           nickname:          row.nickname            ?? '',
           trim:              row.trim               ?? '',
           variant:           row.variant            ?? '',
-          mileage:           row.current_mileage    != null ? String(row.current_mileage) : '',
-          mileageUnit:       'mi',
+          mileage:           row.current_mileage    != null ? String(milesToUnit(row.current_mileage, asMileageUnit(row.mileage_unit))) : '',
+          mileageUnit:       asMileageUnit(row.mileage_unit),
           chassisCode:       row.chassis_code       ?? '',
           vin:               priv.vin               ?? '',
           licensePlate:      priv.license_plate     ?? '',
@@ -174,6 +175,7 @@ export default function GarageCarsEditPage() {
       trim:              data.trim.trim()             || null,
       variant:           data.variant?.trim()         || null,
       current_mileage:   mileageInMiles,
+      mileage_unit:      data.mileageUnit,
       chassis_code:      data.chassisCode?.trim()     || null,
       engine_type:       data.engineType?.trim()      || null,
       engine_origin:     data.engineOrigin            || null,
