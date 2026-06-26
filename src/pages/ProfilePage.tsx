@@ -383,7 +383,7 @@ export default function ProfilePage() {
               <div style={{ width: 1, background: 'rgba(240,228,200,0.07)' }} />
               <Stat value={stats?.modCount ?? 0} label="Mods" onClick={() => navigate('/tuning/build-sheet')} />
               <div style={{ width: 1, background: 'rgba(240,228,200,0.07)' }} />
-              <Stat value={stats?.photoCount ?? 0} label="Photos" onClick={() => navigate('/photos')} />
+              <Stat value={stats?.photoCount ?? 0} label="Photos" />
             </div>
 
             {/* Garage preview */}

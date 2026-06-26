@@ -372,7 +372,7 @@ export default function GarageDocumentsPage() {
       el.removeEventListener('touchcancel', onEnd)
     }
   // Re-register when detailItem changes so the ref points at the mounted panel.
-  }, [detailItem]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detailItem])  
 
   // Load signed URL(s) for the detail panel — images become a carousel, PDFs use the primary URL.
   useEffect(() => {

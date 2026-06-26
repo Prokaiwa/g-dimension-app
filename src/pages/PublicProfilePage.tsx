@@ -529,7 +529,7 @@ export default function PublicProfilePage() {
 
   // Minimum hold time — keeps intro up long enough to read, and so the data
   // round-trips land before the map mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     const t = window.setTimeout(() => {
       introRef.current.minReady = true
@@ -544,7 +544,7 @@ export default function PublicProfilePage() {
       introRef.current.dataReady = true
       tryExitIntro()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [state])
 
   return (

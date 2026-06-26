@@ -41,7 +41,7 @@ export default function ImageCarouselLightbox({
   useEffect(() => {
     paintStrip(0, false)
     paintVertical(0, false)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])  
 
   const paintStrip = (dx: number, animate: boolean) => {
     const el = stripRef.current; if (!el) return

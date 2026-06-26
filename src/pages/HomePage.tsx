@@ -38,7 +38,6 @@ import {
 import { useTour } from '../tour/TourContext'
 import type { TourNode } from '../tour/tourSteps'
 
-
 // Road bezier paths (390×800 viewBox) — single source for the glow line and
 // the dashed centerline of each road.
 const ROAD_GARAGE_TUNING   = 'M 228 238 C 300 250, 350 310, 300 340 C 260 370, 300 390, 293 402'

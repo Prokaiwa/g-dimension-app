@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
-import { asMileageUnit, milesToUnit } from '../lib/mileage'
+import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import { GarageBg, GarageHeader } from './GarageCarsPage'
 import {
@@ -166,8 +166,7 @@ export default function GarageCarsEditPage() {
     if (!data || !meta || !carId) return
     setSaving(true); setErr(null)
     const rawMileage = parseInt(data.mileage) || null
-    const mileageInMiles = rawMileage && data.mileageUnit === 'km'
-      ? Math.round(rawMileage * 0.621371) : rawMileage
+    const mileageInMiles = rawMileage != null ? unitToMiles(rawMileage, asMileageUnit(data.mileageUnit)) : null
     const update: Record<string, unknown> = {
       color:             data.color.trim()            || null,
       paint_code:        (data.colorCode ?? '').trim() || null,

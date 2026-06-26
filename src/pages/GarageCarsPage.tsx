@@ -9,7 +9,7 @@ import { setActiveCar, getActiveCarId } from '../lib/activeCar'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
-import { asMileageUnit, milesToUnit } from '../lib/mileage'
+import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import {
@@ -607,10 +607,8 @@ export default function GarageCarsPage() {
     if (!user) { setSaving(false); setSaveErr('Not signed in.'); return }
     const nickname = form.nickname.trim() || null
     const rawMileage = parseInt(form.mileage) || null
-    // DB always stores miles — convert km input
-    const mileageInMiles = rawMileage && form.mileageUnit === 'km'
-      ? Math.round(rawMileage * 0.621371)
-      : rawMileage
+    // DB always stores miles — convert from the car's unit
+    const mileageInMiles = rawMileage != null ? unitToMiles(rawMileage, form.mileageUnit) : null
     const { data, error } = await supabase
       .from('cars')
       .insert({

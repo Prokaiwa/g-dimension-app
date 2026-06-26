@@ -63,9 +63,6 @@ import TimelinePage from './pages/TimelinePage'
 import TimelineEntryNewPage from './pages/TimelineEntryNewPage'
 import EntryDetailPage from './pages/EntryDetailPage'
 
-// Photos
-import PhotosPage from './pages/PhotosPage'
-
 // Featured (magazine)
 import FeaturedPage from './pages/FeaturedPage'
 
@@ -249,7 +246,6 @@ export default function App() {
       <Route path="/timeline/entry/:entryId/edit" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
       <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
 
-      <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
       <Route path="/featured" element={<ProtectedRoute><FeaturedPage /></ProtectedRoute>} />
 
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

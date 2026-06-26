@@ -1066,7 +1066,7 @@ export default function FeaturedPage() {
   // Cancel story-photo adjust when the user turns away from the story page
   useEffect(() => {
     if (spAdjustingRef.current) { spAdjustingRef.current = false; setSpAdjusting(false) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [pageIdx])
 
   // Clamp current page if the book shrank (e.g. data reloaded smaller)
@@ -1740,7 +1740,6 @@ export default function FeaturedPage() {
           </div>
         </div>
       )}
-
 
       {/* ── Photo replace sheet ── */}
       <input ref={photoReplaceFileRef} type="file" accept="image/*" style={{ display:'none' }}

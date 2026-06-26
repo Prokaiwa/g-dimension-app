@@ -51,7 +51,6 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    console.info('[CarPhotoUpload] file selected:', file.name, file.type, `${Math.round(file.size / 1024)}KB`)
     setError(null)
     setBusy(true)
     const startedAt = Date.now()
