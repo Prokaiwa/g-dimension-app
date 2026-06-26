@@ -229,7 +229,7 @@ export default function GaragePage() {
                 WebkitTapHighlightColor: 'transparent',
                 ...(bgLoaded
                   ? { animation: `iconFadeIn 550ms ${EASING_SETTLE} ${STAGGER_BASE_MS + i * STAGGER_STEP_MS}ms both` }
-                  : { opacity: 0, pointerEvents: 'none' as const }),
+                  : { opacity: 0 }),
               }}
             >
               {/* Inner wrapper owns the press transform, separate from the fade-in animation */}

@@ -384,7 +384,10 @@ export default function HomePage() {
     // During the tour, only the highlighted node advances; ignore other taps
     // (and skip the zoom-navigate — the engine drives navigation).
     if (tourActive) {
-      if (glowRef.current.ring === dest.id) tourNext()
+      if (glowRef.current.ring === dest.id) {
+        exitingRef.current = true
+        tourNext()
+      }
       return
     }
     exitingRef.current = true
