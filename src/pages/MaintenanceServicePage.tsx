@@ -166,7 +166,7 @@ export default function MaintenanceServicePage() {
       <button
         onClick={() => navigate('/maintenance/service/new')}
         style={{
-          position: 'fixed', right: 20, bottom: 28,
+          position: 'fixed', right: 20, bottom: 'calc(28px + env(safe-area-inset-bottom))',
           height: 44, paddingLeft: 20, paddingRight: 20,
           background: COLOR_TIMELINE_SERVICE, border: 'none', borderRadius: 10,
           color: '#0a0a0a', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,

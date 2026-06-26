@@ -362,7 +362,7 @@ export default function TimelineEntryNewPage() {
       </div>
 
       {/* Save */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px 28px',
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px calc(28px + env(safe-area-inset-bottom))',
         background: `linear-gradient(to top, ${COLOR_TIMELINE_BG} 62%, transparent)` }}>
         <button
           onClick={handleSave}

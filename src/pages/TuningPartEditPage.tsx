@@ -800,7 +800,7 @@ export default function TuningPartEditPage() {
       </div>
 
       {/* ── Save bar ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px calc(36px + env(safe-area-inset-bottom))', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
         {saveErr && <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: '#8b0000', marginBottom: 10 }}>{saveErr}</p>}
         <button onClick={handleSave} disabled={saving || !title.trim()}
           style={{

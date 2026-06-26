@@ -76,14 +76,18 @@ export default function TourOverlay() {
 
   if (!active || !step) return null
   const isNode = !!step.node
-  if (isNode && dismissed) return null
-
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'
   const isLast = index >= total - 1
   const isTarget = !!step.target
   const isWait = !!step.waitFor
   const nonBlocking = isWait && !isTarget
+  // Node steps and non-blocking wait steps (e.g. the fill-in-your-car form)
+  // both offer a "Got it" that hides the bubble so it's out of the way; it
+  // stays hidden until the step changes (dismissed resets per step.id), which
+  // for wait steps happens when the waitFor event fires.
+  const dismissible = isNode || nonBlocking
+  if (dismissible && dismissed) return null
   const DIM = onHome ? 'rgba(5,5,7,0.34)' : 'rgba(5,5,7,0.58)'
 
   // Render revealed text across segments.
@@ -186,7 +190,7 @@ export default function TourOverlay() {
             <div style={{ flex: 1 }} />
             {index > 0 && <button onClick={back} style={ghostBtn}>Back</button>}
             <button onClick={skip} style={ghostBtn}>Skip</button>
-            {isNode
+            {dismissible
               ? <button onClick={() => setDismissed(true)} style={primaryBtn}>Got it</button>
               : isWait
                 ? null

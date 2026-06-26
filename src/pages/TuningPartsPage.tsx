@@ -344,7 +344,7 @@ export default function TuningPartsPage() {
         onPointerLeave={() => setAddPressed(false)}
         onPointerCancel={() => setAddPressed(false)}
         style={{
-          position: 'fixed', right: 16, bottom: 26, zIndex: 20,
+          position: 'fixed', right: 16, bottom: 'calc(26px + env(safe-area-inset-bottom))', zIndex: 20,
           width: 132, height: 78,
           background: 'none', border: 'none', cursor: 'pointer',
           padding: 0, WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation',

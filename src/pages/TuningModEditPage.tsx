@@ -990,7 +990,7 @@ export default function TuningModEditPage() {
       </div>
 
       {/* Save button */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px 32px', background: 'linear-gradient(to top, #0d0d0f 60%, transparent)', zIndex: 10 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px calc(32px + env(safe-area-inset-bottom))', background: 'linear-gradient(to top, #0d0d0f 60%, transparent)', zIndex: 10 }}>
         <button
           onClick={handleSave}
           disabled={!title.trim() || saving}

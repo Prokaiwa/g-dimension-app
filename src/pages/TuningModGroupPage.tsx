@@ -333,7 +333,7 @@ export default function TuningModGroupPage() {
         <button
           onClick={() => navigate('/tuning/add', { state: { sessionId: session.id, groupTitle: session.title } })}
           style={{
-            position: 'fixed', right: 20, bottom: 28, zIndex: 20,
+            position: 'fixed', right: 20, bottom: 'calc(28px + env(safe-area-inset-bottom))', zIndex: 20,
             height: 44, paddingLeft: 20, paddingRight: 20,
             background: 'rgba(200,102,26,0.12)',
             border: '1.5px solid rgba(200,102,26,0.55)',

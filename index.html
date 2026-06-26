@@ -14,7 +14,11 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "black" keeps app content clear of the notch/status bar across every
+         screen (vs black-translucent which would draw under it and require a
+         per-header inset). viewport-fit=cover still exposes safe-area insets
+         for bottom-anchored UI (FABs, action bars). -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="G-Dimension" />
 
     <title>G-Dimension</title>

@@ -845,7 +845,7 @@ export default function TuningModDetailPage() {
             background: '#181818',
             borderTop: '1px solid rgba(245,240,228,0.08)',
             borderRadius: '12px 12px 0 0',
-            padding: '24px 20px 48px',
+            padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
           }}>
             {!sellScrapStep ? (
               <>
@@ -950,7 +950,7 @@ export default function TuningModDetailPage() {
       {/* ── Success toast ── */}
       {setSuccess && (
         <div style={{
-          position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 'calc(32px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)',
           background: 'rgba(30,30,32,0.96)', border: '1px solid rgba(200,102,26,0.4)',
           padding: '10px 20px',
           fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,

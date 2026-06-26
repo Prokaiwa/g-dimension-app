@@ -818,7 +818,7 @@ export default function TuningBuildSheetPage() {
           onPointerLeave={() => setPressed(false)}
           onPointerCancel={() => setPressed(false)}
           style={{
-            position: 'fixed', right: 20, bottom: 30, zIndex: 20,
+            position: 'fixed', right: 20, bottom: 'calc(30px + env(safe-area-inset-bottom))', zIndex: 20,
             width: 54, height: 54, borderRadius: '50%',
             background: 'rgba(200,102,26,0.12)',
             border: '1.5px solid rgba(200,102,26,0.55)',

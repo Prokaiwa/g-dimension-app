@@ -662,7 +662,7 @@ export default function TuningPartDetailPage() {
       )}
 
       {/* ── Actions ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px 36px', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px calc(36px + env(safe-area-inset-bottom))', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
         {part.status === 'planned' ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button
@@ -723,7 +723,7 @@ export default function TuningPartDetailPage() {
             backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
             borderTop: `2px solid rgba(26,16,8,0.15)`,
             borderRadius: '12px 12px 0 0',
-            padding: '24px 20px 48px',
+            padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
           }}>
             <p style={{ fontFamily: FONT_STAMP, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.8, marginBottom: 6 }}>
               What happened to it?

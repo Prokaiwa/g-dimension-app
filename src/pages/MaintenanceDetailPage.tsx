@@ -160,7 +160,7 @@ export default function MaintenanceDetailPage() {
       <button
         onClick={() => navigate('/maintenance/detail/new')}
         style={{
-          position: 'fixed', right: 20, bottom: 28,
+          position: 'fixed', right: 20, bottom: 'calc(28px + env(safe-area-inset-bottom))',
           height: 44, paddingLeft: 20, paddingRight: 20,
           background: COLOR_TIMELINE_DETAIL, border: 'none', borderRadius: 10,
           color: '#060e18', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,

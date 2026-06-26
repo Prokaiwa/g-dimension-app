@@ -424,7 +424,7 @@ export default function GarageRemindersPage() {
             onClick={openNew}
             aria-label="Add reminder"
             style={{
-              position: 'fixed', right: SPACE_LG, bottom: SPACE_LG,
+              position: 'fixed', right: SPACE_LG, bottom: `calc(${SPACE_LG}px + env(safe-area-inset-bottom))`,
               width: 56, height: 56, borderRadius: '50%',
               background: COLOR_ACCENT, border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

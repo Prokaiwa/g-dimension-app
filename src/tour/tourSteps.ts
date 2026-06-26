@@ -57,7 +57,7 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/garage/cars',
     waitFor: 'car-added',
     place: 'top',
-    body: 'Fill in your car’s details and tap Save. I’ll be right here.',
+    body: 'Now fill in your car’s details, then tap Save. Hit Got it and I’ll step out of your way while you do.',
   },
   {
     id: 'car-success',

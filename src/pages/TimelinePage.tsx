@@ -532,7 +532,7 @@ export default function TimelinePage() {
       className="tl-press"
       onClick={() => { playTick(); navigate('/timeline/new') }}
       style={{
-        position: 'fixed', right: 18, bottom: 24, zIndex: 20,
+        position: 'fixed', right: 18, bottom: 'calc(24px + env(safe-area-inset-bottom))', zIndex: 20,
         height: 46, padding: '0 18px', borderRadius: RADIUS_BUTTON,
         display: 'flex', alignItems: 'center', gap: 8,
         background: COLOR_ACCENT, color: COLOR_ACCENT_TEXT, border: 'none', cursor: 'pointer',
