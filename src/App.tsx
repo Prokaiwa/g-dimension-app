@@ -150,22 +150,26 @@ function WelcomeRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  // Background music plays only on authenticated in-app routes, never on the
-  // landing / auth / public build pages (visitors there have no toggle).
+  // Background music plays on authenticated in-app routes. Public build pages
+  // stay silent for anonymous visitors (they have no toggle), but a logged-in
+  // viewer — usually the owner showing off their build — gets the full sound.
   const location = useLocation()
+  const [hasSession, setHasSession] = useState(false)
   useEffect(() => {
     const p = location.pathname
     const isPublic = p === '/' || p.startsWith('/login') || p.startsWith('/signup')
       || p.startsWith('/welcome') || p.startsWith('/auth') || p.startsWith('/builds')
-    setMusicAllowed(!isPublic)
-  }, [location.pathname])
+    setMusicAllowed(!isPublic || (p.startsWith('/builds') && hasSession))
+  }, [location.pathname, hasSession])
 
   useEffect(() => {
     // Seed localStorage from server on every sign-in and on page load
     // when a session already exists (e.g. returning user, page refresh).
     syncActiveCarFromServer()
+    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setHasSession(!!session)
       // Defer out of the callback — syncActiveCarFromServer() queries Supabase,
       // which needs the auth lock this callback is still holding (see the note in
       // useAuthGate). Calling it inline can deadlock.

@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
+import TimelineOverture from '../components/TimelineOverture'
 import { playThreadTick } from '../lib/sound'
 import { milesToUnit, asMileageUnit } from '../lib/mileage'
 import {
@@ -36,13 +37,17 @@ const THUMB      = 90
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+// One-shot flag set by the public map dive; remembers scroll on entry drill-in.
+const OVERTURE_KEY = 'gdim_pub_tl_overture'
+const SCROLL_KEY = 'gdim_pub_tl_scroll'
+
 type StdType = 'modification' | 'maintenance' | 'detail' | 'note'
 
 const TYPE_META: Record<StdType, { label: string; color: string }> = {
   modification: { label: 'Modification', color: COLOR_TIMELINE_MOD },
   maintenance:  { label: 'Service',      color: COLOR_TIMELINE_SERVICE },
   detail:       { label: 'Detail',       color: COLOR_TIMELINE_DETAIL },
-  note:         { label: 'Note',         color: COLOR_TIMELINE_NOTE },
+  note:         { label: 'Entry',        color: COLOR_TIMELINE_NOTE },
 }
 
 type TLEntry = {
@@ -184,6 +189,19 @@ export default function PublicTimelinePage() {
   const [pressedId, setPressedId] = useState<string | null>(null)
   const [entries, setEntries] = useState<TLEntry[]>([])
   const [meta, setMeta] = useState<Record<string, SessionMeta>>({})
+  const [carName, setCarName] = useState('This Build')
+
+  // Cinematic Overture on a fresh dive from the public map (flag consumed once).
+  const [arrival, setArrival] = useState<'overture' | 'fade' | 'none'>(() => {
+    try {
+      if (sessionStorage.getItem(OVERTURE_KEY) === '1') { sessionStorage.removeItem(OVERTURE_KEY); return 'overture' }
+    } catch { /* ignore */ }
+    return 'fade'
+  })
+  const [settled, setSettled] = useState(() => {
+    if (arrival !== 'overture') return true
+    return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  })
 
   useEffect(() => {
     let active = true
@@ -191,13 +209,14 @@ export default function PublicTimelinePage() {
       if (!username) { setNotFound(true); setLoading(false); return }
       const { data } = await supabase
         .from('public_car_profiles')
-        .select('id, active_car_id, purchase_story, purchase_date, created_at, show_timeline_publicly, mileage_unit')
+        .select('id, active_car_id, purchase_story, purchase_date, created_at, show_timeline_publicly, mileage_unit, nickname, year, model, variant')
         .eq('username', username)
       if (!active) return
       const rows = (data as Array<{
         id: string; active_car_id: string | null
         purchase_story: string | null; purchase_date: string | null; created_at: string | null
         show_timeline_publicly: boolean | null; mileage_unit: string | null
+        nickname: string | null; year: number | null; model: string | null; variant: string | null
       }> | null) ?? []
       const activeId = rows[0]?.active_car_id
       const car = (carParam ? rows.find(r => r.id === carParam) : null)
@@ -205,6 +224,8 @@ export default function PublicTimelinePage() {
       if (!car || car.show_timeline_publicly === false) { setNotFound(true); setLoading(false); return }
       setCarId(car.id)
       if (car.mileage_unit) setCarMileageUnit(car.mileage_unit)
+      const fullName = [car.year, car.model, car.variant].filter(Boolean).join(' ').trim()
+      setCarName(car.nickname?.trim() || fullName || 'This Build')
 
       const { data: entData } = await supabase.from('timeline_entries')
         .select('id, entry_type, is_origin, title, photo_url, journal_entry, display_date, session_id')
@@ -320,6 +341,40 @@ export default function PublicTimelinePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, entries.length])
 
+  // Save scroll on entry drill-in; restore it on return (skipped on a fresh dive).
+  const saveScroll = () => {
+    try { sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current?.scrollTop ?? 0)) } catch { /* ignore */ }
+  }
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (loading || restoredRef.current) return
+    restoredRef.current = true
+    let saved = 0
+    try { saved = Number(sessionStorage.getItem(SCROLL_KEY)) || 0; sessionStorage.removeItem(SCROLL_KEY) } catch { /* ignore */ }
+    if (arrival === 'overture' || saved <= 0) return
+    const apply = () => { if (scrollRef.current) scrollRef.current.scrollTop = saved }
+    requestAnimationFrame(() => { apply(); requestAnimationFrame(apply) })
+    const t = window.setTimeout(apply, 340)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  // Overture stats line: "N entries · YYYY – now"
+  const oStartYear = origin?.display_date ? yearOf(origin.display_date)
+    : (entries[0] ? yearOf(entries[0].display_date) : null)
+  const oLast = entries[entries.length - 1]
+  const oEndNum = oLast ? Number(yearOf(oLast.display_date)) : (oStartYear ? Number(oStartYear) : null)
+  const oNow = new Date().getFullYear()
+  const oCount = entries.length + (origin ? 1 : 0)
+  const oRange = oStartYear
+    ? (oEndNum && oEndNum >= oNow ? `${oStartYear} – now`
+        : (oEndNum && String(oEndNum) !== oStartYear ? `${oStartYear} – ${oEndNum}` : oStartYear))
+    : ''
+  const overtureSubtitle = [
+    oCount > 0 ? `${oCount} ${oCount === 1 ? 'entry' : 'entries'}` : '',
+    oRange,
+  ].filter(Boolean).join('   ·   ')
+
   const chevron = (
     <button
       onClick={back} aria-label="Back to profile"
@@ -344,7 +399,16 @@ export default function PublicTimelinePage() {
         maxWidth: 440, margin: '0 auto',
       }}
     >
-      <ArrivalFade />
+      {/* Arrival: cinematic Overture on a fresh dive from the public map; plain fade otherwise */}
+      {arrival === 'overture'
+        ? (loading
+            ? <div style={{ position: 'fixed', inset: 0, zIndex: 95, background: '#0a0805' }} />
+            : <TimelineOverture
+                title={carName} subtitle={overtureSubtitle}
+                onLeaveStart={() => setSettled(true)}
+                onDone={() => setArrival('none')}
+              />)
+        : arrival === 'fade' ? <ArrivalFade /> : null}
 
       {/* Ambient material — warm light-leak at the top + a soft vignette + faint grain */}
       <div aria-hidden style={{
@@ -390,7 +454,13 @@ export default function PublicTimelinePage() {
   let lastYear: string | null = origin?.display_date ? yearOf(origin.display_date) : null
 
   return shell(
-    <div style={{ position: 'relative', zIndex: 2 }}>
+    <div style={{
+      position: 'relative', zIndex: 2,
+      transform: settled ? 'none' : 'translateY(30px) scale(1.04)',
+      opacity: settled ? 1 : 0,
+      transformOrigin: '50% 0',
+      transition: settled ? `transform 900ms ${EASING_SETTLE}, opacity 700ms ${EASING_SETTLE}` : 'none',
+    }}>
       {/* ── Origin hero — full-bleed magazine opener (read-only) ── */}
       {origin && (
         <Reveal>
@@ -503,7 +573,8 @@ export default function PublicTimelinePage() {
             <EntryBlock accent={accent} isLast={isLast}>
               <Reveal>
                 <article
-                  onClick={() => navigate(`/builds/${username}/timeline/entry/${e.id}${carParam ? `?car=${carParam}` : ''}`)}
+                  data-sfx="tick"
+                  onClick={() => { saveScroll(); navigate(`/builds/${username}/timeline/entry/${e.id}${carParam ? `?car=${carParam}` : ''}`) }}
                   onPointerDown={() => setPressedId(e.id)}
                   onPointerUp={() => setPressedId(null)}
                   onPointerLeave={() => setPressedId(null)}

@@ -45,6 +45,9 @@ const THUMB      = 90  // standard-card "photo print" thumbnail size
 // entry detail or the compose screen.
 const OVERTURE_KEY = 'gdim_tl_overture'
 
+// Remembers scroll position so returning from an entry lands where you left off.
+const SCROLL_KEY = 'gdim_tl_scroll'
+
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 1, maxWidthOrHeight: 1920,
   useWebWorker: true, exifOrientation: -1 as const, fileType: 'image/jpeg' as const,
@@ -58,7 +61,7 @@ const TYPE_META: Record<StdType, { label: string; color: string }> = {
   modification: { label: 'Modification', color: COLOR_TIMELINE_MOD },
   maintenance:  { label: 'Service',      color: COLOR_TIMELINE_SERVICE },
   detail:       { label: 'Detail',       color: COLOR_TIMELINE_DETAIL },
-  note:         { label: 'Note',         color: COLOR_TIMELINE_NOTE },
+  note:         { label: 'Entry',        color: COLOR_TIMELINE_NOTE },
 }
 
 type TLEntry = {
@@ -446,6 +449,24 @@ export default function TimelinePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, entries.length])
 
+  // Save scroll position when leaving for an entry; restore it on return.
+  const saveScroll = () => {
+    try { sessionStorage.setItem(SCROLL_KEY, String(scrollRef.current?.scrollTop ?? 0)) } catch { /* ignore */ }
+  }
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (loading || restoredRef.current) return
+    restoredRef.current = true
+    let saved = 0
+    try { saved = Number(sessionStorage.getItem(SCROLL_KEY)) || 0; sessionStorage.removeItem(SCROLL_KEY) } catch { /* ignore */ }
+    if (arrival === 'overture' || saved <= 0) return  // fresh dive starts at the top
+    const apply = () => { if (scrollRef.current) scrollRef.current.scrollTop = saved }
+    requestAnimationFrame(() => { apply(); requestAnimationFrame(apply) })
+    const t = window.setTimeout(apply, 340)  // re-apply after enrichment expands cards
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
   // Overture stats line: "N entries · YYYY – now"
   const startYear = origin?.display_date ? yearOf(origin.display_date)
     : (entries[0] ? yearOf(entries[0].display_date) : null)
@@ -728,7 +749,7 @@ export default function TimelinePage() {
                 <article
                   className="tl-press"
                   data-sfx="tick"
-                  onClick={() => navigate(`/timeline/entry/${e.id}`)}
+                  onClick={() => { saveScroll(); navigate(`/timeline/entry/${e.id}`) }}
                   style={{
                     background: COLOR_TIMELINE_CARD,
                     borderRadius: RADIUS_TIMELINE_CARD,

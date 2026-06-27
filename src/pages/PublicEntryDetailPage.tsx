@@ -37,7 +37,7 @@ const TYPE_META: Record<EntryType, { label: string; color: string }> = {
   modification: { label: 'Modification',  color: COLOR_TIMELINE_MOD },
   maintenance:  { label: 'Service',       color: COLOR_TIMELINE_SERVICE },
   detail:       { label: 'Detail',        color: COLOR_TIMELINE_DETAIL },
-  note:         { label: 'Note',          color: COLOR_TIMELINE_NOTE },
+  note:         { label: 'Entry',         color: COLOR_TIMELINE_NOTE },
 }
 
 type Entry = {
@@ -192,7 +192,7 @@ export default function PublicEntryDetailPage() {
         const urls = (photoRes.data ?? []).map(p => (p as { photo_url: string }).photo_url)
         setPhotos(urls.length ? urls : hero)
         setLinks((linkRes.data ?? []) as LinkRow[])
-        setTitle(e.title?.trim() || 'Note')
+        setTitle(e.title?.trim() || 'Entry')
       } else if (e.is_origin || e.entry_type === 'origin') {
         setPhotos(hero)
         setTitle('The Beginning')

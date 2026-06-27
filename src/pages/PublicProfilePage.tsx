@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { playConfirm } from '../lib/sound'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, iconFeatured,
 } from '../lib/destinationIcons'
@@ -461,6 +462,10 @@ export default function PublicProfilePage() {
     }
     const dest = routes[n.id]
     if (dest) {
+      playConfirm()
+      // Arm the Timeline's cinematic Overture for this dive only (consumed once
+      // on arrival, so back-navigation into the timeline stays instant).
+      if (n.id === 'timeline') { try { sessionStorage.setItem('gdim_pub_tl_overture', '1') } catch { /* ignore */ } }
       // Tag this hop so the profile's driver dot reverses (right-to-left) when
       // the visitor returns from this sub-page. Cleared on the next fresh mount.
       try { sessionStorage.setItem('gdim_pub_return', '1') } catch { /* ignore */ }
