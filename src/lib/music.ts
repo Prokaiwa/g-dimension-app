@@ -59,6 +59,35 @@ export function stopMusic(): void {
   if (el) el.pause()
 }
 
+// One-shot cinematic swell: lift the bed above its resting volume, hold, then
+// ease back down. Used by the Timeline cold open so the music rises with the
+// title moment. No-ops when music is off / not playing, and restores the
+// resting volume even if interrupted.
+let swellRaf = 0
+export function swellMusic(): void {
+  if (!el || el.paused) return
+  const base = MUSIC_VOLUME
+  const peak = 0.6
+  const up = 900, hold = 500, down = 1700
+  const total = up + hold + down
+  const start = performance.now()
+  cancelAnimationFrame(swellRaf)
+  const easeOut = (p: number) => 1 - Math.pow(1 - p, 3)
+  const easeInOut = (p: number) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2)
+  const tick = (now: number) => {
+    if (!el) return
+    const t = now - start
+    let v = base
+    if (t < up) v = base + (peak - base) * easeOut(t / up)
+    else if (t < up + hold) v = peak
+    else if (t < total) v = peak + (base - peak) * easeInOut((t - up - hold) / down)
+    el.volume = Math.min(1, Math.max(0, v))
+    if (t < total) swellRaf = requestAnimationFrame(tick)
+    else el.volume = base
+  }
+  swellRaf = requestAnimationFrame(tick)
+}
+
 // Call once at app start. Tries to play now (likely blocked pre-gesture), then
 // starts on the first user interaction. Also pauses when the tab is hidden and
 // resumes when it returns, so the loop doesn't run in the background forever.

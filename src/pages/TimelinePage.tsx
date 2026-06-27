@@ -23,6 +23,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import ArrivalFade from '../components/ArrivalFade'
 import TimelineOverture from '../components/TimelineOverture'
 import { CameraIcon } from '../components/CameraIcon'
+import { playTick } from '../lib/sound'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
@@ -164,7 +165,7 @@ function ThumbImg({ src }: { src: string }) {
 function EntryBlock({ accent, isLast, children }: { accent: string; isLast: boolean; children: React.ReactNode }) {
   const [ref, shown] = useRevealed()
   return (
-    <div ref={ref} style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingBottom: 18 }}>
+    <div ref={ref} data-tl-node style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingBottom: 18 }}>
       <div style={{
         position: 'absolute', left: SPINE_LEFT, top: 0, bottom: isLast ? 'auto' : 0, height: isLast ? 22 : undefined,
         width: 2, background: COLOR_TIMELINE_RULE,
@@ -361,13 +362,60 @@ export default function TimelinePage() {
     }
   }
 
-  // Scroll-driven parallax for the Origin hero (mutated directly — no re-render).
+  // Scroll-driven effects — all mutated directly off refs (no re-render):
+  //  • Origin hero parallax
+  //  • the "living thread": a glowing orb that rides the spine at the playhead,
+  //    with a comet tail, and a soft tick as it passes each entry node.
   const scrollRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLImageElement>(null)
+  const colRef = useRef<HTMLDivElement>(null)
+  const orbRef = useRef<HTMLDivElement>(null)
+  const passedRef = useRef(-1)        // entry nodes already passed (−1 = uninitialised)
+  const rafRef = useRef(0)
+
+  const PLAYHEAD = 0.46               // fraction of the viewport height the orb sits at
+
+  const updateThread = () => {
+    const container = scrollRef.current
+    const col = colRef.current
+    const orb = orbRef.current
+    if (!container || !col || !orb) return
+    const cRect = container.getBoundingClientRect()
+    const colRect = col.getBoundingClientRect()
+    const playheadScreenY = cRect.top + container.clientHeight * PLAYHEAD
+
+    const nodes = col.querySelectorAll<HTMLElement>('[data-tl-node]')
+    if (nodes.length === 0) { orb.style.opacity = '0'; return }
+
+    const firstY = nodes[0].getBoundingClientRect().top + 16
+    const lastY = nodes[nodes.length - 1].getBoundingClientRect().top + 16
+    const active = playheadScreenY >= firstY - 36 && playheadScreenY <= lastY + 36
+    orb.style.top = `${(playheadScreenY - colRect.top).toFixed(1)}px`
+    orb.style.opacity = active ? '1' : '0'
+
+    let passed = 0
+    nodes.forEach(n => { if (n.getBoundingClientRect().top + 16 <= playheadScreenY) passed++ })
+    if (passedRef.current >= 0 && passed > passedRef.current && active) playTick()
+    passedRef.current = passed
+  }
+
   const onScroll = () => {
     const y = scrollRef.current?.scrollTop ?? 0
     if (heroRef.current) heroRef.current.style.transform = `translateY(${(y * 0.12).toFixed(1)}px)`
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(() => { rafRef.current = 0; updateThread() })
+    }
   }
+
+  // Settle the orb into position once the list is laid out (and on resize).
+  useEffect(() => {
+    if (loading) return
+    const id = requestAnimationFrame(updateThread)
+    const onResize = () => updateThread()
+    window.addEventListener('resize', onResize)
+    return () => { cancelAnimationFrame(id); window.removeEventListener('resize', onResize) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, entries.length])
 
   // Overture stats line: "N entries · YYYY – now"
   const startYear = origin?.display_date ? yearOf(origin.display_date)
@@ -440,7 +488,15 @@ export default function TimelinePage() {
         .tl-press:active { transform: scale(0.97); }
         @keyframes tlKen { from { transform: scale(1.05); } to { transform: scale(1.16); } }
         .tl-ken { animation: tlKen 26s ease-in-out infinite alternate; }
-        @media (prefers-reduced-motion: reduce) { .tl-ken { animation: none; transform: scale(1.05); } }
+        @keyframes tlOrbPulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 0 9px 2px rgba(200,140,60,0.6); }
+          50% { transform: scale(1.22); box-shadow: 0 0 14px 5px rgba(200,140,60,0.78); }
+        }
+        .tl-orb-dot { animation: tlOrbPulse 2.4s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .tl-ken { animation: none; transform: scale(1.05); }
+          .tl-orb-dot { animation: none; }
+        }
       `}</style>
       {chevron}
       <input ref={fileRef} type="file" accept="image/*" onChange={onPickOriginPhoto} style={{ display: 'none' }} />
@@ -584,16 +640,37 @@ export default function TimelinePage() {
       )}
 
       {/* ── Entries column ── */}
-      <div style={{ maxWidth: CANVAS_W, margin: '0 auto', padding: `${origin ? 30 : 64}px 20px 96px` }}>
+      <div ref={colRef} style={{ position: 'relative', maxWidth: CANVAS_W, margin: '0 auto', padding: `${origin ? 30 : 64}px 20px 96px` }}>
+
+      {/* Living thread — a glowing orb that rides the spine at the scroll
+          playhead, trailing a comet of light. Position (top) + visibility are
+          mutated on scroll; x is the spine line (column pad 20 + SPINE_LEFT). */}
+      {entries.length > 0 && (
+        <div ref={orbRef} aria-hidden style={{
+          position: 'absolute', left: 20 + SPINE_LEFT, top: 0, width: 0, height: 0,
+          opacity: 0, transition: 'opacity 320ms ease', pointerEvents: 'none', zIndex: 3,
+        }}>
+          {/* comet tail trailing up the thread (where the orb came from) */}
+          <div style={{
+            position: 'absolute', left: -1.5, bottom: 0, width: 3, height: 160, borderRadius: 2,
+            background: `linear-gradient(to top, ${COLOR_ACCENT} 0%, rgba(200,140,60,0.35) 38%, rgba(200,140,60,0) 100%)`,
+          }} />
+          {/* the glowing playhead */}
+          <div className="tl-orb-dot" style={{
+            position: 'absolute', left: -6, top: -6, width: 12, height: 12, borderRadius: '50%',
+            background: COLOR_ACCENT, boxShadow: '0 0 9px 2px rgba(200,140,60,0.6)',
+          }} />
+        </div>
+      )}
 
       {/* ── Standard entries — oldest first, year dividers, connecting thread ── */}
-      {entries.map((e, i) => {
+      {entries.map((e) => {
         const year = yearOf(e.display_date)
         const showYear = year !== lastYear
         lastYear = year
         const type = e.entry_type as StdType
         const accent = TYPE_META[type]?.color ?? COLOR_TIMELINE_MOD
-        const isLast = i === entries.length - 1
+        const isLast = false // a closing beat always follows, so the spine runs through
         const m = e.session_id ? meta[e.session_id] : undefined
         const img = e.photo_url || m?.photo || null
 
@@ -675,6 +752,39 @@ export default function TimelinePage() {
           </div>
         )
       })}
+
+      {/* ── Closing beat — the thread tapers to "now", inviting the next chapter ── */}
+      {entries.length > 0 && (
+        <div data-tl-node style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingTop: 6 }}>
+          {/* the thread tapers off below the final node */}
+          <div style={{
+            position: 'absolute', left: SPINE_LEFT, top: 0, width: 2, height: 48, transform: 'translateX(-50%)',
+            background: `linear-gradient(to bottom, ${COLOR_TIMELINE_RULE} 0%, rgba(224,216,206,0) 100%)`,
+          }} />
+          {/* terminal node */}
+          <div style={{
+            position: 'absolute', left: SPINE_LEFT, top: 12, width: NODE_SIZE, height: NODE_SIZE,
+            borderRadius: '50%', background: COLOR_TIMELINE_CHEVRON, border: `2px solid ${COLOR_TIMELINE_BG}`,
+            transform: 'translateX(-50%)',
+          }} />
+          <Reveal>
+            <div style={{ paddingTop: 30 }}>
+              <div style={{
+                fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.2em',
+                textTransform: 'uppercase', color: COLOR_TIMELINE_CHEVRON, marginBottom: 8,
+              }}>
+                The story continues
+              </div>
+              <p style={{
+                margin: 0, maxWidth: 280, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
+                fontSize: 19, lineHeight: 1.5, color: COLOR_TIMELINE_MUTED,
+              }}>
+                Every drive, every part, every memory — the next chapter is yours to add.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      )}
     </div>
     </div>
 

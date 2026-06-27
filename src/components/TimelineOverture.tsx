@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   FONT_UI, FONT_TITLE, COLOR_TIMELINE_CHEVRON, COLOR_ACCENT_TEXT, EASING_SETTLE,
 } from '../tokens'
+import { swellMusic } from '../lib/music'
 
 const VOID = '#0a0805'           // warm near-black (a hair warmer than #050507)
 const REDUCED = typeof window !== 'undefined' &&
@@ -39,6 +40,7 @@ export default function TimelineOverture({
   }
 
   useEffect(() => {
+    swellMusic() // lift the background bed with the title moment
     const t = window.setTimeout(finish, ENTER_HOLD)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
