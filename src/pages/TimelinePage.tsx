@@ -24,6 +24,7 @@ import ArrivalFade from '../components/ArrivalFade'
 import TimelineOverture from '../components/TimelineOverture'
 import { CameraIcon } from '../components/CameraIcon'
 import { playThreadTick } from '../lib/sound'
+import { milesToUnit, asMileageUnit } from '../lib/mileage'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
@@ -71,7 +72,7 @@ type TLEntry = {
   session_id: string | null
 }
 
-type SessionMeta = { title: string | null; shop: string | null; jobTitles: string[]; photo: string | null }
+type SessionMeta = { title: string | null; shop: string | null; jobNames: string[]; mileage: number | null; photo: string | null }
 
 type OriginCard = {
   id: string | null            // is_origin row id, or null when still synthetic
@@ -91,21 +92,38 @@ function yearOf(d: string): string {
   return d.slice(0, 4)
 }
 
-function entryTitle(e: TLEntry, meta: SessionMeta | undefined): string {
-  // Notes (and any entry with its own headline) carry the title directly.
-  if (e.title?.trim()) return e.title.trim()
-  const type = e.entry_type as StdType
+// The card's text model — surfaces what's actually inside the entry instead of
+// a dead "N jobs". `components` is the job list (shown under a group/custom
+// title); when there's no title the list becomes the title itself.
+function cardText(
+  e: TLEntry, meta: SessionMeta | undefined, mileageUnit: string,
+): { title: string; components: string | null; metaLine: string | null } {
+  const customTitle = e.title?.trim() || meta?.title?.trim() || null
+  const names = meta?.jobNames ?? []
   const shop = meta?.shop?.trim() || null
-  const titles = meta?.jobTitles ?? []
+  const mileage = meta?.mileage ?? null
+  const type = e.entry_type as StdType
 
-  let base: string
-  if (meta?.title?.trim()) base = meta.title.trim()
-  else if (titles.length === 1) base = titles[0]
-  else if (titles.length > 1) base = `${titles.length} jobs`
-  else base = shop || TYPE_META[type].label
+  let title: string
+  let components: string | null = null
+  if (customTitle) {
+    title = customTitle
+    components = names.length ? names.join(' · ') : null
+  } else if (names.length === 1) {
+    title = names[0]
+  } else if (names.length > 1) {
+    title = names.join(' · ')
+  } else {
+    title = shop || TYPE_META[type].label
+  }
 
-  if (shop && base !== shop && titles.length !== 1) return `${base} · ${shop}`
-  return base
+  const metaBits: string[] = []
+  if (shop) metaBits.push(shop)
+  if (mileage != null) {
+    const u = asMileageUnit(mileageUnit)
+    metaBits.push(`${milesToUnit(mileage, u).toLocaleString()} ${u}`)
+  }
+  return { title, components, metaLine: metaBits.length ? metaBits.join(' · ') : null }
 }
 
 // ── Scroll-reveal primitives (Part 7: IntersectionObserver fade-in) ──
@@ -195,6 +213,7 @@ export default function TimelinePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [carName, setCarName] = useState('Your Build')
+  const [carMileageUnit, setCarMileageUnit] = useState('mi')
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Arrival treatment, decided once on mount:
@@ -235,7 +254,7 @@ export default function TimelinePage() {
 
       const [carRes, entRes] = await Promise.all([
         supabase.from('cars')
-          .select('purchase_story, purchase_date, created_at, nickname, year, model, variant')
+          .select('purchase_story, purchase_date, created_at, nickname, year, model, variant, mileage_unit')
           .eq('id', cid).single(),
         supabase.from('timeline_entries')
           .select('id, entry_type, is_origin, title, photo_url, journal_entry, display_date, session_id')
@@ -251,10 +270,11 @@ export default function TimelinePage() {
 
       // Build the Overture's hero title: nickname if set, else "year model variant".
       const carMeta = carRes.data as
-        { nickname: string | null; year: number | null; model: string | null; variant: string | null } | null
+        { nickname: string | null; year: number | null; model: string | null; variant: string | null; mileage_unit: string | null } | null
       if (carMeta) {
         const full = [carMeta.year, carMeta.model, carMeta.variant].filter(Boolean).join(' ').trim()
         setCarName(carMeta.nickname?.trim() || full || 'Your Build')
+        if (carMeta.mileage_unit) setCarMileageUnit(carMeta.mileage_unit)
       }
 
       if (originRow) {
@@ -283,20 +303,21 @@ export default function TimelinePage() {
       const sessionIds = std.map(e => e.session_id).filter((x): x is string => !!x)
       if (sessionIds.length) {
         const [sessRes, jobRes] = await Promise.all([
-          supabase.from('sessions').select('id, title, shop_name').in('id', sessionIds),
-          supabase.from('jobs').select('id, session_id, title').in('session_id', sessionIds),
+          supabase.from('sessions').select('id, title, shop_name, mileage').in('id', sessionIds),
+          supabase.from('jobs').select('id, session_id, title, brand').in('session_id', sessionIds),
         ])
         if (!active) return
         const m: Record<string, SessionMeta> = {}
-        for (const s of (sessRes.data ?? []) as { id: string; title: string | null; shop_name: string | null }[]) {
-          m[s.id] = { title: s.title, shop: s.shop_name, jobTitles: [], photo: null }
+        for (const s of (sessRes.data ?? []) as { id: string; title: string | null; shop_name: string | null; mileage: number | null }[]) {
+          m[s.id] = { title: s.title, shop: s.shop_name, jobNames: [], mileage: s.mileage, photo: null }
         }
         const jobToSession: Record<string, string> = {}
-        for (const j of (jobRes.data ?? []) as { id: string; session_id: string | null; title: string | null }[]) {
+        for (const j of (jobRes.data ?? []) as { id: string; session_id: string | null; title: string | null; brand: string | null }[]) {
           if (!j.session_id) continue
-          ;(m[j.session_id] ??= { title: null, shop: null, jobTitles: [], photo: null })
+          ;(m[j.session_id] ??= { title: null, shop: null, jobNames: [], mileage: null, photo: null })
           jobToSession[j.id] = j.session_id
-          if (j.title) m[j.session_id].jobTitles.push(j.title)
+          const name = [j.brand?.trim(), j.title?.trim()].filter(Boolean).join(' ')
+          if (name) m[j.session_id].jobNames.push(name)
         }
         const jobIds = Object.keys(jobToSession)
         if (jobIds.length) {
@@ -681,6 +702,7 @@ export default function TimelinePage() {
         const isLast = false // a closing beat always follows, so the spine runs through
         const m = e.session_id ? meta[e.session_id] : undefined
         const img = e.photo_url || m?.photo || null
+        const ct = cardText(e, m, carMileageUnit)
 
         return (
           <div key={e.id}>
@@ -727,9 +749,21 @@ export default function TimelinePage() {
                           {fmtDate(e.display_date)}
                         </span>
                       </div>
-                      <div style={{ marginTop: 3, fontFamily: FONT_UI, fontSize: 15, fontWeight: 700, color: COLOR_TIMELINE_TEXT, lineHeight: 1.3 }}>
-                        {entryTitle(e, m)}
+                      <div style={{
+                        marginTop: 3, fontFamily: FONT_UI, fontSize: 15, fontWeight: 700, color: COLOR_TIMELINE_TEXT, lineHeight: 1.3,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                      }}>
+                        {ct.title}
                       </div>
+                      {/* Components inside a titled group/session */}
+                      {ct.components && (
+                        <div style={{
+                          margin: '4px 0 0', fontFamily: FONT_UI, fontSize: 12, fontWeight: 500, color: COLOR_TIMELINE_MUTED, lineHeight: 1.4,
+                          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        }}>
+                          {ct.components}
+                        </div>
+                      )}
                       {e.journal_entry && (
                         <p style={{
                           margin: '6px 0 0', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
@@ -738,6 +772,16 @@ export default function TimelinePage() {
                         }}>
                           {e.journal_entry}
                         </p>
+                      )}
+                      {/* Quiet meta: shop · mileage at the time */}
+                      {ct.metaLine && (
+                        <div style={{
+                          margin: '7px 0 0', fontFamily: FONT_UI, fontSize: 11, fontWeight: 600, letterSpacing: '0.02em',
+                          color: COLOR_TIMELINE_YEAR, fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {ct.metaLine}
+                        </div>
                       )}
                     </div>
 

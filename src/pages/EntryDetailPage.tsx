@@ -14,6 +14,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
+import { milesToUnit, asMileageUnit } from '../lib/mileage'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT, COLOR_TIMELINE_MUTED,
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_YEAR,
@@ -76,6 +77,8 @@ export default function EntryDetailPage() {
   const [photos, setPhotos] = useState<string[]>([])
   const [links, setLinks] = useState<LinkRow[]>([])
   const [source, setSource] = useState<{ route: string; label: string } | null>(null)
+  const [jobsList, setJobsList] = useState<{ brand: string | null; title: string | null; category: string | null }[]>([])
+  const [sessionInfo, setSessionInfo] = useState<{ shop: string | null; mileage: number | null; mileageUnit: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [delErr, setDelErr] = useState<string | null>(null)
@@ -124,14 +127,19 @@ export default function EntryDetailPage() {
         setTitle('The Beginning')
       } else if (e.session_id) {
         // Session-derived entry: pull the session's jobs, photos, links.
-        const [sessRes, jobRes] = await Promise.all([
-          supabase.from('sessions').select('title, shop_name, type').eq('id', e.session_id).single(),
-          supabase.from('jobs').select('id, title').eq('session_id', e.session_id),
+        const [sessRes, jobRes, carRes] = await Promise.all([
+          supabase.from('sessions').select('title, shop_name, type, mileage').eq('id', e.session_id).single(),
+          supabase.from('jobs').select('id, title, brand, category').eq('session_id', e.session_id),
+          supabase.from('cars').select('mileage_unit').eq('id', e.car_id).single(),
         ])
         if (!active) return
-        const sess = sessRes.data as { title: string | null; shop_name: string | null; type: string | null } | null
-        const jobs = (jobRes.data ?? []) as { id: string; title: string | null }[]
+        const sess = sessRes.data as { title: string | null; shop_name: string | null; type: string | null; mileage: number | null } | null
+        const jobs = (jobRes.data ?? []) as { id: string; title: string | null; brand: string | null; category: string | null }[]
+        const mileageUnit = (carRes.data as { mileage_unit: string | null } | null)?.mileage_unit || 'mi'
         const jobIds = jobs.map(j => j.id)
+
+        setJobsList(jobs.map(j => ({ brand: j.brand, title: j.title, category: j.category })))
+        setSessionInfo({ shop: sess?.shop_name ?? null, mileage: sess?.mileage ?? null, mileageUnit })
 
         let urls: string[] = []
         let lks: LinkRow[] = []
@@ -333,6 +341,19 @@ export default function EntryDetailPage() {
           {title}
         </h1>
 
+        {/* Meta strip — shop · mileage at the time */}
+        {sessionInfo && (sessionInfo.shop || sessionInfo.mileage != null) && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 10px', margin: '-6px 0 18px', fontFamily: FONT_UI, fontSize: 12.5, fontWeight: 600, color: COLOR_TIMELINE_YEAR }}>
+            {sessionInfo.shop && <span>{sessionInfo.shop}</span>}
+            {sessionInfo.shop && sessionInfo.mileage != null && <span style={{ opacity: 0.5 }}>·</span>}
+            {sessionInfo.mileage != null && (
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {milesToUnit(sessionInfo.mileage, asMileageUnit(sessionInfo.mileageUnit)).toLocaleString()} {asMileageUnit(sessionInfo.mileageUnit)}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Journal */}
         {entry.journal_entry && (
           <p style={{
@@ -341,6 +362,26 @@ export default function EntryDetailPage() {
           }}>
             {entry.journal_entry}
           </p>
+        )}
+
+        {/* What was done — the components in this session */}
+        {jobsList.length >= 2 && (
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_YEAR, marginBottom: 10 }}>
+              What was done
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: COLOR_TIMELINE_RULE, borderRadius: RADIUS_TIMELINE_CARD, overflow: 'hidden' }}>
+              {jobsList.map((j, i) => {
+                const name = [j.brand?.trim(), j.title?.trim()].filter(Boolean).join(' ') || 'Item'
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: COLOR_TIMELINE_CARD, padding: '11px 14px' }}>
+                    <span style={{ fontFamily: FONT_UI, fontSize: 14, fontWeight: 700, color: COLOR_TIMELINE_TEXT, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                    {j.category && <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_TIMELINE_MUTED }}>{j.category}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         {/* Internal navigation buttons (e.g. View Install Guide) */}
