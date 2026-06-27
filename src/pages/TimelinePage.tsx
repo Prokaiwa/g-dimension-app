@@ -23,7 +23,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import ArrivalFade from '../components/ArrivalFade'
 import TimelineOverture from '../components/TimelineOverture'
 import { CameraIcon } from '../components/CameraIcon'
-import { playTick } from '../lib/sound'
+import { playThreadTick } from '../lib/sound'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
   COLOR_TIMELINE_MUTED, COLOR_TIMELINE_YEAR, COLOR_TIMELINE_RULE,
@@ -373,8 +373,6 @@ export default function TimelinePage() {
   const passedRef = useRef(-1)        // entry nodes already passed (−1 = uninitialised)
   const rafRef = useRef(0)
 
-  const PLAYHEAD = 0.46               // fraction of the viewport height the orb sits at
-
   const updateThread = () => {
     const container = scrollRef.current
     const col = colRef.current
@@ -382,20 +380,30 @@ export default function TimelinePage() {
     if (!container || !col || !orb) return
     const cRect = container.getBoundingClientRect()
     const colRect = col.getBoundingClientRect()
-    const playheadScreenY = cRect.top + container.clientHeight * PLAYHEAD
 
     const nodes = col.querySelectorAll<HTMLElement>('[data-tl-node]')
     if (nodes.length === 0) { orb.style.opacity = '0'; return }
 
-    const firstY = nodes[0].getBoundingClientRect().top + 16
-    const lastY = nodes[nodes.length - 1].getBoundingClientRect().top + 16
-    const active = playheadScreenY >= firstY - 36 && playheadScreenY <= lastY + 36
-    orb.style.top = `${(playheadScreenY - colRect.top).toFixed(1)}px`
-    orb.style.opacity = active ? '1' : '0'
+    // The orb maps to overall scroll progress across the whole thread — from the
+    // first node to the closing-beat node — so scrolling to the bottom lands it
+    // exactly on "The story continues". (Column-relative Y is scroll-invariant.)
+    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + 16
+    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + 16
+    const scrollMax = container.scrollHeight - container.clientHeight
+    const frac = scrollMax > 0 ? Math.min(1, Math.max(0, container.scrollTop / scrollMax)) : 0
+    const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
+    orb.style.top = `${orbInCol.toFixed(1)}px`
 
+    // Fade in once the first node has entered the viewport (hidden over the hero).
+    const entered = nodes[0].getBoundingClientRect().top < cRect.top + container.clientHeight * 0.92
+    orb.style.opacity = entered ? '1' : '0'
+
+    // Soft tick as the orb glides past each node (downward only).
     let passed = 0
-    nodes.forEach(n => { if (n.getBoundingClientRect().top + 16 <= playheadScreenY) passed++ })
-    if (passedRef.current >= 0 && passed > passedRef.current && active) playTick()
+    nodes.forEach(n => {
+      if (n.getBoundingClientRect().top - colRect.top + 16 <= orbInCol + 0.5) passed++
+    })
+    if (passedRef.current >= 0 && passed > passedRef.current && entered) playThreadTick()
     passedRef.current = passed
   }
 
@@ -489,8 +497,8 @@ export default function TimelinePage() {
         @keyframes tlKen { from { transform: scale(1.05); } to { transform: scale(1.16); } }
         .tl-ken { animation: tlKen 26s ease-in-out infinite alternate; }
         @keyframes tlOrbPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 9px 2px rgba(200,140,60,0.6); }
-          50% { transform: scale(1.22); box-shadow: 0 0 14px 5px rgba(200,140,60,0.78); }
+          0%, 100% { transform: scale(1); box-shadow: 0 0 10px 3px rgba(240,212,160,0.7); }
+          50% { transform: scale(1.22); box-shadow: 0 0 15px 6px rgba(245,224,178,0.85); }
         }
         .tl-orb-dot { animation: tlOrbPulse 2.4s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
@@ -652,13 +660,13 @@ export default function TimelinePage() {
         }}>
           {/* comet tail trailing up the thread (where the orb came from) */}
           <div style={{
-            position: 'absolute', left: -1.5, bottom: 0, width: 3, height: 160, borderRadius: 2,
-            background: `linear-gradient(to top, ${COLOR_ACCENT} 0%, rgba(200,140,60,0.35) 38%, rgba(200,140,60,0) 100%)`,
+            position: 'absolute', left: -1.5, bottom: 0, width: 3, height: 150, borderRadius: 2,
+            background: 'linear-gradient(to top, rgba(245,224,178,0.8) 0%, rgba(245,224,178,0.3) 40%, rgba(245,224,178,0) 100%)',
           }} />
-          {/* the glowing playhead */}
+          {/* the glowing playhead — a soft warm-white light */}
           <div className="tl-orb-dot" style={{
             position: 'absolute', left: -6, top: -6, width: 12, height: 12, borderRadius: '50%',
-            background: COLOR_ACCENT, boxShadow: '0 0 9px 2px rgba(200,140,60,0.6)',
+            background: '#fdf2de', boxShadow: '0 0 10px 3px rgba(240,212,160,0.8)',
           }} />
         </div>
       )}
@@ -779,7 +787,7 @@ export default function TimelinePage() {
                 margin: 0, maxWidth: 280, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500,
                 fontSize: 19, lineHeight: 1.5, color: COLOR_TIMELINE_MUTED,
               }}>
-                Every drive, every part, every memory — the next chapter is yours to add.
+                Every drive, every part, every memory. The next chapter is yours to add.
               </p>
             </div>
           </Reveal>

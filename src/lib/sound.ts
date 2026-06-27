@@ -151,6 +151,17 @@ export function playTick(): void {
   blip(c, t + 0.035, 2600, 2600, 0.03, 0.1, 'sine')
 }
 
+/** Timeline thread tick — a soft single ping with a faint octave-below warmth,
+ *  quieter and rounder than the bright cursor tick, for the gliding orb. */
+export function playThreadTick(): void {
+  if (!isSoundEnabled()) return
+  const c = audioCtx()
+  if (!c) return
+  const t = c.currentTime
+  blip(c, t, 1318.5, 1318.5, 0.22, 0.05, 'sine')  // soft E6 ping
+  blip(c, t, 659.25, 659.25, 0.26, 0.022, 'sine') // faint octave-below warmth
+}
+
 /** Enter-section / confirm — plays the Pixabay file if loaded, else the synth
  *  ping. Warms the file in the background on a cold call so the next one uses it. */
 export function playConfirm(): void {

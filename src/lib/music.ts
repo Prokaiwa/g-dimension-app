@@ -67,9 +67,9 @@ let swellRaf = 0
 export function swellMusic(): void {
   if (!el || el.paused) return
   const base = MUSIC_VOLUME
-  const peak = 0.6
-  const up = 900, hold = 500, down = 1700
-  const total = up + hold + down
+  const dipV = 0.16, peak = 0.7        // breathe in (duck), then swell up
+  const dip = 240, up = 950, hold = 450, down = 1700
+  const total = dip + up + hold + down
   const start = performance.now()
   cancelAnimationFrame(swellRaf)
   const easeOut = (p: number) => 1 - Math.pow(1 - p, 3)
@@ -78,9 +78,10 @@ export function swellMusic(): void {
     if (!el) return
     const t = now - start
     let v = base
-    if (t < up) v = base + (peak - base) * easeOut(t / up)
-    else if (t < up + hold) v = peak
-    else if (t < total) v = peak + (base - peak) * easeInOut((t - up - hold) / down)
+    if (t < dip) v = base + (dipV - base) * easeInOut(t / dip)
+    else if (t < dip + up) v = dipV + (peak - dipV) * easeOut((t - dip) / up)
+    else if (t < dip + up + hold) v = peak
+    else if (t < total) v = peak + (base - peak) * easeInOut((t - dip - up - hold) / down)
     el.volume = Math.min(1, Math.max(0, v))
     if (t < total) swellRaf = requestAnimationFrame(tick)
     else el.volume = base
