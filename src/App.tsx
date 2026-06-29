@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, type ComponentType } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -26,75 +26,95 @@ import RouteFallback from './components/RouteFallback'
 // chunk loads on demand behind a dark Suspense fallback; the common chunks for
 // the current "world" are prefetched on idle so navigation stays instant.
 
+// A failed dynamic import is almost always a STALE CHUNK: a new version shipped
+// while this tab was open/backgrounded, so the old hashed chunk URLs no longer
+// exist and the server returns the HTML 404 page instead of JS — the
+// "'text/html' is not a valid JavaScript MIME type" error. Reload once to pull
+// the fresh index.html + new chunk names. The sessionStorage guard prevents a
+// reload loop if the failure is something other than a stale deploy.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() => factory().catch((err) => {
+    const KEY = 'gdim_chunk_reload_at'
+    const last = Number(sessionStorage.getItem(KEY) || 0)
+    if (Date.now() - last > 10_000) {
+      sessionStorage.setItem(KEY, String(Date.now()))
+      window.location.reload()
+      return new Promise<{ default: T }>(() => {}) // hang until the reload happens
+    }
+    throw err
+  }))
+}
+
 // Auth / marketing
-const LandingPage = lazy(() => import('./pages/LandingPage'))
-const LoginPage = lazy(() => import('./pages/LoginPage'))
-const SignupPage = lazy(() => import('./pages/SignupPage'))
-const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'))
-const WelcomePage = lazy(() => import('./pages/WelcomePage'))
+const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'))
+const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'))
+const SignupPage = lazyWithRetry(() => import('./pages/SignupPage'))
+const AuthCallbackPage = lazyWithRetry(() => import('./pages/AuthCallbackPage'))
+const WelcomePage = lazyWithRetry(() => import('./pages/WelcomePage'))
 
 // Hub
-const HomePage = lazy(() => import('./pages/HomePage'))
+const HomePage = lazyWithRetry(() => import('./pages/HomePage'))
 
 // Garage
-const GaragePage = lazy(() => import('./pages/GaragePage'))
-const GarageCarsPage = lazy(() => import('./pages/GarageCarsPage'))
-const GarageCarsEditPage = lazy(() => import('./pages/GarageCarsEditPage'))
-const GarageSnapshotPage = lazy(() => import('./pages/GarageSnapshotPage'))
-const GarageDocumentsPage = lazy(() => import('./pages/GarageDocumentsPage'))
-const GarageContactsPage = lazy(() => import('./pages/GarageContactsPage'))
-const GarageRemindersPage = lazy(() => import('./pages/GarageRemindersPage'))
-const GaragePdfPage = lazy(() => import('./pages/GaragePdfPage'))
+const GaragePage = lazyWithRetry(() => import('./pages/GaragePage'))
+const GarageCarsPage = lazyWithRetry(() => import('./pages/GarageCarsPage'))
+const GarageCarsEditPage = lazyWithRetry(() => import('./pages/GarageCarsEditPage'))
+const GarageSnapshotPage = lazyWithRetry(() => import('./pages/GarageSnapshotPage'))
+const GarageDocumentsPage = lazyWithRetry(() => import('./pages/GarageDocumentsPage'))
+const GarageContactsPage = lazyWithRetry(() => import('./pages/GarageContactsPage'))
+const GarageRemindersPage = lazyWithRetry(() => import('./pages/GarageRemindersPage'))
+const GaragePdfPage = lazyWithRetry(() => import('./pages/GaragePdfPage'))
 
 // Tuning
-const TuningPage = lazy(() => import('./pages/TuningPage'))
-const TuningBuildSheetPage = lazy(() => import('./pages/TuningBuildSheetPage'))
-const TuningPartsPage = lazy(() => import('./pages/TuningPartsPage'))
-const TuningAddPage = lazy(() => import('./pages/TuningAddPage'))
-const TuningModGroupPage = lazy(() => import('./pages/TuningModGroupPage'))
-const TuningModDetailPage = lazy(() => import('./pages/TuningModDetailPage'))
-const TuningModEditPage = lazy(() => import('./pages/TuningModEditPage'))
-const TuningDiyPage = lazy(() => import('./pages/TuningDiyPage'))
-const TuningDiyEditPage = lazy(() => import('./pages/TuningDiyEditPage'))
-const TuningPartDetailPage = lazy(() => import('./pages/TuningPartDetailPage'))
-const TuningPartEditPage = lazy(() => import('./pages/TuningPartEditPage'))
+const TuningPage = lazyWithRetry(() => import('./pages/TuningPage'))
+const TuningBuildSheetPage = lazyWithRetry(() => import('./pages/TuningBuildSheetPage'))
+const TuningPartsPage = lazyWithRetry(() => import('./pages/TuningPartsPage'))
+const TuningAddPage = lazyWithRetry(() => import('./pages/TuningAddPage'))
+const TuningModGroupPage = lazyWithRetry(() => import('./pages/TuningModGroupPage'))
+const TuningModDetailPage = lazyWithRetry(() => import('./pages/TuningModDetailPage'))
+const TuningModEditPage = lazyWithRetry(() => import('./pages/TuningModEditPage'))
+const TuningDiyPage = lazyWithRetry(() => import('./pages/TuningDiyPage'))
+const TuningDiyEditPage = lazyWithRetry(() => import('./pages/TuningDiyEditPage'))
+const TuningPartDetailPage = lazyWithRetry(() => import('./pages/TuningPartDetailPage'))
+const TuningPartEditPage = lazyWithRetry(() => import('./pages/TuningPartEditPage'))
 
 // Maintenance
-const MaintenancePage = lazy(() => import('./pages/MaintenancePage'))
-const MaintenanceServicePage = lazy(() => import('./pages/MaintenanceServicePage'))
-const MaintenanceServiceNewPage = lazy(() => import('./pages/MaintenanceServiceNewPage'))
-const MaintenanceServiceEditPage = lazy(() => import('./pages/MaintenanceServiceEditPage'))
-const MaintenanceSessionDetailPage = lazy(() => import('./pages/MaintenanceSessionDetailPage'))
-const MaintenanceDetailPage = lazy(() => import('./pages/MaintenanceDetailPage'))
-const MaintenanceDetailNewPage = lazy(() => import('./pages/MaintenanceDetailNewPage'))
-const MaintenanceDetailEditPage = lazy(() => import('./pages/MaintenanceDetailEditPage'))
+const MaintenancePage = lazyWithRetry(() => import('./pages/MaintenancePage'))
+const MaintenanceServicePage = lazyWithRetry(() => import('./pages/MaintenanceServicePage'))
+const MaintenanceServiceNewPage = lazyWithRetry(() => import('./pages/MaintenanceServiceNewPage'))
+const MaintenanceServiceEditPage = lazyWithRetry(() => import('./pages/MaintenanceServiceEditPage'))
+const MaintenanceSessionDetailPage = lazyWithRetry(() => import('./pages/MaintenanceSessionDetailPage'))
+const MaintenanceDetailPage = lazyWithRetry(() => import('./pages/MaintenanceDetailPage'))
+const MaintenanceDetailNewPage = lazyWithRetry(() => import('./pages/MaintenanceDetailNewPage'))
+const MaintenanceDetailEditPage = lazyWithRetry(() => import('./pages/MaintenanceDetailEditPage'))
 
 // Timeline
-const TimelinePage = lazy(() => import('./pages/TimelinePage'))
-const TimelineEntryNewPage = lazy(() => import('./pages/TimelineEntryNewPage'))
-const EntryDetailPage = lazy(() => import('./pages/EntryDetailPage'))
+const TimelinePage = lazyWithRetry(() => import('./pages/TimelinePage'))
+const TimelineEntryNewPage = lazyWithRetry(() => import('./pages/TimelineEntryNewPage'))
+const EntryDetailPage = lazyWithRetry(() => import('./pages/EntryDetailPage'))
 
 // Featured (magazine)
-const FeaturedPage = lazy(() => import('./pages/FeaturedPage'))
+const FeaturedPage = lazyWithRetry(() => import('./pages/FeaturedPage'))
 
 // Profile & settings
-const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const SettingsPage = lazy(() => import('./pages/SettingsPage'))
-const SettingsArchivedPage = lazy(() => import('./pages/SettingsArchivedPage'))
+const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'))
+const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'))
+const SettingsArchivedPage = lazyWithRetry(() => import('./pages/SettingsArchivedPage'))
 
 // Public (non-auth)
-const PublicProfilePage = lazy(() => import('./pages/PublicProfilePage'))
-const PublicTimelinePage = lazy(() => import('./pages/PublicTimelinePage'))
-const PublicBuildSheetPage = lazy(() => import('./pages/PublicBuildSheetPage'))
-const PublicGaragePage = lazy(() => import('./pages/PublicGaragePage'))
-const PublicModDetailPage = lazy(() => import('./pages/PublicModDetailPage'))
-const PublicDiyPage = lazy(() => import('./pages/PublicDiyPage'))
-const PublicEntryDetailPage = lazy(() => import('./pages/PublicEntryDetailPage'))
-const PublicFeaturedPage = lazy(() => import('./pages/PublicFeaturedPage'))
+const PublicProfilePage = lazyWithRetry(() => import('./pages/PublicProfilePage'))
+const PublicTimelinePage = lazyWithRetry(() => import('./pages/PublicTimelinePage'))
+const PublicBuildSheetPage = lazyWithRetry(() => import('./pages/PublicBuildSheetPage'))
+const PublicGaragePage = lazyWithRetry(() => import('./pages/PublicGaragePage'))
+const PublicModDetailPage = lazyWithRetry(() => import('./pages/PublicModDetailPage'))
+const PublicDiyPage = lazyWithRetry(() => import('./pages/PublicDiyPage'))
+const PublicEntryDetailPage = lazyWithRetry(() => import('./pages/PublicEntryDetailPage'))
+const PublicFeaturedPage = lazyWithRetry(() => import('./pages/PublicFeaturedPage'))
 
 // Dev tools
-const SpecTestPage = lazy(() => import('./pages/SpecTestPage'))
-const SoundTestPage = lazy(() => import('./pages/SoundTestPage'))
+const SpecTestPage = lazyWithRetry(() => import('./pages/SpecTestPage'))
+const SoundTestPage = lazyWithRetry(() => import('./pages/SoundTestPage'))
 
 // Auth + onboarding gate. 'loading' until resolved, then one of:
 //   'anon'       — no session → /login
@@ -207,6 +227,22 @@ export default function App() {
     return () => clearTimeout(id)
   }, [])
 
+  // Block pinch-zoom app-wide so it reads as a native app on every page. iOS
+  // Safari ignores the viewport `user-scalable=no` flag, so pinch must be
+  // prevented in JS (double-tap zoom is handled by touch-action:manipulation in
+  // index.css). Components that ever need their own zoom can stopPropagation.
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault()
+    document.addEventListener('gesturestart', prevent)
+    document.addEventListener('gesturechange', prevent)
+    document.addEventListener('gestureend', prevent)
+    return () => {
+      document.removeEventListener('gesturestart', prevent)
+      document.removeEventListener('gesturechange', prevent)
+      document.removeEventListener('gestureend', prevent)
+    }
+  }, [])
+
   // Route prefetch (code-splitting companion). Warm the likely-first chunk for
   // this "world" immediately (parallel with the auth check, so the first screen
   // doesn't wait on a second round-trip), then warm the rest of that world on
@@ -215,25 +251,25 @@ export default function App() {
   useEffect(() => {
     const isPublic = window.location.pathname.startsWith('/builds')
 
-    if (isPublic) void import('./pages/PublicProfilePage')
-    else void import('./pages/HomePage')
+    if (isPublic) void import('./pages/PublicProfilePage').catch(() => {})
+    else void import('./pages/HomePage').catch(() => {})
 
     const warm = () => {
       if (isPublic) {
-        void import('./pages/PublicGaragePage')
-        void import('./pages/PublicTimelinePage')
-        void import('./pages/PublicBuildSheetPage')
-        void import('./pages/PublicModDetailPage')
-        void import('./pages/PublicFeaturedPage')
+        void import('./pages/PublicGaragePage').catch(() => {})
+        void import('./pages/PublicTimelinePage').catch(() => {})
+        void import('./pages/PublicBuildSheetPage').catch(() => {})
+        void import('./pages/PublicModDetailPage').catch(() => {})
+        void import('./pages/PublicFeaturedPage').catch(() => {})
       } else {
-        void import('./pages/GaragePage')
-        void import('./pages/GarageCarsPage')
-        void import('./pages/TuningPage')
-        void import('./pages/TuningBuildSheetPage')
-        void import('./pages/MaintenancePage')
-        void import('./pages/TimelinePage')
-        void import('./pages/FeaturedPage')
-        void import('./pages/ProfilePage')
+        void import('./pages/GaragePage').catch(() => {})
+        void import('./pages/GarageCarsPage').catch(() => {})
+        void import('./pages/TuningPage').catch(() => {})
+        void import('./pages/TuningBuildSheetPage').catch(() => {})
+        void import('./pages/MaintenancePage').catch(() => {})
+        void import('./pages/TimelinePage').catch(() => {})
+        void import('./pages/FeaturedPage').catch(() => {})
+        void import('./pages/ProfilePage').catch(() => {})
       }
     }
     const w = window as typeof window & {

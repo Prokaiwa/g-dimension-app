@@ -21,6 +21,11 @@ html, body, #root {
    on every screen (the app manages its own scroll regions). */
 html, body {
   overscroll-behavior: none;
+  /* Disable double-tap-to-zoom (and the 300ms tap delay) app-wide so taps feel
+     native. Pinch-zoom is blocked separately in JS (iOS ignores the viewport
+     user-scalable flag). Components that need their own gestures (sheets,
+     carousels) set their own touch-action and override this locally. */
+  touch-action: manipulation;
 }
 
 body {
