@@ -14,10 +14,14 @@
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL || 'https://uxqoernfrtgclpneirvc.supabase.co'
-// The anon key is already public (shipped in the client bundle). Prefer the
-// env var; the hard-coded fallback keeps the function working if it's unset.
+// The anon key is already public (shipped in the client bundle — this is the
+// browser-visible anon/public key, NOT the secret service_role key). Prefer the
+// env var; the hard-coded fallback keeps the function working if it's unset, so
+// per-build previews render on first deploy with zero dashboard config.
 const SUPABASE_ANON_KEY =
-  process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4cW9lcm5mcnRnY2xwbmVpcnZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNzY3NjEsImV4cCI6MjA5Mjc1Mjc2MX0.JPDzzgf7PqNKpQ-VUJfeA84WqIuQXBl_uNk58Nqc1-E'
 
 const SITE = 'https://gdimension.app'
 const DEFAULT_IMAGE = `${SITE}/og-default.png`
