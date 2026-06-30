@@ -16,6 +16,7 @@
     },
     { "src": "^/$", "dest": "/marketing.html" },
     { "handle": "filesystem" },
+    { "src": "^/builds/(.*)", "dest": "/api/og?p=$1" },
     { "src": "^/(.*)", "dest": "/index.html" }
   ]
 }
