@@ -115,6 +115,7 @@ export default function TuningAddPage() {
     title: '', brand: '', partNumber: '',
     dateInstalled: '', installMileage: '', partsCost: '', laborCost: '',
     installedBy: null as 'self' | 'shop' | null,
+    condition: null as 'new' | 'used' | null,
     notes: '',
   })
   const [currentMileage, setCurrentMileage] = useState<number | null>(null)
@@ -466,6 +467,7 @@ export default function TuningAddPage() {
         part_type_id:   selectedPartType.id,
         title:          form.title.trim(),
         brand:          form.brand.trim()       || null,
+        condition:      form.condition          || null,
         part_number:    form.partNumber.trim()  || null,
         date_installed: form.dateInstalled      || null,
         // Only include when set, so mod-adding still works before migration 038.
@@ -932,6 +934,41 @@ export default function TuningAddPage() {
                 placeholder={brandPlaceholder(specTemplates)}
                 style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
+            </div>
+
+            {/* Condition — new or used (shown in both normal and parts-bin mode) */}
+            <div style={{ padding: '20px 22px 0' }}>
+              <label style={lbl}>Condition</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['new', 'used'] as const).map(opt => {
+                  const active = form.condition === opt
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setForm(f => ({ ...f, condition: active ? null : opt }))}
+                      style={{
+                        flex: 1, padding: '11px 0',
+                        background: active
+                          ? (partsBinMode ? 'rgba(139,58,10,0.12)' : 'rgba(105,12,22,0.22)')
+                          : 'transparent',
+                        border: `1.5px solid ${active
+                          ? (partsBinMode ? COLOR_CARDBOARD_STAMP : 'rgba(105,12,22,0.75)')
+                          : (partsBinMode ? 'rgba(61,40,16,0.25)' : 'rgba(245,240,228,0.11)')}`,
+                        cursor: 'pointer',
+                        fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+                        letterSpacing: '0.14em', textTransform: 'uppercase',
+                        color: active
+                          ? (partsBinMode ? COLOR_CARDBOARD_STAMP : '#c0303a')
+                          : (partsBinMode ? COLOR_CARDBOARD_INK2 : 'rgba(245,240,228,0.38)'),
+                        transition: 'all 200ms ease',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {opt === 'new' ? 'New' : 'Used'}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {/* Date Installed + Installed By — hidden in parts-bin mode */}

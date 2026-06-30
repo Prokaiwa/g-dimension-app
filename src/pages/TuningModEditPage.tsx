@@ -75,6 +75,7 @@ export default function TuningModEditPage() {
   // Basic fields
   const [title,         setTitle]         = useState('')
   const [brand,         setBrand]         = useState('')
+  const [condition,     setCondition]     = useState<'new' | 'used' | ''>('')
   const [partNumber,    setPartNumber]     = useState('')
   const [dateInstalled, setDateInstalled]  = useState('')
   const [installedBy,   setInstalledBy]   = useState<'self' | 'shop' | ''>('')
@@ -131,7 +132,7 @@ export default function TuningModEditPage() {
       const [{ data: job }, { data: existingSpecs }, { data: photoData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id, session_id')
+          .select('title, brand, condition, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id, session_id')
           .eq('id', modId)
           .single(),
         supabase.from('job_specs').select('spec_key, spec_value, spec_unit').eq('job_id', modId),
@@ -143,6 +144,7 @@ export default function TuningModEditPage() {
 
       setTitle(job.title ?? '')
       setBrand(job.brand ?? '')
+      setCondition((job.condition as 'new' | 'used' | null) ?? '')
       setPartNumber(job.part_number ?? '')
       setDateInstalled(job.date_installed ?? '')
       setInstalledBy(job.installed_by ?? '')
@@ -393,6 +395,7 @@ export default function TuningModEditPage() {
       .update({
         title:          title.trim(),
         brand:          brand.trim()      || null,
+        condition:      condition         || null,
         part_number:    partNumber.trim() || null,
         date_installed: dateInstalled     || null,
         installed_by:   installedBy       || null,
@@ -604,6 +607,17 @@ export default function TuningModEditPage() {
             <label style={LABEL}>Brand</label>
             <input value={brand} onChange={e => setBrand(e.target.value)}
               placeholder={brandPlaceholder(specTemplates)} style={{ ...INPUT, caretColor: '#39ff14' }} />
+          </div>
+
+          {/* Condition — new or used */}
+          <div style={{ paddingTop: 18 }}>
+            <label style={LABEL}>Condition</label>
+            <select value={condition} onChange={e => setCondition(e.target.value as 'new' | 'used' | '')}
+              style={{ ...INPUT, cursor: 'pointer', colorScheme: 'dark' }}>
+              <option value="">—</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+            </select>
           </div>
 
           {/* Date Installed */}

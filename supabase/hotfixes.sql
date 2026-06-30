@@ -5,11 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 062_tutorial_seen.sql (applied 2026-06-25)
+-- Last migration applied : 065_job_condition.sql (applied 2026-06-30)
+--   - 065 (jobs.condition — new/used flag on a mod/part; New/Used toggle on the
+--     Add/Edit forms + Condition row on mod detail) applied 2026-06-30.
 --   - 064 (spec_templates brand placeholders — fills the NULL brand-field hint
 --     for 23 part types so Add/Edit mod shows per-part-type brand examples instead
---     of generic "e.g. HKS") applied 2026-06-30. NOTE: 063_car_mileage_unit is
---     still PENDING — 064 was applied out of order ahead of it.
+--     of generic "e.g. HKS") applied 2026-06-30, out of order ahead of 063.
+--   - 063 (cars.mileage_unit — per-car odometer display unit) applied 2026-06-30.
 --   - 062 (users.tutorial_seen — onboarding-tour completion flag; new signups
 --     false → guided tour auto-starts once; replayable from Settings) applied 2026-06-25.
 --   - 061 (car_private — owner-only VIN/plate/purchase fields split out of cars;

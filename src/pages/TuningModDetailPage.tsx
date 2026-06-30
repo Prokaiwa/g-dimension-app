@@ -14,6 +14,7 @@ type Job = {
   id: string
   title: string
   brand: string | null
+  condition: 'new' | 'used' | null
   category: string | null
   date_installed: string | null
   installed_by: 'self' | 'shop' | null
@@ -125,7 +126,7 @@ export default function TuningModDetailPage() {
       const [{ data: jobData }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('id, title, brand, category, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
+          .select('id, title, brand, condition, category, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
           .eq('id', modId)
           .single(),
         supabase
@@ -496,6 +497,12 @@ export default function TuningModDetailPage() {
             <div>
               <p style={LABEL}>Brand</p>
               <p style={VALUE}>{job.brand}</p>
+            </div>
+          )}
+          {job.condition && (
+            <div>
+              <p style={LABEL}>Condition</p>
+              <p style={VALUE}>{job.condition === 'new' ? 'New' : 'Used'}</p>
             </div>
           )}
           {job.date_installed && (
