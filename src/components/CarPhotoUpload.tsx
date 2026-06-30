@@ -53,6 +53,13 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     if (!file) return
     setError(null)
     setBusy(true)
+    // Let the overlay actually paint before the cut-out begins. removeCarBackground
+    // does synchronous, main-thread-blocking work (image decode + canvas + WASM)
+    // right away, which can run before React paints the overlay and — on a warm
+    // model where removal is near-instant — finish before it ever shows. Two rAFs
+    // guarantee a painted frame first, so the "Removing the background" moment is
+    // always visible. (MIN_REMOVING_MS then keeps it up long enough to read.)
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
     const startedAt = Date.now()
     try {
       const blob = await removeCarBackground(file)
