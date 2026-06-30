@@ -47,6 +47,7 @@ export type PdfCar = {
 export type PdfMod = {
   title: string
   brand: string | null
+  condition: 'new' | 'used' | null
   category: string | null
   date_installed: string | null
   install_mileage: number | null
@@ -384,7 +385,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
       const titleW = includePricing
         ? COL_COST - COL_TITLE - 22
         : PW - MX - 4 - COL_TITLE
-      const titleLines = doc.splitTextToSize(m.title, titleW) as string[]
+      const condTag = m.condition ? ` (${m.condition === 'new' ? 'New' : 'Used'})` : ''
+      const titleLines = doc.splitTextToSize(m.title + condTag, titleW) as string[]
       const shopLines  = doc.splitTextToSize(shop, SHOP_W) as string[]
       const maxLines = Math.max(titleLines.length, shopLines.length)
       const rowH = Math.max(LINE_H + 2 * ROW_VPAD, maxLines * LINE_H + 2 * ROW_VPAD)

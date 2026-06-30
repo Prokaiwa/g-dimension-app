@@ -23,7 +23,7 @@ const VALUE: React.CSSProperties = {
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
 
 type Job = {
-  id: string; title: string; brand: string | null; condition: 'new' | 'used' | null; category: string | null
+  id: string; title: string; brand: string | null; category: string | null
   date_installed: string | null; installed_by: 'self' | 'shop' | null
   notes: string | null; part_type_id: number | null
 }
@@ -163,7 +163,7 @@ export default function PublicModDetailPage() {
     async function load() {
       const [{ data: jobData }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase.from('jobs')
-          .select('id, title, brand, condition, category, date_installed, installed_by, notes, part_type_id')
+          .select('id, title, brand, category, date_installed, installed_by, notes, part_type_id')
           .eq('id', modId).single(),
         supabase.from('job_photos')
           .select('id, photo_url, display_order')
@@ -311,7 +311,6 @@ export default function PublicModDetailPage() {
           {/* Details — no costs */}
           <div style={{ padding: '20px 20px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 16px' }}>
             {job.brand && <div><p style={LABEL}>Brand</p><p style={VALUE}>{job.brand}</p></div>}
-            {job.condition && <div><p style={LABEL}>Condition</p><p style={VALUE}>{job.condition === 'new' ? 'New' : 'Used'}</p></div>}
             {job.date_installed && <div><p style={LABEL}>Installed</p><p style={VALUE}>{formatDate(job.date_installed)}</p></div>}
             {job.installed_by && <div><p style={LABEL}>Installed By</p><p style={VALUE}>{job.installed_by === 'self' ? 'Self' : 'Shop'}</p></div>}
           </div>

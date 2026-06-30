@@ -59,7 +59,7 @@ export default function GaragePdfPage() {
           .eq('id', carId).single(),
         supabase
           .from('jobs')
-          .select('id,title,brand,category,date_installed,install_mileage,installed_by,parts_cost,labor_cost,session_id,status,type')
+          .select('id,title,brand,condition,category,date_installed,install_mileage,installed_by,parts_cost,labor_cost,session_id,status,type')
           .eq('car_id', carId).eq('status','installed').eq('type','modification')
           .order('date_installed', { ascending: false, nullsFirst: false }),
         supabase
@@ -82,7 +82,7 @@ export default function GaragePdfPage() {
       // VIN lives in car_private (migration 061) — owner-only.
       const priv = await getCarPrivate(carId)
 
-      type JobRow = { id:string; title:string; brand:string|null; category:string|null; date_installed:string|null; install_mileage:number|null; installed_by:'self'|'shop'|null; parts_cost:number|null; labor_cost:number|null; session_id:string|null }
+      type JobRow = { id:string; title:string; brand:string|null; condition:'new'|'used'|null; category:string|null; date_installed:string|null; install_mileage:number|null; installed_by:'self'|'shop'|null; parts_cost:number|null; labor_cost:number|null; session_id:string|null }
       type SvcRow = { id:string; type:string; date_performed:string; performed_by:'self'|'shop'|null; shop_name:string|null; mileage:number|null; total_cost:number|null; labor_cost:number|null; tax_amount:number|null; notes:string|null; title:string|null; jobs:{id:string;title:string;cost:number|null}[] }
 
       const jobs = (modsRes.data ?? []) as unknown as JobRow[]
@@ -91,6 +91,7 @@ export default function GaragePdfPage() {
       const mods: PdfMod[] = jobs.map(j => ({
         title: j.title,
         brand: j.brand,
+        condition: j.condition,
         category: j.category,
         date_installed: j.date_installed,
         install_mileage: j.install_mileage,
