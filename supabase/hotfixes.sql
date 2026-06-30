@@ -6,6 +6,10 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 062_tutorial_seen.sql (applied 2026-06-25)
+--   - 064 (spec_templates brand placeholders — fills the NULL brand-field hint
+--     for 23 part types so Add/Edit mod shows per-part-type brand examples instead
+--     of generic "e.g. HKS") applied 2026-06-30. NOTE: 063_car_mileage_unit is
+--     still PENDING — 064 was applied out of order ahead of it.
 --   - 062 (users.tutorial_seen — onboarding-tour completion flag; new signups
 --     false → guided tour auto-starts once; replayable from Settings) applied 2026-06-25.
 --   - 061 (car_private — owner-only VIN/plate/purchase fields split out of cars;
