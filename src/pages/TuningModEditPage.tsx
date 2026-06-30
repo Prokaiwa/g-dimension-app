@@ -5,6 +5,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
+import { TITLE_PLACEHOLDER, TITLE_FALLBACK, brandPlaceholder } from '../lib/tuningExamples'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -595,14 +596,14 @@ export default function TuningModEditPage() {
           <div>
             <label style={LABEL}>Title *</label>
             <input value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. HKS Timing Belt" style={{ ...INPUT, caretColor: '#39ff14' }} />
+              placeholder={TITLE_PLACEHOLDER[partTypeName] ?? TITLE_FALLBACK} style={{ ...INPUT, caretColor: '#39ff14' }} />
           </div>
 
           {/* Brand */}
           <div style={{ paddingTop: 18 }}>
             <label style={LABEL}>Brand</label>
             <input value={brand} onChange={e => setBrand(e.target.value)}
-              placeholder="e.g. HKS" style={{ ...INPUT, caretColor: '#39ff14' }} />
+              placeholder={brandPlaceholder(specTemplates)} style={{ ...INPUT, caretColor: '#39ff14' }} />
           </div>
 
           {/* Date Installed */}
