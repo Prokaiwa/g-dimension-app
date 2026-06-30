@@ -309,17 +309,23 @@ export default function PublicTimelinePage() {
     if (nodes.length === 0) { orb.style.opacity = '0'; return }
 
     // Park on node CENTERS (dot is NODE_SIZE tall at top:16) so the orb lands
-    // squarely on the last node, and complete a touch before the absolute scroll
-    // bottom so it fully reaches without scrolling through the trailing padding.
+    // squarely on a node. Map progress to the ENTRIES' own scroll span — not
+    // total scroll — so the tall hero above doesn't pre-advance it.
     const NODE_C = 16 + NODE_SIZE / 2
-    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + NODE_C
-    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + NODE_C
+    const firstRect = nodes[0].getBoundingClientRect()
+    const lastRect = nodes[nodes.length - 1].getBoundingClientRect()
+    const firstInCol = firstRect.top - colRect.top + NODE_C
+    const lastInCol = lastRect.top - colRect.top + NODE_C
+    const scrollTop = container.scrollTop
     const scrollMax = container.scrollHeight - container.clientHeight
-    const frac = Math.min(1, Math.max(0, container.scrollTop / Math.max(1, scrollMax - 28)))
+    const ref = container.clientHeight * 0.42
+    const startScroll = (firstRect.top - cRect.top + scrollTop) - ref
+    const endScroll = Math.min((lastRect.top - cRect.top + scrollTop) - ref, scrollMax - 28)
+    const frac = Math.min(1, Math.max(0, (scrollTop - startScroll) / Math.max(1, endScroll - startScroll)))
     const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
     orb.style.top = `${orbInCol.toFixed(1)}px`
 
-    const entered = nodes[0].getBoundingClientRect().top < cRect.top + container.clientHeight * 0.92
+    const entered = firstRect.top < cRect.top + container.clientHeight * 0.92
     orb.style.opacity = entered ? '1' : '0'
 
     let passed = 0
@@ -563,7 +569,7 @@ export default function PublicTimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
                 <span aria-hidden style={{ position: 'relative', flexShrink: 0, width: 24, height: 2, background: COLOR_TIMELINE_YEAR, opacity: 0.16 }} />
                 <span style={{

@@ -408,21 +408,27 @@ export default function TimelinePage() {
     const nodes = col.querySelectorAll<HTMLElement>('[data-tl-node]')
     if (nodes.length === 0) { orb.style.opacity = '0'; return }
 
-    // The orb maps to overall scroll progress across the whole thread, parking on
-    // node CENTERS (the node dot is NODE_SIZE tall at top:16) so it lands squarely
-    // on the last node, not its top edge. (Column-relative Y is scroll-invariant.)
+    // Park on node CENTERS (the node dot is NODE_SIZE tall at top:16) so the orb
+    // lands squarely on a node, not its top edge.
     const NODE_C = 16 + NODE_SIZE / 2
-    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + NODE_C
-    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + NODE_C
-    // Complete a touch before the absolute scroll bottom so the orb fully lands on
-    // the last node without having to scroll through the trailing padding.
+    const firstRect = nodes[0].getBoundingClientRect()
+    const lastRect = nodes[nodes.length - 1].getBoundingClientRect()
+    const firstInCol = firstRect.top - colRect.top + NODE_C
+    const lastInCol = lastRect.top - colRect.top + NODE_C
+    // Map progress to the ENTRIES' own scroll span — not total scroll — so the
+    // tall hero above doesn't pre-advance the orb. It sits on the first node as
+    // it enters (~42% reference line) and reaches the last by the bottom.
+    const scrollTop = container.scrollTop
     const scrollMax = container.scrollHeight - container.clientHeight
-    const frac = Math.min(1, Math.max(0, container.scrollTop / Math.max(1, scrollMax - 28)))
+    const ref = container.clientHeight * 0.42
+    const startScroll = (firstRect.top - cRect.top + scrollTop) - ref
+    const endScroll = Math.min((lastRect.top - cRect.top + scrollTop) - ref, scrollMax - 28)
+    const frac = Math.min(1, Math.max(0, (scrollTop - startScroll) / Math.max(1, endScroll - startScroll)))
     const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
     orb.style.top = `${orbInCol.toFixed(1)}px`
 
     // Fade in once the first node has entered the viewport (hidden over the hero).
-    const entered = nodes[0].getBoundingClientRect().top < cRect.top + container.clientHeight * 0.92
+    const entered = firstRect.top < cRect.top + container.clientHeight * 0.92
     orb.style.opacity = entered ? '1' : '0'
 
     // Soft tick as the orb glides past each node (downward only).
@@ -733,7 +739,7 @@ export default function TimelinePage() {
         return (
           <div key={e.id}>
             {showYear && (
-              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, marginTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', paddingLeft: CARD_LEFT, paddingTop: 18, height: 84, display: 'flex', alignItems: 'center', gap: 14, overflow: 'hidden' }}>
                 {/* the spine runs unbroken through the chapter break */}
                 <div style={{ position: 'absolute', left: SPINE_LEFT, top: 0, bottom: 0, width: 2, background: COLOR_TIMELINE_RULE, transform: 'translateX(-50%)' }} />
                 {/* A soft tick at the same faintness as the year, so it reads as
