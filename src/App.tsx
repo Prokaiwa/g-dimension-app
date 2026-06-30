@@ -10,6 +10,7 @@ import { initMusic, setMusicAllowed } from './lib/music'
 import { prewarmSfx } from './lib/sound'
 import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
+import { Analytics } from '@vercel/analytics/react'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
 // during the Home zoom transition. (The other node icons are inline base64
@@ -44,7 +45,6 @@ function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ de
 }
 
 // Auth / marketing
-const LandingPage = lazyWithRetry(() => import('./pages/LandingPage'))
 const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'))
 const SignupPage = lazyWithRetry(() => import('./pages/SignupPage'))
 const AuthCallbackPage = lazyWithRetry(() => import('./pages/AuthCallbackPage'))
@@ -170,6 +170,17 @@ function WelcomeRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Root "/" is served the static marketing page (public/marketing.html) by
+// Vercel on a cold load. This component only runs on in-app client navigation
+// to "/", where we send the user back out to that same marketing front door —
+// one source of truth, no shadow React landing page. In dev there's no
+// marketing rewrite, so we fall back to /login to avoid a reload loop.
+function RootRedirect() {
+  useEffect(() => { if (!import.meta.env.DEV) window.location.replace('/') }, [])
+  if (import.meta.env.DEV) return <Navigate to="/login" replace />
+  return <RouteFallback />
+}
+
 export default function App() {
   // Background music plays on authenticated in-app routes. Public build pages
   // stay silent for anonymous visitors (they have no toggle), but a logged-in
@@ -289,10 +300,15 @@ export default function App() {
     <TourProvider>
       <ErrorBanner />
       <TourOverlay />
+      {/* Vercel Web Analytics — tracks SPA route changes too, so the dashboard
+          shows per-page detail (the raw <script> only logged the entry URL). */}
+      <Analytics />
       <Suspense fallback={<RouteFallback />}>
       <Routes>
       {/* Part 10 — Full Route Map */}
-      <Route path="/" element={<LandingPage />} />
+      {/* "/" cold-loads the static marketing page (vercel.json); this only
+          handles in-app nav to "/" → bounce back to that marketing front door. */}
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       {/* Public: email-confirmation + OAuth landing. Must NOT be protected —
