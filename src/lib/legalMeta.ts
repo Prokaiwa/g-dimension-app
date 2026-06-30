@@ -4,15 +4,14 @@
 export const LEGAL = {
   appName: 'G-Dimension',
   // The person/company that operates the service and is the data controller.
-  // TODO: if you register an LLC/company, put its full legal name here.
-  operator: 'G-Dimension',
+  // (Update to a company's full legal name if you later form an LLC.)
+  operator: 'David Scantee',
   contactEmail: 'hi@gdimension.app',
   site: 'gdimension.app',
   // Shown as the "last updated" date on both documents.
   effectiveDate: 'June 30, 2026',
-  // Used in the Governing Law clause. TODO: set your specific state + country
-  // (e.g. "the State of California, United States") so venue is enforceable.
-  governingLaw: 'the United States',
+  // Governing Law clause venue.
+  governingLaw: 'the State of California, United States',
   // Minimum age to use the service (13 in the US/COPPA; 16 in much of the EU).
   minAge: 13,
 } as const
