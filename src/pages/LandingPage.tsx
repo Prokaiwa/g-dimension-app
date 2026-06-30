@@ -116,22 +116,46 @@ export default function LandingPage() {
         <span style={{ color: COLOR_TEXT_PRIMARY, textDecoration: 'underline' }}>Sign in</span>
       </button>
 
-      {/* Catchphrase — Part 1 */}
-      <p
+      {/* Footer — catchphrase + legal links */}
+      <div
         style={{
           position: 'absolute',
-          bottom: 32,
-          fontFamily: FONT_UI,
-          fontWeight: 400,
-          fontSize: 11,
-          color: COLOR_BRAND,
-          letterSpacing: '0.2em',
-          textTransform: 'uppercase',
-          margin: 0,
+          bottom: 'calc(20px + env(safe-area-inset-bottom))',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12,
         }}
       >
-        Your build. Documented.
-      </p>
+        <p
+          style={{
+            fontFamily: FONT_UI,
+            fontWeight: 400,
+            fontSize: 11,
+            color: COLOR_BRAND,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            margin: 0,
+          }}
+        >
+          Your build. Documented.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => navigate('/terms')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 11, color: COLOR_TEXT_SECONDARY, padding: 4 }}
+          >
+            Terms
+          </button>
+          <span style={{ color: COLOR_TEXT_SECONDARY, opacity: 0.4, fontSize: 11 }}>·</span>
+          <button
+            onClick={() => navigate('/privacy')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontSize: 11, color: COLOR_TEXT_SECONDARY, padding: 4 }}
+          >
+            Privacy
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

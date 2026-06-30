@@ -99,6 +99,10 @@ const ProfilePage = lazyWithRetry(() => import('./pages/ProfilePage'))
 const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'))
 const SettingsArchivedPage = lazyWithRetry(() => import('./pages/SettingsArchivedPage'))
 
+// Legal (public)
+const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
+const PrivacyPolicyPage = lazyWithRetry(() => import('./pages/PrivacyPolicyPage'))
+
 // Public (non-auth)
 const PublicProfilePage = lazyWithRetry(() => import('./pages/PublicProfilePage'))
 const PublicTimelinePage = lazyWithRetry(() => import('./pages/PublicTimelinePage'))
@@ -294,6 +298,10 @@ export default function App() {
       {/* Public: email-confirmation + OAuth landing. Must NOT be protected —
           the gate would bounce before the URL token becomes a session. */}
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      {/* Public legal pages — linkable from the marketing footer, Settings, and
+          (required) Google's OAuth consent screen. */}
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/welcome" element={<WelcomeRoute><WelcomePage /></WelcomeRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
@@ -348,8 +356,9 @@ export default function App() {
       <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
 
-      {/* Dev tools */}
-      <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />
+      {/* Dev tools. /spec-test WRITES test jobs/specs to a real car, so it's
+          dev-only (stripped from production builds). /sound-test is read-only. */}
+      {import.meta.env.DEV && <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />}
       <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
       </Routes>
       </Suspense>

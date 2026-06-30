@@ -19,11 +19,12 @@
 <meta property="og:site_name" content="G-Dimension">
 <meta property="og:title" content="G-Dimension — Your Build Has a Story. Give It Somewhere to Live.">
 <meta property="og:description" content="The dedicated build journal for car enthusiasts. Every modification, every part, every receipt — documented properly. Join the waitlist.">
-<!-- OG image: upload your 1200×600 Figma export as /og.jpg to Vercel public folder -->
-<meta property="og:image" content="https://gdimension.app/og.jpg">
-<meta property="og:image:type" content="image/jpeg">
+<!-- Default link-preview image (public/og-default.png, 1200×630). Replace with a
+     richer 1200×630 marketing export when you have one. -->
+<meta property="og:image" content="https://gdimension.app/og-default.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="600">
+<meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="G-Dimension — The Build Journal for Car Enthusiasts">
 <meta property="og:locale" content="en_US">
 <!-- fb:app_id: optional but helps Instagram/Facebook scraper trust your tags.
@@ -36,7 +37,7 @@
 <meta name="twitter:creator" content="@gdimensionapp">
 <meta name="twitter:title" content="G-Dimension — Your Build Has a Story. Give It Somewhere to Live.">
 <meta name="twitter:description" content="The dedicated build journal for car enthusiasts. Every modification, every part, every receipt — documented properly.">
-<meta name="twitter:image" content="https://gdimension.app/og.jpg">
+<meta name="twitter:image" content="https://gdimension.app/og-default.png">
 <meta name="twitter:image:alt" content="G-Dimension — The Build Journal for Car Enthusiasts">
 
 <!-- ═══ FAVICON — embedded SVG, no external file needed ═══ -->
@@ -658,6 +659,8 @@ body{
   font-size:9.5px;letter-spacing:0.10em;
   text-transform:uppercase;color:#181820;
 }
+.legal a{ color:inherit; text-decoration:underline; }
+.legal a:hover{ color:var(--accent); }
 
 /* ══════════════════════════════
    RESPONSIVE — MOBILE ≤600px
@@ -1001,7 +1004,9 @@ body{
     </svg>
     @gdimensionapp
   </a>
-  <p class="legal">gdimension.app &nbsp;·&nbsp; © 2026</p>
+  <p class="legal">
+    <a href="/terms">Terms</a> &nbsp;·&nbsp; <a href="/privacy">Privacy</a> &nbsp;·&nbsp; gdimension.app &nbsp;·&nbsp; © 2026
+  </p>
 </footer>
 
 <script>

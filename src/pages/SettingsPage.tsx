@@ -263,6 +263,13 @@ export default function SettingsPage() {
               <NavRow label="Archived Cars" sub="Restore within 7 days of archiving" onClick={() => navigate('/settings/archived')} />
             </div>
 
+            {/* Legal */}
+            <SectionLabel>Legal</SectionLabel>
+            <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
+              <NavRow label="Terms of Service" onClick={() => navigate('/terms')} />
+              <NavRow label="Privacy Policy" onClick={() => navigate('/privacy')} />
+            </div>
+
             {/* The one row you shouldn't touch. */}
             <SectionLabel>&nbsp;</SectionLabel>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
