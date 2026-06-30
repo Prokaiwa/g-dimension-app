@@ -209,7 +209,7 @@ export default function GarageDocumentsPage() {
   const [detailImages, setDetailImages] = useState<{ url: string }[]>([])      // all signed image URLs for carousel
   const [pdfGroupUrls, setPdfGroupUrls] = useState<{ url: string; name: string | null }[]>([])
   const [previewIdx, setPreviewIdx] = useState(0)   // current image in the inline preview strip
-  const previewG = useRef({ x0: 0, dx: 0, lock: false })
+  const previewG = useRef<{ x0: number; y0: number; dx: number; lock: null | 'h' | 'v' }>({ x0: 0, y0: 0, dx: 0, lock: null })
   const previewStripRef = useRef<HTMLDivElement>(null)
   const [detailDragY, setDetailDragY]       = useState(0)
   const [detailDragging, setDetailDragging] = useState(false)
@@ -1161,15 +1161,23 @@ export default function GarageDocumentsPage() {
                 if (fileType === 'image') {
                   return (
                     <div
-                      style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', flexShrink: 0, position: 'relative', overflow: 'hidden', touchAction: 'pan-y' }}
+                      // touch-action:none + per-gesture axis lock (biased toward
+                      // horizontal, like ImageCarouselLightbox) so swiping between
+                      // images can't drag the sheet up/down. A clearly-vertical drag
+                      // is ignored here; scroll the sheet from below the image.
+                      style={{ width: '100%', minHeight: 200, maxHeight: '50vh', background: 'rgba(0,0,0,0.5)', flexShrink: 0, position: 'relative', overflow: 'hidden', touchAction: 'none' }}
                       onTouchStart={e => {
                         const t = e.touches[0]
-                        previewG.current = { x0: t.clientX, dx: 0, lock: false }
+                        previewG.current = { x0: t.clientX, y0: t.clientY, dx: 0, lock: null }
                       }}
                       onTouchMove={e => {
                         const s = previewG.current
-                        const dx = e.touches[0].clientX - s.x0
-                        s.dx = dx; s.lock = true
+                        const t = e.touches[0]
+                        const dx = t.clientX - s.x0, dy = t.clientY - s.y0
+                        if (s.lock === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
+                          s.lock = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'v' : 'h'
+                        if (s.lock !== 'h') return   // vertical / undecided → no strip movement
+                        s.dx = dx
                         const el = previewStripRef.current; if (!el) return
                         const atStart = previewIdx === 0 && dx > 0
                         const atEnd   = previewIdx === detailImages.length - 1 && dx < 0
@@ -1178,7 +1186,7 @@ export default function GarageDocumentsPage() {
                       }}
                       onTouchEnd={() => {
                         const s = previewG.current
-                        if (!s.lock) return
+                        if (s.lock !== 'h') return
                         const el = previewStripRef.current
                         const snap = (ni: number) => {
                           setPreviewIdx(ni)
@@ -1189,7 +1197,8 @@ export default function GarageDocumentsPage() {
                         else if (s.dx >  W * 0.25 && previewIdx > 0) snap(previewIdx - 1)
                         else snap(previewIdx)
                       }}
-                      onClick={() => { setLightboxStartIdx(previewIdx); setLightboxOpen(true) }}
+                      // Only open the lightbox on a real tap, not at the end of a swipe.
+                      onClick={() => { if (previewG.current.lock !== null) return; setLightboxStartIdx(previewIdx); setLightboxOpen(true) }}
                     >
                       {detailUrlLoading && (
                         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
