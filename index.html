@@ -22,6 +22,26 @@
     <meta name="apple-mobile-web-app-title" content="G-Dimension" />
 
     <title>G-Dimension</title>
+
+    <!-- Stale-deploy safety net for the pre-boot case: if the main module
+         script 404s (its hashed file was removed by a newer deploy while this
+         tab was backgrounded), JS never runs, so the in-app guard can't fire.
+         Catch the script load error here and reload once (capped) to fetch the
+         fresh index.html + new chunk names. Shares the sessionStorage key with
+         src/lib/chunkReload.ts so the two never double-reload. -->
+    <script>
+      (function () {
+        window.addEventListener('error', function (e) {
+          var t = e && e.target
+          if (!t || t.tagName !== 'SCRIPT' || !/\/assets\/.*\.m?js$/.test(t.src || '')) return
+          try {
+            var k = 'gdim_chunk_reloads', n = +(sessionStorage.getItem(k) || 0)
+            if (n < 2) { sessionStorage.setItem(k, n + 1); location.reload() }
+          } catch (_) { location.reload() }
+        }, true)
+      })()
+    </script>
+
     <!-- Google Fonts — Part 4 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

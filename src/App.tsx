@@ -9,6 +9,7 @@ import { isOnboarded } from './lib/userProfile'
 import { initMusic, setMusicAllowed } from './lib/music'
 import { prewarmSfx } from './lib/sound'
 import { initUiSfx } from './lib/uiSfx'
+import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
 
 // Home-map node icons — warm the bundled image asset so it never pops in
 // during the Home zoom transition. (The other node icons are inline base64
@@ -35,14 +36,10 @@ import RouteFallback from './components/RouteFallback'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
   return lazy(() => factory().catch((err) => {
-    const KEY = 'gdim_chunk_reload_at'
-    const last = Number(sessionStorage.getItem(KEY) || 0)
-    if (Date.now() - last > 10_000) {
-      sessionStorage.setItem(KEY, String(Date.now()))
-      window.location.reload()
+    if (isChunkLoadError(err) && reloadForStaleChunk()) {
       return new Promise<{ default: T }>(() => {}) // hang until the reload happens
     }
-    throw err
+    throw err // a real error — let the error boundary handle it
   }))
 }
 
@@ -251,25 +248,25 @@ export default function App() {
   useEffect(() => {
     const isPublic = window.location.pathname.startsWith('/builds')
 
-    if (isPublic) void import('./pages/PublicProfilePage').catch(() => {})
-    else void import('./pages/HomePage').catch(() => {})
+    if (isPublic) void import('./pages/PublicProfilePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+    else void import('./pages/HomePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
 
     const warm = () => {
       if (isPublic) {
-        void import('./pages/PublicGaragePage').catch(() => {})
-        void import('./pages/PublicTimelinePage').catch(() => {})
-        void import('./pages/PublicBuildSheetPage').catch(() => {})
-        void import('./pages/PublicModDetailPage').catch(() => {})
-        void import('./pages/PublicFeaturedPage').catch(() => {})
+        void import('./pages/PublicGaragePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/PublicTimelinePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/PublicBuildSheetPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/PublicModDetailPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/PublicFeaturedPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
       } else {
-        void import('./pages/GaragePage').catch(() => {})
-        void import('./pages/GarageCarsPage').catch(() => {})
-        void import('./pages/TuningPage').catch(() => {})
-        void import('./pages/TuningBuildSheetPage').catch(() => {})
-        void import('./pages/MaintenancePage').catch(() => {})
-        void import('./pages/TimelinePage').catch(() => {})
-        void import('./pages/FeaturedPage').catch(() => {})
-        void import('./pages/ProfilePage').catch(() => {})
+        void import('./pages/GaragePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/GarageCarsPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/TuningPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/TuningBuildSheetPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/MaintenancePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/TimelinePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/FeaturedPage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
+        void import('./pages/ProfilePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
       }
     }
     const w = window as typeof window & {
