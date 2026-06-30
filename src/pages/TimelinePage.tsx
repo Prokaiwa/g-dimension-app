@@ -408,13 +408,16 @@ export default function TimelinePage() {
     const nodes = col.querySelectorAll<HTMLElement>('[data-tl-node]')
     if (nodes.length === 0) { orb.style.opacity = '0'; return }
 
-    // The orb maps to overall scroll progress across the whole thread — from the
-    // first node to the closing-beat node — so scrolling to the bottom lands it
-    // exactly on "The story continues". (Column-relative Y is scroll-invariant.)
-    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + 16
-    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + 16
+    // The orb maps to overall scroll progress across the whole thread, parking on
+    // node CENTERS (the node dot is NODE_SIZE tall at top:16) so it lands squarely
+    // on the last node, not its top edge. (Column-relative Y is scroll-invariant.)
+    const NODE_C = 16 + NODE_SIZE / 2
+    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + NODE_C
+    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + NODE_C
+    // Complete a touch before the absolute scroll bottom so the orb fully lands on
+    // the last node without having to scroll through the trailing padding.
     const scrollMax = container.scrollHeight - container.clientHeight
-    const frac = scrollMax > 0 ? Math.min(1, Math.max(0, container.scrollTop / scrollMax)) : 0
+    const frac = Math.min(1, Math.max(0, container.scrollTop / Math.max(1, scrollMax - 28)))
     const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
     orb.style.top = `${orbInCol.toFixed(1)}px`
 
@@ -425,7 +428,7 @@ export default function TimelinePage() {
     // Soft tick as the orb glides past each node (downward only).
     let passed = 0
     nodes.forEach(n => {
-      if (n.getBoundingClientRect().top - colRect.top + 16 <= orbInCol + 0.5) passed++
+      if (n.getBoundingClientRect().top - colRect.top + NODE_C <= orbInCol + 0.5) passed++
     })
     if (passedRef.current >= 0 && passed > passedRef.current && entered) playThreadTick()
     passedRef.current = passed
@@ -564,7 +567,9 @@ export default function TimelinePage() {
     )
   }
 
-  let lastYear: string | null = origin?.display_date ? yearOf(origin.display_date) : null
+  // Start null (not the origin year) so the entries section always opens with its
+  // first chapter year — even when the first entries share the origin's year.
+  let lastYear: string | null = null
 
   return shell(
     <>

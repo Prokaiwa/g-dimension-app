@@ -308,10 +308,14 @@ export default function PublicTimelinePage() {
     const nodes = col.querySelectorAll<HTMLElement>('[data-tl-node]')
     if (nodes.length === 0) { orb.style.opacity = '0'; return }
 
-    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + 16
-    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + 16
+    // Park on node CENTERS (dot is NODE_SIZE tall at top:16) so the orb lands
+    // squarely on the last node, and complete a touch before the absolute scroll
+    // bottom so it fully reaches without scrolling through the trailing padding.
+    const NODE_C = 16 + NODE_SIZE / 2
+    const firstInCol = nodes[0].getBoundingClientRect().top - colRect.top + NODE_C
+    const lastInCol = nodes[nodes.length - 1].getBoundingClientRect().top - colRect.top + NODE_C
     const scrollMax = container.scrollHeight - container.clientHeight
-    const frac = scrollMax > 0 ? Math.min(1, Math.max(0, container.scrollTop / scrollMax)) : 0
+    const frac = Math.min(1, Math.max(0, container.scrollTop / Math.max(1, scrollMax - 28)))
     const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
     orb.style.top = `${orbInCol.toFixed(1)}px`
 
@@ -319,7 +323,7 @@ export default function PublicTimelinePage() {
     orb.style.opacity = entered ? '1' : '0'
 
     let passed = 0
-    nodes.forEach(n => { if (n.getBoundingClientRect().top - colRect.top + 16 <= orbInCol + 0.5) passed++ })
+    nodes.forEach(n => { if (n.getBoundingClientRect().top - colRect.top + NODE_C <= orbInCol + 0.5) passed++ })
     if (passedRef.current >= 0 && passed > passedRef.current && entered) playThreadTick()
     passedRef.current = passed
   }
@@ -451,7 +455,9 @@ export default function PublicTimelinePage() {
     )
   }
 
-  let lastYear: string | null = origin?.display_date ? yearOf(origin.display_date) : null
+  // Start null (not the origin year) so the entries section always opens with its
+  // first chapter year — even when the first entries share the origin's year.
+  let lastYear: string | null = null
 
   return shell(
     <div style={{
@@ -523,7 +529,7 @@ export default function PublicTimelinePage() {
       )}
 
       {/* ── Entries column ── */}
-      <div ref={colRef} style={{ position: 'relative', maxWidth: CANVAS_W, margin: '0 auto', padding: `${origin ? 30 : 64}px 20px 96px` }}>
+      <div ref={colRef} style={{ position: 'relative', maxWidth: CANVAS_W, margin: '0 auto', padding: `${origin ? 30 : 64}px 20px 48px` }}>
 
       {/* Living thread orb (visual; the tick is silent unless the visitor has UI sounds on) */}
       {entries.length > 0 && (
