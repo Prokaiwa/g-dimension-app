@@ -14,6 +14,12 @@
       },
       "continue": true
     },
+    {
+      "src": "^/(.*)$",
+      "has": [{ "type": "host", "value": "www.gdimension.app" }],
+      "status": 308,
+      "headers": { "Location": "https://gdimension.app/$1" }
+    },
     { "src": "^/$", "dest": "/marketing.html" },
     { "handle": "filesystem" },
     { "src": "^/builds/(.*)", "dest": "/api/og?p=$1" },
