@@ -15,7 +15,7 @@ import {
   type UserProfile,
 } from '../lib/userProfile'
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
-import logo from '../assets/logo/gdimensionlight.png'
+import logo from '../assets/logo/gdimensionG.webp'
 import {
   GRADIENT_APP_BG,
   COLOR_CAVITY_BG,
@@ -100,7 +100,7 @@ export default function WelcomePage() {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: `0 ${SPACE_LG}px`, fontFamily: FONT_UI,
     }}>
-      <img src={logo} alt="G-Dimension" style={{ width: 124, marginBottom: SPACE_LG }} />
+      <img src={logo} alt="G-Dimension" style={{ width: 272, marginBottom: SPACE_SM }} />
 
       <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500, fontSize: 26, color: COLOR_TEXT_PRIMARY, margin: `0 0 ${SPACE_XS}px` }}>
         Claim your handle.
