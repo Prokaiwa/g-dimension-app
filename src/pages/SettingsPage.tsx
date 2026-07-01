@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import { isMusicEnabled, setMusicEnabled } from '../lib/music'
 import { useTour } from '../tour/TourContext'
-import BottomSheet from '../components/BottomSheet'
+import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
   COLOR_HEADER_BLACK,
@@ -144,6 +144,10 @@ export default function SettingsPage() {
   const [eggOpen, setEggOpen] = useState(false)
   const [sound, setSound] = useState(isSoundEnabled())
   const [music, setMusic] = useState(isMusicEnabled())
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -188,6 +192,24 @@ export default function SettingsPage() {
     const on = v === 'on'
     setMusic(on)
     setMusicEnabled(on) // starts/stops the loop immediately
+  }
+
+  // Permanently deletes the account server-side (Edge Function — needs the
+  // service role key to remove storage files + call the Auth admin API, so
+  // it can't run from the client). Cascades every DB row via FK; see
+  // supabase/functions/delete-account/index.ts.
+  async function confirmDeleteAccount() {
+    if (deleteConfirmText.trim().toUpperCase() !== 'DELETE' || deleting) return
+    setDeleting(true)
+    setDeleteError('')
+    const { data, error } = await supabase.functions.invoke('delete-account')
+    if (error || (data as { error?: string } | null)?.error) {
+      setDeleting(false)
+      setDeleteError('Could not delete your account — please try again, or contact hi@gdimension.app.')
+      return
+    }
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -270,6 +292,12 @@ export default function SettingsPage() {
               <NavRow label="Privacy Policy" onClick={() => navigate('/privacy')} />
             </div>
 
+            {/* Account */}
+            <SectionLabel>Account</SectionLabel>
+            <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
+              <NavRow label="Delete Account" sub="Permanently erase your builds, photos, and profile" onClick={() => setDeleteOpen(true)} />
+            </div>
+
             {/* The one row you shouldn't touch. */}
             <SectionLabel>&nbsp;</SectionLabel>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
@@ -288,6 +316,45 @@ export default function SettingsPage() {
         <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 18, color: COLOR_ACCENT, textAlign: 'right', margin: 0 }}>
           — David Scantee
         </p>
+      </BottomSheet>
+
+      {/* ── Delete account ── */}
+      <BottomSheet
+        open={deleteOpen}
+        onClose={() => { setDeleteOpen(false); setDeleteConfirmText(''); setDeleteError('') }}
+        title="Delete Account"
+        busy={deleting}
+      >
+        <p style={{ fontFamily: FONT_UI, fontSize: 14, color: 'rgba(240,228,200,0.75)', lineHeight: 1.6, margin: `0 0 ${SPACE_MD}px` }}>
+          This permanently deletes your account — every car, mod, service record, timeline entry, photo, and receipt. There is no undo.
+        </p>
+        <FieldLabel>Type DELETE to confirm</FieldLabel>
+        <input
+          value={deleteConfirmText}
+          onChange={e => setDeleteConfirmText(e.target.value)}
+          placeholder="DELETE"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          disabled={deleting}
+          style={{ ...sheetInput, marginBottom: SPACE_MD }}
+        />
+        {deleteError && (
+          <p style={{ fontFamily: FONT_UI, fontSize: 12, color: COLOR_ACCENT, margin: `0 0 ${SPACE_MD}px` }}>{deleteError}</p>
+        )}
+        <button
+          onClick={confirmDeleteAccount}
+          disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || deleting}
+          style={{
+            width: '100%', padding: '14px', border: 'none',
+            background: deleteConfirmText.trim().toUpperCase() === 'DELETE' ? COLOR_ACCENT : 'rgba(200,102,26,0.25)',
+            color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
+            cursor: deleteConfirmText.trim().toUpperCase() === 'DELETE' && !deleting ? 'pointer' : 'default',
+            opacity: deleting ? 0.7 : 1, transition: '200ms ease-out',
+          }}
+        >
+          {deleting ? 'Deleting…' : 'Permanently Delete My Account'}
+        </button>
       </BottomSheet>
     </div>
   )
