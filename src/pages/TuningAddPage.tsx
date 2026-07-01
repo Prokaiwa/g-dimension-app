@@ -136,6 +136,17 @@ export default function TuningAddPage() {
   const [saving, setSaving]               = useState(false)
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
+  // Wheels + Tires combo — when adding Wheels (part_type 1), optionally add a
+  // linked tire job in the same flow (Phase 1). Tire types: 2 = Performance /
+  // Street, 3 = Truck / Off-Road. The tire job is mounted_on the wheel job.
+  const [addTires, setAddTires]               = useState(false)
+  const [tirePartTypeId, setTirePartTypeId]   = useState<2 | 3>(2)
+  const [tireForm, setTireForm]               = useState({ title: '', brand: '', condition: null as 'new' | 'used' | null, partNumber: '', partsCost: '' })
+  const [tireSpecTemplates, setTireSpecTemplates] = useState<SpecTemplate[]>([])
+  const [tireSpecValues, setTireSpecValues]   = useState<Record<string, string>>({})
+  const [tireMultiValues, setTireMultiValues] = useState<Record<string, string[]>>({})
+  const [tireSpecsExpanded, setTireSpecsExpanded] = useState(false)
+
   const release      = () => setPressed(null)
   const selectedCat  = TUNING_CATEGORIES.find(c => c.id === selectedCategory)
 
@@ -194,6 +205,24 @@ export default function TuningAddPage() {
         setAdvancedExpanded(false)
       })
   }, [selectedPartType])
+
+  // Load tire spec templates when the tire add-on is enabled / its type changes
+  useEffect(() => {
+    if (!addTires) return
+    supabase
+      .from('spec_templates')
+      .select(
+        'spec_key, spec_label, input_type, options, unit, unit_preference, ' +
+        'required, is_advanced, display_order, group_label, help_text, placeholder'
+      )
+      .eq('part_type_id', tirePartTypeId)
+      .order('display_order', { ascending: true })
+      .then(({ data }) => {
+        setTireSpecTemplates((data as unknown as SpecTemplate[]) ?? [])
+        setTireSpecValues({})
+        setTireMultiValues({})
+      })
+  }, [addTires, tirePartTypeId])
 
   // Revoke object URLs on unmount to avoid leaks
   useEffect(() => {
@@ -274,15 +303,32 @@ export default function TuningAddPage() {
       return { ...v, [key]: cur.includes(option) ? cur.filter(x => x !== option) : [...cur, option] }
     })
 
+  const setTireSpecVal = (key: string, val: string) =>
+    setTireSpecValues(v => ({ ...v, [key]: val }))
+
+  const toggleTireMulti = (key: string, option: string) =>
+    setTireMultiValues(v => {
+      const cur = v[key] ?? []
+      return { ...v, [key]: cur.includes(option) ? cur.filter(x => x !== option) : [...cur, option] }
+    })
+
   const parseOpts = (raw: string | null): string[] => {
     if (!raw) return []
     if (Array.isArray(raw as unknown)) return raw as unknown as string[]
     try { return JSON.parse(raw) as string[] } catch { return [] }
   }
 
-  const renderSpecField = (t: SpecTemplate) => {
+  // Spec-field renderer, parameterized over a value store so it drives both the
+  // main mod form and the linked-tire form (Wheels + Tires combo).
+  type SpecStore = {
+    values: Record<string, string>
+    setVal: (key: string, val: string) => void
+    multi: Record<string, string[]>
+    toggleMulti: (key: string, option: string) => void
+  }
+  const renderSpecField = (t: SpecTemplate, store: SpecStore) => {
     const opts = parseOpts(t.options)
-    const val  = specValues[t.spec_key] ?? ''
+    const val  = store.values[t.spec_key] ?? ''
 
     if ((t.input_type === 'select' || t.input_type === 'multiselect') && opts.length === 0) return null
 
@@ -294,7 +340,7 @@ export default function TuningAddPage() {
           <>
             <input
               value={val}
-              onChange={e => setSpecVal(t.spec_key, e.target.value)}
+              onChange={e => store.setVal(t.spec_key, e.target.value)}
               placeholder={t.placeholder ?? ''}
               style={{ ...inp, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
             />
@@ -312,7 +358,7 @@ export default function TuningAddPage() {
               <input
                 type="number"
                 value={val}
-                onChange={e => setSpecVal(t.spec_key, e.target.value)}
+                onChange={e => store.setVal(t.spec_key, e.target.value)}
                 placeholder={t.placeholder ?? ''}
                 style={{ ...inp, flex: 1, caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
               />
@@ -334,7 +380,7 @@ export default function TuningAddPage() {
           <input
             type="date"
             value={val}
-            onChange={e => setSpecVal(t.spec_key, e.target.value)}
+            onChange={e => store.setVal(t.spec_key, e.target.value)}
             style={{ ...inp, colorScheme: 'dark', caretColor: partsBinMode ? COLOR_CARDBOARD_INK : '#39ff14' }}
           />
         )}
@@ -342,7 +388,7 @@ export default function TuningAddPage() {
         {t.input_type === 'select' && opts.length > 0 && (
           <select
             value={val}
-            onChange={e => setSpecVal(t.spec_key, e.target.value)}
+            onChange={e => store.setVal(t.spec_key, e.target.value)}
             style={{ ...inp, cursor: 'pointer', colorScheme: 'dark' }}
           >
             <option value="">—</option>
@@ -353,11 +399,11 @@ export default function TuningAddPage() {
         {t.input_type === 'multiselect' && opts.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 6 }}>
             {opts.map(o => {
-              const checked = (multiValues[t.spec_key] ?? []).includes(o)
+              const checked = (store.multi[t.spec_key] ?? []).includes(o)
               return (
                 <label
                   key={o}
-                  onClick={() => toggleMulti(t.spec_key, o)}
+                  onClick={() => store.toggleMulti(t.spec_key, o)}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
                 >
                   <div style={{
@@ -378,7 +424,7 @@ export default function TuningAddPage() {
 
         {t.input_type === 'boolean' && (
           <div
-            onClick={() => setSpecVal(t.spec_key, val === 'true' ? 'false' : 'true')}
+            onClick={() => store.setVal(t.spec_key, val === 'true' ? 'false' : 'true')}
             style={{
               width: 44, height: 26, position: 'relative', cursor: 'pointer',
               background: val === 'true'
@@ -519,6 +565,47 @@ export default function TuningAddPage() {
       await supabase.from('job_specs').insert(specRows)
     }
 
+    // 3b. Wheels + Tires combo — insert the linked tire job + its specs.
+    //     Tire inherits the install date / mileage / installer from the wheels
+    //     (mounted together), and points at the wheel job via mounted_on_job_id.
+    if (addTires && tireForm.title.trim()) {
+      const { data: tireJob } = await supabase
+        .from('jobs')
+        .insert({
+          ...(sessionId ? { session_id: sessionId } : {}),
+          car_id:            carId,
+          type:              'modification',
+          category:          'Wheels & Tires',
+          part_type_id:      tirePartTypeId,
+          title:             tireForm.title.trim(),
+          brand:             tireForm.brand.trim() || null,
+          condition:         tireForm.condition    || null,
+          date_installed:    form.dateInstalled     || null,
+          ...(form.installMileage.trim() ? { install_mileage: parseInt(form.installMileage, 10) } : {}),
+          parts_cost:        tireForm.partsCost ? parseFloat(tireForm.partsCost) : null,
+          installed_by:      form.installedBy       || null,
+          status:            'installed',
+          mounted_on_job_id: jobId,
+        })
+        .select('id')
+        .single()
+
+      if (tireJob) {
+        const tireId = (tireJob as { id: string }).id
+        const tireRows: SpecRow[] = []
+        for (const t of tireSpecTemplates) {
+          if (t.input_type === 'multiselect') {
+            const vals = tireMultiValues[t.spec_key] ?? []
+            if (vals.length > 0) tireRows.push({ job_id: tireId, spec_key: t.spec_key, spec_value: JSON.stringify(vals), spec_unit: t.unit ?? null })
+          } else {
+            const v = tireSpecValues[t.spec_key]
+            if (v && v !== '' && v !== 'false') tireRows.push({ job_id: tireId, spec_key: t.spec_key, spec_value: String(v), spec_unit: t.unit ?? null })
+          }
+        }
+        if (tireRows.length > 0) await supabase.from('job_specs').insert(tireRows)
+      }
+    }
+
     // 4. Compress (EXIF strip) + upload photos, then INSERT job_photos
     for (const photo of photos) {
       try {
@@ -607,6 +694,17 @@ export default function TuningAddPage() {
   const advancedSpecs = specTemplates.filter(t => t.is_advanced  && !MAIN_FORM_KEYS.has(t.spec_key))
   const basicGroups   = groupBy(basicSpecs, t => t.group_label ?? '')
   const advancedGroups = groupBy(advancedSpecs, t => t.group_label ?? '')
+
+  const mainStore: SpecStore = { values: specValues, setVal: setSpecVal, multi: multiValues, toggleMulti }
+  const tireStore: SpecStore = { values: tireSpecValues, setVal: setTireSpecVal, multi: tireMultiValues, toggleMulti: toggleTireMulti }
+
+  // Tire spec groups (Wheels + Tires combo). 'brand' is rendered in the tire
+  // sub-form directly, so exclude it from the expandable spec list like the main form.
+  const tireBasic    = tireSpecTemplates.filter(t => !t.is_advanced && !MAIN_FORM_KEYS.has(t.spec_key))
+  const tireAdvanced = tireSpecTemplates.filter(t => t.is_advanced  && !MAIN_FORM_KEYS.has(t.spec_key))
+  const tireBasicGroups    = groupBy(tireBasic, t => t.group_label ?? '')
+  const tireAdvancedGroups = groupBy(tireAdvanced, t => t.group_label ?? '')
+  const showTireAddon = !partsBinMode && selectedPartType?.id === 1  // Wheels
 
   const canSubmit = form.title.trim().length > 0 && !saving
 
@@ -1403,7 +1501,7 @@ export default function TuningAddPage() {
                   {/* Basic specs (flat — no group headers) */}
                   {Object.entries(basicGroups).map(([groupLabel, fields]) => (
                     <div key={groupLabel || '__ungrouped__'}>
-                      {fields.map(renderSpecField)}
+                      {fields.map(f => renderSpecField(f, mainStore))}
                     </div>
                   ))}
 
@@ -1432,7 +1530,7 @@ export default function TuningAddPage() {
 
                       {advancedExpanded && Object.entries(advancedGroups).map(([groupLabel, fields]) => (
                         <div key={groupLabel || '__adv_ungrouped__'} style={{ marginTop: 16 }}>
-                          {fields.map(renderSpecField)}
+                          {fields.map(f => renderSpecField(f, mainStore))}
                         </div>
                       ))}
                     </div>
@@ -1440,6 +1538,130 @@ export default function TuningAddPage() {
                 </div>
               )}
             </div>
+
+            {/* ── Wheels + Tires combo: optionally add a linked tire job ─────── */}
+            {showTireAddon && (
+              <div style={{ padding: '28px 22px 0' }}>
+                <div
+                  onClick={() => setAddTires(x => !x)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '13px 15px', cursor: 'pointer',
+                    background: addTires ? 'rgba(105,12,22,0.14)' : 'transparent',
+                    border: `1px solid ${addTires ? 'rgba(105,12,22,0.5)' : 'rgba(245,240,228,0.13)'}`,
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: addTires ? '#c0303a' : 'rgba(245,240,228,0.5)' }}>
+                    Add Tires
+                  </span>
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 16, color: addTires ? '#c0303a' : 'rgba(245,240,228,0.4)' }}>
+                    {addTires ? '−' : '+'}
+                  </span>
+                </div>
+
+                {addTires && (
+                  <div>
+                    <div style={{ padding: '18px 0 0' }}>
+                      <label style={lbl}>Tire Type</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {([[2, 'Performance / Street'], [3, 'Truck / Off-Road']] as const).map(([id, label]) => {
+                          const active = tirePartTypeId === id
+                          return (
+                            <button key={id} onClick={() => setTirePartTypeId(id)}
+                              style={{
+                                flex: 1, padding: '11px 0',
+                                background: active ? 'rgba(105,12,22,0.22)' : 'transparent',
+                                border: `1.5px solid ${active ? 'rgba(105,12,22,0.75)' : 'rgba(245,240,228,0.11)'}`,
+                                cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: active ? '#c0303a' : 'rgba(245,240,228,0.38)',
+                                transition: 'all 200ms ease', WebkitTapHighlightColor: 'transparent',
+                              }}>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '18px 0 0' }}>
+                      <label style={lbl}>Tire Title *</label>
+                      <input value={tireForm.title}
+                        onChange={e => setTireForm(f => ({ ...f, title: e.target.value }))}
+                        placeholder="e.g. Michelin Pilot Sport 4S 255/40R18"
+                        style={{ ...inp, caretColor: '#39ff14' }} />
+                    </div>
+
+                    <div style={{ padding: '18px 0 0' }}>
+                      <label style={lbl}>Brand</label>
+                      <input value={tireForm.brand}
+                        onChange={e => setTireForm(f => ({ ...f, brand: e.target.value }))}
+                        placeholder={brandPlaceholder(tireSpecTemplates)}
+                        style={{ ...inp, caretColor: '#39ff14' }} />
+                    </div>
+
+                    <div style={{ padding: '18px 0 0' }}>
+                      <label style={lbl}>Condition</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {(['new', 'used'] as const).map(opt => {
+                          const active = tireForm.condition === opt
+                          return (
+                            <button key={opt} onClick={() => setTireForm(f => ({ ...f, condition: active ? null : opt }))}
+                              style={{
+                                flex: 1, padding: '11px 0',
+                                background: active ? 'rgba(105,12,22,0.22)' : 'transparent',
+                                border: `1.5px solid ${active ? 'rgba(105,12,22,0.75)' : 'rgba(245,240,228,0.11)'}`,
+                                cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+                                letterSpacing: '0.14em', textTransform: 'uppercase',
+                                color: active ? '#c0303a' : 'rgba(245,240,228,0.38)',
+                                transition: 'all 200ms ease', WebkitTapHighlightColor: 'transparent',
+                              }}>
+                              {opt === 'new' ? 'New' : 'Used'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '18px 0 0' }}>
+                      <label style={lbl}>Tire Cost</label>
+                      <input type="number" value={tireForm.partsCost}
+                        onChange={e => setTireForm(f => ({ ...f, partsCost: e.target.value }))}
+                        placeholder="0.00" style={{ ...inp, caretColor: '#39ff14' }} />
+                    </div>
+
+                    {tireSpecTemplates.length > 0 && (
+                      <div style={{ padding: '18px 0 0' }}>
+                        <button onClick={() => setTireSpecsExpanded(x => !x)}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '11px 13px', cursor: 'pointer',
+                            background: tireSpecsExpanded ? 'rgba(18,55,190,0.1)' : 'transparent',
+                            border: `1px solid ${tireSpecsExpanded ? 'rgba(18,55,190,0.4)' : 'rgba(245,240,228,0.13)'}`,
+                            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em',
+                            textTransform: 'uppercase', color: tireSpecsExpanded ? 'rgba(60,100,220,0.82)' : 'rgba(245,240,228,0.42)',
+                            WebkitTapHighlightColor: 'transparent',
+                          }}>
+                          <span>Full Tire Specs</span>
+                          <span style={{ transform: tireSpecsExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}>⌄</span>
+                        </button>
+                        {tireSpecsExpanded && (
+                          <div style={{ paddingTop: 4 }}>
+                            {Object.entries(tireBasicGroups).map(([g, fields]) => (
+                              <div key={g}>{fields.map(f => renderSpecField(f, tireStore))}</div>
+                            ))}
+                            {Object.entries(tireAdvancedGroups).map(([g, fields]) => (
+                              <div key={g}>{fields.map(f => renderSpecField(f, tireStore))}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Save button */}
             <div style={{ padding: '32px 22px 0' }}>
