@@ -12,11 +12,6 @@ import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
 import { Analytics } from '@vercel/analytics/react'
 
-// Home-map node icons — warm the bundled image asset so it never pops in
-// during the Home zoom transition. (The other node icons are inline base64
-// data URIs already embedded in the bundle, so only this one hits the network.)
-import mapNodeFeatured from './assets/icons/home/home_featured.png'
-
 // Eager — the app shell that must always be present (no route chunk of its own).
 import AuthGateFallback from './components/AuthGateFallback'
 import ErrorBanner from './components/ErrorBanner'
@@ -225,18 +220,6 @@ export default function App() {
       window.removeEventListener('pointerdown', warmSfx)
       window.removeEventListener('touchstart', warmSfx)
     }
-  }, [])
-
-  // Idle-preload Home-map node icon assets so they don't pop in mid-zoom.
-  useEffect(() => {
-    const warm = () => { const img = new Image(); img.src = mapNodeFeatured }
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const id = (window as typeof window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
-        .requestIdleCallback(warm, { timeout: 2000 })
-      return () => (window as typeof window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(id)
-    }
-    const id = setTimeout(warm, 300)
-    return () => clearTimeout(id)
   }, [])
 
   // Block pinch-zoom app-wide so it reads as a native app on every page. iOS

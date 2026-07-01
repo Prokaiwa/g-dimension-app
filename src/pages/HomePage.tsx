@@ -10,7 +10,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
 import { playConfirm } from '../lib/sound'
-import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, iconFeatured } from '../lib/destinationIcons'
+import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, ICON_FEATURED } from '../lib/destinationIcons'
 import {
   GRADIENT_APP_BG,
   COLOR_ACCENT,
@@ -69,7 +69,7 @@ const DESTINATIONS = [
   { id: 'tuning',      label: 'Tuning',      icon: ICON_TUNING,      pos: MAP_NODE_TUNING,      size: ICON_WRAPPER_STANDARD, route: '/tuning',      focal: false },
   { id: 'timeline',    label: 'Timeline',    icon: ICON_TIMELINE,    pos: MAP_NODE_TIMELINE,    size: ICON_WRAPPER_STANDARD, route: '/timeline',    focal: false },
   { id: 'maintenance', label: 'Maintenance', icon: ICON_MAINTENANCE, pos: MAP_NODE_MAINTENANCE, size: ICON_WRAPPER_STANDARD, route: '/maintenance', focal: false },
-  { id: 'featured',      label: 'Featured',      icon: iconFeatured,      pos: MAP_NODE_PHOTOS,      size: ICON_WRAPPER_STANDARD, route: '/featured',      focal: false },
+  { id: 'featured',    label: 'Featured',    icon: ICON_FEATURED,    pos: MAP_NODE_PHOTOS,      size: ICON_WRAPPER_STANDARD, route: '/featured',    focal: false },
 ]
 
 // Cumulative tour trail — roads light up progressively as the tour advances

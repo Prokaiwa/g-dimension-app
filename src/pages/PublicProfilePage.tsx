@@ -14,7 +14,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
 import {
-  ICON_HOME, ICON_TUNING, ICON_TIMELINE, iconFeatured,
+  ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_FEATURED,
 } from '../lib/destinationIcons'
 import {
   COLOR_BRAND,
@@ -185,7 +185,7 @@ const PREVIEW_NODES: NodeDef[] = [
   { id: 'garage',     label: 'Garage',      icon: ICON_HOME,     focal: true },
   { id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING },
   { id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE },
-  { id: 'featured',   label: 'Featured',    icon: iconFeatured },
+  { id: 'featured',   label: 'Featured',    icon: ICON_FEATURED },
   { id: 'guides',     label: 'Guides',      icon: ICON_TUNING },
 ]
 
@@ -284,7 +284,7 @@ export default function PublicProfilePage() {
       ]
       if (hasBuildsheet) built.push({ id: 'buildsheet', label: 'Build Sheet', icon: ICON_TUNING })
       if (hasTimeline)   built.push({ id: 'timeline',   label: 'Timeline',    icon: ICON_TIMELINE })
-      if (hasFeatured)   built.push({ id: 'featured',   label: 'Featured',    icon: iconFeatured })
+      if (hasFeatured)   built.push({ id: 'featured',   label: 'Featured',    icon: ICON_FEATURED })
 
       // ?preview=N forces a node count so each layout template (2–5) can be
       // previewed on the live site regardless of the build's actual content.
