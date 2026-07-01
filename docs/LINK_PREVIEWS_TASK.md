@@ -84,4 +84,14 @@ A **Vercel serverless function** (Node) that handles `/builds/*`:
 - A real browser visit to the same URL still loads the SPA normally.
 - A private/nonexistent username shows the generic G-Dimension preview, no error.
 
-## Status: NOT STARTED.
+## Status: SHIPPED (2026-07-01).
+
+Implemented as `api/og.js` (a Vercel serverless function) + a `vercel.json`
+rewrite (`^/builds/(.*) → /api/og?p=$1`, placed after the filesystem handler
+and before the SPA fallback). Resolves the car the same way
+`PublicProfilePage.tsx` does (`?car` → owner's active car → newest public
+car), swaps the default OG/Twitter/title/description tags in the real built
+`index.html` for that car's values, and returns the untouched shell otherwise
+— so a real browser visit still boots the SPA normally. Verified live via
+opengraph.xyz. Private/missing cars fall back to the generic G-Dimension
+preview.
