@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import { useTour } from '../tour/TourContext'
 import ArrivalFade from '../components/ArrivalFade'
 import garageHero    from '../assets/backgrounds/garage_hero.webp'
@@ -61,11 +62,8 @@ export default function GaragePage() {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const meta = data.user?.user_metadata
-      const email = data.user?.email ?? ''
-      const name = meta?.full_name ?? meta?.name ?? email.split('@')[0] ?? ''
-      setDisplayName(name.charAt(0).toUpperCase() + name.slice(1))
+    getCurrentUserProfile().then(p => {
+      if (p) setDisplayName(profileName(p))
     })
     getActiveCarId().then(carId => {
       if (!carId) {
