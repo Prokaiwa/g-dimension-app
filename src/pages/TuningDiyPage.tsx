@@ -1,10 +1,16 @@
 // Route: /tuning/mods/:modId/diy — Owner view of a DIY guide
+
+const _now        = new Date()
+const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTH_LABEL = MONTHS[_now.getMonth()]
+const DAY_LABEL   = String(_now.getDate())
+
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import ImageLightbox from '../components/ImageLightbox'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_BURGUNDY_M, HEADER_HEIGHT } from '../tokens'
 
 // ── DIY aesthetic ─────────────────────────────────────────────────────────────
 const BG     = '#f0efec'
@@ -64,6 +70,26 @@ type Guide = {
 type Step  = { id: string; step_order: number; title: string | null; description: string | null }
 type Photo = { id: string; step_id: string; photo_url: string; caption: string | null; display_order: number }
 
+// Calendar-stub date chip — matches the one in the Build Sheet header.
+function DateChip() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      <div style={{
+        background: 'rgba(242,238,228,0.94)', color: '#0d0d0d',
+        padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+        letterSpacing: '0.05em', textTransform: 'uppercase',
+        display: 'flex', alignItems: 'center',
+      }}>{MONTH_LABEL}</div>
+      <div style={{
+        background: COLOR_BURGUNDY_M, color: '#fff',
+        padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minWidth: DAY_LABEL.length === 1 ? 24 : 30,
+      }}>{DAY_LABEL}</div>
+    </div>
+  )
+}
+
 
 export default function TuningDiyPage() {
   const { modId } = useParams<{ modId: string }>()
@@ -113,10 +139,11 @@ export default function TuningDiyPage() {
 
   if (!guide) return (
     <div style={{ background: BG, minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 4 }}>
+      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14 }}>
         <button onClick={() => navigate(`/tuning/mods/${modId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
         </button>
+        <DateChip />
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
         <p style={{ fontFamily: FONT_UI, fontSize: 15, color: MID, textAlign: 'center' }}>No guide yet.</p>
@@ -132,15 +159,12 @@ export default function TuningDiyPage() {
   return (
     <div style={{ background: BG, minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 16, flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
+      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14, flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
         <button onClick={() => navigate(`/tuning/mods/${modId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent', minHeight: 44 }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.5)' }}>Mod</span>
         </button>
-        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontStyle: 'italic', fontSize: 14, letterSpacing: '0.12em', color: '#ffffff' }}>G-DIMENSION</span>
-        <button onClick={() => navigate(`/tuning/mods/${modId}/diy/edit`)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0 4px 12px', WebkitTapHighlightColor: 'transparent', minHeight: 44 }}>
-          <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', color: ACCENT }}>EDIT</span>
-        </button>
+        <DateChip />
       </div>
 
       {/* Content */}
@@ -254,7 +278,7 @@ export default function TuningDiyPage() {
         <div style={{ padding: '28px 20px 0' }}>
           <button
             onClick={() => navigate(`/tuning/mods/${modId}/diy/edit`)}
-            style={{ width: '100%', padding: '15px', background: 'rgba(200,102,26,0.08)', border: '1.5px solid rgba(200,102,26,0.35)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: ACCENT }}
+            style={{ width: '100%', padding: '15px', background: 'rgba(200,102,26,0.12)', border: '1.5px solid rgba(200,102,26,0.55)', boxShadow: '0 0 18px rgba(200,102,26,0.15)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', color: ACCENT }}
           >
             EDIT GUIDE
           </button>
