@@ -294,7 +294,7 @@ export default function MaintenanceSessionDetailPage() {
                               style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${CW_RULE}`, padding: 6, cursor: url ? 'pointer' : 'default', WebkitTapHighlightColor: 'transparent', borderRadius: 4 }}>
                               {r.file_type === 'image' ? (
                                 url
-                                  ? <img src={url} style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 2 }} />
+                                  ? <img src={url} loading="lazy" style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 2 }} />
                                   : <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: CW_DIM }}>Loading…</span></div>
                               ) : (
                                 <div style={{ width: 76, height: 76, background: 'rgba(138,176,200,0.10)', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 2 }}>

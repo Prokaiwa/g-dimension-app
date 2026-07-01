@@ -141,7 +141,7 @@ function ThumbImg({ src }: { src: string }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <img
-      src={src} alt="" aria-hidden decoding="async"
+      src={src} alt="" aria-hidden decoding="async" loading="lazy"
       onLoad={() => setLoaded(true)}
       onError={ev => {
         const el = ev.currentTarget.parentElement as HTMLElement | null

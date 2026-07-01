@@ -470,7 +470,7 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
           transition: 'opacity 180ms ease, transform 560ms cubic-bezier(0.34, 1.4, 0.64, 1)',
         }}>
           <img
-            src={thumb} alt=""
+            src={thumb} alt="" loading="lazy"
             style={{
               width: 56, height: 56, objectFit: 'cover', display: 'block',
               // develops like instant film once loaded
