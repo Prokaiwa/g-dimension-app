@@ -112,14 +112,14 @@ const TEMPLATES: Record<number, Template> = {
       // arcs back to Build Sheet's left entrance.
       { a: 0, b: 1, bend: 0,
         pathFn: (_a, b) =>
-          `M 195 233 C 370 200, 392 310, ${b.x} ${b.y}` },
+          `M 195 193 C 370 200, 392 310, ${b.x} ${b.y}` },
       // Monaco Hairpin: smooth compound bezier (C1 continuity at junction).
-      // Both Garage roads share (195,233); Monaco ends at Timeline CENTER (68,450)
+      // Both Garage roads share (195,193); Monaco ends at Timeline CENTER (68,450)
       // so the dot and road tuck cleanly behind the icon — same arrival point
       // the Pouhon departs from, giving Timeline a single road junction point.
       { a: 0, b: 2, bend: 0,
         pathFn: () =>
-          `M 195 233 C 18 188, 10 295, 15 345 C 20 410, 62 470, 68 474` },
+          `M 195 193 C 18 188, 10 295, 15 345 C 20 410, 62 470, 68 474` },
       // Bus Stop Chicane: unchanged.
       { a: 1, b: 3, bend: 0,
         pathFn: (a, b) =>
