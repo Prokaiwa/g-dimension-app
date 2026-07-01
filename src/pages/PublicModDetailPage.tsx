@@ -111,9 +111,9 @@ export default function PublicModDetailPage() {
     paintStrip(0, false)
     paintVertical(0, false)
     const sc = scrollRef.current
-    const prev = sc?.style.overflow
-    if (sc) sc.style.overflow = 'hidden'
-    return () => { if (sc) sc.style.overflow = prev ?? '' }
+    const prev = sc?.style.overflowY
+    if (sc) sc.style.overflowY = 'hidden'
+    return () => { if (sc) sc.style.overflowY = prev ?? '' }
   }, [viewerOpen])
 
   const onViewerTouchStart = (e: React.TouchEvent) => {
