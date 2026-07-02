@@ -592,7 +592,12 @@ export default function PublicProfilePage() {
         @keyframes pubRoadDraw { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
         @keyframes pubDashIn   { from{opacity:0} to{opacity:1} }
         @keyframes pubDashFlow { from{stroke-dashoffset:0} to{stroke-dashoffset:-60} }
-        @keyframes pubPulse    { 0%,100%{opacity:0.2;transform:scale(1)} 50%{opacity:0.55;transform:scale(1.05)} }
+        /* The halo's base style centers it with translate(-50%,-50%) — the
+           animation transform REPLACES that, so the translate must be repeated
+           in every keyframe. Without it the halo ran 95px down-right of the
+           node for the whole pulse, its gradient edge cutting a faint line
+           through the ground shadow that grew with the pulse opacity. */
+        @keyframes pubPulse    { 0%,100%{opacity:0.2;transform:translate(-50%,-50%) scale(1)} 50%{opacity:0.55;transform:translate(-50%,-50%) scale(1.05)} }
         @keyframes pubFooterIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pubSheen    { from{transform:translateX(-160%) skewX(-18deg)} to{transform:translateX(420%) skewX(-18deg)} }
         @keyframes pubCompass  { 0%{transform:rotate(-140deg)} 55%{transform:rotate(14deg)} 78%{transform:rotate(-6deg)} 100%{transform:rotate(0deg)} }

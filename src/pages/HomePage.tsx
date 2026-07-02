@@ -472,9 +472,14 @@ export default function HomePage() {
           0%   { opacity: 0; transform: translate(-50%, -40%); }
           100% { opacity: 1; transform: translate(-50%, -50%); }
         }
+        /* translate(-50%,-50%) must be repeated here: the animation transform
+           REPLACES the halo's base centering transform, so scale-only keyframes
+           silently shift the halo 100px down-right for as long as it pulses
+           (imperceptible on this dark map, but the same bug was very visible
+           on the light public map — keep the two in sync). */
         @keyframes garagePulse {
-          0%, 100% { opacity: 0.5; transform: scale(1); }
-          50%      { opacity: 1;   transform: scale(1.06); }
+          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+          50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.06); }
         }
         @keyframes footerIn {
           from { opacity: 0; transform: translateY(8px); }
