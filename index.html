@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/src/assets/favicon.ico" />
+    <!-- Favicon set — real multi-size assets in public/ (generated from the G
+         badge). The old /src/assets/favicon.ico was a single 16x16 — blurry
+         everywhere hi-DPI. icon-192 doubles as the hi-res tab icon source. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <!-- maximum-scale=1 + user-scalable=no stops iOS Safari from auto-zooming
          when an input is focused. viewport-fit=cover lets the app fill the
          notch/safe-area region. -->
