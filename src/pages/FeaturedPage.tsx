@@ -1357,8 +1357,24 @@ export default function FeaturedPage() {
               />
             )}
             {!photo && (
-              <div style={{ position:'absolute', inset:0, display:'grid', placeItems:'center' }}>
-                <span style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.45)', letterSpacing:'0.3em', fontSize:11, textTransform:'uppercase' }}>Add a cover photo</span>
+              // No photo at all yet (neither original nor cutout) — a blank cover is a
+              // dead end, so this tells the story and hands the owner a way out.
+              // Confined to roughly the top 60% of the cover (clear of the masthead
+              // band above and the headline/deck furniture anchored to the bottom).
+              <div style={{ position:'absolute', top:'16%', left:0, right:0, height:'50%', zIndex:8,
+                display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'0 30px', textAlign:'center' }}>
+                <span style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:bottomColor, opacity:0.9, fontSize:22, lineHeight:1.15, textTransform:'uppercase', letterSpacing:'0.01em' }}>
+                  Every Cover Story<br />Needs A Cover Shot
+                </span>
+                <span style={{ fontFamily:FONT_DECK, fontWeight:500, color:bottomColor, opacity:0.6, fontSize:11.5, lineHeight:1.5, maxWidth:230 }}>
+                  {carShortName} hasn't had its close-up yet. Add a photo and this issue writes itself.
+                </span>
+                {car && (
+                  <button onClick={() => navigate(`/garage/cars/${car.id}/edit`)}
+                    style={{ marginTop:6, fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'11px 26px', cursor:'pointer' }}>
+                    Add Cover Photo
+                  </button>
+                )}
               </div>
             )}
             {t.vignette && <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(ellipse at 50% 42%, transparent 45%, rgba(20,16,10,0.32) 100%)' }} />}
