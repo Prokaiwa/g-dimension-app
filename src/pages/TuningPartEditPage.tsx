@@ -9,6 +9,7 @@ import {
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
 } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
+import LinkOutIcon from '../components/LinkOutIcon'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -592,7 +593,7 @@ export default function TuningPartEditPage() {
                     </div>
                   </div>
                 ) : (
-                  <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}>↗</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_CARDBOARD_STAMP, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}><LinkOutIcon size={13} /></span>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 14, color: COLOR_CARDBOARD_INK, opacity: 0.78, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

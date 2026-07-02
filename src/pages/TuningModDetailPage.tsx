@@ -60,6 +60,7 @@ const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='h
 // ── Component ──────────────────────────────────────────────────────────────
 
 import React from 'react'
+import LinkOutIcon from '../components/LinkOutIcon'
 
 export default function TuningModDetailPage() {
   const { modId } = useParams<{ modId: string }>()
@@ -626,7 +627,7 @@ export default function TuningModDetailPage() {
                       WebkitTapHighlightColor: 'transparent',
                     }}
                   >
-                    <span style={{ color: COLOR_ACCENT, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↗</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_ACCENT, fontSize: 14, lineHeight: 1, flexShrink: 0 }}><LinkOutIcon size={13} /></span>
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.7)', flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {link.label || link.url}
                     </span>

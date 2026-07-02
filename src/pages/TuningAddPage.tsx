@@ -8,6 +8,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { TUNING_CATEGORIES } from './TuningBuildSheetPage'
 import { TITLE_PLACEHOLDER, TITLE_FALLBACK, brandPlaceholder } from '../lib/tuningExamples'
+import LinkOutIcon from '../components/LinkOutIcon'
 import {
   FONT_UI, EASING_SETTLE,
   FONT_HANDWRITTEN, FONT_STAMP,
@@ -1309,7 +1310,7 @@ export default function TuningAddPage() {
                         </div>
                       </div>
                     ) : (
-                      <span style={{ color: partsBinMode ? COLOR_CARDBOARD_STAMP : 'rgba(245,240,228,0.5)', fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}>↗</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: partsBinMode ? COLOR_CARDBOARD_STAMP : 'rgba(245,240,228,0.5)', fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center', opacity: 0.75 }}><LinkOutIcon size={13} /></span>
                     )}
                     <p style={{ flex: 1, fontFamily: partsBinMode ? FONT_HANDWRITTEN : FONT_UI, fontWeight: 700, fontSize: partsBinMode ? 14 : 13, color: partsBinMode ? COLOR_CARDBOARD_INK : 'rgba(245,240,228,0.75)', opacity: 0.82, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {link.label || link.url}

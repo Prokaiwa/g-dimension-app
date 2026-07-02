@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { CameraIcon } from '../components/CameraIcon'
+import LinkOutIcon from '../components/LinkOutIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT, COLOR_TIMELINE_MUTED,
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_NOTE,
@@ -319,7 +320,7 @@ export default function TimelineEntryNewPage() {
                     <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   </div>
                 ) : (
-                  <span style={{ color: COLOR_ACCENT, fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}>↗</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_ACCENT, fontSize: 14, width: 20, textAlign: 'center', flexShrink: 0 }}><LinkOutIcon size={13} /></span>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: COLOR_TIMELINE_TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

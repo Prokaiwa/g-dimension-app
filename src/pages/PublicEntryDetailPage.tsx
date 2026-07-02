@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { milesToUnit, asMileageUnit } from '../lib/mileage'
+import LinkOutIcon from '../components/LinkOutIcon'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT, COLOR_TIMELINE_MUTED,
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_YEAR,
@@ -418,7 +419,7 @@ export default function PublicEntryDetailPage() {
                       </div>
                     </div>
                   ) : (
-                    <span style={{ color: COLOR_ACCENT, fontSize: 15, width: 22, textAlign: 'center', flexShrink: 0 }}>↗</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_ACCENT, fontSize: 15, width: 22, textAlign: 'center', flexShrink: 0 }}><LinkOutIcon size={13} /></span>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_TIMELINE_TEXT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

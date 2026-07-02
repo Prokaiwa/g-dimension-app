@@ -38,6 +38,7 @@ function formatDate(d: string | null): string | null {
 }
 
 import React from 'react'
+import LinkOutIcon from '../components/LinkOutIcon'
 
 export default function PublicModDetailPage() {
   const { username, modId } = useParams<{ username: string; modId: string }>()
@@ -382,7 +383,7 @@ export default function PublicModDetailPage() {
                     <button key={link.id} onClick={() => window.open(link.url, '_blank')}
                       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(245,240,228,0.03)', border: '1px solid rgba(245,240,228,0.08)', cursor: 'pointer', textAlign: 'left', width: '100%', boxSizing: 'border-box', WebkitTapHighlightColor: 'transparent' }}
                     >
-                      <span style={{ color: COLOR_ACCENT, fontSize: 14, lineHeight: 1, flexShrink: 0 }}>↗</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_ACCENT, fontSize: 14, lineHeight: 1, flexShrink: 0 }}><LinkOutIcon size={13} /></span>
                       <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.7)', flex: 1, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {link.label || link.url}
                       </span>

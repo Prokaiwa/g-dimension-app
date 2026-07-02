@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 import { TITLE_PLACEHOLDER, TITLE_FALLBACK, brandPlaceholder } from '../lib/tuningExamples'
+import LinkOutIcon from '../components/LinkOutIcon'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -725,7 +726,7 @@ export default function TuningModEditPage() {
                     </div>
                   </div>
                 ) : (
-                  <span style={{ color: COLOR_ACCENT, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center' }}>↗</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: COLOR_ACCENT, fontSize: 14, flexShrink: 0, lineHeight: 1, width: 20, textAlign: 'center' }}><LinkOutIcon size={13} /></span>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.75)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
