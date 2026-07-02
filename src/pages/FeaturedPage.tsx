@@ -21,6 +21,7 @@ import {
 import gLogo from '../assets/logo/gdimensionG.webp'
 import { generateFeature } from '../features/featured/engine/generate'
 import type { PhotoSlot } from '../features/featured/engine/generate'
+import { buildStoryImage, canShareFile, downloadFile } from '../lib/storyShare'
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Car {
@@ -260,6 +261,42 @@ export default function FeaturedPage() {
   const [myUsername, setMyUsername]         = useState<string | null>(null)
   const [publishedToast, setPublishedToast] = useState(false)   // "Published" confirmation modal
   const [copied, setCopied]                 = useState(false)
+
+  // ── share modal (Instagram Story + copy link) ─────────────────────────────────
+  // The story image is generated the moment the modal OPENS (not on tap):
+  // navigator.share needs a live user activation on iOS, so the share tap must
+  // call it immediately — the File has to already exist by then.
+  const coverCaptureRef = useRef<HTMLDivElement>(null)
+  const [shareOpen, setShareOpen]           = useState(false)
+  const [storyFile, setStoryFile]           = useState<File | null>(null)
+  const [storyPreparing, setStoryPreparing] = useState(false)
+  const [storyFailed, setStoryFailed]       = useState(false)
+  const [shareCopied, setShareCopied]       = useState(false)
+  const [storySaved, setStorySaved]         = useState(false)
+
+  const openShare = () => {
+    setShareOpen(true)
+    setShareCopied(false)
+    setStorySaved(false)
+    setStoryFailed(false)
+    setStoryFile(null)
+    const el = coverCaptureRef.current
+    if (!el) { setStoryFailed(true); return }
+    setStoryPreparing(true)
+    buildStoryImage(el)
+      .then(f => { setStoryFile(f); setStoryPreparing(false) })
+      .catch(() => { setStoryFailed(true); setStoryPreparing(false) })
+  }
+
+  const shareStory = () => {
+    if (!storyFile) return
+    if (canShareFile(storyFile)) {
+      navigator.share({ files: [storyFile] }).catch(() => { /* user cancelled the sheet */ })
+    } else {
+      downloadFile(storyFile)
+      setStorySaved(true)
+    }
+  }
 
   // ── story photo chooser (which image fills the gap under a short story) ────────
   const [storyPhotoSheet, setStoryPhotoSheet] = useState(false)
@@ -1327,8 +1364,11 @@ export default function FeaturedPage() {
     if (pg.kind === 'cover') {
       return (
         <>
-          {/* Cover content — key triggers the fade-in on template change */}
-          <div key={t.id} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
+          {/* Cover content — key triggers the fade-in on template change.
+              coverCaptureRef marks this subtree as the story-share capture root:
+              all chrome (chips, chevrons, dots) are SIBLINGS of this div, so a
+              snapshot of it is exactly the clean cover. */}
+          <div key={t.id} ref={coverCaptureRef} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
             {photo && photo.mode === 'cutout' && (
               <img src={photo.url} alt=""
@@ -1582,6 +1622,23 @@ export default function FeaturedPage() {
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
+
+      {/* Share chip — left side (the template chips own the right column), and
+          unlike them it stays visible when PUBLISHED: that's when sharing
+          matters most. Hidden during edit/adjust so it can't end up in a
+          capture or collide with edit chrome. */}
+      {pageIdx === 0 && !isTurning && !adjusting && !editing && car && photo && (
+        <div data-feat-noturn style={{ position:'absolute', top:48, left:12, zIndex:20 }}>
+          <div onClick={openShare} style={{ ...COVER_CHIP, display:'flex', alignItems:'center', gap:5 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+              <path d="M12 15V3" />
+              <path d="m7 8 5-5 5 5" />
+            </svg>
+            Share
+          </div>
+        </div>
+      )}
 
       {/* Cover chrome — template switcher + dots. Hidden once PUBLISHED: the design
           is locked until the owner unpublishes (from the spec-sheet page). */}
@@ -1860,6 +1917,62 @@ export default function FeaturedPage() {
             {savingStoryPhoto && (
               <div style={{ padding:'0 16px 12px', fontFamily:FONT_DECK, fontSize:10, color:theme.menuHeaderInk, opacity:0.65, textAlign:'center' }}>Saving…</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Share — Instagram Story (exact rendered cover) + copy link */}
+      {shareOpen && (
+        <div onClick={() => setShareOpen(false)}
+          style={{ position:'absolute', inset:0, zIndex:50, background:'rgba(8,8,10,0.72)', display:'grid', placeItems:'center', padding:24, animation:`featFade 200ms ${EASING_SETTLE} both` }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:'100%', maxWidth:340, background:'#15110c', border:'1px solid rgba(200,102,26,0.35)', padding:'26px 22px 20px', textAlign:'center' }}>
+            <div style={{ fontFamily:FONT_MASTHEAD, color:'#f5f5f5', fontSize:30, fontStyle:'italic', lineHeight:0.95, textTransform:'uppercase', paddingRight:4 }}>Share</div>
+            <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.7)', fontSize:12, lineHeight:1.45, marginTop:10 }}>
+              This issue's cover, exactly as you built it.
+            </div>
+
+            {/* Instagram Story — the image is prepared while this modal is open
+                so the tap can call the share sheet instantly (iOS requirement) */}
+            <button
+              onClick={shareStory}
+              disabled={!storyFile}
+              style={{ marginTop:18, width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+                fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.16em', textTransform:'uppercase',
+                color:'#fff', background: storyFile ? COLOR_ACCENT : 'rgba(200,102,26,0.3)',
+                border:'none', padding:'13px 16px', cursor: storyFile ? 'pointer' : 'default' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="2" y="2" width="20" height="20" rx="5" />
+                <circle cx="12" cy="12" r="4.2" />
+                <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+              </svg>
+              {storyFailed ? 'Could not build image' : storyPreparing ? 'Preparing cover…' : storySaved ? 'Saved to device' : 'Share to Instagram Story'}
+            </button>
+            {storySaved && (
+              <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.55)', fontSize:10.5, lineHeight:1.5, marginTop:8 }}>
+                Image saved — add it to your Story from your camera roll.
+              </div>
+            )}
+
+            {/* Copy link — needs the build to be public */}
+            {shareUrl ? (
+              <div style={{ marginTop:12, display:'flex', alignItems:'center', gap:8, border:'1px solid rgba(245,245,245,0.18)', padding:'8px 10px' }}>
+                <div style={{ flex:1, minWidth:0, fontFamily:FONT_DECK, fontSize:10.5, color:'rgba(245,245,245,0.85)', textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{shareUrl}</div>
+                <button onClick={() => { navigator.clipboard?.writeText(shareUrl).then(() => setShareCopied(true)).catch(() => {}) }}
+                  style={{ flexShrink:0, fontFamily:FONT_DECK, fontWeight:700, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'#fff', background:COLOR_ACCENT, border:'none', padding:'7px 12px', cursor:'pointer' }}>
+                  {shareCopied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ marginTop:12, fontFamily:FONT_DECK, color:'rgba(245,245,245,0.45)', fontSize:10.5, lineHeight:1.5, border:'1px solid rgba(245,245,245,0.12)', padding:'10px 12px' }}>
+                Make your build public to get a shareable link.
+              </div>
+            )}
+
+            <button onClick={() => setShareOpen(false)}
+              style={{ marginTop:18, fontFamily:FONT_DECK, fontWeight:700, fontSize:10, letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(245,245,245,0.65)', background:'transparent', border:'none', cursor:'pointer' }}>
+              Done
+            </button>
           </div>
         </div>
       )}
