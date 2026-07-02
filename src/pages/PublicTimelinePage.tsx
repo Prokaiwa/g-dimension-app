@@ -296,9 +296,78 @@ export default function PublicTimelinePage() {
   const colRef = useRef<HTMLDivElement>(null)
   const orbRef = useRef<HTMLDivElement>(null)
   const passedRef = useRef(-1)
-  const rafRef = useRef(0)
+  const scrollRafRef = useRef(0)      // throttles updateThread() to once per scroll frame
 
-  const updateThread = () => {
+  // The orb's on-screen position is a SMOOTHED follower of the scroll-mapped
+  // target, not a 1:1 mirror of it — otherwise it inherits every scroll jolt,
+  // and (on short timelines, where the endScroll clamp compresses the mapping)
+  // can visibly outrun the finger. orbPosRef is the current eased position;
+  // orbTargetRef is the raw target from the scroll math (unchanged below).
+  // null orbPosRef means "uninitialised — next write must SNAP, not animate".
+  const orbPosRef = useRef<number | null>(null)
+  const orbTargetRef = useRef(0)
+  const orbEnteredRef = useRef(false)
+  const nodeOffsetsRef = useRef<number[]>([])
+  const orbRafRef = useRef(0)             // the follower's own continuation loop
+  const lastOrbFrameRef = useRef(0)       // timestamp of the previous eased step (0 = start fresh)
+
+  const ORB_EASE_TAU = 100   // ms — exponential ease time constant (frame-rate independent)
+  const ORB_SNAP_EPS = 0.4   // px — once this close, snap to target and stop the loop
+
+  // Writes the orb's DOM position/opacity from the current smoothed position,
+  // and fires the pass-tick off THAT (not the raw target) so the tick lines up
+  // with where the orb is actually rendered.
+  const writeOrbFrame = () => {
+    const orb = orbRef.current
+    const pos = orbPosRef.current
+    if (!orb || pos === null) return
+    orb.style.top = `${pos.toFixed(1)}px`
+    orb.style.opacity = orbEnteredRef.current ? '1' : '0'
+
+    let passed = 0
+    for (const off of nodeOffsetsRef.current) { if (off <= pos + 0.5) passed++ }
+    if (passedRef.current >= 0 && passed > passedRef.current && orbEnteredRef.current) playThreadTick()
+    passedRef.current = passed
+  }
+
+  const stepOrb = (t: number) => {
+    const pos = orbPosRef.current
+    if (pos === null) { orbRafRef.current = 0; return }
+    const last = lastOrbFrameRef.current || t
+    const dt = t - last
+    lastOrbFrameRef.current = t
+    const target = orbTargetRef.current
+    const k = 1 - Math.exp(-dt / ORB_EASE_TAU)
+    const next = pos + (target - pos) * k
+    if (Math.abs(target - next) < ORB_SNAP_EPS) {
+      orbPosRef.current = target
+      writeOrbFrame()
+      orbRafRef.current = 0
+      lastOrbFrameRef.current = 0
+      return
+    }
+    orbPosRef.current = next
+    writeOrbFrame()
+    orbRafRef.current = requestAnimationFrame(stepOrb)
+  }
+
+  // Make sure the follower loop is running (idempotent — never stack loops,
+  // never leave one spinning once the orb has settled onto its target).
+  const ensureOrbLoop = () => {
+    if (orbRafRef.current) return
+    lastOrbFrameRef.current = 0
+    orbRafRef.current = requestAnimationFrame(stepOrb)
+  }
+
+  // Cancel any in-flight follower animation on unmount.
+  useEffect(() => {
+    return () => { if (orbRafRef.current) cancelAnimationFrame(orbRafRef.current) }
+  }, [])
+
+  // `snap` bypasses the eased follower and jumps the orb straight to the
+  // target — used on initial layout/settle and scroll-position restore, where
+  // animating in from the top would look like the orb flying down the spine.
+  const updateThread = (snap = false) => {
     const container = scrollRef.current
     const col = colRef.current
     const orb = orbRef.current
@@ -322,30 +391,38 @@ export default function PublicTimelinePage() {
     const startScroll = (firstRect.top - cRect.top + scrollTop) - ref
     const endScroll = Math.min((lastRect.top - cRect.top + scrollTop) - ref, scrollMax - 28)
     const frac = Math.min(1, Math.max(0, (scrollTop - startScroll) / Math.max(1, endScroll - startScroll)))
-    const orbInCol = firstInCol + frac * (lastInCol - firstInCol)
-    orb.style.top = `${orbInCol.toFixed(1)}px`
+    orbTargetRef.current = firstInCol + frac * (lastInCol - firstInCol)
 
-    const entered = firstRect.top < cRect.top + container.clientHeight * 0.92
-    orb.style.opacity = entered ? '1' : '0'
+    orbEnteredRef.current = firstRect.top < cRect.top + container.clientHeight * 0.92
+    nodeOffsetsRef.current = Array.from(nodes, n => n.getBoundingClientRect().top - colRect.top + NODE_C)
 
-    let passed = 0
-    nodes.forEach(n => { if (n.getBoundingClientRect().top - colRect.top + NODE_C <= orbInCol + 0.5) passed++ })
-    if (passedRef.current >= 0 && passed > passedRef.current && entered) playThreadTick()
-    passedRef.current = passed
+    if (snap || orbPosRef.current === null) {
+      orbPosRef.current = orbTargetRef.current
+      writeOrbFrame()
+      // A snap can land while the follower loop is mid-flight (e.g. scroll
+      // restore firing after the settle effect) — stop it so it can't fight
+      // the snap on the next frame.
+      if (orbRafRef.current) { cancelAnimationFrame(orbRafRef.current); orbRafRef.current = 0 }
+      lastOrbFrameRef.current = 0
+      return
+    }
+    ensureOrbLoop()
   }
 
   const onScroll = () => {
     const y = scrollRef.current?.scrollTop ?? 0
     if (heroRef.current) heroRef.current.style.transform = `translateY(${(y * 0.12).toFixed(1)}px)`
-    if (!rafRef.current) {
-      rafRef.current = requestAnimationFrame(() => { rafRef.current = 0; updateThread() })
+    if (!scrollRafRef.current) {
+      scrollRafRef.current = requestAnimationFrame(() => { scrollRafRef.current = 0; updateThread() })
     }
   }
 
+  // Settle the orb into position once the list is laid out (and on resize) —
+  // snapped, so it doesn't animate in from the top on first paint.
   useEffect(() => {
     if (loading) return
-    const id = requestAnimationFrame(updateThread)
-    const onResize = () => updateThread()
+    const id = requestAnimationFrame(() => updateThread(true))
+    const onResize = () => updateThread(true)
     window.addEventListener('resize', onResize)
     return () => { cancelAnimationFrame(id); window.removeEventListener('resize', onResize) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,7 +439,9 @@ export default function PublicTimelinePage() {
     let saved = 0
     try { saved = Number(sessionStorage.getItem(SCROLL_KEY)) || 0; sessionStorage.removeItem(SCROLL_KEY) } catch { /* ignore */ }
     if (arrival === 'overture' || saved <= 0) return
-    const apply = () => { if (scrollRef.current) scrollRef.current.scrollTop = saved }
+    // Snap (don't animate) the orb to the restored position — otherwise the
+    // subsequent scroll event would ease it in from wherever it last sat.
+    const apply = () => { if (scrollRef.current) scrollRef.current.scrollTop = saved; updateThread(true) }
     requestAnimationFrame(() => { apply(); requestAnimationFrame(apply) })
     const t = window.setTimeout(apply, 340)
     return () => window.clearTimeout(t)
