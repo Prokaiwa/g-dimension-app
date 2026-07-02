@@ -43,6 +43,7 @@ function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ de
 const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'))
 const SignupPage = lazyWithRetry(() => import('./pages/SignupPage'))
 const AuthCallbackPage = lazyWithRetry(() => import('./pages/AuthCallbackPage'))
+const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPasswordPage'))
 const WelcomePage = lazyWithRetry(() => import('./pages/WelcomePage'))
 
 // Hub
@@ -297,6 +298,9 @@ export default function App() {
       {/* Public: email-confirmation + OAuth landing. Must NOT be protected —
           the gate would bounce before the URL token becomes a session. */}
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      {/* Public: password-recovery link landing (resetPasswordForEmail redirectTo).
+          Must NOT be protected — same race as /auth/callback above. */}
+      <Route path="/auth/reset" element={<ResetPasswordPage />} />
       {/* Public legal pages — linkable from the marketing footer, Settings, and
           (required) Google's OAuth consent screen. */}
       <Route path="/terms" element={<TermsPage />} />

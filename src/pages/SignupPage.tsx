@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ConcretePanelInput from '../components/ConcretePanelInput'
+import PasswordChecklist, { passwordMeetsAll } from '../components/PasswordChecklist'
 import logo from '../assets/logo/gdimensionG.webp'
 import {
   GRADIENT_APP_BG,
@@ -30,13 +31,12 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
 
-  const passwordMismatch = confirm.length > 0 && password !== confirm
-  const canSubmit = email && password.length >= 8 && password === confirm && !loading
+  const canSubmit = !!email && passwordMeetsAll(password, confirm) && !loading
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (password !== confirm) { setError('Passwords do not match.'); return }
+    if (!passwordMeetsAll(password, confirm)) { setError('Please meet all password requirements.'); return }
     setLoading(true)
     const { error: authError } = await supabase.auth.signUp({
       email,
@@ -187,11 +187,6 @@ export default function SignupPage() {
             autoComplete="new-password"
             disabled={loading}
           />
-          {password.length > 0 && password.length < 8 && (
-            <p style={{ fontFamily: FONT_UI, fontSize: 11, color: COLOR_TEXT_SECONDARY, margin: '4px 0 0' }}>
-              Minimum 8 characters
-            </p>
-          )}
         </div>
         <div>
           <ConcretePanelInput
@@ -202,10 +197,8 @@ export default function SignupPage() {
             autoComplete="new-password"
             disabled={loading}
           />
-          {passwordMismatch && (
-            <p style={{ fontFamily: FONT_UI, fontSize: 11, color: COLOR_ACCENT, margin: '4px 0 0' }}>
-              Passwords do not match
-            </p>
+          {(password.length > 0 || confirm.length > 0) && (
+            <PasswordChecklist password={password} confirm={confirm} />
           )}
         </div>
 
