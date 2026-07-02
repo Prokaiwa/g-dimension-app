@@ -245,6 +245,9 @@ export default function PublicFeaturedPage() {
           .eq('car_id', carId)
           .eq('entry_type', 'note')
           .not('photo_url', 'is', null)
+          // DIY guide notes carry step photos that must never bleed into the
+          // magazine — mirrors the same filter on the owner FeaturedPage.
+          .not('title', 'ilike', 'DIY Guide:%')
           .order('created_at', { ascending: false })
           .limit(6),
       ])
