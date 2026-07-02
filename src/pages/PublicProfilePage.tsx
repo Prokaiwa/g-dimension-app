@@ -97,11 +97,15 @@ const TEMPLATES: Record<number, Template> = {
   },
   4: {
     // Diamond: Garage top-center, Build Sheet right, Timeline left, Featured bottom.
-    // Both Garage roads fork from the BOTTOM of the Garage icon (195, 233) so
-    // they appear to share a single departure point — like a fork in the road.
+    // Both Garage roads fork from a single departure point at (195, 193) —
+    // like a fork in the road. The Garage node sits at y=174 so that point
+    // lands ~19px BELOW the icon's center, over the house's opaque lower
+    // walls — the same icon-to-road relationship as the private Home map
+    // (center 195,220; roads depart 238/240). At the old y=195 the roads
+    // crossed 2px ABOVE center, slicing visibly through the roofline.
     // Timeline moved down to y=490 so it sits below the two converging road ends.
     nodes: [
-      { x: 195, y: 195 },  // 0: Garage (focal)
+      { x: 195, y: 174 },  // 0: Garage (focal)
       { x: 322, y: 400 },  // 1: Build Sheet (right)
       { x: 68,  y: 490 },  // 2: Timeline (left)
       { x: 195, y: 645 },  // 3: Featured (bottom)
@@ -836,7 +840,12 @@ export default function PublicProfilePage() {
                   <div style={{
                     position: 'absolute', width: 190, height: 190, top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    background: 'radial-gradient(circle, rgba(180,185,195,0.35) 0%, transparent 62%)',
+                    // Eased fade to the SAME color at alpha 0 — never the `transparent`
+                    // keyword (transparent BLACK), whose ramp reads as a faint dark ring
+                    // where the gradient terminus crosses the ground shadow (the
+                    // "straight line of shade" artifact). Multi-stop ≈ gaussian falloff
+                    // so the edge has no perceivable Mach band.
+                    background: 'radial-gradient(circle, rgba(180,185,195,0.35) 0%, rgba(180,185,195,0.16) 35%, rgba(180,185,195,0.05) 55%, rgba(180,185,195,0) 78%)',
                     animation: 'pubPulse 7s ease-in-out infinite', pointerEvents: 'none',
                   }} />
                 )}
