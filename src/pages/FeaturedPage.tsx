@@ -1363,7 +1363,11 @@ export default function FeaturedPage() {
               // band above and the headline/deck furniture anchored to the bottom).
               <div style={{ position:'absolute', top:'16%', left:0, right:0, height:'50%', zIndex:8,
                 display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'0 30px', textAlign:'center' }}>
-                <span style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:bottomColor, opacity:0.9, fontSize:22, lineHeight:1.15, textTransform:'uppercase', letterSpacing:'0.01em' }}>
+                {/* paddingRight gives the synthesized-oblique overhang of the last
+                    glyph room to paint — Anton has no true italic, and without it
+                    the final T's skewed corner gets clipped (same trick as the
+                    page-number span further down). */}
+                <span style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:bottomColor, opacity:0.9, fontSize:22, lineHeight:1.15, textTransform:'uppercase', letterSpacing:'0.01em', paddingRight:6 }}>
                   Every Cover Story<br />Needs A Cover Shot
                 </span>
                 <span style={{ fontFamily:FONT_DECK, fontWeight:500, color:bottomColor, opacity:0.6, fontSize:11.5, lineHeight:1.5, maxWidth:230 }}>
