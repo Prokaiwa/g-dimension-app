@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { isChunkLoadError } from '../lib/chunkReload'
 import { COLOR_BRAND, COLOR_ACCENT_TEXT, FONT_UI, SPACE_SM } from '../tokens'
 
 // Lightweight on-device error surface for phone testing. Catches uncaught
@@ -8,11 +9,22 @@ import { COLOR_BRAND, COLOR_ACCENT_TEXT, FONT_UI, SPACE_SM } from '../tokens'
 // though it's intended for the current testing phase.
 const MAX_VISIBLE = 4
 
+// supabase-js auth-token refresh races its own Navigator Locks lock when a
+// tab resumes after a long idle — one request "steals" the lock and the loser
+// rejects with a lock error. It's benign and self-recovering (the refresh is
+// retried), so it must not alarm anyone as a red banner.
+const BENIGN = /lock:sb-.*-auth-token|Navigator LocksManager|lock .* was released|lock broken/i
+
 export default function ErrorBanner() {
   const [errors, setErrors] = useState<string[]>([])
 
   useEffect(() => {
     function push(msg: string) {
+      if (BENIGN.test(msg)) return
+      // Failed chunk loads are already auto-handled by installChunkReloadGuard
+      // (reload, capped). If one still surfaces here, the network is genuinely
+      // struggling — say that in human words instead of a raw module error.
+      if (isChunkLoadError(msg)) msg = 'Connection hiccup while loading — check your signal and pull down to refresh.'
       setErrors(prev => [...prev, msg].slice(-MAX_VISIBLE))
     }
     const onError = (e: ErrorEvent) => {
