@@ -15,6 +15,10 @@ const MAX_VISIBLE = 4
 // retried), so it must not alarm anyone as a red banner.
 const BENIGN = /lock:sb-.*-auth-token|Navigator LocksManager|lock .* was released|lock broken/i
 
+// Friendly stand-in for raw module-load failures on a struggling connection.
+// Sentinel string — the render attaches a Reload button to rows showing it.
+const CHUNK_MSG = 'Connection hiccup while loading — tap Reload to try again.'
+
 export default function ErrorBanner() {
   const [errors, setErrors] = useState<string[]>([])
 
@@ -24,7 +28,9 @@ export default function ErrorBanner() {
       // Failed chunk loads are already auto-handled by installChunkReloadGuard
       // (reload, capped). If one still surfaces here, the network is genuinely
       // struggling — say that in human words instead of a raw module error.
-      if (isChunkLoadError(msg)) msg = 'Connection hiccup while loading — check your signal and pull down to refresh.'
+      // (The app blocks pull-to-refresh by design, so the banner must carry
+      // its own Reload action — see the render below.)
+      if (isChunkLoadError(msg)) msg = CHUNK_MSG
       setErrors(prev => [...prev, msg].slice(-MAX_VISIBLE))
     }
     const onError = (e: ErrorEvent) => {
@@ -51,6 +57,14 @@ export default function ErrorBanner() {
       {errors.map((msg, i) => (
         <div key={`${i}-${msg}`} style={{ background: COLOR_BRAND, color: COLOR_ACCENT_TEXT, fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, lineHeight: 1.45, padding: `${SPACE_SM}px 12px`, display: 'flex', alignItems: 'flex-start', gap: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
           <span style={{ flex: 1, wordBreak: 'break-word' }}>{msg}</span>
+          {msg === CHUNK_MSG && (
+            <button
+              onClick={() => window.location.reload()}
+              style={{ background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.35)', color: COLOR_ACCENT_TEXT, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 10px', cursor: 'pointer', flexShrink: 0, WebkitTapHighlightColor: 'transparent' }}
+            >
+              Reload
+            </button>
+          )}
           <button
             onClick={() => setErrors(prev => prev.filter((_, j) => j !== i))}
             aria-label="Dismiss"

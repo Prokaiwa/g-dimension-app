@@ -884,11 +884,27 @@ export default function PublicProfilePage() {
                       }} />
                     </div>
                   </div>
-                  {/* Ground shadow */}
+                  {/* Ground shadow — drawn as a pre-soft radial gradient, NOT
+                      filter:blur. Inside this 3D-transformed world (rotateX +
+                      preserve-3d), Safari re-rasterizes filtered elements when
+                      sibling animations (the 3.2s-delayed glints) force a
+                      re-composite, clipping the blur to the element's tiny box —
+                      the soft shadow snapped to a hard-edged dark bar a few
+                      seconds after load. A gradient has no post-processing pass
+                      to lose. The outer div keeps the exact old flow box so the
+                      label position is unchanged; the oversized inner div paints
+                      the soft ellipse the blur used to spread. */}
                   <div style={{
-                    width: size * 0.58, height: 8, marginTop: n.focal ? -6 : -4, borderRadius: '50%',
-                    background: 'rgba(30,36,48,0.3)', filter: 'blur(7px)', flexShrink: 0, pointerEvents: 'none',
-                  }} />
+                    width: size * 0.58, height: 8, marginTop: n.focal ? -6 : -4,
+                    position: 'relative', flexShrink: 0, pointerEvents: 'none',
+                  }}>
+                    <div style={{
+                      position: 'absolute', left: '50%', top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: size * 0.58 * 1.4, height: 26,
+                      background: 'radial-gradient(ellipse 50% 50% at center, rgba(30,36,48,0.30) 0%, rgba(30,36,48,0.16) 45%, rgba(30,36,48,0) 72%)',
+                    }} />
+                  </div>
                   <span style={{
                     fontFamily: FONT_UI, fontWeight: n.focal ? 800 : 700,
                     fontSize: 11,
