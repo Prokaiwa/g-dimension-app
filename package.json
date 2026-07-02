@@ -12,10 +12,13 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
+    "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "^2.105.1",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/og": "^0.11.1",
     "browser-image-compression": "^2.0.2",
     "heic-to": "^1.4.3",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
