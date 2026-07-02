@@ -26,11 +26,16 @@ async function preloadRemoteImages(el: HTMLElement): Promise<Map<string, string>
     .map(i => i.getAttribute('src') || '')
     .filter(s => /^https?:\/\//.test(s))
   await Promise.all([...new Set(srcs)].map(async src => {
-    try {
-      const res = await fetch(src, { mode: 'cors', cache: 'reload' })
-      if (!res.ok) return
-      map.set(src, URL.createObjectURL(await res.blob()))
-    } catch { /* leave the original src — html2canvas will try its own path */ }
+    // No silent fallback: if a remote photo can't be fetched clean, FAIL with
+    // a precise reason. Letting html2canvas load it itself is exactly how
+    // Safari taints the canvas (it can serve a stale non-CORS cache entry to
+    // a crossorigin request) and the export then dies with the opaque
+    // "operation is insecure".
+    const res = await fetch(src, { mode: 'cors', cache: 'reload' }).catch((e: unknown) => {
+      throw new Error(`photo fetch failed: ${e instanceof Error ? e.message : String(e)}`)
+    })
+    if (!res.ok) throw new Error(`photo fetch failed: HTTP ${res.status}`)
+    map.set(src, URL.createObjectURL(await res.blob()))
   }))
   return map
 }
@@ -57,10 +62,23 @@ export async function buildStoryImage(el: HTMLElement): Promise<File> {
           const swapped = blobMap.get(img.getAttribute('src') || '')
           if (swapped) img.setAttribute('src', swapped)
         })
+        // WebKit taint insurance: strip the SVG-data-URI grain overlays (the
+        // feTurbulence noise). At opacity ~0.03 they're invisible in the
+        // export anyway, and Safari has a history of tainting canvases over
+        // SVG-filter images. Clone only — the live page keeps its grain.
+        doc.querySelectorAll<HTMLElement>('[style*="data:image/svg"]').forEach(n => n.remove())
       },
     })
   } finally {
     blobMap.forEach(u => URL.revokeObjectURL(u))
+  }
+
+  // If anything still tainted the render, fail HERE with a named stage
+  // instead of the browser's cryptic SecurityError at export time.
+  try {
+    cover.getContext('2d')?.getImageData(0, 0, 1, 1)
+  } catch {
+    throw new Error('render tainted (a cross-origin resource slipped into the capture)')
   }
 
   const canvas = document.createElement('canvas')
