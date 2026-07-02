@@ -25,6 +25,20 @@ export async function buildStoryImage(el: HTMLElement): Promise<File> {
     backgroundColor: null,
     scale,
     logging: false,
+    imageTimeout: 10000,
+    onclone: doc => {
+      // If the cover photo was first loaded WITHOUT crossorigin (normal <img>),
+      // the browser may have cached a response with no CORS headers; the
+      // crossorigin re-fetch html2canvas needs then fails against that
+      // poisoned cache entry. Cache-bust remote srcs in the CLONE only, so the
+      // re-fetch bypasses the cache and gets a fresh ACAO:* response.
+      doc.querySelectorAll('img').forEach(img => {
+        const src = img.getAttribute('src') || ''
+        if (/^https?:\/\//.test(src)) {
+          img.setAttribute('src', src + (src.includes('?') ? '&' : '?') + 'gdim-share=1')
+        }
+      })
+    },
   })
 
   const canvas = document.createElement('canvas')

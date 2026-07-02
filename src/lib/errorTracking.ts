@@ -8,8 +8,15 @@
 // Deliberately minimal: error capture only — no performance tracing, no
 // session replay — to keep the payload small and the free-tier quota lean.
 
+// The DSN is a PUBLIC identifier (it ships in every client bundle by design —
+// same story as the Supabase anon key); inlining it as the fallback means
+// error tracking is live with zero Vercel env config. VITE_SENTRY_DSN still
+// takes precedence if ever set.
+const FALLBACK_DSN =
+  'https://a0e2dbc6cb20dbb1460b2e5619d95fe1@o4511663471591424.ingest.us.sentry.io/4511664513744896'
+
 export function initErrorTracking(): void {
-  const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined
+  const dsn = (import.meta.env.VITE_SENTRY_DSN as string | undefined) || FALLBACK_DSN
   if (!dsn) return
 
   const start = () => {

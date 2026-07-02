@@ -271,6 +271,7 @@ export default function FeaturedPage() {
   const [storyFile, setStoryFile]           = useState<File | null>(null)
   const [storyPreparing, setStoryPreparing] = useState(false)
   const [storyFailed, setStoryFailed]       = useState(false)
+  const [storyFailDetail, setStoryFailDetail] = useState<string | null>(null)
   const [shareCopied, setShareCopied]       = useState(false)
   const [storySaved, setStorySaved]         = useState(false)
 
@@ -279,13 +280,18 @@ export default function FeaturedPage() {
     setShareCopied(false)
     setStorySaved(false)
     setStoryFailed(false)
+    setStoryFailDetail(null)
     setStoryFile(null)
     const el = coverCaptureRef.current
-    if (!el) { setStoryFailed(true); return }
+    if (!el) { setStoryFailed(true); setStoryFailDetail('cover element not found'); return }
     setStoryPreparing(true)
     buildStoryImage(el)
       .then(f => { setStoryFile(f); setStoryPreparing(false) })
-      .catch(() => { setStoryFailed(true); setStoryPreparing(false) })
+      .catch((e: unknown) => {
+        setStoryFailed(true)
+        setStoryFailDetail(e instanceof Error ? e.message : String(e))
+        setStoryPreparing(false)
+      })
   }
 
   const shareStory = () => {
@@ -1929,7 +1935,7 @@ export default function FeaturedPage() {
             style={{ width:'100%', maxWidth:340, background:'#15110c', border:'1px solid rgba(200,102,26,0.35)', padding:'26px 22px 20px', textAlign:'center' }}>
             <div style={{ fontFamily:FONT_MASTHEAD, color:'#f5f5f5', fontSize:30, fontStyle:'italic', lineHeight:0.95, textTransform:'uppercase', paddingRight:4 }}>Share</div>
             <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.7)', fontSize:12, lineHeight:1.45, marginTop:10 }}>
-              This issue's cover, exactly as you built it.
+              Add this cover to your Story, or send your build to a friend.
             </div>
 
             {/* Instagram Story — the image is prepared while this modal is open
@@ -1951,6 +1957,13 @@ export default function FeaturedPage() {
             {storySaved && (
               <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.55)', fontSize:10.5, lineHeight:1.5, marginTop:8 }}>
                 Image saved — add it to your Story from your camera roll.
+              </div>
+            )}
+            {storyFailed && storyFailDetail && (
+              // Diagnostic breadcrumb (testing phase) — tells us WHY the
+              // capture failed instead of a blind "could not build".
+              <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.4)', fontSize:9.5, lineHeight:1.5, marginTop:8, wordBreak:'break-word' }}>
+                {storyFailDetail}
               </div>
             )}
 
