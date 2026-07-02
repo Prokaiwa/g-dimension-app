@@ -5,7 +5,9 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 065_job_condition.sql (applied 2026-06-30)
+-- Last migration applied : 066_job_mounted_on.sql (applied 2026-07-02)
+--   - 066 (jobs.mounted_on_job_id — mount one job onto another; Wheels + Tires
+--     combo Phase 1, tire job linked to its wheel job) applied 2026-07-02.
 --   - 065 (jobs.condition — new/used flag on a mod/part; New/Used toggle on the
 --     Add/Edit forms + Condition row on mod detail) applied 2026-06-30.
 --   - 064 (spec_templates brand placeholders — fills the NULL brand-field hint
