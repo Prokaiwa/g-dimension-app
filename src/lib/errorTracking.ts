@@ -41,6 +41,14 @@ export function initErrorTracking(): void {
             /valid JavaScript MIME type/i,
           ],
         })
+        // Deterministic wiring check: visit any page with ?sentry-test in the
+        // URL and one test event is sent AFTER init (no lazy-load race, no
+        // console gymnastics). Sentry's onboarding stays stuck on "waiting
+        // for this project's first error" until one event arrives — this is
+        // the reliable way to feed it.
+        if (window.location.search.includes('sentry-test')) {
+          Sentry.captureMessage('Sentry wiring test — everything works', 'error')
+        }
       })
       .catch(() => { /* tracking must never break the app */ })
   }
