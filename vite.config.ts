@@ -38,11 +38,20 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         inlineWorkboxRuntime: true,
+        // CRITICAL: "/" is served the static marketing page (public/marketing.html)
+        // by Vercel, NOT the SPA. Empty directoryIndex stops the precached
+        // index.html from being served for "/" (workbox would otherwise append
+        // "index.html" to the "/" request and match it), and the /^\/$/ denylist
+        // entry stops navigateFallback from doing the same. Without both,
+        // SW-controlled visitors would get the SPA shell at "/" and RootRedirect
+        // could loop. (The option is typed string, so '' — not false — disables it.)
+        directoryIndex: '',
         navigateFallback: '/index.html',
         // Never hijack these with the SPA shell — let them hit the network so the
-        // per-build OG injector (api/og.js), the sitemaps, the static marketing
-        // page, and files with extensions resolve normally.
+        // marketing page ("/"), the per-build OG injector (api/og.js), the
+        // sitemaps, and files with extensions resolve normally.
         navigateFallbackDenylist: [
+          /^\/$/,
           /^\/api\//,
           /^\/builds\//,
           /^\/sitemap/,
