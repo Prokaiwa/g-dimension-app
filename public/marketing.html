@@ -52,22 +52,57 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-<!-- ═══ SCHEMA.ORG STRUCTURED DATA ═══ -->
+<!-- ═══ SCHEMA.ORG STRUCTURED DATA ═══
+     JSON-LD is a data block, not executable script, so it is NOT governed by the
+     CSP script-src hash allowlist (unlike the executable inline scripts at the
+     bottom of this file). Adding/editing these blocks needs no vercel.json change.
+     WebSite + SoftwareApplication + Organization here define the G-Dimension
+     entity for search + AI engines; the FAQPage block sits next to the FAQ HTML. -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "G-Dimension",
   "url": "https://gdimension.app/",
-  "description": "The dedicated build journal for car enthusiasts. Log every modification, part, receipt and photo — permanent, searchable, organized by your car.",
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": "https://gdimension.app/?q={search_term_string}",
-    "query-input": "required name=search_term_string"
-  },
+  "description": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. Log every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record — organized by car and in the order it happened.",
+  "publisher": { "@type": "Organization", "name": "G-Dimension" },
   "sameAs": [
     "https://www.instagram.com/gdimensionapp/"
   ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "G-Dimension",
+  "url": "https://gdimension.app/",
+  "applicationCategory": "AutomotiveApplication",
+  "applicationSubCategory": "Car build journal & maintenance log",
+  "operatingSystem": "Web browser, iOS, Android",
+  "description": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. Document every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record, and share a clean public build profile.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "featureList": [
+    "Log modifications with part numbers, specs, costs, and photos",
+    "Maintenance and service history logbook",
+    "Track multiple cars in one garage",
+    "Automatic build timeline in chronological order",
+    "Shareable public build profile",
+    "Export a complete build sheet PDF"
+  ],
+  "publisher": { "@type": "Organization", "name": "G-Dimension", "url": "https://gdimension.app/" },
+  "sameAs": [ "https://www.instagram.com/gdimensionapp/" ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "G-Dimension",
+  "url": "https://gdimension.app/",
+  "logo": "https://gdimension.app/icon-192.png",
+  "description": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts.",
+  "sameAs": [ "https://www.instagram.com/gdimensionapp/" ]
 }
 </script>
 
@@ -635,6 +670,47 @@ body{
 }
 
 /* ══════════════════════════════
+   FAQ  (plain text, no accordions — kept flat + crawlable so search
+   and AI engines can extract each answer directly. Ties to FAQPage JSON-LD.)
+══════════════════════════════ */
+.faq{
+  background:var(--cavity);
+  border-top:1px solid #0c0c12;
+  padding:80px 24px 84px;
+  position:relative;overflow:hidden;
+}
+.faq-inner{max-width:660px;margin:0 auto;position:relative;}
+.faq-eyebrow{
+  font-family:var(--font-ui);font-weight:700;
+  font-size:9.5px;letter-spacing:0.24em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:14px;
+  display:flex;align-items:center;gap:12px;
+}
+.faq-eyebrow::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(100,100,110,0.35),transparent);}
+.faq-title{
+  font-family:var(--font-title);font-style:italic;font-weight:500;
+  font-size:clamp(30px,4vw,50px);
+  line-height:1.06;color:var(--text-primary);
+  letter-spacing:-0.01em;margin-bottom:44px;
+}
+.faq-item{
+  padding:24px 0;
+  border-top:1px solid #14141c;
+}
+.faq-item:first-of-type{border-top:none;padding-top:4px;}
+.faq-q{
+  font-family:var(--font-ui);font-weight:700;
+  font-size:17px;line-height:1.35;color:var(--text-primary);
+  letter-spacing:-0.005em;margin-bottom:11px;
+}
+.faq-a{
+  font-family:var(--font-ui);font-weight:400;
+  font-size:14.5px;line-height:1.72;color:var(--text-secondary);
+}
+.faq-a a{color:var(--accent);text-decoration:none;}
+.faq-a a:hover{text-decoration:underline;}
+
+/* ══════════════════════════════
    FOOTER
 ══════════════════════════════ */
 .footer{
@@ -884,7 +960,7 @@ body{
   <div class="headline-area">
     <p class="eyebrow" aria-hidden="true">Join the Waitlist</p>
     <h1 class="headline">Your build has a story.<br>Give it somewhere to live.</h1>
-    <p class="hero-sub">The dedicated build journal for enthusiasts who take their cars seriously.</p>
+    <p class="hero-sub">G-Dimension is a build journal and maintenance logbook for car enthusiasts who take their cars seriously.</p>
   </div>
   <p class="map-label" aria-hidden="true">Select a destination</p>
 
@@ -964,6 +1040,135 @@ body{
     </article>
   </div>
 </section>
+
+<!-- ════ FAQ ════
+     Flat, plain-text Q&A (no accordions/tabs) so search engines and AI answer
+     engines can extract each answer verbatim. Question text lives in real
+     headings; every answer here matches the FAQPage JSON-LD below 1:1. -->
+<section class="faq" aria-labelledby="faq-heading">
+  <div class="faq-inner">
+    <p class="faq-eyebrow">Questions</p>
+    <h2 class="faq-title" id="faq-heading">What G-Dimension is,<br>answered plainly.</h2>
+
+    <div class="faq-item">
+      <h3 class="faq-q">What is G-Dimension?</h3>
+      <p class="faq-a">G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. It keeps every modification, part, service, receipt, and photo for your car in one permanent, searchable place — organized by car and in the order it actually happened. Think of it as the dedicated logbook your car always deserved, instead of scattered forum threads, notes apps, and a social feed built to forget.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">How is G-Dimension different from Instagram or a forum thread?</h3>
+      <p class="faq-a">Instagram and forums are built for conversation and reverse-chronological feeds, not for keeping a permanent, ordered record of one car. G-Dimension organizes everything by your car and in the sequence it happened, so your full build history stays searchable and intact for years instead of getting buried. It is a structured logbook, not a social feed.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Can I track multiple cars?</h3>
+      <p class="faq-a">Yes. G-Dimension is built around a garage, so you can keep a separate, complete build journal for every car you own. Each modification, service record, part, and timeline entry stays tied to the specific car it belongs to.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Is G-Dimension a mobile app?</h3>
+      <p class="faq-a">G-Dimension is a mobile-first web app that runs in any browser and installs to your phone's home screen like a native app. There is nothing to download from an app store — you can start on your phone or computer today at gdimension.app.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Is G-Dimension free?</h3>
+      <p class="faq-a">Yes. G-Dimension is free to join and use during early access. You can create an account, add your car, and start documenting your build at no cost.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Can I share my build with other people?</h3>
+      <p class="faq-a">Yes. Every build gets a clean public profile at gdimension.app/builds/your-username that shows your car, specs, modifications, and timeline. You control what is public, and you can share the link anywhere.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Is my build data private?</h3>
+      <p class="faq-a">Your data is private by default and you choose exactly what appears on your public profile. Sensitive details like receipts, purchase price, VIN, license plate, and documents are always kept private and never shown publicly.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Can I export my build history?</h3>
+      <p class="faq-a">Yes. G-Dimension can generate a complete build sheet PDF of your car — every modification, part, and cost with photos — to hand to a buyer or keep for your records. Your documentation belongs to you.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">What can I log in G-Dimension?</h3>
+      <p class="faq-a">You can record modifications with part numbers and specs, maintenance and service history, detailing sessions, parts you own, receipts, costs, mileage, photos, and free-form timeline entries. Everything is organized by car and grouped into a build sheet across Power, Chassis, Exterior, and Interior.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Does documenting a build add value when it's time to sell?</h3>
+      <p class="faq-a">A fully documented build helps justify your asking price. Handing a buyer a complete record — every part, every cost, every photo, with receipts — proves the work was done and builds trust that a pile of unlabeled photos cannot.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Is G-Dimension available yet?</h3>
+      <p class="faq-a">Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features; join the waitlist to get product updates.</p>
+    </div>
+  </div>
+</section>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is G-Dimension?",
+      "acceptedAnswer": { "@type": "Answer", "text": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. It keeps every modification, part, service, receipt, and photo for your car in one permanent, searchable place — organized by car and in the order it actually happened. Think of it as the dedicated logbook your car always deserved, instead of scattered forum threads, notes apps, and a social feed built to forget." }
+    },
+    {
+      "@type": "Question",
+      "name": "How is G-Dimension different from Instagram or a forum thread?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Instagram and forums are built for conversation and reverse-chronological feeds, not for keeping a permanent, ordered record of one car. G-Dimension organizes everything by your car and in the sequence it happened, so your full build history stays searchable and intact for years instead of getting buried. It is a structured logbook, not a social feed." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I track multiple cars?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension is built around a garage, so you can keep a separate, complete build journal for every car you own. Each modification, service record, part, and timeline entry stays tied to the specific car it belongs to." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is G-Dimension a mobile app?",
+      "acceptedAnswer": { "@type": "Answer", "text": "G-Dimension is a mobile-first web app that runs in any browser and installs to your phone's home screen like a native app. There is nothing to download from an app store — you can start on your phone or computer today at gdimension.app." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is G-Dimension free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension is free to join and use during early access. You can create an account, add your car, and start documenting your build at no cost." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I share my build with other people?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Every build gets a clean public profile at gdimension.app/builds/your-username that shows your car, specs, modifications, and timeline. You control what is public, and you can share the link anywhere." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is my build data private?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Your data is private by default and you choose exactly what appears on your public profile. Sensitive details like receipts, purchase price, VIN, license plate, and documents are always kept private and never shown publicly." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I export my build history?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension can generate a complete build sheet PDF of your car — every modification, part, and cost with photos — to hand to a buyer or keep for your records. Your documentation belongs to you." }
+    },
+    {
+      "@type": "Question",
+      "name": "What can I log in G-Dimension?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You can record modifications with part numbers and specs, maintenance and service history, detailing sessions, parts you own, receipts, costs, mileage, photos, and free-form timeline entries. Everything is organized by car and grouped into a build sheet across Power, Chassis, Exterior, and Interior." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does documenting a build add value when it's time to sell?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A fully documented build helps justify your asking price. Handing a buyer a complete record — every part, every cost, every photo, with receipts — proves the work was done and builds trust that a pile of unlabeled photos cannot." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is G-Dimension available yet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features; join the waitlist to get product updates." }
+    }
+  ]
+}
+</script>
 
 <!-- ════ CTA ════ -->
 <section class="cta" aria-labelledby="cta-heading">

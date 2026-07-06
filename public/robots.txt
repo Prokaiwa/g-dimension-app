@@ -1,4 +1,35 @@
+# G-Dimension — https://gdimension.app
+#
+# AI answer engines are explicitly welcome. Crawlers such as GPTBot,
+# ChatGPT-User, OAI-SearchBot, PerplexityBot, Google-Extended, ClaudeBot,
+# Claude-Web, Applebot-Extended, CCBot, and Bytespider are NOT blocked here —
+# they obey the wildcard group below. Nothing in this app or on any CDN in
+# front of it should block them; if that ever changes, update this file.
+#
+# Public and indexable: the marketing home (/), /signup, /login, the legal
+# pages, and every public build profile under /builds/*. The Disallow rules
+# below only cover login-gated app screens, which redirect to /login for
+# anyone not signed in and so render nothing useful to a crawler — this saves
+# crawl budget, it does not hide private data (that is enforced server-side).
+
 User-agent: *
 Allow: /
+
+# Authenticated app screens (no useful content for crawlers)
+Disallow: /home
+Disallow: /garage
+Disallow: /tuning
+Disallow: /maintenance
+Disallow: /timeline
+Disallow: /featured
+Disallow: /profile
+Disallow: /settings
+Disallow: /welcome
+Disallow: /auth/
+Disallow: /api/
+
+# Dev-only tools
+Disallow: /sound-test
+Disallow: /spec-test
 
 Sitemap: https://gdimension.app/sitemap.xml
