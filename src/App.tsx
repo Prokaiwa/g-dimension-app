@@ -16,6 +16,7 @@ import { Analytics } from '@vercel/analytics/react'
 import AuthGateFallback from './components/AuthGateFallback'
 import ErrorBanner from './components/ErrorBanner'
 import RouteFallback from './components/RouteFallback'
+import StartSplash from './components/StartSplash'
 
 // Every route page is code-split (React.lazy). The app and the public /builds
 // pages become separate chunks, so an in-app user never downloads public-page
@@ -183,6 +184,22 @@ export default function App() {
   // viewer — usually the owner showing off their build — gets the full sound.
   const location = useLocation()
   const [hasSession, setHasSession] = useState(false)
+
+  // Cold-launch START splash — shown once per launch (sessionStorage resets when
+  // the PWA/tab is killed and reopened). Skipped for public build pages, where a
+  // random visitor shouldn't get the app's boot moment. Its START tap is what
+  // unlocks audio + starts the music (the gesture iOS requires).
+  const [showSplash, setShowSplash] = useState(() => {
+    try {
+      if (sessionStorage.getItem('gdim_splash_seen') === '1') return false
+      if (window.location.pathname.startsWith('/builds')) return false
+    } catch { /* ignore */ }
+    return true
+  })
+  const dismissSplash = () => {
+    try { sessionStorage.setItem('gdim_splash_seen', '1') } catch { /* ignore */ }
+    setShowSplash(false)
+  }
   useEffect(() => {
     const p = location.pathname
     const isPublic = p === '/' || p.startsWith('/login') || p.startsWith('/signup')
@@ -282,6 +299,7 @@ export default function App() {
 
   return (
     <TourProvider>
+      {showSplash && <StartSplash onStart={dismissSplash} />}
       <ErrorBanner />
       <TourOverlay />
       {/* Vercel Web Analytics — tracks SPA route changes too, so the dashboard

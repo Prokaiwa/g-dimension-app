@@ -16,6 +16,22 @@ export function setSoundEnabled(on: boolean): void {
   try { localStorage.setItem(SOUND_KEY, on ? '1' : '0') } catch { /* private mode — toggle just won't persist */ }
 }
 
+// iOS/Safari: declare our audio as "ambient" (game/UI audio) instead of the
+// default 'auto', which for an <audio> element resolves to 'playback'. Ambient
+// audio does NOT surface the system Now-Playing / lock-screen media controls, so
+// the app's music stays *contained in the app* like a game (e.g. Pokémon GO)
+// rather than looking like a Spotify track; it mixes with other audio and is
+// silenced by the ringer switch. Ambient is also more interruption-resilient,
+// which helps tap sounds survive backgrounding. No-op where unsupported.
+let audioSessionSet = false
+export function configureAudioSession(): void {
+  if (audioSessionSet) return
+  try {
+    const as = (navigator as unknown as { audioSession?: { type: string } }).audioSession
+    if (as && 'type' in as) { as.type = 'ambient'; audioSessionSet = true }
+  } catch { /* unsupported — ignore */ }
+}
+
 let ctx: AudioContext | null = null
 let visibilityWired = false
 
@@ -25,6 +41,7 @@ function audioCtx(): AudioContext | null {
       const AC = window.AudioContext
         ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!AC) return null
+      configureAudioSession()
       ctx = new AC()
       // iOS Safari drops the context into 'interrupted' (or 'suspended') when
       // you leave the tab/app and come back, and it stays muted until something
@@ -35,6 +52,13 @@ function audioCtx(): AudioContext | null {
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && ctx && ctx.state !== 'running') void ctx.resume()
         })
+        // Also revive within a real user gesture: after an interruption iOS can
+        // refuse resume() outside a gesture, so the visibilitychange resume
+        // silently fails and taps stay muted. A capture-phase listener resumes
+        // reliably, before the tap's own sound call runs.
+        const revive = () => { if (ctx && ctx.state !== 'running') void ctx.resume() }
+        window.addEventListener('pointerdown', revive, { capture: true, passive: true })
+        window.addEventListener('touchstart', revive, { capture: true, passive: true })
       }
     }
     // Resume from ANY non-running state: 'suspended' (before the first gesture)
