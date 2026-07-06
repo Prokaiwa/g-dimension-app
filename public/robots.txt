@@ -33,3 +33,4 @@ Disallow: /sound-test
 Disallow: /spec-test
 
 Sitemap: https://gdimension.app/sitemap.xml
+Sitemap: https://gdimension.app/sitemap-builds.xml
