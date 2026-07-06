@@ -34,6 +34,17 @@ import {
   EASING_SETTLE,
 } from '../tokens'
 
+// In an installed standalone PWA there's no browser toolbar/URL bar eating the
+// bottom of the viewport, so the carousel's bottom-anchored car + Choose/Details
+// actions sit ~20px lower than in a browser tab. Lift them by that amount only
+// when running standalone (adding to the actions row's bottom padding also lifts
+// the car, since the stage above is flex:1 and shrinks to compensate).
+const IS_STANDALONE =
+  typeof window !== 'undefined' &&
+  (!!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true)
+const PWA_LIFT = IS_STANDALONE ? 20 : 0
+
 const _now        = new Date()
 const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const MONTH_LABEL = MONTHS[_now.getMonth()]
@@ -908,7 +919,7 @@ export default function GarageCarsPage() {
                         </div>
                       </div>
                       {/* Actions */}
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD + PWA_LIFT}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         {([
                           { src: iconChoose, label: 'Choose', onPress: () => { notify('car-chosen'); setActiveCar(cars[activeIdx].id).then(() => { setChosenCarId(cars[activeIdx].id); navigate('/garage') }) } },
                           { src: iconDetails, label: 'Details', onPress: openDetails },

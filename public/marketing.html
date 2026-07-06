@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- Installed-PWA guard: this static marketing page is served at "/", which is
+     also where an installed standalone PWA can cold-launch. If we're running
+     standalone, skip the public waitlist page and enter the app immediately —
+     it routes to /home (logged in) or /login (not) from there. Real browsers and
+     crawlers are never standalone, so this is a no-op for them.
+     NOTE: editing this inline script changes its hash — recompute the sha256 and
+     update script-src in vercel.json (see CLAUDE.md CSP note). -->
+<script>(function(){try{var s=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;if(s){window.location.replace('/home');}}catch(e){}})();</script>
+
 <!-- ═══ PRIMARY SEO ═══ -->
 <title>G-Dimension — The Build Journal for Car Enthusiasts</title>
 <meta name="description" content="G-Dimension is the dedicated build journal for car enthusiasts. Log every modification, every part, every receipt and photo — organized by your car, permanent, and searchable. Free early access — start your build today.">
@@ -713,32 +722,6 @@ body{
 .faq-a a:hover{text-decoration:underline;}
 
 /* ══════════════════════════════
-   ADD-TO-HOME-SCREEN NUDGE
-   Mobile browsers only; hidden on desktop and once installed (standalone).
-   Pure CSS — no JS, so no CSP script-hash change. border-radius:0 per the
-   app's anti-app shape rule.
-══════════════════════════════ */
-.a2hs{ display:none; }
-@media (display-mode: browser) and (max-width: 680px){
-  .a2hs{
-    display:flex;align-items:center;gap:9px;
-    position:fixed;left:10px;right:10px;
-    bottom:calc(10px + env(safe-area-inset-bottom));
-    z-index:400;
-    padding:10px 14px;
-    background:linear-gradient(180deg,#161619 0%,#0e0e12 100%);
-    border:1px solid #26262e;
-    box-shadow:0 6px 24px rgba(0,0,0,0.50);
-  }
-  .a2hs-icon{font-size:16px;flex-shrink:0;line-height:1;}
-  .a2hs-text{
-    font-family:var(--font-ui);font-weight:400;
-    font-size:11.5px;line-height:1.4;color:var(--text-secondary);
-  }
-  .a2hs-text strong{color:var(--text-primary);font-weight:700;}
-}
-
-/* ══════════════════════════════
    FOOTER
 ══════════════════════════════ */
 .footer{
@@ -916,14 +899,6 @@ body{
 
 </head>
 <body>
-
-<!-- Install nudge — mobile browsers only (pure CSS, no JS). Auto-hides once the
-     app is added to the home screen (display-mode: standalone) or on desktop.
-     Helps friends who open the shared link turn it into a real app icon. -->
-<div class="a2hs" role="note">
-  <span class="a2hs-icon" aria-hidden="true">📲</span>
-  <span class="a2hs-text">Install G-Dimension: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</span>
-</div>
 
 <!-- ════ HEADER ════ -->
 <header class="header" role="banner">

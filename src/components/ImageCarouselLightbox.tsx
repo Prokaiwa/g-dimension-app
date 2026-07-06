@@ -66,8 +66,12 @@ export default function ImageCarouselLightbox({
     const now = performance.now(), dt = now - s.lt
     if (dt > 0) { s.vx = (t.clientX - s.lx) / dt; s.vy = (t.clientY - s.ly) / dt }
     s.lx = t.clientX; s.ly = t.clientY; s.lt = now; s.dx = dx; s.dy = dy
-    if (s.lock === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8))
-      s.lock = Math.abs(dy) > Math.abs(dx) * 1.3 ? 'v' : 'h'
+    // Wait for a slightly larger move (10px) so the initial direction is a clean
+    // read, then only lock 'vertical' when the gesture is clearly (2x) more
+    // vertical than horizontal. This keeps an imperfect left/right swipe on the
+    // horizontal page-turn instead of accidentally triggering the pull-to-dismiss.
+    if (s.lock === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10))
+      s.lock = Math.abs(dy) > Math.abs(dx) * 2 ? 'v' : 'h'
     if (s.lock === 'h') {
       const atStart = idxRef.current === 0 && dx > 0
       const atEnd   = idxRef.current === images.length - 1 && dx < 0
