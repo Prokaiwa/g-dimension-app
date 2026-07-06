@@ -8,7 +8,7 @@
 // with no chunk flash, so it's a static import in App.
 import { useEffect, useRef, useState } from 'react'
 import { COLOR_CAVITY_BG, FONT_UI, EASING_SETTLE } from '../tokens'
-import { playConfirm, prewarmSfx, configureAudioSession } from '../lib/sound'
+import { playConfirmForced, prewarmSfxForced, configureAudioSession } from '../lib/sound'
 import { startMusic } from '../lib/music'
 import gBadge from '../assets/logo/gdimensionG.webp'
 
@@ -19,6 +19,8 @@ export default function StartSplash({ onStart }: { onStart: () => void }) {
   const started = useRef(false)
 
   useEffect(() => {
+    // Warm the confirm sample now so the START chime is instant on tap.
+    prewarmSfxForced()
     const timers = [
       setTimeout(() => setPhase(1), 160),
       setTimeout(() => setPhase(2), 980),
@@ -30,10 +32,10 @@ export default function StartSplash({ onStart }: { onStart: () => void }) {
   const begin = () => {
     if (started.current || phase < 3) return
     started.current = true
-    // The tap is the gesture that unlocks audio on iOS.
+    // The tap is the gesture that unlocks audio on iOS. Force the confirm chime
+    // regardless of the UI-sfx toggle — this is the deliberate "enter" sound.
     configureAudioSession()
-    prewarmSfx()
-    playConfirm()
+    playConfirmForced()
     void startMusic()
     setLeaving(true)
     setTimeout(onStart, 520)
@@ -52,7 +54,7 @@ export default function StartSplash({ onStart }: { onStart: () => void }) {
         transition: 'opacity 500ms ease',
         cursor: phase >= 3 ? 'pointer' : 'default',
         WebkitTapHighlightColor: 'transparent', userSelect: 'none', touchAction: 'manipulation',
-        paddingBottom: '6vh',
+        paddingBottom: '3vh',
       }}
     >
       <style>{`@keyframes startPulse { 0%,100% { opacity: 0.5 } 50% { opacity: 1 } }`}</style>
@@ -61,18 +63,17 @@ export default function StartSplash({ onStart }: { onStart: () => void }) {
         alt=""
         draggable={false}
         style={{
-          width: 92, height: 'auto', display: 'block',
+          width: 272, height: 'auto', display: 'block',
           opacity: phase >= 1 ? 1 : 0,
-          transform: phase >= 1 ? 'scale(1)' : 'scale(0.84)',
+          transform: phase >= 1 ? 'scale(1)' : 'scale(0.88)',
           transition: `opacity 820ms ease, transform 900ms ${EASING_SETTLE}`,
-          filter: 'drop-shadow(0 8px 26px rgba(0,0,0,0.55))',
         }}
       />
       <span
         style={{
-          marginTop: 24, display: 'block',
-          fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800,
-          fontSize: 34, letterSpacing: '-0.04em', color: '#f5f5f5',
+          marginTop: 6, display: 'block',
+          fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700,
+          fontSize: 32, letterSpacing: '-0.085em', color: '#f5f5f5',
           opacity: phase >= 2 ? 1 : 0,
           transform: phase >= 2 ? 'translateY(0)' : 'translateY(9px)',
           transition: `opacity 700ms ease, transform 820ms ${EASING_SETTLE}`,
@@ -82,7 +83,7 @@ export default function StartSplash({ onStart }: { onStart: () => void }) {
       </span>
       <span
         style={{
-          marginTop: 46,
+          marginTop: 42,
           fontFamily: FONT_UI, fontWeight: 800, fontSize: 13,
           letterSpacing: '0.42em', paddingLeft: '0.42em',
           color: '#f5f5f5',

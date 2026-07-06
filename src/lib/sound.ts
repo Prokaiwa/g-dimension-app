@@ -198,6 +198,24 @@ export function playConfirm(): void {
   synthConfirm(c) // immediate sound now; also the permanent fallback if missing
 }
 
+/** Force-load the confirm sample regardless of the sfx toggle — for the START
+ *  splash, whose chime should be ready even when UI sounds are off. */
+export function prewarmSfxForced(): void {
+  void loadSample(CONFIRM_URL)
+}
+
+/** Confirm chime that IGNORES the sfx-enabled toggle — the START splash is a
+ *  deliberate one-shot "enter" sound (like pressing START in a game), so it
+ *  plays even when the in-app UI sounds are switched off. */
+export function playConfirmForced(): void {
+  const c = audioCtx()
+  if (!c) return
+  const cached = sampleCache.get(CONFIRM_URL)
+  if (cached) { playSample(cached); return }
+  if (cached === undefined) void loadSample(CONFIRM_URL)
+  synthConfirm(c)
+}
+
 /** Cancel / go-back — gentle falling sine (B2). */
 export function playBack(): void {
   if (!isSoundEnabled()) return

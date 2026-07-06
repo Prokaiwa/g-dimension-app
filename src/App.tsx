@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, type ComponentType } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -185,18 +185,24 @@ export default function App() {
   const location = useLocation()
   const [hasSession, setHasSession] = useState(false)
 
-  // Cold-launch START splash — shown once per launch (sessionStorage resets when
-  // the PWA/tab is killed and reopened). Skipped for public build pages, where a
-  // random visitor shouldn't get the app's boot moment. Its START tap is what
-  // unlocks audio + starts the music (the gesture iOS requires).
-  const [showSplash, setShowSplash] = useState(() => {
+  // Cold-launch START splash. Shows the first time this session the user lands on
+  // an authenticated app route WITH a session — i.e. AFTER login/signup, or on a
+  // cold PWA launch straight into the app. Never over the marketing/login/signup/
+  // public-build pages, so a logged-out visitor doesn't get the app's boot moment.
+  // Once per launch: sessionStorage resets when the PWA/tab is killed and reopened.
+  const [showSplash, setShowSplash] = useState(false)
+  const splashDone = useRef(false)
+  useEffect(() => {
+    if (splashDone.current || showSplash) return
     try {
-      if (sessionStorage.getItem('gdim_splash_seen') === '1') return false
-      if (window.location.pathname.startsWith('/builds')) return false
+      if (sessionStorage.getItem('gdim_splash_seen') === '1') { splashDone.current = true; return }
     } catch { /* ignore */ }
-    return true
-  })
+    const isAppRoute = /^\/(home|garage|tuning|maintenance|timeline|featured|profile|settings)(\/|$)/
+      .test(location.pathname)
+    if (hasSession && isAppRoute) setShowSplash(true)
+  }, [hasSession, location.pathname, showSplash])
   const dismissSplash = () => {
+    splashDone.current = true
     try { sessionStorage.setItem('gdim_splash_seen', '1') } catch { /* ignore */ }
     setShowSplash(false)
   }
