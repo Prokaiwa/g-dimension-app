@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getCarPrivate } from '../lib/carPrivate'
+import { getActiveCarId, clearActiveCar } from '../lib/activeCar'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
   COLOR_HEADER_BLACK,
@@ -174,7 +175,7 @@ export default function GarageSnapshotPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setLoading(false); setNoCar(true); return }
 
-      const chosenId = localStorage.getItem('gdim_chosen_car_id')
+      const chosenId = await getActiveCarId()
       const COLS = [
         'id', 'year', 'make', 'model', 'variant', 'nickname', 'color', 'is_import',
         'engine_type',
@@ -198,7 +199,7 @@ export default function GarageSnapshotPage() {
       if (data && data.length > 0) {
         resolvedCar = data[0] as unknown as SnapshotCar
       } else if (chosenId) {
-        localStorage.removeItem('gdim_chosen_car_id')
+        clearActiveCar()
         const { data: fb } = await base.order('created_at').limit(1)
         if (fb && fb.length > 0) resolvedCar = fb[0] as unknown as SnapshotCar
       }

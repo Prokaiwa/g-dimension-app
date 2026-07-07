@@ -8,6 +8,19 @@ Car build journal PWA. React + Vite + Supabase. Live at gdimension.app.
 
 **Before touching auth (Google OAuth, email/password, Supabase SMTP, or the `gdimension.app`/`www` domain setup), read `supabase/migrations/AUTH_SETUP.md`.** It documents the actual live configuration and a real incident worth knowing before changing anything there: an app-level `www`→apex redirect in `vercel.json` once fought Vercel's own domain-level redirect and took the whole site down with a redirect loop. Domain canonicalization must only ever be changed at the Vercel Domains dashboard level, never in `vercel.json`.
 
+## Constitution & Verification
+
+The project constitution lives in `docs/` (added 2026-07-07, modeled on CareerOS):
+
+- **`docs/ENGINEERING_PRINCIPLES.md`** — the 9 permanent rules. Breaking one requires a new decision-log entry first.
+- **`docs/DECISION_LOG.md`** — append-only ADRs (why things are the way they are). Record significant decisions here *before* the work merges.
+- **`docs/IMPLEMENTATION_GUIDE.md`** — playbooks for adding pages, helpers, migrations; the verification strategy.
+- **`docs/TESTING.md`** — what/how we test (Vitest + constitution script + Playwright smoke).
+
+**`npm run verify` must pass before every commit** — it runs lint, typecheck, `scripts/constitution.mjs` (mechanical enforcement of the architectural boundaries: `car_private` access, `buildGroups` single-source, env/fetch allowlists, migration numbering), and the unit tests. Never widen a constitution allowlist to silence a failure — fix the code or record an ADR. GitHub Actions (`.github/workflows/ci.yml`) re-runs the same gate on every push; a red X means production got a broken commit — fix forward.
+
+Doc hierarchy on conflicts: `MASTER_ARCHITECTURE.md` → this file → `BUILD_NOTES.md` → docs/.
+
 ## Git Rules — NON-NEGOTIABLE
 
 - **Always commit and push directly to `main`.** Never create a feature branch. Never push to any other branch.
@@ -42,9 +55,15 @@ Repo:       github.com/Prokaiwa/g-dimension-app
 ## Dev Commands
 
 ```bash
-npm run dev       # Vite dev server (port 5173 usually)
-npm run build     # tsc -b && vite build
-npm run lint      # eslint
+npm run dev          # Vite dev server (port 5173 usually)
+npm run build        # tsc -b && vite build
+npm run lint         # eslint
+npm run test         # vitest (unit tests, co-located src/**/*.test.ts)
+npm run typecheck    # tsc -b --noEmit
+npm run constitution # architectural boundary checks (scripts/constitution.mjs)
+npm run verify       # lint + typecheck + constitution + test — REQUIRED before every commit
+npm run verify:full  # verify + production build
+npm run test:e2e     # Playwright smoke suite (local only, starts dev server on :5199)
 ```
 
 Deployment is automatic — push to `main` on GitHub and Vercel deploys.

@@ -1,0 +1,46 @@
+# CI gate: lint → typecheck → constitution → unit tests → build.
+# Vercel deploys on push regardless — a red X here means a deployed commit
+# broke something; fix forward immediately (see docs/IMPLEMENTATION_GUIDE.md).
+# The Playwright smoke suite is local-only on purpose (docs/TESTING.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values so the Supabase client can initialize at import time
+      # during the production build — same trick as vitest.config.ts.
+      # Real values live in Vercel; CI never talks to the real project.
+      VITE_SUPABASE_URL: https://dummy.supabase.co
+      VITE_SUPABASE_ANON_KEY: dummy-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Constitution checks
+        run: npm run constitution
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
