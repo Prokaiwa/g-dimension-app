@@ -21,48 +21,72 @@ export function setSoundEnabled(on: boolean): void {
 // audio does NOT surface the system Now-Playing / lock-screen media controls, so
 // the app's music stays *contained in the app* like a game (e.g. Pokémon GO)
 // rather than looking like a Spotify track; it mixes with other audio and is
-// silenced by the ringer switch. Ambient is also more interruption-resilient,
-// which helps tap sounds survive backgrounding. No-op where unsupported.
-let audioSessionSet = false
+// silenced by the ringer switch. Ambient is also more interruption-resilient.
+// Re-callable (no permanent guard) so it can be re-asserted after an
+// interruption. No-op where unsupported.
 export function configureAudioSession(): void {
-  if (audioSessionSet) return
   try {
     const as = (navigator as unknown as { audioSession?: { type: string } }).audioSession
-    if (as && 'type' in as) { as.type = 'ambient'; audioSessionSet = true }
+    if (as && 'type' in as) as.type = 'ambient'
   } catch { /* unsupported — ignore */ }
 }
 
 let ctx: AudioContext | null = null
-let visibilityWired = false
+let wired = false
+// Set when we come back from the background: iOS may have parked the context in
+// a dead state that resume() can't revive, so the NEXT sound rebuilds it fresh.
+let needsRebuild = false
+
+// Treat these as unrecoverable: 'closed' (we closed it) and the non-standard iOS
+// 'interrupted' (after a phone call / Control Center / backgrounding, where
+// resume() alone famously will NOT return the context to 'running' — a WebKit
+// bug). The only reliable fix, like handling an AVAudioSession interruption in a
+// native game, is to discard the context and make a new one.
+function isDead(c: AudioContext): boolean {
+  const s = c.state as string
+  return s === 'closed' || s === 'interrupted'
+}
+
+function makeCtx(): AudioContext | null {
+  const AC = window.AudioContext
+    ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AC) return null
+  configureAudioSession()
+  const c = new AC()
+  // If it ever reports 'interrupted', flag for a rebuild on the next sound.
+  c.addEventListener('statechange', () => { if (isDead(c)) needsRebuild = true })
+  return c
+}
 
 function audioCtx(): AudioContext | null {
   try {
+    // Rebuild a context that died or that we flagged on background-return. The
+    // decoded sample buffers belonged to the old context, so drop them too.
+    if (ctx && (needsRebuild || isDead(ctx))) {
+      try { void ctx.close() } catch { /* already gone */ }
+      ctx = null
+      needsRebuild = false
+      sampleCache.clear()
+    }
     if (!ctx) {
-      const AC = window.AudioContext
-        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!AC) return null
-      configureAudioSession()
-      ctx = new AC()
-      // iOS Safari drops the context into 'interrupted' (or 'suspended') when
-      // you leave the tab/app and come back, and it stays muted until something
-      // resumes it — previously only a page refresh did, which is the "tap
-      // sounds stop until I reload" bug. Resume when the tab returns to front.
-      if (!visibilityWired && typeof document !== 'undefined') {
-        visibilityWired = true
+      ctx = makeCtx()
+      if (!ctx) return null
+      if (!wired && typeof document !== 'undefined') {
+        wired = true
+        // On return to foreground, if the context isn't cleanly running, flag a
+        // rebuild so the next tap gets a fresh, working context.
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden && ctx && ctx.state !== 'running') void ctx.resume()
+          if (!document.hidden && ctx && ctx.state !== 'running') needsRebuild = true
         })
-        // Also revive within a real user gesture: after an interruption iOS can
-        // refuse resume() outside a gesture, so the visibilitychange resume
-        // silently fails and taps stay muted. A capture-phase listener resumes
-        // reliably, before the tap's own sound call runs.
-        const revive = () => { if (ctx && ctx.state !== 'running') void ctx.resume() }
+        // Revive/rebuild INSIDE a real user gesture (capture phase, before the
+        // tap's own sound call). Creating + resuming a context during a gesture
+        // is what iOS actually allows, so this is where recovery reliably lands.
+        const revive = () => { audioCtx() }
         window.addEventListener('pointerdown', revive, { capture: true, passive: true })
         window.addEventListener('touchstart', revive, { capture: true, passive: true })
       }
     }
-    // Resume from ANY non-running state: 'suspended' (before the first gesture)
-    // AND 'interrupted' (after returning from background) — not just 'suspended'.
+    // 'suspended' (pre-gesture) resumes fine; a gesture caller makes this stick.
     if (ctx.state !== 'running') void ctx.resume()
     return ctx
   } catch {
