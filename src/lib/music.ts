@@ -10,7 +10,7 @@
 // Drop the track at: public/audio/music.mp3  (served at /audio/music.mp3).
 // Until that file exists the element just fails to play — no crash.
 
-import { configureAudioSession } from './sound'
+import { configureAudioSession, reviveSfx } from './sound'
 
 const MUSIC_KEY = 'gdim_music_enabled'
 const MUSIC_SRC = '/audio/music.mp3'
@@ -57,7 +57,14 @@ function ensureEl(): HTMLAudioElement {
 export async function startMusic(): Promise<void> {
   if (!isMusicEnabled() || !allowed) return
   const a = ensureEl()
-  try { await a.play() } catch { /* needs a user gesture — initMusic re-arms one */ }
+  try {
+    await a.play()
+    // The music element just (re)started, so the audio session is active. This is
+    // the reliable moment to revive the Web Audio sfx context too — unlike this
+    // <audio> element, Web Audio doesn't auto-resume after an interruption, which
+    // is why tap sounds died on return while music came back on its own.
+    reviveSfx()
+  } catch { /* needs a user gesture — initMusic re-arms one */ }
 }
 
 export function stopMusic(): void {

@@ -73,14 +73,17 @@ function audioCtx(): AudioContext | null {
       if (!ctx) return null
       if (!wired && typeof document !== 'undefined') {
         wired = true
-        // On return to foreground, if the context isn't cleanly running, flag a
-        // rebuild so the next tap gets a fresh, working context.
+        // Back to foreground: the music <audio> element resumes on its own, so
+        // the audio session is active again. Actively rebuild + resume the Web
+        // Audio context NOW rather than waiting for a tap — Web Audio won't
+        // auto-resume like a media element and can be stuck 'interrupted'. With
+        // the session already active (music playing), iOS usually allows this
+        // without a fresh gesture, so tap sounds come back on their own too.
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden && ctx && ctx.state !== 'running') needsRebuild = true
+          if (!document.hidden) reviveSfx()
         })
-        // Revive/rebuild INSIDE a real user gesture (capture phase, before the
-        // tap's own sound call). Creating + resuming a context during a gesture
-        // is what iOS actually allows, so this is where recovery reliably lands.
+        // Gesture fallback (capture phase, before the tap's own sound call), for
+        // the case where a foreground resume outside a gesture is still blocked.
         const revive = () => { audioCtx() }
         window.addEventListener('pointerdown', revive, { capture: true, passive: true })
         window.addEventListener('touchstart', revive, { capture: true, passive: true })
@@ -92,6 +95,15 @@ function audioCtx(): AudioContext | null {
   } catch {
     return null
   }
+}
+
+// Bring the sfx audio back after an interruption. Rebuilds the context if it
+// died, then resumes. Safe to call outside a gesture — it just may not take
+// until the session is active (e.g. once the music element has resumed), which
+// is exactly when the callers below fire it. No-op if audio can't init.
+export function reviveSfx(): void {
+  const c = audioCtx()
+  if (c && c.state !== 'running') void c.resume()
 }
 
 function blip(
