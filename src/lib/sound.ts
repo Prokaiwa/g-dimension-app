@@ -16,34 +16,94 @@ export function setSoundEnabled(on: boolean): void {
   try { localStorage.setItem(SOUND_KEY, on ? '1' : '0') } catch { /* private mode — toggle just won't persist */ }
 }
 
+// iOS/Safari: declare our audio as "ambient" (game/UI audio) instead of the
+// default 'auto', which for an <audio> element resolves to 'playback'. Ambient
+// audio does NOT surface the system Now-Playing / lock-screen media controls, so
+// the app's music stays *contained in the app* like a game (e.g. Pokémon GO)
+// rather than looking like a Spotify track; it mixes with other audio and is
+// silenced by the ringer switch. Ambient is also more interruption-resilient.
+// Re-callable (no permanent guard) so it can be re-asserted after an
+// interruption. No-op where unsupported.
+export function configureAudioSession(): void {
+  try {
+    const as = (navigator as unknown as { audioSession?: { type: string } }).audioSession
+    if (as && 'type' in as) as.type = 'ambient'
+  } catch { /* unsupported — ignore */ }
+}
+
 let ctx: AudioContext | null = null
-let visibilityWired = false
+let wired = false
+// Set when we come back from the background: iOS may have parked the context in
+// a dead state that resume() can't revive, so the NEXT sound rebuilds it fresh.
+let needsRebuild = false
+
+// Treat these as unrecoverable: 'closed' (we closed it) and the non-standard iOS
+// 'interrupted' (after a phone call / Control Center / backgrounding, where
+// resume() alone famously will NOT return the context to 'running' — a WebKit
+// bug). The only reliable fix, like handling an AVAudioSession interruption in a
+// native game, is to discard the context and make a new one.
+function isDead(c: AudioContext): boolean {
+  const s = c.state as string
+  return s === 'closed' || s === 'interrupted'
+}
+
+function makeCtx(): AudioContext | null {
+  const AC = window.AudioContext
+    ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AC) return null
+  configureAudioSession()
+  const c = new AC()
+  // If it ever reports 'interrupted', flag for a rebuild on the next sound.
+  c.addEventListener('statechange', () => { if (isDead(c)) needsRebuild = true })
+  return c
+}
 
 function audioCtx(): AudioContext | null {
   try {
+    // Rebuild a context that died or that we flagged on background-return. The
+    // decoded sample buffers belonged to the old context, so drop them too.
+    if (ctx && (needsRebuild || isDead(ctx))) {
+      try { void ctx.close() } catch { /* already gone */ }
+      ctx = null
+      needsRebuild = false
+      sampleCache.clear()
+    }
     if (!ctx) {
-      const AC = window.AudioContext
-        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!AC) return null
-      ctx = new AC()
-      // iOS Safari drops the context into 'interrupted' (or 'suspended') when
-      // you leave the tab/app and come back, and it stays muted until something
-      // resumes it — previously only a page refresh did, which is the "tap
-      // sounds stop until I reload" bug. Resume when the tab returns to front.
-      if (!visibilityWired && typeof document !== 'undefined') {
-        visibilityWired = true
+      ctx = makeCtx()
+      if (!ctx) return null
+      if (!wired && typeof document !== 'undefined') {
+        wired = true
+        // Back to foreground: the music <audio> element resumes on its own, so
+        // the audio session is active again. Actively rebuild + resume the Web
+        // Audio context NOW rather than waiting for a tap — Web Audio won't
+        // auto-resume like a media element and can be stuck 'interrupted'. With
+        // the session already active (music playing), iOS usually allows this
+        // without a fresh gesture, so tap sounds come back on their own too.
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden && ctx && ctx.state !== 'running') void ctx.resume()
+          if (!document.hidden) reviveSfx()
         })
+        // Gesture fallback (capture phase, before the tap's own sound call), for
+        // the case where a foreground resume outside a gesture is still blocked.
+        const revive = () => { audioCtx() }
+        window.addEventListener('pointerdown', revive, { capture: true, passive: true })
+        window.addEventListener('touchstart', revive, { capture: true, passive: true })
       }
     }
-    // Resume from ANY non-running state: 'suspended' (before the first gesture)
-    // AND 'interrupted' (after returning from background) — not just 'suspended'.
+    // 'suspended' (pre-gesture) resumes fine; a gesture caller makes this stick.
     if (ctx.state !== 'running') void ctx.resume()
     return ctx
   } catch {
     return null
   }
+}
+
+// Bring the sfx audio back after an interruption. Rebuilds the context if it
+// died, then resumes. Safe to call outside a gesture — it just may not take
+// until the session is active (e.g. once the music element has resumed), which
+// is exactly when the callers below fire it. No-op if audio can't init.
+export function reviveSfx(): void {
+  const c = audioCtx()
+  if (c && c.state !== 'running') void c.resume()
 }
 
 function blip(
@@ -172,6 +232,24 @@ export function playConfirm(): void {
   if (cached) { playSample(cached); return }
   if (cached === undefined) void loadSample(CONFIRM_URL) // warm for next time
   synthConfirm(c) // immediate sound now; also the permanent fallback if missing
+}
+
+/** Force-load the confirm sample regardless of the sfx toggle — for the START
+ *  splash, whose chime should be ready even when UI sounds are off. */
+export function prewarmSfxForced(): void {
+  void loadSample(CONFIRM_URL)
+}
+
+/** Confirm chime that IGNORES the sfx-enabled toggle — the START splash is a
+ *  deliberate one-shot "enter" sound (like pressing START in a game), so it
+ *  plays even when the in-app UI sounds are switched off. */
+export function playConfirmForced(): void {
+  const c = audioCtx()
+  if (!c) return
+  const cached = sampleCache.get(CONFIRM_URL)
+  if (cached) { playSample(cached); return }
+  if (cached === undefined) void loadSample(CONFIRM_URL)
+  synthConfirm(c)
 }
 
 /** Cancel / go-back — gentle falling sine (B2). */

@@ -45,6 +45,27 @@
     <meta name="twitter:description" content="Log every mod, service, and milestone — and share a clean public profile of your build." />
     <meta name="twitter:image" content="https://gdimension.app/og-default.png" />
 
+    <!-- Structured data (JSON-LD is a data block, not executable script, so it is
+         NOT covered by the CSP script-src hash allowlist — safe to edit without a
+         vercel.json change). Defines the G-Dimension entity for the SPA-served
+         routes (/signup, /login, legal). The marketing home (/) carries a richer
+         set including FAQPage. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "G-Dimension",
+      "url": "https://gdimension.app/",
+      "applicationCategory": "AutomotiveApplication",
+      "applicationSubCategory": "Car build journal & maintenance log",
+      "operatingSystem": "Web browser, iOS, Android",
+      "description": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. Document every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record, and share a clean public build profile.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "publisher": { "@type": "Organization", "name": "G-Dimension", "url": "https://gdimension.app/" },
+      "sameAs": [ "https://www.instagram.com/gdimensionapp/" ]
+    }
+    </script>
+
     <!-- Stale-deploy safety net for the pre-boot case: if the main module
          script 404s (its hashed file was removed by a newer deploy while this
          tab was backgrounded), JS never runs, so the in-app guard can't fire.

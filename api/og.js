@@ -141,15 +141,10 @@ export default async function handler(req, res) {
     canonical = `${SITE}/builds/${encodeURIComponent(car.username)}` +
       (carParam ? `?car=${encodeURIComponent(carParam)}` : '')
 
-    // Featured links unfurl as a rendered magazine-cover card (api/og-cover.tsx,
-    // a @vercel/og edge function) instead of the bare car photo — Featured is
-    // the magazine island, its preview should look like one. Other sub-pages
-    // keep the direct photo.
-    const subPage = p.split('/')[1] || ''
-    if (subPage === 'featured') {
-      image = `${SITE}/api/og-cover?u=${encodeURIComponent(car.username)}` +
-        (carParam ? `&car=${encodeURIComponent(carParam)}` : '')
-    }
+    // All sub-pages — including Featured — unfurl with the car's own photo
+    // (carImage above). The Featured magazine-cover render (api/og-cover.ts) was
+    // deliberately dropped: a straight photo of the owner's car reads more
+    // clearly in a link preview. og-cover.ts is now unused.
   }
 
   const t = esc(title)

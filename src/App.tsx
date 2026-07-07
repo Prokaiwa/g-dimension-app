@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, type ComponentType } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -16,6 +16,7 @@ import { Analytics } from '@vercel/analytics/react'
 import AuthGateFallback from './components/AuthGateFallback'
 import ErrorBanner from './components/ErrorBanner'
 import RouteFallback from './components/RouteFallback'
+import StartSplash from './components/StartSplash'
 
 // Every route page is code-split (React.lazy). The app and the public /builds
 // pages become separate chunks, so an in-app user never downloads public-page
@@ -183,6 +184,28 @@ export default function App() {
   // viewer — usually the owner showing off their build — gets the full sound.
   const location = useLocation()
   const [hasSession, setHasSession] = useState(false)
+
+  // Cold-launch START splash. Shows the first time this session the user lands on
+  // an authenticated app route WITH a session — i.e. AFTER login/signup, or on a
+  // cold PWA launch straight into the app. Never over the marketing/login/signup/
+  // public-build pages, so a logged-out visitor doesn't get the app's boot moment.
+  // Once per launch: sessionStorage resets when the PWA/tab is killed and reopened.
+  const [showSplash, setShowSplash] = useState(false)
+  const splashDone = useRef(false)
+  useEffect(() => {
+    if (splashDone.current || showSplash) return
+    try {
+      if (sessionStorage.getItem('gdim_splash_seen') === '1') { splashDone.current = true; return }
+    } catch { /* ignore */ }
+    const isAppRoute = /^\/(home|garage|tuning|maintenance|timeline|featured|profile|settings)(\/|$)/
+      .test(location.pathname)
+    if (hasSession && isAppRoute) setShowSplash(true)
+  }, [hasSession, location.pathname, showSplash])
+  const dismissSplash = () => {
+    splashDone.current = true
+    try { sessionStorage.setItem('gdim_splash_seen', '1') } catch { /* ignore */ }
+    setShowSplash(false)
+  }
   useEffect(() => {
     const p = location.pathname
     const isPublic = p === '/' || p.startsWith('/login') || p.startsWith('/signup')
@@ -282,6 +305,7 @@ export default function App() {
 
   return (
     <TourProvider>
+      {showSplash && <StartSplash onStart={dismissSplash} />}
       <ErrorBanner />
       <TourOverlay />
       {/* Vercel Web Analytics — tracks SPA route changes too, so the dashboard

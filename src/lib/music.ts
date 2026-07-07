@@ -10,6 +10,8 @@
 // Drop the track at: public/audio/music.mp3  (served at /audio/music.mp3).
 // Until that file exists the element just fails to play — no crash.
 
+import { configureAudioSession, reviveSfx } from './sound'
+
 const MUSIC_KEY = 'gdim_music_enabled'
 const MUSIC_SRC = '/audio/music.mp3'
 const MUSIC_VOLUME = 0.35 // gentle bed, never competes with UI sfx
@@ -41,6 +43,9 @@ let el: HTMLAudioElement | null = null
 
 function ensureEl(): HTMLAudioElement {
   if (!el) {
+    // Set the ambient audio session BEFORE the element exists/plays, so iOS never
+    // registers this <audio> with the system Now-Playing / lock-screen controls.
+    configureAudioSession()
     el = new Audio(MUSIC_SRC)
     el.loop = true
     el.volume = MUSIC_VOLUME
@@ -52,7 +57,14 @@ function ensureEl(): HTMLAudioElement {
 export async function startMusic(): Promise<void> {
   if (!isMusicEnabled() || !allowed) return
   const a = ensureEl()
-  try { await a.play() } catch { /* needs a user gesture — initMusic re-arms one */ }
+  try {
+    await a.play()
+    // The music element just (re)started, so the audio session is active. This is
+    // the reliable moment to revive the Web Audio sfx context too — unlike this
+    // <audio> element, Web Audio doesn't auto-resume after an interruption, which
+    // is why tap sounds died on return while music came back on its own.
+    reviveSfx()
+  } catch { /* needs a user gesture — initMusic re-arms one */ }
 }
 
 export function stopMusic(): void {
