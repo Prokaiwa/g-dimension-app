@@ -5,7 +5,12 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 066_job_mounted_on.sql (applied 2026-07-02)
+-- Last migration applied : 067_db_hygiene.sql (applied 2026-07-07)
+--   - 067 (DB hygiene from the 2026-07-07 review: dropped 5 duplicate indexes,
+--     initplan-rewrote 7 RLS policies to (select auth.uid()), added 12 FK
+--     covering indexes) applied 2026-07-07. Companion manual step also run
+--     2026-07-07: VACUUM FULL + REINDEX vehicle_makes (11 MB -> 96 kB) and
+--     VACUUM FULL vehicle_models (1.7 MB -> 544 kB) — NHTSA import/cull bloat.
 --   - 066 (jobs.mounted_on_job_id — mount one job onto another; Wheels + Tires
 --     combo Phase 1, tire job linked to its wheel job) applied 2026-07-02.
 --   - 065 (jobs.condition — new/used flag on a mod/part; New/Used toggle on the
