@@ -672,19 +672,19 @@ export default function PublicFeaturedPage() {
           <div key={t.id} style={{ position:'absolute', inset:0, animation:`pubFeatFade 320ms ${EASING_SETTLE} both` }}>
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
             {coverPhoto && coverPhoto.mode === 'cutout' && (
-              <img src={coverPhoto.url} alt=""
+              <img src={coverPhoto.url} alt="" decoding="async"
                 style={{ position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }} />
             )}
             {coverPhoto && coverPhoto.mode === 'full' && framed && (
               <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', overflow:'hidden' }}>
-                <img src={coverPhoto.url} alt=""
+                <img src={coverPhoto.url} alt="" decoding="async"
                   onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
                   style={{ width:'100%', height:'100%', objectFit:'contain', objectPosition:`${fx}% ${fy}%`,
                     transform:`scale(${zoom})`, transformOrigin:`${fx}% ${fy}%`, display:'block' }} />
               </div>
             )}
             {coverPhoto && coverPhoto.mode === 'full' && !framed && (
-              <img src={coverPhoto.url} alt=""
+              <img src={coverPhoto.url} alt="" decoding="async"
                 onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
                 style={(() => {
                   const h = photoAspect !== null
@@ -1208,7 +1208,7 @@ function PubStoryPage({ story, headline, carShortName, theme, backLabel, nextLab
           <>
             <div style={{ flexGrow: pos, flexShrink: 1, minHeight: 0 }} />
             <div style={{ height:`${spHeight}vh`, margin:'4px 14px 10px 0', position:'relative', overflow:'hidden' }}>
-              <img src={storyPhoto!} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
+              <img src={storyPhoto!} alt="" decoding="async" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block',
                 filter: PHOTO_FILTER, border:`1px solid ${theme.rule}`,
                 objectPosition:`${spFx}% ${spFy}%`, transform:`scale(${spZoom})`, transformOrigin:`${spFx}% ${spFy}%` }} />
               <div style={{ position:'absolute', inset:0,

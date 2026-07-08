@@ -438,7 +438,7 @@ export default function TuningModEditPage() {
           const path = `${userId}/${carId}/${modId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
           const { data: up, error: upErr } = await supabase.storage
             .from('job-photos')
-            .upload(path, compressed, { contentType: 'image/jpeg' })
+            .upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
           if (!upErr && up) {
             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(up.path)
             await supabase.from('job_photos').insert({ job_id: modId, car_id: carId, photo_url: urlData.publicUrl })

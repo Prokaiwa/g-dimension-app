@@ -353,7 +353,7 @@ export default function TimelinePage() {
       const path = `${userId}/${carId}/origin/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
       const { data: up, error: upErr } = await supabase.storage
         .from('timeline-photos')
-        .upload(path, compressed, { contentType: 'image/jpeg' })
+        .upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
       if (upErr || !up) throw upErr ?? new Error('upload failed')
       const { data: urlData } = supabase.storage.from('timeline-photos').getPublicUrl(up.path)
       const publicUrl = urlData.publicUrl
@@ -674,6 +674,10 @@ export default function TimelinePage() {
               <div ref={heroRef} style={{ position: 'absolute', left: 0, right: 0, top: '-12%', bottom: '-12%', willChange: 'transform' }}>
                 <img
                   src={origin.photo_url} alt="" aria-hidden className="tl-ken"
+                  decoding="async"
+                  // LCP of the page — beat the lazy thumbnails below to the network
+                  // (lowercase spread: React 18 types don't know the attribute yet)
+                  {...({ fetchpriority: 'high' } as object)}
                   style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover',
                     filter: uploading ? 'brightness(0.5)' : 'none', transition: 'filter 220ms' }}
                 />

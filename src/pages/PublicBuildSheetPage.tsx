@@ -143,6 +143,8 @@ function SectionHeroPhoto({ url }: { url: string }) {
         src={url}
         alt=""
         draggable={false}
+        loading="lazy"
+        decoding="async"
         style={{
           width: '100%', height: '100%',
           objectFit: 'cover', objectPosition: 'center',

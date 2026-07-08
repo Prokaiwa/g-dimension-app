@@ -722,7 +722,7 @@ export default function FeaturedPage() {
       const path = isTimeline
         ? `${car.id}/featured-${Date.now()}-${rand}.jpg`
         : `${car.id}/build-sheet/${item.key.slice(4)}-${Date.now()}-${rand}.jpg`
-      const { error: upErr } = await supabase.storage.from(bucket).upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+      const { error: upErr } = await supabase.storage.from(bucket).upload(path, compressed, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' })
       if (upErr) { setReplaceErr('Upload failed.'); return }
       const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
       const newUrl = pub.publicUrl
@@ -916,7 +916,7 @@ export default function FeaturedPage() {
       })
       const rand = Math.random().toString(36).slice(2, 7)
       const path = `${car.id}/featured-story-${Date.now()}-${rand}.jpg`
-      const { error: upErr } = await supabase.storage.from('car-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+      const { error: upErr } = await supabase.storage.from('car-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' })
       if (upErr) { setStoryPhotoErr('Upload failed.'); return }
       const { data: pub } = supabase.storage.from('car-photos').getPublicUrl(path)
       await saveStoryPhoto(pub.publicUrl)
@@ -1377,14 +1377,14 @@ export default function FeaturedPage() {
           <div key={t.id} ref={coverCaptureRef} style={{ position:'absolute', inset:0, animation:`featFade 320ms ${EASING_SETTLE} both` }}>
             <div style={{ position:'absolute', inset:0, background:t.surfaceBg }} />
             {photo && photo.mode === 'cutout' && (
-              <img src={photo.url} alt=""
+              <img src={photo.url} alt="" decoding="async"
                 style={{ position:'absolute', top:'12%', left:0, right:0, width:'100%', height:'62%', objectFit:'contain', objectPosition:'center' }} />
             )}
             {photo && photo.mode === 'full' && framed && (
               // User-framed (052): contain baseline (zoom 1 = whole photo, matching
               // the unframed view so entering adjust doesn't jump) + saved focus/zoom.
               <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', overflow:'hidden' }}>
-                <img src={photo.url} alt=""
+                <img src={photo.url} alt="" decoding="async"
                   onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
                   style={{ width:'100%', height:'100%', objectFit:'contain', objectPosition:`${fx}% ${fy}%`,
                     transform:`scale(${zoom})`, transformOrigin:`${fx}% ${fy}%`, display:'block' }} />
@@ -1392,7 +1392,7 @@ export default function FeaturedPage() {
             )}
             {photo && photo.mode === 'full' && !framed && (
               // Unframed legacy: contain with aspect heuristics.
-              <img src={photo.url} alt=""
+              <img src={photo.url} alt="" decoding="async"
                 onLoad={(e) => { const img = e.currentTarget; setPhotoAspect(img.naturalWidth / img.naturalHeight) }}
                 style={(() => {
                   const h = photoAspect !== null
@@ -1843,7 +1843,7 @@ export default function FeaturedPage() {
                   style={{ flexShrink:0, width:80, height:80, position:'relative', cursor:'pointer',
                     outline: url === photoEditItem.url ? `2px solid ${theme.accent}` : 'none',
                     outlineOffset:2, opacity: replacingPhoto ? 0.5 : 1 }}>
-                  <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                  <img src={url} alt="" loading="lazy" decoding="async" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                   {url === photoEditItem.url && (
                     <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                       <span style={{ fontFamily:FONT_DECK, fontSize:7, letterSpacing:'0.14em', color:'#fff', textTransform:'uppercase' }}>Current</span>
@@ -1892,7 +1892,7 @@ export default function FeaturedPage() {
                   <div key={p.url} onClick={() => !savingStoryPhoto && saveStoryPhoto(p.url)}
                     style={{ flexShrink:0, width:80, height:80, position:'relative', cursor:'pointer',
                       outline: sel ? `2px solid ${theme.accent}` : 'none', outlineOffset:2, opacity: savingStoryPhoto ? 0.5 : 1 }}>
-                    <img src={p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                    <img src={p.url} alt="" loading="lazy" decoding="async" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                     {sel && (
                       <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                         <span style={{ fontFamily:FONT_DECK, fontSize:7, letterSpacing:'0.14em', color:'#fff', textTransform:'uppercase' }}>Current</span>

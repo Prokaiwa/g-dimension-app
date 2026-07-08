@@ -126,13 +126,18 @@ function SpecGroup({ title, rows }: { title: string; rows: [string, string][] })
 }
 
 // ── Car stage ────────────────────────────────────────────────────────────────
-function CarStage({ src, placeholder, onAddPhoto }: { src: string; placeholder?: boolean; onAddPhoto?: () => void }) {
+function CarStage({ src, placeholder, priority, onAddPhoto }: { src: string; placeholder?: boolean; priority?: boolean; onAddPhoto?: () => void }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <div style={{ position: 'relative', width: '88%' }}>
       <img
         src={src}
         alt=""
+        decoding="async"
+        // fetchpriority: the cutout PNGs are the heaviest assets on this page —
+        // the visible car must win the bandwidth race over offscreen neighbors.
+        // (lowercase spread: React 18 types don't know the attribute yet)
+        {...({ fetchpriority: priority ? 'high' : 'low' } as object)}
         onLoad={() => setLoaded(true)}
         style={{
           width: '100%',
@@ -884,7 +889,7 @@ export default function GarageCarsPage() {
                       {/* 7. Car — sits just above floor line; lifts + shrinks into the
                           hero position as this card's Details sheet opens (tracks the drag) */}
                       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
-                        <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} onAddPhoto={() => navigate(`/garage/cars/${car.id}/edit`)} />
+                        <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} priority={i === activeIdx} onAddPhoto={() => navigate(`/garage/cars/${car.id}/edit`)} />
                       </div>
                       <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                         {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}

@@ -407,7 +407,7 @@ export default function TuningPartEditPage() {
         try {
           const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
           const path = `${userId}/${carId}/${partId}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
-          const { error: uploadErr } = await supabase.storage.from('job-photos').upload(path, compressed, { contentType: 'image/jpeg' })
+          const { error: uploadErr } = await supabase.storage.from('job-photos').upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
           if (uploadErr) continue
           const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
           await supabase.from('job_photos').insert({ job_id: partId, car_id: carId, photo_url: urlData.publicUrl })

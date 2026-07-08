@@ -183,7 +183,7 @@ export default function TimelineEntryNewPage() {
           const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
           const path = `${userId}/${carId}/note/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`
           const { data: up, error: upErr } = await supabase.storage
-            .from('timeline-photos').upload(path, compressed, { contentType: 'image/jpeg' })
+            .from('timeline-photos').upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
           if (upErr || !up) continue
           newUrls.push(supabase.storage.from('timeline-photos').getPublicUrl(up.path).data.publicUrl)
         }

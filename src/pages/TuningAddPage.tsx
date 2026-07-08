@@ -615,7 +615,7 @@ export default function TuningAddPage() {
         const path = `${userId}/${carId}/${jobId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { data: up, error: upErr } = await supabase.storage
           .from('job-photos')
-          .upload(path, compressed, { contentType: compressed.type })
+          .upload(path, compressed, { contentType: compressed.type, cacheControl: '31536000' })
         if (!upErr && up) {
           const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(up.path)
           await supabase.from('job_photos').insert({

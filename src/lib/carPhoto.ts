@@ -28,7 +28,7 @@ export async function uploadGaragePhoto(
   const path = `${userId}/${carId}/garage-${Date.now()}.png`
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, blob, { contentType: 'image/png' })
+    .upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' })
   if (error) throw error
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }
@@ -49,7 +49,7 @@ export async function uploadCarOriginal(
   const path = `${userId}/${carId}/original-${Date.now()}.jpg`
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, compressed, { contentType: 'image/jpeg' })
+    .upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
   if (error) throw error
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }

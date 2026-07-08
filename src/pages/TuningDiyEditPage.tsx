@@ -427,7 +427,7 @@ export default function TuningDiyEditPage() {
             const compressed = await imageCompression(photo._file!, COMPRESSION_OPTIONS)
             const rand = Math.random().toString(36).slice(2)
             const path = `${user.id}/${carId}/diy/${finalGuideId}/${stepId}/${Date.now()}-${rand}.jpg`
-            const { error: upErr } = await supabase.storage.from('job-photos').upload(path, compressed)
+            const { error: upErr } = await supabase.storage.from('job-photos').upload(path, compressed, { cacheControl: '31536000' })
             if (upErr) throw upErr
             const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
             return supabase.from('diy_step_photos').insert({

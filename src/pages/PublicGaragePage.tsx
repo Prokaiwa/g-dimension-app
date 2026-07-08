@@ -97,13 +97,17 @@ function SpecGroup({ title, rows }: { title: string; rows: [string, string][] })
 }
 
 // ── Car stage (read-only — no add-photo affordance) ──
-function CarStage({ src, placeholder }: { src: string; placeholder?: boolean }) {
+function CarStage({ src, placeholder, priority }: { src: string; placeholder?: boolean; priority?: boolean }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <div style={{ position: 'relative', width: '88%' }}>
       <img
         src={src}
         alt=""
+        decoding="async"
+        // fetchpriority: visible car wins bandwidth over offscreen neighbors
+        // (lowercase spread: React 18 types don't know the attribute yet)
+        {...({ fetchpriority: priority ? 'high' : 'low' } as object)}
         onLoad={() => setLoaded(true)}
         style={{
           width: '100%', maxHeight: 200, objectFit: 'contain', objectPosition: 'bottom',
@@ -315,7 +319,7 @@ export default function PublicGaragePage() {
                   <div aria-hidden style={{ position: 'absolute', bottom: '46%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.07)' }} />
                   <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%', background: ['radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)', 'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)'].join(', ') }} />
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
-                    <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} />
+                    <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} priority={i === activeIdx} />
                   </div>
                   <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                     {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}

@@ -564,6 +564,10 @@ export default function PublicTimelinePage() {
               <div ref={heroRef} style={{ position: 'absolute', left: 0, right: 0, top: '-12%', bottom: '-12%', willChange: 'transform' }}>
                 <img
                   src={origin.photo_url} alt="" aria-hidden className="tl-ken"
+                  decoding="async"
+                  // LCP of the page — beat the lazy thumbnails below to the network
+                  // (lowercase spread: React 18 types don't know the attribute yet)
+                  {...({ fetchpriority: 'high' } as object)}
                   style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>

@@ -89,7 +89,7 @@ export async function uploadAvatar(
 
   const { data: up, error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, compressed, { contentType: 'image/jpeg' })
+    .upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' })
   if (error || !up) throw error ?? new Error('Upload failed')
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(up.path)
