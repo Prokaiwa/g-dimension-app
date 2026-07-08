@@ -97,6 +97,7 @@ type Mod = {
   brand: string | null
   category: string | null
   session_id: string | null
+  mounted_on_job_id: string | null
 }
 
 type ModGroup = {
@@ -177,11 +178,13 @@ function SectionPhotoPlaceholder({ onClick }: { onClick?: () => void }) {
 
 function ModList({
   mods,
+  mountedByWheel,
   navigate,
   expanded,
   onToggleExpand,
 }: {
   mods: Mod[]
+  mountedByWheel: Map<string, Mod[]>
   navigate: (path: string) => void
   expanded: boolean
   onToggleExpand: () => void
@@ -220,6 +223,20 @@ function ModList({
           }}>
             {mod.title}
           </div>
+          {(mountedByWheel.get(mod.id) ?? []).map(tire => (
+            <div
+              key={tire.id}
+              onClick={(e) => { e.stopPropagation(); navigate(`/tuning/mods/${tire.id}`) }}
+              style={{
+                fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5,
+                color: 'rgba(150,162,175,0.66)',
+                lineHeight: 1.3, marginTop: 4, paddingLeft: 13,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              + {tire.title}
+            </div>
+          ))}
         </div>
       ))}
 
@@ -372,7 +389,7 @@ export default function TuningBuildSheetPage() {
           .single(),
         supabase
           .from('jobs')
-          .select('id, title, brand, category, session_id')
+          .select('id, title, brand, category, session_id, mounted_on_job_id')
           .eq('car_id', carId)
           .eq('status', 'installed')
           .eq('type', 'modification')
@@ -427,12 +444,24 @@ export default function TuningBuildSheetPage() {
   // Job IDs that belong to a titled session (shown as a group card, not solo)
   const groupedJobSessionIds = new Set(modGroups.map(g => g.id))
 
+  // Wheels + Tires combo: tires carry mounted_on_job_id → render beneath their
+  // wheel as one combined item instead of a separate row.
+  const mountedByWheel = new Map<string, Mod[]>()
+  for (const m of mods) {
+    if (!m.mounted_on_job_id) continue
+    const arr = mountedByWheel.get(m.mounted_on_job_id) ?? []
+    arr.push(m)
+    mountedByWheel.set(m.mounted_on_job_id, arr)
+  }
+
   const activeGroups = MOD_GROUPS
     .map(g => {
-      // Solo mods: installed jobs not belonging to a titled session
+      // Solo mods: installed jobs not belonging to a titled session, and not a
+      // tire that is mounted on a wheel (those render under their wheel).
       const soloMods = mods.filter(m =>
         g.categories.includes(m.category ?? '') &&
-        !groupedJobSessionIds.has(m.session_id ?? '')
+        !groupedJobSessionIds.has(m.session_id ?? '') &&
+        !m.mounted_on_job_id
       )
       // Group entries: titled sessions whose derived section matches this group
       const groups = modGroups.filter(mg => mg.groupId === g.id)
@@ -649,6 +678,7 @@ export default function TuningBuildSheetPage() {
                 {/* Solo mod list */}
                 <ModList
                   mods={group.mods}
+                  mountedByWheel={mountedByWheel}
                   navigate={navigate}
                   expanded={isExpanded}
                   onToggleExpand={() => toggleGroup(group.id)}
