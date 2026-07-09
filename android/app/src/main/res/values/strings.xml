@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">G-Dimension</string>
+    <string name="title_activity_main">G-Dimension</string>
+    <string name="package_name">app.gdimension.mobile</string>
+    <string name="custom_url_scheme">app.gdimension.mobile</string>
+</resources>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
+import { Capacitor } from '@capacitor/core'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
@@ -172,9 +173,17 @@ function WelcomeRoute({ children }: { children: React.ReactNode }) {
 // to "/", where we send the user back out to that same marketing front door —
 // one source of truth, no shadow React landing page. In dev there's no
 // marketing rewrite, so we fall back to /login to avoid a reload loop.
+//
+// The native app (Capacitor) has no Vercel in front of it — its web assets are
+// a bundled local copy of dist/, so window.location.replace('/') would just
+// reload this same index.html and hit RootRedirect again, looping forever
+// instead of reaching the marketing page. There's also no reason to show a
+// waitlist/marketing page inside an app someone already installed — send them
+// to /login instead, same as dev.
 function RootRedirect() {
-  useEffect(() => { if (!import.meta.env.DEV) window.location.replace('/') }, [])
-  if (import.meta.env.DEV) return <Navigate to="/login" replace />
+  const skipMarketing = import.meta.env.DEV || Capacitor.isNativePlatform()
+  useEffect(() => { if (!skipMarketing) window.location.replace('/') }, [skipMarketing])
+  if (skipMarketing) return <Navigate to="/login" replace />
   return <RouteFallback />
 }
 

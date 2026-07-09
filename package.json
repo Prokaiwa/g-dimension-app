@@ -17,6 +17,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.1",
     "@huggingface/transformers": "^4.2.0",
     "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "^2.105.1",
@@ -31,6 +32,9 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.61.1",
     "@types/qrcode": "^1.5.6",
