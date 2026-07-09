@@ -5,7 +5,10 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 068_sound_music_prefs.sql (applied 2026-07-09)
+-- Last migration applied : 069_sound_default_on.sql (applied 2026-07-09)
+--   - 069 (users.sound_enabled default flipped false -> true + existing rows
+--     backfilled to true, so sound effects now default ON like music) applied
+--     2026-07-09.
 --   - 068 (users.sound_enabled + users.music_enabled — account-synced UI sound
 --     effects / background music toggles, promoted from localStorage-only.
 --     Mirrors users.active_car_id's cache+sync pattern; fixes the sound toggle
