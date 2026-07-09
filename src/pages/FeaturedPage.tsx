@@ -63,6 +63,7 @@ interface FeaturedLayout {
   story_photo_focus_y?: number                 // 0-100
   story_photo_zoom?: number                    // 1-3
   template?: string                            // TEMPLATES[i].id — persisted cover choice
+  cover_photo_mode?: 'full' | 'cutout'         // which cover photo variant — persisted (was ephemeral before)
   published?: boolean                          // explicit publish flag — false/undefined = private draft
 }
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
@@ -421,6 +422,14 @@ export default function FeaturedPage() {
       if (c?.original_photo_url) cands.push({ url: c.original_photo_url, mode:'full',   label:'Original' })
       if (c?.garage_photo_url)   cands.push({ url: c.garage_photo_url,   mode:'cutout', label:'No BG'    })
       setPhotos(cands)
+      // Restore the previously saved photo choice (was ephemeral before — always
+      // reset to index 0/"Original" on reload, which is why a saved "No BG" pick
+      // never actually stuck on the public page). Falls back to 0 when unset.
+      const savedMode = c?.featured_layout?.cover_photo_mode
+      if (savedMode) {
+        const idx = cands.findIndex(p => p.mode === savedMode)
+        if (idx >= 0) setPhotoIdx(idx)
+      }
       // jobs — flatten the embedded part_types(name) (PostgREST may return obj or array)
       const jobRows = (jobsRes.data as unknown as Array<{ id:string; title:string|null; category:string|null; brand:string|null; part_types: { name:string|null } | { name:string|null }[] | null }>) ?? []
       setJobs(jobRows.map(r => {
@@ -452,6 +461,20 @@ export default function FeaturedPage() {
     setCoverIdx(nextIdx)
     if (car) {
       const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), template: TEMPLATES[nextIdx].id }
+      supabase.from('cars').update({ featured_layout: nextLayout }).eq('id', car.id).then(({ error }) => {
+        if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
+      })
+    }
+  }
+  // Cycle + persist the cover photo variant (Original vs No BG). Previously this
+  // only updated local state, so a "No BG" choice never actually stuck — the
+  // public page always fell back to the full/original photo on reload.
+  const cyclePhoto = () => {
+    const nextIdx = (photoIdx + 1) % photos.length
+    setPhotoIdx(nextIdx)
+    const nextMode = photos[nextIdx]?.mode
+    if (car && nextMode) {
+      const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), cover_photo_mode: nextMode }
       supabase.from('cars').update({ featured_layout: nextLayout }).eq('id', car.id).then(({ error }) => {
         if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
       })
@@ -1655,7 +1678,7 @@ export default function FeaturedPage() {
           </div>
           <div data-feat-noturn style={{ position:'absolute', top:48, right:12, zIndex:20, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
             {photos.length > 1 && (
-              <div onClick={() => setPhotoIdx(p=>(p+1)%photos.length)} style={COVER_CHIP}>
+              <div onClick={cyclePhoto} style={COVER_CHIP}>
                 Photo ▸ {photo?.label??'—'}
               </div>
             )}

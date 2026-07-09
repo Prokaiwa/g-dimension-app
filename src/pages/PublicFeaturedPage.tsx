@@ -49,6 +49,7 @@ interface FeaturedLayout {
   story_photo_focus_y?: number
   story_photo_zoom?: number
   template?: string
+  cover_photo_mode?: 'full' | 'cutout'
 }
 
 interface Job { id: string; title: string | null; category: string | null; brand: string | null; part_type_name: string | null }
@@ -291,8 +292,13 @@ export default function PublicFeaturedPage() {
   const bottomColor  = t.textOnPhoto === 'light' ? '#f5f5f5' : '#0a0a0a'
   const layout       = car?.featured_layout ?? null
 
-  // Cover photo: original (full) preferred, else no-bg cutout
-  const coverPhoto   = car?.original_photo_url
+  // Cover photo: honor the owner's saved choice (featured_layout.cover_photo_mode)
+  // when possible; otherwise the legacy default — original (full) preferred,
+  // else the no-bg cutout.
+  const wantsCutout  = layout?.cover_photo_mode === 'cutout'
+  const coverPhoto   = wantsCutout && car?.garage_photo_url
+    ? { url: car.garage_photo_url, mode: 'cutout' as const }
+    : car?.original_photo_url
     ? { url: car.original_photo_url, mode: 'full' as const }
     : car?.garage_photo_url
     ? { url: car.garage_photo_url, mode: 'cutout' as const }
