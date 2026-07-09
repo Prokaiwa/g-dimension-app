@@ -6,8 +6,8 @@ import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded } from './lib/userProfile'
-import { initMusic, setMusicAllowed } from './lib/music'
-import { prewarmSfx } from './lib/sound'
+import { initMusic, setMusicAllowed, syncMusicPrefFromServer } from './lib/music'
+import { prewarmSfx, syncSoundPrefFromServer } from './lib/sound'
 import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
 import { Analytics } from '@vercel/analytics/react'
@@ -217,16 +217,24 @@ export default function App() {
     // Seed localStorage from server on every sign-in and on page load
     // when a session already exists (e.g. returning user, page refresh).
     syncActiveCarFromServer()
+    syncSoundPrefFromServer()
+    syncMusicPrefFromServer()
     supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setHasSession(!!session)
-      // Defer out of the callback — syncActiveCarFromServer() queries Supabase,
-      // which needs the auth lock this callback is still holding (see the note in
-      // useAuthGate). Calling it inline can deadlock.
-      if (event === 'SIGNED_IN') setTimeout(() => { syncActiveCarFromServer() }, 0)
+      // Defer out of the callback — these query Supabase, which needs the auth
+      // lock this callback is still holding (see the note in useAuthGate).
+      // Calling them inline can deadlock.
+      if (event === 'SIGNED_IN') setTimeout(() => {
+        syncActiveCarFromServer()
+        syncSoundPrefFromServer()
+        syncMusicPrefFromServer()
+      }, 0)
       // Drop the cached active car on sign-out so the next account on this
       // browser can't inherit it (localStorage is not namespaced per user).
+      // Sound/music don't need the same treatment — the next sign-in's sync
+      // always overwrites them (the DB columns are NOT NULL, never ambiguous).
       if (event === 'SIGNED_OUT') clearActiveCar()
     })
     return () => subscription.unsubscribe()

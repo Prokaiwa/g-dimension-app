@@ -4,7 +4,14 @@
 // is fine: every call site here is a tap handler. Note the iPhone hardware
 // silent switch mutes web audio entirely.
 //
-// The preference is device-local (localStorage), default OFF.
+// The preference is account-synced (users.sound_enabled, migration 068) —
+// mirrors activeCar.ts's pattern: localStorage is an instant-load cache (every
+// read here is synchronous, no await, so a tap never waits on a network round
+// trip), the server column is the source of truth. This replaced a pure-
+// localStorage design after iOS Safari was observed silently clearing it after
+// a stretch of inactivity, resetting the toggle back to default with no way to
+// notice except opening Settings. Default OFF — see syncSoundPrefFromServer.
+import { supabase } from './supabase'
 
 const SOUND_KEY = 'gdim_sound_enabled'
 
@@ -14,6 +21,28 @@ export function isSoundEnabled(): boolean {
 
 export function setSoundEnabled(on: boolean): void {
   try { localStorage.setItem(SOUND_KEY, on ? '1' : '0') } catch { /* private mode — toggle just won't persist */ }
+  void syncSoundPrefToServer(on)
+}
+
+async function syncSoundPrefToServer(on: boolean): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await supabase.from('users').update({ sound_enabled: on }).eq('id', session.user.id)
+  } catch { /* best effort — localStorage already has it */ }
+}
+
+/** Called once after sign-in (mirrors syncActiveCarFromServer). The server is
+ *  the source of truth: seeds localStorage with the account's saved value so
+ *  a wiped cache or a new device picks up the real preference instead of
+ *  silently falling back to the default. */
+export async function syncSoundPrefFromServer(): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { data } = await supabase.from('users').select('sound_enabled').eq('id', session.user.id).single()
+    if (data) localStorage.setItem(SOUND_KEY, data.sound_enabled ? '1' : '0')
+  } catch { /* best effort — the localStorage cache (or its default) still works */ }
 }
 
 // iOS/Safari: declare our audio as "ambient" (game/UI audio) instead of the

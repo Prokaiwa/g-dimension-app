@@ -7,10 +7,15 @@
 // to start immediately and again on the first tap/key (whichever lands first).
 // The iPhone hardware silent switch mutes this like any other web audio.
 //
+// The preference is account-synced (users.music_enabled, migration 068) — same
+// pattern as sound.ts / activeCar.ts: localStorage is an instant-load cache,
+// the server column is the source of truth. See syncMusicPrefFromServer.
+//
 // Drop the track at: public/audio/music.mp3  (served at /audio/music.mp3).
 // Until that file exists the element just fails to play — no crash.
 
 import { configureAudioSession, reviveSfx } from './sound'
+import { supabase } from './supabase'
 
 const MUSIC_KEY = 'gdim_music_enabled'
 const MUSIC_SRC = '/audio/music.mp3'
@@ -25,6 +30,26 @@ export function setMusicEnabled(on: boolean): void {
   try { localStorage.setItem(MUSIC_KEY, on ? '1' : '0') } catch { /* private mode */ }
   if (on) void startMusic()
   else stopMusic()
+  void syncMusicPrefToServer(on)
+}
+
+async function syncMusicPrefToServer(on: boolean): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await supabase.from('users').update({ music_enabled: on }).eq('id', session.user.id)
+  } catch { /* best effort — localStorage already has it */ }
+}
+
+/** Called once after sign-in (mirrors syncActiveCarFromServer / sound.ts's
+ *  syncSoundPrefFromServer). Seeds localStorage with the account's saved value. */
+export async function syncMusicPrefFromServer(): Promise<void> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { data } = await supabase.from('users').select('music_enabled').eq('id', session.user.id).single()
+    if (data) localStorage.setItem(MUSIC_KEY, data.music_enabled ? '1' : '0')
+  } catch { /* best effort */ }
 }
 
 // Whether the current screen permits music. Off by default so it never plays
