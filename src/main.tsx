@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App'
+import AppErrorBoundary from './components/AppErrorBoundary'
 import { installChunkReloadGuard } from './lib/chunkReload'
 import { initErrorTracking } from './lib/errorTracking'
 import { registerSW } from 'virtual:pwa-register'
@@ -22,8 +23,10 @@ initErrorTracking()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </AppErrorBoundary>
   </StrictMode>,
 )

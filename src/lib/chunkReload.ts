@@ -23,7 +23,7 @@ export function isChunkLoadError(reason: unknown): boolean {
     const r = reason as { name?: unknown; message?: unknown }
     msg = `${String(r.name ?? '')} ${String(r.message ?? '')}`
   }
-  return /dynamically imported module|module script failed|valid JavaScript MIME type|Loading chunk|ChunkLoadError/i.test(msg)
+  return /dynamically imported module|module script failed|valid JavaScript MIME type|Loading chunk|ChunkLoadError|_result\.default|reading 'default'|reading "default"/i.test(msg)
 }
 
 /** Reload to fetch fresh chunk names. Returns true if a reload was triggered. */

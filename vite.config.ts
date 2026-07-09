@@ -60,10 +60,28 @@ export default defineConfig({
         ],
         runtimeCaching: [
           {
+            // CacheFirst, not StaleWhileRevalidate: every JS/CSS chunk here is
+            // content-hashed and immutable (a new deploy ships new URLs), so
+            // there is nothing to "revalidate" — once cached, that exact URL
+            // can never go stale. StaleWhileRevalidate's real cost is that it
+            // ALWAYS re-fetches in the background too, and concurrently
+            // requesting the same module URL is a documented aggravator of a
+            // WebKit/Safari bug where a dynamic import() resolves with
+            // `undefined` instead of the module, crashing React.lazy
+            // ("_result.default"/"reading 'default'" — see AppErrorBoundary +
+            // the isChunkLoadError regex in chunkReload.ts, both of which
+            // exist to recover from this if it still happens).
             urlPattern: ({ request }) =>
               request.destination === 'script' || request.destination === 'style',
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'gdim-assets' },
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gdim-assets',
+              cacheableResponse: { statuses: [0, 200] },
+              // Bounds growth across many deploys — CacheFirst never evicts a
+              // hashed URL on its own, and cleanupOutdatedCaches only clears
+              // the PRECACHE, not this runtime cache.
+              expiration: { maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            },
           },
         ],
       },
