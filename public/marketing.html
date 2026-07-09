@@ -6,7 +6,7 @@
 
 <!-- Installed-PWA guard: this static marketing page is served at "/", which is
      also where an installed standalone PWA can cold-launch. If we're running
-     standalone, skip the public waitlist page and enter the app immediately —
+     standalone, skip the public marketing page and enter the app immediately —
      it routes to /home (logged in) or /login (not) from there. Real browsers and
      crawlers are never standalone, so this is a no-op for them.
      NOTE: editing this inline script changes its hash — recompute the sha256 and
@@ -501,6 +501,23 @@ body{
 .form-msg.success{color:var(--accent);}
 .form-msg.error{color:#e05050;}
 
+/* The real, primary call to action — links straight to account creation.
+   Reuses .submit-btn's colors/shadow/typography, just laid out full-width as a
+   standalone link instead of sitting beside an email input. */
+.primary-cta{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;max-width:520px;margin:0 auto;
+  text-decoration:none;
+}
+.cta-login-line{
+  font-family:var(--font-ui);font-weight:400;
+  font-size:11px;color:var(--text-muted);
+  margin-top:12px;text-align:center;letter-spacing:0.04em;
+  max-width:520px;margin-left:auto;margin-right:auto;
+}
+.cta-login-line a{color:var(--text-secondary);text-decoration:none;font-weight:600;}
+.cta-login-line a:hover{color:var(--accent);}
+
 /* ══════════════════════════════
    STORY
 ══════════════════════════════ */
@@ -752,6 +769,43 @@ body{
 .legal a{ color:inherit; text-decoration:underline; }
 .legal a:hover{ color:var(--accent); }
 
+/* Secondary, de-emphasized mailing-list opt-in — for visitors not ready to
+   create an account. Deliberately small/muted so it never competes with the
+   real /signup CTAs in the hero and bottom sections. */
+.footer-updates{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  max-width:280px;
+}
+.footer-updates-label{
+  font-family:var(--font-ui);font-weight:500;font-size:10px;
+  letter-spacing:0.03em;color:var(--text-muted);text-align:center;
+  line-height:1.5;
+}
+.footer-form-row{display:flex;gap:6px;width:100%;}
+.footer-email-input{
+  flex:1;min-width:0;background:#0e0e12;color:#d8d8da;
+  font-family:var(--font-ui);font-size:11px;
+  padding:0 10px;height:32px;
+  border:1px solid #26262e;border-radius:0;outline:none;
+}
+.footer-email-input::placeholder{color:#48484e;}
+.footer-email-input:focus{border-color:var(--accent);}
+.footer-submit-btn{
+  background:transparent;border:1px solid #34343c;color:#b0b0b4;
+  font-family:var(--font-ui);font-weight:700;font-size:9.5px;
+  letter-spacing:0.08em;text-transform:uppercase;
+  height:32px;padding:0 12px;cursor:pointer;flex-shrink:0;
+  transition:border-color 150ms,color 150ms;
+}
+.footer-submit-btn:hover{border-color:var(--accent);color:var(--accent);}
+.footer-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.footer-form-msg{
+  display:none;font-family:var(--font-ui);font-size:9.5px;
+  letter-spacing:0.03em;text-align:center;
+}
+.footer-form-msg.success{color:var(--accent);display:block;}
+.footer-form-msg.error{color:#e05050;display:block;}
+
 /* ══════════════════════════════
    RESPONSIVE — MOBILE ≤600px
 ══════════════════════════════ */
@@ -975,27 +1029,10 @@ body{
   </div>
   <p class="map-label" aria-hidden="true">Select a destination</p>
 
-  <!-- Form strip -->
+  <!-- Form strip — the real CTA: straight to account creation, not a mailing list. -->
   <div class="form-strip">
-    <label class="fs-label" for="email-hero">Get early access</label>
-    <div class="form-row">
-      <input
-        class="email-input"
-        type="email"
-        id="email-hero"
-        name="email"
-        placeholder="your@email.com"
-        required
-        autocomplete="email"
-        aria-label="Email address"
-        aria-required="true"
-      >
-      <button class="submit-btn" id="btn-hero" type="button" onclick="submitForm('email-hero','msg-hero','btn-hero')">
-        Join →
-      </button>
-    </div>
-    <p class="fs-note">Free to join, no spam. &nbsp;·&nbsp; <a href="/signup">Start free →</a> &nbsp;·&nbsp; <a href="https://www.instagram.com/gdimensionapp/" target="_blank" rel="noopener noreferrer" aria-label="G-Dimension on Instagram">@gdimensionapp</a></p>
-    <p class="form-msg" id="msg-hero" role="status" aria-live="polite"></p>
+    <a class="submit-btn primary-cta" href="/signup">Start Your Build Journal — Free →</a>
+    <p class="cta-login-line">Already building? <a href="/login">Log in</a> &nbsp;·&nbsp; <a href="https://www.instagram.com/gdimensionapp/" target="_blank" rel="noopener noreferrer" aria-label="G-Dimension on Instagram">@gdimensionapp</a></p>
   </div>
 </section>
 
@@ -1113,7 +1150,7 @@ body{
 
     <div class="faq-item">
       <h3 class="faq-q">Is G-Dimension available yet?</h3>
-      <p class="faq-a">Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features; join the waitlist to get product updates.</p>
+      <p class="faq-a">Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features.</p>
     </div>
   </div>
 </section>
@@ -1175,7 +1212,7 @@ body{
     {
       "@type": "Question",
       "name": "Is G-Dimension available yet?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features; join the waitlist to get product updates." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features." }
     }
   ]
 }
@@ -1186,26 +1223,9 @@ body{
   <div class="cta-inner">
     <p class="catchphrase">Build it.&nbsp; Log it.&nbsp; Own it.</p>
     <h2 class="cta-headline" id="cta-heading">Your build deserves<br>a proper record.</h2>
-    <p class="cta-sub">Now in early access and free to join. <a href="/signup">Start building →</a></p>
-    <label class="cta-form-label" for="email-bottom">Get early access</label>
-    <div class="form-row">
-      <input
-        class="email-input"
-        type="email"
-        id="email-bottom"
-        name="email"
-        placeholder="your@email.com"
-        required
-        autocomplete="email"
-        aria-label="Email address"
-        aria-required="true"
-      >
-      <button class="submit-btn" id="btn-bottom" type="button" onclick="submitForm('email-bottom','msg-bottom','btn-bottom')">
-        Join →
-      </button>
-    </div>
-    <p class="form-msg" id="msg-bottom" role="status" aria-live="polite"></p>
-    <p class="cta-note">No spam — occasional product updates.</p>
+    <p class="cta-sub">Free during early access. No credit card required.</p>
+    <a class="submit-btn primary-cta" href="/signup">Create Your Garage — Free →</a>
+    <p class="cta-login-line">Already have an account? <a href="/login">Log in</a></p>
   </div>
 </section>
 
@@ -1223,6 +1243,30 @@ body{
     </svg>
     @gdimensionapp
   </a>
+
+  <!-- Secondary opt-in for visitors not ready to create an account. Small and
+       muted on purpose — the real CTA is /signup in the hero and below. -->
+  <div class="footer-updates">
+    <label class="footer-updates-label" for="email-footer">Not ready to sign up? Get occasional product updates by email.</label>
+    <div class="footer-form-row">
+      <input
+        class="footer-email-input"
+        type="email"
+        id="email-footer"
+        name="email"
+        placeholder="your@email.com"
+        required
+        autocomplete="email"
+        aria-label="Email address"
+        aria-required="true"
+      >
+      <button class="footer-submit-btn" id="btn-footer" type="button" onclick="submitForm('email-footer','msg-footer','btn-footer')">
+        Join →
+      </button>
+    </div>
+    <p class="footer-form-msg" id="msg-footer" role="status" aria-live="polite"></p>
+  </div>
+
   <p class="legal">
     <a href="/terms">Terms</a> &nbsp;·&nbsp; <a href="/privacy">Privacy</a> &nbsp;·&nbsp; gdimension.app &nbsp;·&nbsp; © 2026
   </p>
@@ -1263,7 +1307,7 @@ function submitForm(inputId, msgId, btnId) {
     if (res.ok) {
       // Success
       if (input && input.parentElement) input.parentElement.style.display = 'none';
-      showMsg(msg, "You're on the list. See you at launch.", 'success');
+      showMsg(msg, "You're subscribed — thanks!", 'success');
       // Also hide the label above the form row
       var label = msg.parentElement.querySelector('[for="' + inputId + '"]');
       if (label) label.style.display = 'none';
@@ -1281,7 +1325,10 @@ function submitForm(inputId, msgId, btnId) {
 function showMsg(el, text, type) {
   if (!el) return;
   el.textContent  = text;
-  el.className    = 'form-msg ' + type;
+  // Keep the element's own base class (e.g. 'footer-form-msg') and just add the
+  // success/error modifier — don't clobber it with a hardcoded 'form-msg', which
+  // would swap in the wrong (bigger, bolder) styling for the small footer form.
+  el.className    = el.className.split(' ')[0] + ' ' + type;
   el.style.display = 'block';
 }
 
@@ -1411,8 +1458,9 @@ function showMsg(el, text, type) {
     }
   });
 
-  // ── Form focus (intent signal) ──
-  document.querySelectorAll('.email-input').forEach(function(input){
+  // ── Form focus (intent signal) — the secondary footer opt-in only; the
+  // primary CTAs are plain /signup links now, tracked implicitly by nav. ──
+  document.querySelectorAll('.footer-email-input').forEach(function(input){
     var fired = false;
     input.addEventListener('focus', function(){
       if (!fired) {
@@ -1426,7 +1474,7 @@ function showMsg(el, text, type) {
   // We hook into it by wrapping the success display
   var origShow = window.showMsg;
   window.showMsg = function(el, text, type) {
-    if (type === 'success') track('Waitlist Signup');
+    if (type === 'success') track('Newsletter Signup');
     if (origShow) origShow(el, text, type);
   };
 
