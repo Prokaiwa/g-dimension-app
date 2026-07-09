@@ -10,13 +10,15 @@
 // trip), the server column is the source of truth. This replaced a pure-
 // localStorage design after iOS Safari was observed silently clearing it after
 // a stretch of inactivity, resetting the toggle back to default with no way to
-// notice except opening Settings. Default OFF — see syncSoundPrefFromServer.
+// notice except opening Settings. Default ON (migration 069), matching music —
+// see syncSoundPrefFromServer.
 import { supabase } from './supabase'
 
 const SOUND_KEY = 'gdim_sound_enabled'
 
 export function isSoundEnabled(): boolean {
-  try { return localStorage.getItem(SOUND_KEY) === '1' } catch { return false }
+  // default ON: only an explicit '0' disables it (matches music.ts)
+  try { return localStorage.getItem(SOUND_KEY) !== '0' } catch { return true }
 }
 
 export function setSoundEnabled(on: boolean): void {
