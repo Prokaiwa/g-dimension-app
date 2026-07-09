@@ -5,7 +5,11 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 067_db_hygiene.sql (applied 2026-07-07)
+-- Last migration applied : 068_sound_music_prefs.sql (applied 2026-07-09)
+--   - 068 (users.sound_enabled + users.music_enabled — account-synced UI sound
+--     effects / background music toggles, promoted from localStorage-only.
+--     Mirrors users.active_car_id's cache+sync pattern; fixes the sound toggle
+--     silently resetting after iOS Safari storage eviction) applied 2026-07-09.
 --   - 067 (DB hygiene from the 2026-07-07 review: dropped 5 duplicate indexes,
 --     initplan-rewrote 7 RLS policies to (select auth.uid()), added 12 FK
 --     covering indexes) applied 2026-07-07. Companion manual step also run
