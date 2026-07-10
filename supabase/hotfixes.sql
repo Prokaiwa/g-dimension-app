@@ -5,10 +5,10 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 070_public_profile_bio.sql (applied 2026-07-10)
---   PENDING: 071_users_anon_column_grants.sql (anon column-level grants on
---   users — closes the blanket-select exposure from 027; see ADR-015). Run in
---   the SQL Editor, then bump this watermark.
+-- Last migration applied : 071_users_anon_column_grants.sql (applied 2026-07-10)
+--   - 071 (anon column-level grants on users — replaces 027's blanket anon
+--     select with a grant limited to the public identity columns; closes the
+--     email/subscription/prefs exposure; ADR-015) applied 2026-07-10.
 --   - 070 (public_car_profiles view refresh appending users.bio +
 --     users.country_code for the visitor driver card on /builds/:username)
 --     applied 2026-07-10.
