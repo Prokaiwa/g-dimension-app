@@ -3,7 +3,7 @@
 // plan badge, bio), a stats strip, and a garage preview, and is the doorway to
 // Settings. Edit happens in a bottom sheet that writes straight to the `users`
 // row. Settings live inside Profile per CLAUDE.md.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
@@ -22,6 +22,8 @@ import {
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
+import { shareLink } from '../lib/share'
+import { ShareIcon } from '../components/ShareIcon'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   GRADIENT_APP_BG,
@@ -100,20 +102,27 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-// A tappable navigation row (View public profile / Settings).
-function NavRow({ label, sub, onClick }: { label: string; sub?: string; onClick: () => void }) {
+// A tappable navigation row (View public profile / Settings). Root is a div-with-
+// button-role (not a <button>) so a row can carry its own trailing action button
+// (e.g. the share icon) without nesting button-in-button (invalid HTML,
+// double-fires clicks).
+function NavRow({ label, sub, onClick, trailing }: { label: string; sub?: string; onClick: () => void; trailing?: ReactNode }) {
   return (
-    <button onClick={onClick} style={{
-      width: '100%', display: 'flex', alignItems: 'center', gap: SPACE_MD, padding: `14px 0`,
-      background: 'none', border: 'none', borderBottom: '1px solid rgba(240,228,200,0.07)',
-      cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent',
-    }}>
+    <div
+      role="button" tabIndex={0} onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+      style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: SPACE_MD, padding: `14px 0`,
+        borderBottom: '1px solid rgba(240,228,200,0.07)',
+        cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent',
+      }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: CREAM, margin: 0, lineHeight: 1.2 }}>{label}</p>
         {sub && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: MUTED, margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</p>}
       </div>
+      {trailing}
       <span style={{ flexShrink: 0, color: FAINT, fontSize: 20, lineHeight: 1 }}>›</span>
-    </button>
+    </div>
   )
 }
 
@@ -131,6 +140,10 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [loading, setLoading] = useState(true)
+  // 'copied' flashes a small label on the share icon after a clipboard fallback
+  // (native-sheet shares need no feedback — the sheet itself is the feedback).
+  const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  const shareTimer = useRef<ReturnType<typeof setTimeout>>()
 
   const [draft, setDraft]           = useState<Draft | null>(null)
   const [saving, setSaving]         = useState(false)
@@ -419,7 +432,37 @@ export default function ProfilePage() {
 
             {/* Navigation */}
             <div style={{ marginTop: SPACE_XL, borderTop: '1px solid rgba(240,228,200,0.07)' }}>
-              <NavRow label="View public profile" sub={`gdimension.app/builds/${profile.username}`} onClick={() => navigate(`/builds/${profile.username}`)} />
+              <NavRow
+                label="View public profile"
+                sub={`gdimension.app/builds/${profile.username}`}
+                onClick={() => navigate(`/builds/${profile.username}`)}
+                trailing={
+                  <button
+                    aria-label="Share public profile"
+                    onClick={async e => {
+                      e.stopPropagation()
+                      const outcome = await shareLink({
+                        url: `https://gdimension.app/builds/${profile.username}`,
+                        title: `${profileName(profile)} — G-Dimension`,
+                        text: 'Check out my build on G-Dimension',
+                      })
+                      if (outcome === 'copied') {
+                        setShareState('copied')
+                        clearTimeout(shareTimer.current)
+                        shareTimer.current = setTimeout(() => setShareState('idle'), 1400)
+                      }
+                    }}
+                    style={{
+                      flexShrink: 0, width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'none', border: 'none', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {shareState === 'copied'
+                      ? <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: OK_GREEN }}>Copied</span>
+                      : <ShareIcon size={18} color={MUTED} />}
+                  </button>
+                }
+              />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>
 

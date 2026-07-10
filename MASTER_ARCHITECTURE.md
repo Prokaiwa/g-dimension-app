@@ -1797,6 +1797,22 @@ create table api_requests (
 **Code changes required:** Zero.
 **Cost:** ~$25/month per replica on Supabase Pro.
 
+### Phase 7 — Social Layer (parked, added 2026-07 from user feedback)
+
+Groups, meets/events, and follows — "forums beautified, Instagram for cars, GT
+vibe." Requested by early users; deliberately parked until it gets its own
+dedicated design session. Do NOT start building slices of this ad hoc.
+
+**Must be designed before any code:**
+- Data model (groups, memberships, events, RSVPs, follows) + moderation story
+  (reporting, blocking, admin tooling — a social layer without moderation is a
+  liability, not a feature).
+- **Location privacy:** meets/events imply location data. Default to
+  coarse/opt-in location only; never store precise home coordinates. This is a
+  hard constraint, not a preference.
+- How it composes with the existing public-profile boundary (Part 23) — social
+  surfaces must never leak private build data (costs, VIN, documents).
+
 ---
 
 ## PART 30 — PRE-RELEASE CHECKLIST

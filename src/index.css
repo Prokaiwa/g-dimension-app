@@ -41,3 +41,36 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Desktop / wide-viewport phone-frame shell ──────────────────────────────
+   Every layout decision in the app is phone-first; on desktop and landscape
+   the pages used to stretch full-bleed and break the background art. At
+   >=700px, letterbox the WHOLE app inside a centered 440px column instead
+   (matches the maxWidth:440 the Home map + public map already used locally).
+
+   THE FIXED-POSITION PROBLEM: position:fixed resolves against the viewport
+   UNLESS an ancestor establishes a containing block. Per the CSS Transforms
+   spec, any element with a non-none transform becomes that containing block
+   for its fixed-position descendants. translateZ(0) is visually a no-op but
+   triggers this — so StartSplash, ErrorBanner, ImageCarouselLightbox, bottom
+   sheets, and every full-bleed page shell now position against #root's
+   440px box instead of the wide browser window, with zero per-component
+   edits. overflow:hidden clips anything that still tries to escape sideways.
+
+   Width-only breakpoint on purpose (no orientation query): landscape phones
+   stretch/break art the same way and get the same portrait strip.
+   marketing.html never loads this stylesheet — unaffected. */
+@media (min-width: 700px) {
+  body {
+    background: #000;
+  }
+  #root {
+    position: relative;
+    max-width: 440px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    overflow: hidden;
+    transform: translateZ(0); /* containing block for fixed descendants — see above */
+    box-shadow: 0 50px 100px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px #2a2a2c;
+  }
+}

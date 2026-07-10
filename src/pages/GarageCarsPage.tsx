@@ -211,7 +211,14 @@ function normMake(s: string): string {
 
 const WHEEL_ITEM_H = 44
 
-// iOS-style drum wheel picker
+// iOS-style drum wheel picker.
+// Fine-pointer devices (mouse/trackpad) additionally get click-to-select rows
+// and a gentler 'proximity' scroll snap — 'mandatory' fights every mouse-wheel
+// tick, which was the reported "too touchy on Windows" feel. Touch devices are
+// byte-for-byte unchanged: mandatory snap, no row onClick.
+const IS_FINE_POINTER =
+  typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches
+
 function WheelPicker({ items, value, onChange }: { items: string[]; value: string; onChange: (v: string) => void }) {
   const VISIBLE = 5
   const ref = useRef<HTMLDivElement>(null)
@@ -233,15 +240,26 @@ function WheelPicker({ items, value, onChange }: { items: string[]; value: strin
     commitRef.current = setTimeout(() => onChange(items[c]), 80)
   }
 
+  // Click-to-select (desktop): scroll the clicked row into the highlight band;
+  // the smooth scroll fires handleScroll, which converges activeIdx + onChange —
+  // no second commit path.
+  function selectRow(i: number) {
+    ref.current?.scrollTo({ top: i * WHEEL_ITEM_H, behavior: 'smooth' })
+  }
+
   return (
     <div style={{ position: 'relative', height: WHEEL_ITEM_H * VISIBLE, overflow: 'hidden', flex: 1 }}>
       <div style={{ position: 'absolute', top: WHEEL_ITEM_H * 2, left: 0, right: 0, height: WHEEL_ITEM_H, background: 'rgba(255,255,255,0.055)', borderTop: '1px solid rgba(255,255,255,0.09)', borderBottom: '1px solid rgba(255,255,255,0.09)', pointerEvents: 'none', zIndex: 2 }} />
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, background: `linear-gradient(to bottom, ${COLOR_CAVITY_BG} 0%, transparent 100%)`, pointerEvents: 'none', zIndex: 2 }} />
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: WHEEL_ITEM_H * 2, background: `linear-gradient(to top, ${COLOR_CAVITY_BG} 0%, transparent 100%)`, pointerEvents: 'none', zIndex: 2 }} />
-      <div ref={ref} onScroll={handleScroll} className="hide-scrollbar" style={{ height: '100%', overflowY: 'scroll', scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+      <div ref={ref} onScroll={handleScroll} className="hide-scrollbar" style={{ height: '100%', overflowY: 'scroll', scrollSnapType: IS_FINE_POINTER ? 'y proximity' : 'y mandatory', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <div style={{ height: WHEEL_ITEM_H * 2 }} />
         {items.map((item, i) => (
-          <div key={item} style={{ height: WHEEL_ITEM_H, scrollSnapAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            key={item}
+            onClick={IS_FINE_POINTER ? () => selectRow(i) : undefined}
+            style={{ height: WHEEL_ITEM_H, scrollSnapAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: IS_FINE_POINTER ? 'pointer' : 'default' }}
+          >
             <span style={{ fontFamily: FONT_UI, fontWeight: i === activeIdx ? 700 : 500, fontSize: i === activeIdx ? 20 : 16, color: i === activeIdx ? '#f0ece4' : 'rgba(240,236,228,0.28)', transition: '80ms ease' }}>{item}</span>
           </div>
         ))}

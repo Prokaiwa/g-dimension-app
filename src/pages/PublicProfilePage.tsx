@@ -13,6 +13,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
+import { shareLink } from '../lib/share'
+import { ShareIcon } from '../components/ShareIcon'
+import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_FEATURED,
 } from '../lib/destinationIcons'
@@ -200,6 +203,10 @@ interface CarRow {
   avatar_url: string | null
   city: string | null
   country: string | null
+  // bio/country_code arrive via migration 070's view refresh — read defensively
+  // (undefined pre-migration) so the page works before AND after it's applied.
+  bio?: string | null
+  country_code?: string | null
   garage_photo_url: string | null
   original_photo_url: string | null
   featured_story: string | null
@@ -229,6 +236,13 @@ export default function PublicProfilePage() {
 
   const [state, setState] = useState<'loading' | 'ready' | 'empty'>('loading')
   const [car, setCar] = useState<CarRow | null>(null)
+  // Anonymous visitor? Gates the "start your own" signup CTAs (a logged-in
+  // visitor already has an account — don't pitch them one).
+  const [isAnon, setIsAnon] = useState(false)
+  // Identity card (driver card) open/closed + share feedback
+  const [cardOpen, setCardOpen] = useState(false)
+  const [cardShare, setCardShare] = useState<'idle' | 'copied'>('idle')
+  const cardShareTimer = useRef<ReturnType<typeof setTimeout>>()
   const [nodes, setNodes] = useState<NodeDef[]>([])
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -253,6 +267,9 @@ export default function PublicProfilePage() {
     let cancelled = false
     ;(async () => {
       if (!username) { setState('empty'); return }
+      // Anon check up front (also used by `leave`) — gates the signup CTAs.
+      const { data: { session: authSession } } = await supabase.auth.getSession()
+      if (!cancelled) setIsAnon(!authSession)
       const { data, error } = await supabase
         .from('public_car_profiles')
         .select('*')
@@ -578,6 +595,15 @@ export default function PublicProfilePage() {
           background: COLOR_BRAND, color: '#f5f0ea', fontFamily: FONT_UI,
           fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer',
         }}>Leave</button>
+        {isAnon && (
+          <button onClick={() => navigate('/signup?ref=empty_profile')} style={{
+            marginTop: 4, background: 'none', border: 'none', cursor: 'pointer',
+            fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5, color: '#717784',
+            WebkitTapHighlightColor: 'transparent', padding: '8px 12px',
+          }}>
+            New here? Start your own build journal →
+          </button>
+        )}
       </div>
     )}
 
@@ -663,6 +689,27 @@ export default function PublicProfilePage() {
           position: 'absolute', right: 0, top: 0, height: '100%',
           display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
         }}>
+          {/* Driver-card chip — the builder's identity, one tap away. Only shown
+              when there's something to show (name/avatar/bio/city). */}
+          {car && (car.display_name || car.avatar_url || car.bio || car.city) && (
+            <button
+              aria-label={`About @${username}`}
+              onClick={() => setCardOpen(o => !o)}
+              style={{
+                width: 30, height: 30, marginRight: 8, padding: 0, flexShrink: 0,
+                borderRadius: '50%', overflow: 'hidden', cursor: 'pointer',
+                border: cardOpen ? '1.5px solid rgba(226,231,240,0.95)' : '1.5px solid rgba(196,206,224,0.45)',
+                background: COLOR_BRAND, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {car.avatar_url
+                ? <img src={car.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: '#f5f0ea', lineHeight: 1 }}>
+                    {(car.display_name || username || '?').charAt(0).toUpperCase()}
+                  </span>}
+            </button>
+          )}
           <span style={{
             paddingRight: 10,
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
@@ -684,6 +731,93 @@ export default function PublicProfilePage() {
           }}>{DAY_LABEL}</div>
         </div>
       </div>
+
+      {/* ── Driver card — the builder's identity, dropped down from the header
+           chip. Light surface matching the visitor re-skin; game-flavored
+           (a driver license card), not a SaaS bio block. ── */}
+      {cardOpen && car && (
+        <>
+          {/* scrim: tap anywhere outside to close */}
+          <div onClick={() => setCardOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 48 }} />
+          <div style={{
+            position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49,
+            width: 264, background: 'rgba(233,236,242,0.98)',
+            border: '1px solid rgba(120,130,150,0.35)',
+            boxShadow: '0 14px 40px rgba(0,0,0,0.45)',
+            animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
+          }}>
+            <style>{`@keyframes pubCardIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }`}</style>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 14px 10px' }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                background: COLOR_BRAND, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {car.avatar_url
+                  ? <img src={car.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 20, color: '#f5f0ea' }}>
+                      {(car.display_name || username || '?').charAt(0).toUpperCase()}
+                    </span>}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, color: '#22262e', margin: 0, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {car.display_name || `@${username}`}
+                </p>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: '#6c7280', margin: '2px 0 0' }}>@{username}</p>
+              </div>
+            </div>
+            {(car.city || car.country) && (
+              <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: '#565c68', margin: '0 14px 8px', lineHeight: 1.4 }}>
+                {flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')}{' '}
+                {[car.city, car.country].filter(Boolean).join(', ')}
+              </p>
+            )}
+            {car.bio && (
+              <p style={{
+                fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, color: '#3d434e',
+                margin: '0 14px 12px', lineHeight: 1.5,
+                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+              }}>{car.bio}</p>
+            )}
+            <button
+              onClick={async () => {
+                const outcome = await shareLink({
+                  url: `https://gdimension.app/builds/${username}${carParam ? `?car=${carParam}` : ''}`,
+                  title: `${car.display_name || '@' + username}'s build — G-Dimension`,
+                  text: 'Check out this build on G-Dimension',
+                })
+                if (outcome === 'copied') {
+                  setCardShare('copied')
+                  clearTimeout(cardShareTimer.current)
+                  cardShareTimer.current = setTimeout(() => setCardShare('idle'), 1400)
+                }
+              }}
+              style={{
+                width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: 'rgba(120,130,150,0.12)', border: 'none',
+                borderTop: '1px solid rgba(120,130,150,0.25)', cursor: 'pointer',
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em',
+                textTransform: 'uppercase', color: '#2a2e36', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <ShareIcon size={14} color="#2a2e36" />
+              {cardShare === 'copied' ? 'Link copied' : 'Share this build'}
+            </button>
+            {isAnon && (
+              <button
+                onClick={() => navigate('/signup?ref=profile')}
+                style={{
+                  width: '100%', minHeight: 40, background: 'none', border: 'none',
+                  borderTop: '1px solid rgba(120,130,150,0.25)', cursor: 'pointer',
+                  fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: '#6c7280',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                Start your own build journal →
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ── Stage ── */}
       <div
