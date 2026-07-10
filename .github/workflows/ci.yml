@@ -27,8 +27,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # One retry after a pause: npm ci runs every dependency's postinstall, and
+      # some download binaries from external CDNs (onnxruntime-node, a transitive
+      # dep of transformers.js, fetches from a Microsoft CDN). A transient CDN
+      # timeout failed the whole gate once (2026-07-10, ETIMEDOUT — nothing to do
+      # with the commit under test); the retry absorbs that class of flake.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || (echo "npm ci failed — retrying in 30s" && sleep 30 && npm ci)
 
       - name: Lint
         run: npm run lint

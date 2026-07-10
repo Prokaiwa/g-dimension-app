@@ -5,7 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 069_sound_default_on.sql (applied 2026-07-09)
+-- Last migration applied : 070_public_profile_bio.sql (applied 2026-07-10)
+--   PENDING: 071_users_anon_column_grants.sql (anon column-level grants on
+--   users — closes the blanket-select exposure from 027; see ADR-015). Run in
+--   the SQL Editor, then bump this watermark.
+--   - 070 (public_car_profiles view refresh appending users.bio +
+--     users.country_code for the visitor driver card on /builds/:username)
+--     applied 2026-07-10.
 --   - 069 (users.sound_enabled default flipped false -> true + existing rows
 --     backfilled to true, so sound effects now default ON like music) applied
 --     2026-07-09.

@@ -1694,6 +1694,14 @@ Users submit unlisted makes/models/variants. Schema already supports this via `s
 
 ### Phase 3 — Price Aggregator
 
+**DEPRIORITIZED (owner decision, 2026-07-10): moved to the very BOTTOM of the
+queue in practice — behind Phases 4–7.** The credible version of this needs
+solid external scrapers (Yahoo Auctions Japan, Facebook Marketplace) on top of
+the in-app data, and that scraper build/maintenance burden isn't worth it at
+current scale. Phase numbering left intact so existing references don't break;
+treat execution order as 2 → 5 → 6 → 7 → 3 → 4 (Phase 4 Marketplace keeps its
+"post price aggregator" dependency, so it moves to the bottom with it).
+
 **Trigger:** 500+ active users with logged build costs.
 
 **What exists already in the data:** `jobs.brand`, `jobs.part_number`, `jobs.cost`, `jobs.cost_notes` (excludes free parts), `jobs.status` (only `installed` counts), `cars.make_id`, `cars.model_id`.

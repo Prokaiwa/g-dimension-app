@@ -280,3 +280,30 @@ lower-capability contributors accurate without slowing work down.
 Constitution allowlists only widen alongside a new ADR. The smoke suite stays
 out of CI until flakiness risk is understood. Source: this change;
 docs/TESTING.md.
+
+## ADR-015 — Column-level anon grants on users (2026-07-10)
+
+**Decision:** Replace the blanket `grant select on public.users to anon` (027)
+with a column-level grant limited to the deliberately-public identity columns:
+`id, username, display_name, avatar_url, city, country, country_code, bio,
+created_at`. Migration 071.
+
+**Context:** 015's `users_select_public` row policy has no column restriction —
+its own comment said column filtering was "enforced at the app query layer."
+That is not a DB-level guarantee: anyone holding the public anon key could read
+every column of every non-deleted user row (email, subscription_status,
+preference flags) via a direct REST call, no app involved. Surfaced while
+building the visitor driver card (070) and flagged for correction by the owner.
+
+**Rationale:** Postgres column grants close the hole at the same layer that
+enforces everything else (Principle: all authorization lives in RLS/grants —
+ADR-001). Verified zero breakage: the frontend has no direct anon `users`
+queries, `authenticated` keeps its full grant, `public_car_profiles` executes
+with owner privileges, and both anon-key serverless functions query only the
+view.
+
+**Consequences:** Any FUTURE anon-context query of `users` must select only the
+granted columns (a `select=*` as anon now errors). Adding a new public profile
+field means adding its column to this grant in a new migration — the grant is
+now the single source of truth for what user data is public. Source: migration
+071; this feedback round.
