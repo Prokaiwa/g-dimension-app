@@ -5,7 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 071_users_anon_column_grants.sql (applied 2026-07-10)
+-- Last migration applied : 072_car_transfers.sql (applied 2026-07-11)
+--   - 072 (car ownership transfer, offer -> accept: car_transfers table +
+--     accept_car_transfer(uuid), the schema's first PostgREST-exposed RPC —
+--     flips cars.user_id, re-keys car_private, wipes seller financials, clears
+--     the old owner's active_car_id; ADR-017) applied 2026-07-11. The patched
+--     delete-account edge function (skips transferred-car storage folders) was
+--     redeployed the same day.
 --   - 071 (anon column-level grants on users — replaces 027's blanket anon
 --     select with a grant limited to the public identity columns; closes the
 --     email/subscription/prefs exposure; ADR-015) applied 2026-07-10.
