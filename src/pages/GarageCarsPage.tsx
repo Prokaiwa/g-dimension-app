@@ -9,6 +9,10 @@ import { setActiveCar, getActiveCarId } from '../lib/activeCar'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
+import {
+  getIncomingOffers, acceptTransfer, declineTransfer, transferCarName,
+  type IncomingTransfer,
+} from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
@@ -32,6 +36,7 @@ import {
   SPACE_LG,
   SPACE_XL,
   EASING_SETTLE,
+  RADIUS_BOTTOM_SHEET,
 } from '../tokens'
 
 // In an installed standalone PWA there's no browser toolbar/URL bar eating the
@@ -530,6 +535,12 @@ export default function GarageCarsPage() {
   const [photoFieldKey, setPhotoFieldKey]     = useState(0)
   const [sheetDragY, setSheetDragY]           = useState(0)   // swipe-to-dismiss offset for the Details sheet
   const [sheetDragging, setSheetDragging]     = useState(false)
+  // Incoming ownership-transfer offers (migration 072) — probed on mount like
+  // everything else on this page; pre-migration the probe returns [].
+  const [offers, setOffers]                   = useState<IncomingTransfer[]>([])
+  const [acceptTarget, setAcceptTarget]       = useState<IncomingTransfer | null>(null)
+  const [offerBusy, setOfferBusy]             = useState(false)
+  const [offerErr, setOfferErr]               = useState<string | null>(null)
   const sheetRef                              = useRef<HTMLDivElement>(null)
   const detailScrollRef                       = useRef<HTMLDivElement>(null)
   const detailsCarId                          = useRef<string | null>(null)  // guards against a stale Details fetch
@@ -540,6 +551,7 @@ export default function GarageCarsPage() {
   useEffect(() => { prewarmBackgroundRemoval() }, [])
 
   useEffect(() => {
+    getIncomingOffers().then(setOffers)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { setLoading(false); return }
       supabase
@@ -587,6 +599,44 @@ export default function GarageCarsPage() {
   function onCarouselScroll() {
     const el = scrollRef.current; if (!el) return
     setActiveIdx(Math.round(el.scrollLeft / el.clientWidth))
+  }
+
+  // Accept a pending ownership transfer (the RPC swaps everything server-side),
+  // then refetch the garage so the new car appears, focused first.
+  async function acceptOffer() {
+    if (!acceptTarget) return
+    setOfferBusy(true); setOfferErr(null)
+    const res = await acceptTransfer(acceptTarget.id)
+    if (!res.ok) { setOfferErr(res.error ?? 'Couldn’t accept the transfer.'); setOfferBusy(false); return }
+    const newCarId = acceptTarget.car_id
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const { data } = await supabase
+        .from('cars')
+        .select(CAR_COLUMNS)
+        .eq('user_id', session.user.id)
+        .is('deleted_at', null)
+        .order('created_at')
+      if (data) {
+        const idx = data.findIndex(c => c.id === newCarId)
+        const ordered = idx > 0 ? [data[idx], ...data.slice(0, idx), ...data.slice(idx + 1)] : data
+        setCars(ordered)
+        scrollRef.current?.scrollTo({ left: 0 })
+        // First car in the garage → make it the active car right away.
+        if (!(await getActiveCarId())) { await setActiveCar(newCarId); setChosenCarId(newCarId) }
+      }
+    }
+    setOffers(o => o.filter(x => x.id !== acceptTarget.id))
+    setAcceptTarget(null)
+    setOfferBusy(false)
+  }
+
+  async function declineOffer(offer: IncomingTransfer) {
+    setOfferBusy(true); setOfferErr(null)
+    const res = await declineTransfer(offer.id)
+    if (res.ok) setOffers(o => o.filter(x => x.id !== offer.id))
+    else setOfferErr(res.error ?? 'Couldn’t decline the transfer.')
+    setOfferBusy(false)
   }
 
   async function openAdd() {
@@ -823,6 +873,32 @@ export default function GarageCarsPage() {
 
       <GarageBg />
       <GarageHeader onBack={() => navigate('/garage')} subtitle={!showAdd && chosenCarId ? (() => { const c = cars.find(x => x.id === chosenCarId); return c ? [c.year, c.model, c.variant].filter(Boolean).join(' ') : undefined })() : undefined} />
+
+      {/* ── INCOMING TRANSFER OFFERS ── another user is handing over a car;
+          nothing moves until Accept (the accept_car_transfer RPC). */}
+      {!loading && offers.length > 0 && (
+        <div style={{ flexShrink: 0, position: 'relative', zIndex: 6, padding: `${SPACE_SM}px ${SPACE_MD}px 0` }}>
+          {offers.map(offer => (
+            <div key={offer.id} style={{ background: 'rgba(200,102,26,0.09)', borderLeft: `2px solid ${COLOR_ACCENT}`, padding: `${SPACE_SM}px ${SPACE_MD}px`, marginBottom: SPACE_XS, backdropFilter: 'blur(6px)' }}>
+              <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: COLOR_ACCENT, margin: '0 0 4px' }}>Incoming Transfer</p>
+              <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.9)', margin: 0, lineHeight: 1.5 }}>
+                @{offer.sender?.username ?? 'someone'} wants to hand you <span style={{ fontWeight: 800 }}>{transferCarName(offer.car)}</span> — full build history included.
+              </p>
+              <div style={{ display: 'flex', gap: SPACE_SM, marginTop: SPACE_SM }}>
+                <button data-sfx="confirm" disabled={offerBusy} onClick={() => { setOfferErr(null); setAcceptTarget(offer) }}
+                  style={{ padding: '9px 18px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', opacity: offerBusy ? 0.6 : 1 }}>
+                  Accept
+                </button>
+                <button disabled={offerBusy} onClick={() => declineOffer(offer)}
+                  style={{ padding: '9px 18px', background: 'none', border: 'none', color: 'rgba(245,245,245,0.45)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  {offerBusy ? '…' : 'Decline'}
+                </button>
+              </div>
+            </div>
+          ))}
+          {offerErr && !acceptTarget && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: `4px 0 0` }}>{offerErr}</p>}
+        </div>
+      )}
 
       {/* ── CAROUSEL ── */}
       {!loading && (
@@ -1122,6 +1198,32 @@ export default function GarageCarsPage() {
           </div>
         )
       })()}
+
+      {/* ── ACCEPT TRANSFER CONFIRM ── bottom confirm card (EntryDetailPage
+          delete-confirm pattern); the actual swap happens in the RPC. */}
+      {acceptTarget && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div onClick={() => { if (!offerBusy) setAcceptTarget(null) }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+          <div style={{ position: 'relative', background: '#121316', borderTopLeftRadius: RADIUS_BOTTOM_SHEET, borderTopRightRadius: RADIUS_BOTTOM_SHEET, padding: `${SPACE_LG}px ${SPACE_MD}px calc(${SPACE_LG}px + env(safe-area-inset-bottom))` }}>
+            <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 24, color: COLOR_HEADER_TITLE, margin: '0 0 10px', lineHeight: 1.2 }}>Accept this car?</p>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(245,245,245,0.55)', lineHeight: 1.6, margin: 0 }}>
+              {transferCarName(acceptTarget.car)} moves to your garage from @{acceptTarget.sender?.username ?? 'its current owner'} —
+              mods, service records, timeline, documents, and photos included. This can't be undone from your side.
+            </p>
+            {offerErr && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: `${SPACE_SM}px 0 0` }}>{offerErr}</p>}
+            <div style={{ display: 'flex', gap: SPACE_SM, marginTop: SPACE_LG }}>
+              <button disabled={offerBusy} onClick={() => setAcceptTarget(null)}
+                style={{ flex: 1, padding: '13px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(245,245,245,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button data-sfx="confirm" disabled={offerBusy} onClick={acceptOffer}
+                style={{ flex: 1, padding: '13px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', opacity: offerBusy ? 0.6 : 1 }}>
+                {offerBusy ? 'Accepting…' : 'Accept Car'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── ADD CAR OVERLAY ── */}
       <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showAdd ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

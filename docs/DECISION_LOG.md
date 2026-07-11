@@ -336,3 +336,52 @@ are handled in app code. Any future "mounted" relationship (e.g. spacers on
 wheels) reuses this column. Any query that lists jobs as top-level rows must
 exclude rows with `mounted_on_job_id` set, or they double-count. Source:
 migration 066; Wheels + Tires Phase 1 (`TuningAddPage`, `TuningBuildSheetPage`).
+
+## ADR-017 — Car ownership transfer via offer → accept and a SECURITY DEFINER RPC (2026-07-11)
+
+**Decision:** Transfer a car (with its full history) to another user through a
+new two-party `car_transfers` table (`pending/accepted/declined/cancelled`,
+14-day `expires_at`, one pending offer per car via a partial unique index) and
+an `accept_car_transfer(uuid)` Postgres function — `security definer`,
+`set search_path = public`, EXECUTE granted to `authenticated` only. The
+recipient is identified by exact @username. Migration 072.
+
+**Context:** Users selling a car asked to hand the build journal to the buyer
+("the build history goes with the car" — also the moat behind the Phase 4
+Marketplace). `cars.user_id` is the single ownership column and every child
+table keys on `car_id` with 1-hop RLS, so the flip transfers everything — but
+three things don't follow: `car_private.user_id` (RLS keyed on user_id, not car
+ownership — the new owner would be locked out of the VIN), the old owner's
+`users.active_car_id` (would dangle), and storage files under the old owner's
+`{userId}/{carId}/…` prefix.
+
+**Rationale:** The swap crosses RLS boundaries no client may cross (writing
+`cars` as the losing owner, re-keying `car_private`, clearing another user's
+pointer), so it must be one server-side transaction — this is the schema's
+first PostgREST-exposed RPC and the app's first `supabase.rpc()` call, and it
+establishes the hygiene pattern: `revoke execute … from public/anon`, grant to
+`authenticated`, re-check `auth.uid()` inside (DEFINER bypasses RLS). Consent
+is structural: no RLS policy can write `status='accepted'` — only the RPC can,
+and only when called by the recipient. Cancel/decline are plain RLS-gated
+updates made safe by a **column-level** `grant update (status, responded_at)`
+(WITH CHECK can't reference the old row, so the grant is what stops rewriting
+`car_id`/`to_user_id`). What transfers vs. resets: VIN + `purchase_story`/
+`purchase_date` go with the car; `license_plate`, `purchase_price/_currency`,
+`purchase_dealer`, `mileage_at_purchase` are the seller's private data and are
+wiped in the same transaction. Storage files deliberately stay under the old
+owner's prefix (URLs/paths in DB rows keep working; zero rewrites across ~8
+tables); the `delete-account` edge function now skips `{userId}/{carId}`
+folders whose car belongs to someone else, so a departing previous owner can't
+destroy a transferred car's photos.
+
+**Consequences:** A transferred car's files live under a prefix that isn't its
+owner's — any future storage tooling (per-user quota, bucket cleanup, the
+nightly purge's storage step when it's built) must resolve ownership through
+`cars`, never from the path prefix. New uploads by the new owner land under
+their own prefix, so a car's files can span prefixes. `public_car_profiles`
+follows the owner swap automatically (it joins through `cars.user_id`).
+Frontend transfer access goes through `src/lib/carTransfers.ts` (guarded,
+`carPrivate.ts`-style — pre-072 everything degrades to "no offers"). Expiry is
+enforced at read + accept time only; expired rows stay `pending` in the table
+and are filtered everywhere, so any future direct query of `car_transfers`
+must filter on `expires_at` too. Source: migration 072; 2026-07 feedback round.

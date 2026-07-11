@@ -18,6 +18,10 @@
 //      Every upload path in this app starts with the uploader's user id, so
 //      this is a complete, generic cleanup — storage rows are NOT covered by
 //      Postgres cascade deletes, only DB rows are.
+//      EXCEPTION (ADR-017): in the car-scoped buckets, `{userId}/{carId}/`
+//      folders whose car row now belongs to a DIFFERENT user are skipped —
+//      transferred cars keep their photo files under the original uploader's
+//      prefix, and those files belong to the car, not the departing account.
 //   2. The auth.users row via supabase.auth.admin.deleteUser(), which
 //      cascades public.users → cars → jobs/sessions/timeline_entries/
 //      receipts/car_documents/user_contacts/diy_guides/etc. — every FK in
@@ -37,6 +41,15 @@ const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const STORAGE_BUCKETS = [
   'avatars', 'car-photos', 'job-photos', 'timeline-photos', 'receipts', 'car-documents',
 ]
+
+// Buckets whose paths are `{userId}/{carId}/…` — the first-level folder names
+// are car ids, so a transferred car's folder can be identified and skipped.
+// avatars is `{userId}/…` (genuinely user-owned) and always purges fully.
+const CAR_SCOPED_BUCKETS = new Set([
+  'car-photos', 'job-photos', 'timeline-photos', 'receipts', 'car-documents',
+])
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -73,6 +86,41 @@ async function deleteFolderRecursive(admin: any, bucket: string, prefix: string)
   }
 }
 
+// Top-level purge of `{userId}/` in a car-scoped bucket. Skips `{carId}/`
+// folders whose car still exists but belongs to a DIFFERENT user — that car
+// was transferred (ADR-017) and its files must survive this account's
+// deletion. Cars still owned by the caller are deleted moments later by the
+// auth cascade, so their folders purge as before.
+// deno-lint-ignore no-explicit-any
+async function deleteCarBucketFolder(admin: any, bucket: string, uid: string) {
+  const { data: entries } = await admin.storage.from(bucket).list(uid, { limit: 1000 })
+  if (!entries || entries.length === 0) return
+
+  const folders: string[] = []
+  const loosePaths: string[] = []
+  for (const entry of entries) {
+    if (entry.id === null) folders.push(entry.name)
+    else loosePaths.push(`${uid}/${entry.name}`)
+  }
+
+  const carIdFolders = folders.filter((name) => UUID_RE.test(name))
+  const transferred = new Set<string>()
+  if (carIdFolders.length > 0) {
+    const { data: rows } = await admin.from('cars').select('id, user_id').in('id', carIdFolders)
+    for (const row of rows ?? []) {
+      if (row.user_id !== uid) transferred.add(row.id)
+    }
+  }
+
+  for (const folder of folders) {
+    if (transferred.has(folder)) continue
+    await deleteFolderRecursive(admin, bucket, `${uid}/${folder}`)
+  }
+  if (loosePaths.length > 0) {
+    await admin.storage.from(bucket).remove(loosePaths)
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS_HEADERS })
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
@@ -93,7 +141,11 @@ Deno.serve(async (req: Request) => {
 
   try {
     for (const bucket of STORAGE_BUCKETS) {
-      await deleteFolderRecursive(admin, bucket, uid)
+      if (CAR_SCOPED_BUCKETS.has(bucket)) {
+        await deleteCarBucketFolder(admin, bucket, uid)
+      } else {
+        await deleteFolderRecursive(admin, bucket, uid)
+      }
     }
 
     const { error: delErr } = await admin.auth.admin.deleteUser(uid)

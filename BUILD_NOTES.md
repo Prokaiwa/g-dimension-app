@@ -182,6 +182,16 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
 
+### Car ownership transfer (2026-07-11, migration 072, ADR-017)
+
+Hand a car — with its FULL history (mods, sessions, timeline, service records, DIY guides, documents, receipts, photos) — to another user when selling it. Offer → accept only; nothing moves without the recipient's consent.
+
+*Flow:* Sender opens Edit Car → "Transfer Car" (footer, next to Remove Car) → `BottomSheet` with the recipient's exact @username → pending offer (14-day expiry, cancellable from the same sheet; footer shows "Transfer Pending → @handle"). Recipient sees an amber **Incoming Transfer** card above the Garage carousel (probed on mount, like everything on that page) → Accept (bottom confirm card) or Decline. Accept calls `accept_car_transfer()` — the app's first `supabase.rpc()` — which atomically flips `cars.user_id`, re-keys `car_private.user_id`, **wipes the seller's private financials** (plate, price, dealer, mileage-at-purchase; VIN + purchase story/date transfer with the car), and clears the old owner's `active_car_id`. The garage refetches and lands on the new car; it becomes the active car if the recipient had none. One pending offer per car (partial unique index).
+
+*Helpers:* `src/lib/carTransfers.ts` — guarded carPrivate-style (pre-072 the probes return nothing and actions fail with friendly copy). `isOfferLive`/`transferErrorMessage`/`transferCarName` are pure + unit-tested.
+
+*Storage caveat (deliberate):* photo files stay under the OLD owner's `{userId}/{carId}/…` prefix — URLs/paths in DB rows keep working. The `delete-account` edge function skips transferred-car folders so a departing previous owner can't destroy the car's photos. Future storage tooling must resolve ownership via `cars`, never the path prefix.
+
 ---
 
 ## What's Next (not yet built)
@@ -192,7 +202,6 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 - **YouTube in-app playback** — currently `window.open`. When the PWA becomes a native Capacitor app, replace with `<iframe>` embed or a native video player. The DB schema supports this with no changes.
 - **Unit conversion display** — `users.distance_unit`, `power_unit`, `torque_unit` columns exist but display conversion is not wired up on all screens.
 - **Detailing log list visual treatment** — `MaintenanceDetailPage` still minimal; "watery feel" TBD with owner.
-- **Transfer car ownership** (user-requested, 2026-07 feedback round) — transfer a car + its full history to another user when selling. Feasibility mapped: child tables key on `car_id` with 1-hop RLS and follow automatically; a transactional RPC must also update `car_private.user_id` (its RLS keys on user_id — new owner locked out otherwise), clear the old owner's `users.active_car_id` if pointed here, and deal with storage files living under the old owner's `{userId}/{carId}/…` prefix (URLs keep working, but ownership/purge semantics are wrong). Needs an offer/accept flow, not a one-sided push.
 - **"Download my data" JSON export** (user-requested) — Settings button that exports the account's rows (cars/jobs/sessions/timeline/etc.) + photo URLs as JSON. Cheap trust-builder answering "what if the app goes away". (Full offline-first sync is a separate, much larger architecture project — revisit at native-app time.)
 - **Recurring service intervals** (user-requested; replaces the "import manufacturer schedules" idea — OEM schedule data is a licensing/scraping minefield) — `car_reminders` is one-shot only today (`due_date`/`due_mileage` + `is_complete`, no recurrence). Add an interval concept (every N mi / N months, auto-regenerate on complete), then later community-shared templates per model.
 - **Archived-cars restore UI** — `SettingsArchivedPage` is a placeholder stub; soft-delete backend (7-day `deleted_at` window + nightly purge) exists but there's no restore surface despite Settings/Profile linking to it.

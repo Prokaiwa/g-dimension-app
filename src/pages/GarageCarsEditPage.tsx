@@ -10,8 +10,13 @@ import { supabase } from '../lib/supabase'
 import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
+import {
+  createTransferOffer, getPendingOfferForCar, cancelTransfer,
+  type CarTransfer,
+} from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import CarPhotoUpload from '../components/CarPhotoUpload'
+import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import { GarageBg, GarageHeader } from './GarageCarsPage'
 import {
   COLOR_CAVITY_BG,
@@ -100,6 +105,15 @@ export default function GarageCarsEditPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [privacy, setPrivacy] = useState({ isPublic: true, buildsheet: true, timeline: true, featured: true })
 
+  // Transfer ownership (migration 072). pendingOffer is the live outgoing
+  // offer on this car, if any — pre-migration the probe just returns null.
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [transferHandle, setTransferHandle] = useState('')
+  const [transferBusy, setTransferBusy] = useState(false)
+  const [transferErr, setTransferErr] = useState<string | null>(null)
+  const [pendingOffer, setPendingOffer] =
+    useState<(CarTransfer & { recipient_username: string | null }) | null>(null)
+
   // Warm the background-removal model so the photo picker is instant.
   useEffect(() => { prewarmBackgroundRemoval() }, [])
 
@@ -109,9 +123,11 @@ export default function GarageCarsEditPage() {
     Promise.all([
       supabase.from('cars').select(DETAIL_COLUMNS).eq('id', carId).is('deleted_at', null).single(),
       getCarPrivate(carId),
+      getPendingOfferForCar(carId),
     ])
-      .then(([{ data: row }, priv]) => {
+      .then(([{ data: row }, priv, offer]) => {
         if (!active) return
+        setPendingOffer(offer)
         if (!row) { setLoading(false); return }
         setMeta({ year: row.year, make: row.make, model: row.model, variant: row.variant })
         setData({
@@ -236,6 +252,29 @@ export default function GarageCarsEditPage() {
       return
     }
     backToCarousel()
+  }
+
+  async function sendTransferOffer() {
+    if (!carId) return
+    setTransferBusy(true); setTransferErr(null)
+    const res = await createTransferOffer(carId, transferHandle)
+    if (res.ok) {
+      // Re-read so the pending state shows the server's expiry + resolved handle.
+      setPendingOffer(await getPendingOfferForCar(carId))
+      setTransferHandle('')
+    } else {
+      setTransferErr(res.error ?? 'Couldn’t send the offer.')
+    }
+    setTransferBusy(false)
+  }
+
+  async function cancelTransferOffer() {
+    if (!pendingOffer) return
+    setTransferBusy(true); setTransferErr(null)
+    const res = await cancelTransfer(pendingOffer.id)
+    if (res.ok) { setPendingOffer(null); setTransferOpen(false) }
+    else setTransferErr(res.error ?? 'Couldn’t cancel the offer.')
+    setTransferBusy(false)
   }
 
   async function removeCar() {
@@ -480,9 +519,14 @@ export default function GarageCarsEditPage() {
 
           <div style={{ flexShrink: 0, padding: `${SPACE_SM}px ${SPACE_MD}px ${SPACE_LG}px`, borderTop: '1px solid rgba(255,255,255,0.04)', background: 'rgba(5,5,7,0.96)', display: 'flex', flexDirection: 'column', gap: SPACE_SM, position: 'relative', zIndex: 5 }}>
             <button disabled={saving} onClick={save} style={ctaStyle}>{saving ? 'Saving…' : 'Save Changes'}</button>
-            <button onClick={() => setConfirmDelete(true)} style={{ width: '100%', padding: '10px', background: 'none', border: 'none', color: 'rgba(224,85,85,0.65)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-              Remove Car
-            </button>
+            <div style={{ display: 'flex' }}>
+              <button onClick={() => { setTransferErr(null); setTransferOpen(true) }} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: 'rgba(200,102,26,0.75)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                {pendingOffer ? `Transfer Pending → @${pendingOffer.recipient_username ?? '…'}` : 'Transfer Car'}
+              </button>
+              <button onClick={() => setConfirmDelete(true)} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: 'rgba(224,85,85,0.65)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Remove Car
+              </button>
+            </div>
           </div>
         </>
       ) : (
@@ -500,6 +544,51 @@ export default function GarageCarsEditPage() {
           </div>
         </>
       )}
+
+      {/* Transfer ownership sheet (migration 072, ADR-017). One sheet, two
+          states: compose an offer, or show/cancel the pending one. */}
+      <BottomSheet open={transferOpen} onClose={() => setTransferOpen(false)} title="Transfer Car" busy={transferBusy}>
+        {pendingOffer ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_MD, paddingBottom: SPACE_SM }}>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, color: '#f0e4c8', margin: 0, lineHeight: 1.6 }}>
+              Offer sent to <span style={{ color: COLOR_ACCENT }}>@{pendingOffer.recipient_username ?? 'them'}</span>.
+            </p>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(240,228,200,0.5)', margin: 0, lineHeight: 1.6 }}>
+              They'll see it in their garage. If they accept, this car — and its full build history — moves to their account.
+              The offer expires {new Date(pendingOffer.expires_at).toLocaleDateString()}.
+            </p>
+            {transferErr && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: 0 }}>{transferErr}</p>}
+            <button disabled={transferBusy} onClick={cancelTransferOffer}
+              style={{ width: '100%', padding: '13px', background: 'none', border: '1px solid rgba(224,85,85,0.5)', color: 'rgba(224,85,85,0.85)', fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', opacity: transferBusy ? 0.6 : 1 }}>
+              {transferBusy ? 'Cancelling…' : 'Cancel Offer'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_MD, paddingBottom: SPACE_SM }}>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(240,228,200,0.5)', margin: 0, lineHeight: 1.6 }}>
+              Hand this car to another G-Dimension user — the full build history goes with it:
+              mods, service records, timeline, documents, receipts, and photos.
+              Your license plate and purchase price are cleared; the VIN and origin story stay with the car.
+              Nothing happens until they accept.
+            </p>
+            <div>
+              <FieldLabel>Recipient @username</FieldLabel>
+              <input
+                type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                placeholder="their exact handle"
+                value={transferHandle}
+                onChange={(e) => setTransferHandle(e.target.value)}
+                style={sheetInput}
+              />
+            </div>
+            {transferErr && <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: 0 }}>{transferErr}</p>}
+            <button disabled={transferBusy} onClick={sendTransferOffer} data-sfx="confirm"
+              style={{ ...ctaStyle, opacity: transferBusy ? 0.6 : 1 }}>
+              {transferBusy ? 'Sending…' : 'Send Transfer Offer'}
+            </button>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   )
 }
