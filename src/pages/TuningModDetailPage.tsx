@@ -79,6 +79,9 @@ export default function TuningModDetailPage() {
   const [sellScrapStep, setSellScrapStep] = useState(false)
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
+  // Wheels + Tires combo: installed tires mounted on THIS job (if it's a wheel).
+  // They follow the wheel's removal/sale/scrap disposition automatically.
+  const [mountedTires,  setMountedTires]  = useState<{ id: string; title: string }[]>([])
   const [links,         setLinks]         = useState<JobLink[]>([])
   const [hasDiyGuide,   setHasDiyGuide]   = useState<boolean | null>(null)
   // Receipts
@@ -147,6 +150,9 @@ export default function TuningModDetailPage() {
       ])
       if (jobData) {
         setJob(jobData as unknown as Job)
+        // Wheels + Tires combo: installed tires mounted on this job (if it's a wheel)
+        supabase.from('jobs').select('id, title').eq('mounted_on_job_id', modId).eq('status', 'installed')
+          .then(({ data }) => setMountedTires((data ?? []) as { id: string; title: string }[]))
         if ((jobData as unknown as Job).part_type_id) {
           const [{ data: ptData }, { data: templates }] = await Promise.all([
             supabase.from('part_types').select('name').eq('id', (jobData as unknown as Job).part_type_id).single(),
@@ -203,12 +209,19 @@ export default function TuningModDetailPage() {
     if (!modId) return
     setRemoving(true)
     setRemoveError(null)
+    const today = new Date().toISOString().split('T')[0]
     const { error } = await supabase.from('jobs').update({
       status:       'removed',
       still_owned:  true,
-      date_removed: new Date().toISOString().split('T')[0],
+      date_removed: today,
     }).eq('id', modId)
     if (error) { setRemoving(false); setRemoveError(error.message); return }
+    // Wheels + Tires: mounted tires come off with the wheels → follow to storage.
+    if (mountedTires.length > 0) {
+      await supabase.from('jobs')
+        .update({ status: 'removed', still_owned: true, date_removed: today })
+        .in('id', mountedTires.map(t => t.id))
+    }
     navigate('/tuning/build-sheet')
   }
 
@@ -228,6 +241,13 @@ export default function TuningModDetailPage() {
     }
     const { error } = await supabase.from('jobs').update(updates).eq('id', modId)
     if (error) { setRemoving(false); setRemoveError(error.message); return }
+    // Wheels + Tires: mounted tires follow the same disposition. The sale price
+    // stays on the wheel (the set sold as one) — tires are just marked accordingly.
+    if (mountedTires.length > 0) {
+      await supabase.from('jobs')
+        .update({ status: disposeType, still_owned: false, date_removed: today })
+        .in('id', mountedTires.map(t => t.id))
+    }
     navigate('/tuning/build-sheet')
   }
 
@@ -846,9 +866,14 @@ export default function TuningModDetailPage() {
                 <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.9)', marginBottom: 6 }}>
                   Remove from build?
                 </p>
-                <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: 24, lineHeight: 1.5 }}>
+                <p style={{ fontFamily: FONT_UI, fontSize: 12, color: 'rgba(245,240,228,0.35)', marginBottom: mountedTires.length > 0 ? 12 : 24, lineHeight: 1.5 }}>
                   Where is this part going?
                 </p>
+                {mountedTires.length > 0 && (
+                  <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: 'rgba(200,102,26,0.75)', marginBottom: 22, lineHeight: 1.5 }}>
+                    Its mounted {mountedTires.length === 1 ? 'tire' : 'tires'} ({mountedTires.map(t => t.title).join(', ')}) will go the same way — they came off together.
+                  </p>
+                )}
                 {removeError && (
                   <p style={{ fontFamily: FONT_UI, fontSize: 11, color: '#e05050', marginBottom: 16 }}>{removeError}</p>
                 )}

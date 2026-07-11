@@ -307,3 +307,32 @@ granted columns (a `select=*` as anon now errors). Adding a new public profile
 field means adding its column to this grant in a new migration — the grant is
 now the single source of truth for what user data is public. Source: migration
 071; this feedback round.
+
+## ADR-016 — Jobs mount onto jobs (`mounted_on_job_id`) for Wheels + Tires (2026-07-02)
+
+**Decision:** Add `jobs.mounted_on_job_id` (nullable self-FK → `jobs.id`, `on
+delete set null`, + covering index) so a "mounted" part can point at the part it
+sits on. First and current use: tires reference the wheels they're fitted to,
+added together in the Wheels add flow. The two remain **separate `jobs` rows**;
+the link is directional (the wheel is the parent). Migration 066.
+
+**Context:** Wheels and tires are bought and sold as a set but are distinct parts
+with their own specs, cost, and lifecycle. Users wanted to add them in one flow
+and see them as a single item on the build sheet, while still being able to
+replace tires independently later and have tire removal follow the wheels.
+
+**Rationale:** A directional self-link models "mounted on" precisely without a
+new table or a symmetric bundle concept, and keeps each part a first-class job
+(cost, specs, Parts Bin, sale tracking all keep working per-item). Grouping is a
+**display-only** concern — the build sheet folds the tire under its wheel via a
+`mountedByWheel` map. The lifecycle cascade (Phase 2) lives in **app code, never
+a DB trigger**: the `jobs_handle_removal` trigger has caused production incidents
+before (see `hotfixes.sql`), so removal/replacement logic stays explicit and
+visible.
+
+**Consequences:** `on delete set null` orphans (never cascade-deletes) a child if
+a parent row is ever hard-deleted; real lifecycle transitions (remove/sell/scrap)
+are handled in app code. Any future "mounted" relationship (e.g. spacers on
+wheels) reuses this column. Any query that lists jobs as top-level rows must
+exclude rows with `mounted_on_job_id` set, or they double-count. Source:
+migration 066; Wheels + Tires Phase 1 (`TuningAddPage`, `TuningBuildSheetPage`).
