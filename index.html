@@ -11,8 +11,20 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <!-- maximum-scale=1 + user-scalable=no stops iOS Safari from auto-zooming
          when an input is focused. viewport-fit=cover lets the app fill the
-         notch/safe-area region. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+         notch/safe-area region. interactive-widget=resizes-content fixes a
+         separate Android Chrome bug: its historical default (resizes-visual)
+         leaves window.innerHeight / 100dvh unchanged when the on-screen
+         keyboard opens — only window.visualViewport shrinks — so every
+         page here (laid out at height:'100dvh' with internal overflow-y
+         scroll regions) has nothing to scroll against, and the keyboard
+         just covers whatever's focused near the bottom (reported: the Trim
+         field on Add Car, on a Pixel). resizes-content makes the browser
+         actually shrink the viewport for the keyboard, so dvh containers
+         resize and the browser's native scroll-focused-input-into-view
+         behavior has something real to scroll. Safari ignores this
+         property (no effect on iOS); does not affect the no-zoom setup
+         above, which is a separate property. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#050507" />
 
     <!-- Installable PWA + iOS standalone "Add to Home Screen" -->
