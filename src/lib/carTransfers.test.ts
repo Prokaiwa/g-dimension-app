@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isOfferLive, transferErrorMessage, transferCarName } from './carTransfers'
+import { isOfferLive, transferErrorMessage, transferCarName, soldCarName } from './carTransfers'
 
 const HOUR = 60 * 60 * 1000
 const now = new Date('2026-07-11T12:00:00Z')
@@ -60,5 +60,26 @@ describe('transferCarName', () => {
   })
   it('handles a completely unreadable car (private car RLS hides the join)', () => {
     expect(transferCarName(null)).toBe('a car')
+  })
+})
+
+describe('soldCarName', () => {
+  it('combines snapshot nickname and model line', () => {
+    expect(soldCarName({
+      snapshot_year: 2006, snapshot_make: 'Lexus', snapshot_model: 'LS',
+      snapshot_variant: '430', snapshot_nickname: 'The Barge',
+    })).toBe('The Barge — 2006 LS 430')
+  })
+  it('falls back to the model line without a nickname', () => {
+    expect(soldCarName({
+      snapshot_year: 1999, snapshot_make: 'Nissan', snapshot_model: 'Silvia',
+      snapshot_variant: null, snapshot_nickname: null,
+    })).toBe('1999 Silvia')
+  })
+  it('falls back to nickname alone when snapshot identity is empty', () => {
+    expect(soldCarName({
+      snapshot_year: null, snapshot_make: null, snapshot_model: null,
+      snapshot_variant: null, snapshot_nickname: 'Project X',
+    })).toBe('Project X')
   })
 })

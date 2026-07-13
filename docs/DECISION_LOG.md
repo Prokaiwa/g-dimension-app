@@ -425,3 +425,43 @@ other user content becomes transferable) should follow this same explicit-author
 pattern rather than deriving from ownership. The credit is silent for the common
 untransferred case (author == current owner). Source: migration 073; the
 2026-07 feedback round.
+
+## ADR-019 — "SOLD" ghost cars: a dedicated durable table for the seller's keepsake (2026-07-13)
+
+**Decision:** When a car is transferred away (072), insert a row into a new
+`car_ghosts` table capturing a **frozen identity snapshot** (year/make/model/
+variant/trim/nickname/color/garage_photo_url) + seller/buyer + sold_at. The
+seller sees it as a read-only "SOLD" ghost in their garage and (locked) on
+their public profile; they can archive it (`archived_at`). Public display goes
+through a definer view `public_sold_cars`; the ghost is written inside the
+`accept_car_transfer` RPC. Migration 074.
+
+**Context:** The clean handoff in 072 flips `cars.user_id` to the buyer, so the
+seller loses the car entirely — it vanishes from their garage. The owner wanted
+the opposite feeling: selling a car you loved shouldn't erase it. A ghost keeps
+it around as "the car as you knew it," with a link to the new owner's evolving
+build.
+
+**Rationale — why a dedicated table, not columns on `car_transfers`:**
+Durability. `car_transfers.car_id` is `on delete cascade`, so if the buyer ever
+hard-deletes the car (7-day soft-delete → nightly purge) the sale row — and any
+snapshot on it — would vanish, destroying the seller's keepsake. `car_ghosts`
+has `car_id ... on delete set null`, so the snapshot **outlives the car**. It
+also avoids FK surgery on the live `car_transfers` table and cleanly separates
+"seller's sale ledger" from "transfer offers." **Snapshot, not live read:** the
+seller no longer owns the car (RLS), and a live read would break the moment the
+buyer sets it private — a frozen snapshot is a keepsake the buyer can never
+alter or erase, matching the intent. Inserts happen only inside the RPC
+(SECURITY DEFINER) — there is deliberately no insert grant/policy, mirroring how
+`accept` itself is structurally gated; the only client write is
+archive/unarchive via a column-level `grant update (archived_at)`. Public
+visibility uses the `public_sold_cars` **definer view** (ADR-003 gateway; never
+`security_invoker`), so the base table stays owner-only.
+
+**Consequences:** Ghosts live in a separate table keyed on `seller_id`, so they
+never inflate `getProfileStats` (Cars/Mods/Photos). A car sold twice by the same
+seller (bought back then resold) yields two ghosts — acceptable edge case. If
+the buyer deletes their account, `buyer_id` nulls and the ghost shows without a
+"@handle" / Visit-Build link (snapshot still stands). The public side + shareable
+"sold to @B" link/unfurl are a second phase built on the same table + view.
+Source: migration 074; the 2026-07 feedback round.

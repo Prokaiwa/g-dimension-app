@@ -11,7 +11,8 @@ import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import {
   getIncomingOffers, acceptTransfer, declineTransfer, transferCarName,
-  getTransferSource, type IncomingTransfer, type TransferSource,
+  getTransferSource, getSoldCars, archiveSoldCar, soldCarName,
+  type IncomingTransfer, type TransferSource, type SoldCar,
 } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
@@ -542,6 +543,11 @@ export default function GarageCarsPage() {
   const [acceptTarget, setAcceptTarget]       = useState<IncomingTransfer | null>(null)
   const [offerBusy, setOfferBusy]             = useState(false)
   const [offerErr, setOfferErr]               = useState<string | null>(null)
+  // Sold "ghost" cars (migration 074) — read-only keepsakes of cars this user
+  // transferred away; probed on mount, rendered as SOLD slides in the carousel.
+  const [soldCars, setSoldCars]               = useState<SoldCar[]>([])
+  const [ghostTarget, setGhostTarget]         = useState<SoldCar | null>(null)
+  const [ghostBusy, setGhostBusy]             = useState(false)
   const sheetRef                              = useRef<HTMLDivElement>(null)
   const detailScrollRef                       = useRef<HTMLDivElement>(null)
   const detailsCarId                          = useRef<string | null>(null)  // guards against a stale Details fetch
@@ -553,6 +559,7 @@ export default function GarageCarsPage() {
 
   useEffect(() => {
     getIncomingOffers().then(setOffers)
+    getSoldCars().then(setSoldCars)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { setLoading(false); return }
       supabase
@@ -638,6 +645,18 @@ export default function GarageCarsPage() {
     if (res.ok) setOffers(o => o.filter(x => x.id !== offer.id))
     else setOfferErr(res.error ?? 'Couldn’t decline the transfer.')
     setOfferBusy(false)
+  }
+
+  // Archive a sold-car ghost: drops it from the carousel (and public profile);
+  // restorable from Settings → Archived Cars.
+  async function archiveGhost(ghost: SoldCar) {
+    setGhostBusy(true)
+    const res = await archiveSoldCar(ghost.id)
+    if (res.ok) {
+      setSoldCars(g => g.filter(x => x.id !== ghost.id))
+      setGhostTarget(null)
+    }
+    setGhostBusy(false)
   }
 
   async function openAdd() {
@@ -1054,6 +1073,58 @@ export default function GarageCarsPage() {
                   </div>
                   )
                 })}
+                {/* ── SOLD GHOST SLIDES ── read-only keepsakes of cars sold/transferred
+                    away (migration 074). Dimmed car + SOLD stamp; tap Details for the
+                    frozen snapshot + a link to the new owner's build. */}
+                {soldCars.map(ghost => (
+                  <div key={ghost.id} style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'radial-gradient(ellipse 90% 55% at 50% 58%, #201d1b 0%, #121010 40%, #0b0908 62%, #07070a 100%)' }}>
+                    {/* Top bar — dimmed logo + model */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SPACE_MD}px ${SPACE_MD}px ${SPACE_XS}px`, flexShrink: 0, opacity: 0.5 }}>
+                      <img
+                        src={`/manufacturer_logos/${(ghost.snapshot_make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
+                        alt={ghost.snapshot_make ?? ''}
+                        style={{ height: 44, width: 'auto', objectFit: 'contain', mixBlendMode: 'screen', filter: 'grayscale(1)' }}
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                      />
+                      <span style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 30, color: 'rgba(245,240,228,0.7)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                        {[ghost.snapshot_model, ghost.snapshot_variant].filter(Boolean).join(' ')}
+                      </span>
+                    </div>
+
+                    {/* Stage — dimmed/desaturated car with a rotated SOLD stamp */}
+                    <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '18%' }}>
+                      <div style={{ width: '88%', filter: 'grayscale(0.65) brightness(0.68)', opacity: 0.9 }}>
+                        <CarStage src={ghost.snapshot_photo_url || garagePlaceholder} priority={false} />
+                      </div>
+                      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%) rotate(-9deg)', border: `3px solid ${COLOR_BURGUNDY_M}`, color: COLOR_BURGUNDY_M, padding: '4px 18px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 34, letterSpacing: '0.14em', opacity: 0.82, pointerEvents: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', background: 'rgba(10,8,8,0.25)' }}>
+                        SOLD
+                      </div>
+                    </div>
+
+                    {/* Info strip + actions */}
+                    <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)' }}>
+                      <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'baseline', padding: `9px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_BURGUNDY_M }}>Sold</span>
+                        <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.7)' }}>
+                          {ghost.buyer_username ? `to @${ghost.buyer_username}` : ''} · {new Date(ghost.sold_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: SPACE_SM, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD + PWA_LIFT}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <button onClick={() => setGhostTarget(ghost)}
+                          style={{ flex: 1, padding: '11px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(245,245,245,0.85)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                          Details
+                        </button>
+                        {ghost.buyer_username && (
+                          <button onClick={() => navigate(`/builds/${ghost.buyer_username}${ghost.car_id ? `?car=${ghost.car_id}` : ''}`)}
+                            style={{ flex: 1, padding: '11px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                            Visit Build
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
                 <div style={{ flex: '0 0 100%', height: '100%', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SPACE_MD, paddingBottom: '15%' }}>
                   <button data-tour="add-car" onClick={openAdd} style={{ width: 56, height: 56, borderRadius: '50%', background: 'none', border: `1.5px solid ${COLOR_ACCENT}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', animation: 'addPhotoBeat 2.8s ease-in-out infinite' }}>
                     <span style={{ color: COLOR_ACCENT, fontSize: 28, fontWeight: 300, lineHeight: 1, marginTop: -1, animation: 'addPhotoTextBeat 2.8s ease-in-out infinite' }}>+</span>
@@ -1076,7 +1147,7 @@ export default function GarageCarsPage() {
               )}
 
               <div style={{ position: 'absolute', bottom: 6, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 6, zIndex: 5, pointerEvents: 'none' }}>
-                {[...cars, null].map((_, i) => (
+                {[...cars, ...soldCars, null].map((_, i) => (
                   <div key={i} style={{ width: i === activeIdx ? 16 : 4, height: 4, background: i === activeIdx ? COLOR_ACCENT : 'rgba(255,255,255,0.2)', transition: '300ms ease', borderRadius: 2 }} />
                 ))}
               </div>
@@ -1227,6 +1298,44 @@ export default function GarageCarsPage() {
                 style={{ flex: 1, padding: '13px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', opacity: offerBusy ? 0.6 : 1 }}>
                 {offerBusy ? 'Accepting…' : 'Accept Car'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SOLD GHOST DETAIL ── bottom card: frozen snapshot + visit new owner + archive */}
+      {ghostTarget && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+          <div onClick={() => { if (!ghostBusy) setGhostTarget(null) }} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+          <div style={{ position: 'relative', background: '#121316', borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: `${SPACE_LG}px ${SPACE_MD}px calc(${SPACE_LG}px + env(safe-area-inset-bottom))` }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: SPACE_SM, marginBottom: 10 }}>
+              <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 11, letterSpacing: '0.16em', color: COLOR_BURGUNDY_M, border: `1.5px solid ${COLOR_BURGUNDY_M}`, padding: '1px 7px' }}>SOLD</span>
+              <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: COLOR_HEADER_TITLE, margin: 0, lineHeight: 1.1 }}>{soldCarName(ghostTarget)}</p>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+              {([
+                ['Sold', ghostTarget.buyer_username ? `to @${ghostTarget.buyer_username}` : 'transferred'],
+                ['Date', new Date(ghostTarget.sold_at).toLocaleDateString()],
+                ['Color', ghostTarget.snapshot_color ?? ''],
+                ['Trim', ghostTarget.snapshot_trim ?? ''],
+              ] as [string, string][]).filter(([, v]) => v && v.trim() !== '').map(([label, value]) => (
+                <SpecRow key={label} label={label} value={value} />
+              ))}
+            </div>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: 'rgba(245,245,245,0.45)', lineHeight: 1.6, margin: `${SPACE_SM}px 0 0` }}>
+              A keepsake of this car as you knew it. Its build lives on with the new owner.
+            </p>
+            <div style={{ display: 'flex', gap: SPACE_SM, marginTop: SPACE_LG }}>
+              <button disabled={ghostBusy} onClick={() => archiveGhost(ghostTarget)}
+                style={{ flex: 1, padding: '13px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(245,245,245,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', opacity: ghostBusy ? 0.6 : 1 }}>
+                {ghostBusy ? 'Archiving…' : 'Archive'}
+              </button>
+              {ghostTarget.buyer_username && (
+                <button onClick={() => navigate(`/builds/${ghostTarget.buyer_username}${ghostTarget.car_id ? `?car=${ghostTarget.car_id}` : ''}`)}
+                  style={{ flex: 1, padding: '13px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  Visit Build
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -254,3 +254,102 @@ export async function declineTransfer(transferId: string): Promise<TransferResul
     return { ok: false, error: 'Couldn’t decline the transfer.' }
   }
 }
+
+// ── Sold "ghost" cars (migration 074, ADR-019) ───────────────────────────────
+// A car the signed-in user transferred away persists as a read-only keepsake:
+// a frozen identity snapshot + a link to the new owner's build. Backed by the
+// car_ghosts table (owner-only RLS). All guarded — empty/no-op pre-migration.
+
+export interface SoldCar {
+  id: string
+  car_id: string | null
+  sold_at: string
+  buyer_username: string | null
+  buyer_display_name: string | null
+  snapshot_year: number | null
+  snapshot_make: string | null
+  snapshot_model: string | null
+  snapshot_variant: string | null
+  snapshot_trim: string | null
+  snapshot_nickname: string | null
+  snapshot_color: string | null
+  snapshot_photo_url: string | null
+}
+
+const GHOST_COLS =
+  'id, car_id, sold_at, snapshot_year, snapshot_make, snapshot_model, snapshot_variant, ' +
+  'snapshot_trim, snapshot_nickname, snapshot_color, snapshot_photo_url, ' +
+  'buyer:users!car_ghosts_buyer_id_fkey (username, display_name)'
+
+// Nickname-first display line for a ghost, from its frozen snapshot.
+export function soldCarName(g: Pick<SoldCar,
+  'snapshot_year' | 'snapshot_make' | 'snapshot_model' | 'snapshot_variant' | 'snapshot_nickname'
+>): string {
+  const model = [g.snapshot_year, g.snapshot_model, g.snapshot_variant].filter(Boolean).join(' ')
+  if (g.snapshot_nickname && model) return `${g.snapshot_nickname} — ${model}`
+  return g.snapshot_nickname || model || 'a car'
+}
+
+type GhostRow = Omit<SoldCar, 'buyer_username' | 'buyer_display_name'> & {
+  buyer: { username: string | null; display_name: string | null } | null
+}
+
+function mapGhost(row: GhostRow): SoldCar {
+  const { buyer, ...rest } = row
+  return { ...rest, buyer_username: buyer?.username ?? null, buyer_display_name: buyer?.display_name ?? null }
+}
+
+async function fetchGhosts(archived: boolean): Promise<SoldCar[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const me = session?.user?.id
+    if (!me) return []
+    let q = supabase
+      .from('car_ghosts')
+      .select(GHOST_COLS)
+      .eq('seller_id', me)
+      .order('sold_at', { ascending: false })
+    q = archived ? q.not('archived_at', 'is', null) : q.is('archived_at', null)
+    const { data, error } = await q
+    if (error || !data) return []
+    return (data as unknown as GhostRow[]).map(mapGhost)
+  } catch {
+    return []
+  }
+}
+
+// Active (non-archived) sold cars for the seller's garage carousel.
+export function getSoldCars(): Promise<SoldCar[]> {
+  return fetchGhosts(false)
+}
+
+// Archived sold cars for the Archived Cars screen.
+export function getArchivedSoldCars(): Promise<SoldCar[]> {
+  return fetchGhosts(true)
+}
+
+export async function archiveSoldCar(ghostId: string): Promise<TransferResult> {
+  try {
+    const { error } = await supabase
+      .from('car_ghosts')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', ghostId)
+    if (error) return { ok: false, error: transferErrorMessage(error.code, error.message) }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Couldn’t archive.' }
+  }
+}
+
+export async function unarchiveSoldCar(ghostId: string): Promise<TransferResult> {
+  try {
+    const { error } = await supabase
+      .from('car_ghosts')
+      .update({ archived_at: null })
+      .eq('id', ghostId)
+    if (error) return { ok: false, error: transferErrorMessage(error.code, error.message) }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Couldn’t restore.' }
+  }
+}
