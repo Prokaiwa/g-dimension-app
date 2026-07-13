@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
+import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_BURGUNDY_M, HEADER_HEIGHT } from '../tokens'
 
@@ -97,6 +98,7 @@ export default function TuningDiyPage() {
 
   const [modTitle, setModTitle] = useState<string>('')
   const [guide,    setGuide]    = useState<Guide | null>(null)
+  const [authorHandle, setAuthorHandle] = useState<string | null>(null)
   const [steps,    setSteps]    = useState<Step[]>([])
   const [photos,   setPhotos]   = useState<Photo[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -112,6 +114,11 @@ export default function TuningDiyPage() {
       if (job) setModTitle((job as { title: string }).title)
       if (g) {
         setGuide(g as Guide)
+        // This page is owner-only (RLS), so the viewer IS the current owner —
+        // credit the guide's author only when it's someone else (post-transfer).
+        supabase.auth.getUser().then(({ data: { user } }) =>
+          getDiyAuthorHandle(g.id, user?.id ?? null).then(setAuthorHandle),
+        )
         const [{ data: st }, { data: ph }] = await Promise.all([
           supabase.from('diy_steps').select('id,step_order,title,description').eq('guide_id', g.id).order('step_order'),
           supabase.from('diy_step_photos').select('id,step_id,photo_url,caption,display_order').eq('guide_id' as never, g.id as never).order('display_order'),
@@ -177,6 +184,11 @@ export default function TuningDiyPage() {
             <span style={{ fontFamily: FONT_UI, fontSize: 9, letterSpacing: '0.18em', color: MID }}>DIY</span>
           </div>
           <p style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 26, color: DARK, margin: 0, lineHeight: 1.1 }}>{modTitle}</p>
+          {authorHandle && (
+            <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MID, margin: '8px 0 0' }}>
+              Created by <span style={{ color: ACCENT, fontWeight: 700 }}>@{authorHandle}</span>
+            </p>
+          )}
         </div>
 
         {/* Meta: difficulty + time */}

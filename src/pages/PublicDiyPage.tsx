@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
+import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
 import { FONT_UI, COLOR_ACCENT, COLOR_BRAND } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
@@ -75,6 +76,7 @@ export default function PublicDiyPage() {
 
   const [modTitle,  setModTitle]  = useState<string>('')
   const [carName,   setCarName]   = useState<string>('')
+  const [authorHandle, setAuthorHandle] = useState<string | null>(null)
   const [guide,     setGuide]     = useState<Guide | null>(null)
   const [steps,     setSteps]     = useState<Step[]>([])
   const [photos,    setPhotos]    = useState<Photo[]>([])
@@ -111,12 +113,14 @@ export default function PublicDiyPage() {
       if (carId) {
         const { data: car } = await supabase
           .from('public_car_profiles')
-          .select('year, make, model, variant')
+          .select('year, make, model, variant, user_id')
           .eq('id', carId)
           .maybeSingle()
         if (car) {
           const variant = (car as { variant?: string }).variant
           setCarName([car.year, car.make, car.model, variant].filter(Boolean).join(' '))
+          // Credit the original author when the car has since changed hands.
+          getDiyAuthorHandle(g.id, (car as { user_id?: string }).user_id ?? null).then(setAuthorHandle)
         }
       }
 
@@ -207,6 +211,11 @@ export default function PublicDiyPage() {
         </div>
         {carName && (
           <div style={{ marginTop: 4, fontSize: 13, color: MID, letterSpacing: '0.03em' }}>{carName}</div>
+        )}
+        {authorHandle && (
+          <div style={{ marginTop: 6, fontSize: 12, color: MID }}>
+            Created by <span style={{ color: ACCENT, fontWeight: 700 }}>@{authorHandle}</span>
+          </div>
         )}
       </div>
 

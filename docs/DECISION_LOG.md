@@ -385,3 +385,43 @@ Frontend transfer access goes through `src/lib/carTransfers.ts` (guarded,
 enforced at read + accept time only; expired rows stay `pending` in the table
 and are filtered everywhere, so any future direct query of `car_transfers`
 must filter on `expires_at` too. Source: migration 072; 2026-07 feedback round.
+
+## ADR-018 — DIY guide authorship (`diy_guides.created_by`) survives car transfer (2026-07-13)
+
+**Decision:** Add `diy_guides.created_by` (nullable FK → `users.id`, `on delete
+set null`) to record who authored an install guide, independent of who owns the
+car. Backfill existing guides to the car's current owner. The frontend stamps
+`created_by = auth.uid()` at guide creation (never on update), and both DIY
+surfaces (private `TuningDiyPage`, public `PublicDiyPage`) show "Created by
+@handle" only when the author differs from the car's current owner. Migration
+073.
+
+**Context:** A follow-on to the car-transfer feature (ADR-017). DIY guides had
+no author column — authorship was only ever derived transitively via
+`car_id → cars.user_id`. That's exactly what breaks on transfer: after a car
+changes hands, a guide the previous owner wrote reads as if the new owner
+authored it. Reported by the first tester.
+
+**Rationale:** An explicit author column is the only way to keep credit stable
+across a `cars.user_id` swap. It is deliberately NOT derived from `car_transfers`
+history at read time — that would be fragile (a guide's creation date would have
+to be correlated against transfer dates, and a car can pass through several
+owners) and needlessly heavy for a display-only credit. `on delete set null`
+keeps the guide (owned via `car_id`) alive if the author later deletes their
+account, dropping only the credit line. The backfill sets `created_by` to the
+current owner because pre-migration guides carry no real authorship record — so
+a guide on a car that was **already** transferred before 073 is (unrecoverably)
+credited to the new owner; going forward every new guide is stamped correctly.
+The read helper (`src/lib/diyAuthor.ts`) is guarded carPrivate-style and the
+create-path insert falls back to an author-less insert on `PGRST204`/`42703`, so
+the deploy-before-migration window never breaks guide creation. No new grants or
+RLS: `created_by` is a column on an existing table (059's table-level grants +
+RLS already cover it) and is attribution, not access control — row access still
+keys on `car_id → cars.user_id`.
+
+**Consequences:** "Created by @handle" is the first cross-owner attribution in
+the app; any future authored-content type (if guides ever gain co-authors, or
+other user content becomes transferable) should follow this same explicit-author
+pattern rather than deriving from ownership. The credit is silent for the common
+untransferred case (author == current owner). Source: migration 073; the
+2026-07 feedback round.

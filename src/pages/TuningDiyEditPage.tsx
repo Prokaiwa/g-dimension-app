@@ -366,13 +366,30 @@ export default function TuningDiyEditPage() {
 
       let finalGuideId = guideId
       if (guideId) {
+        // Never touch created_by on update — authorship is stamped once, at
+        // creation, so a car transfer + edit by the new owner can't rewrite it.
         const { error: uErr } = await supabase.from('diy_guides').update(guidePayload).eq('id', guideId)
         if (uErr) throw uErr
       } else {
-        const { data: ins, error: iErr } = await supabase
-          .from('diy_guides').insert(guidePayload).select('id').single()
-        if (iErr) throw iErr
-        finalGuideId = ins.id
+        // created_by (migration 073) credits the original author independently
+        // of who owns the car later. Guarded for the deploy-before-migration
+        // window: if the column doesn't exist yet PostgREST rejects the insert
+        // (PGRST204 / 42703), so we retry without it rather than blocking guide
+        // creation.
+        let ins: { id: string } | null = null
+        const withAuthor = await supabase
+          .from('diy_guides').insert({ ...guidePayload, created_by: user.id }).select('id').single()
+        if (withAuthor.error && (withAuthor.error.code === 'PGRST204' || withAuthor.error.code === '42703')) {
+          const fallback = await supabase
+            .from('diy_guides').insert(guidePayload).select('id').single()
+          if (fallback.error) throw fallback.error
+          ins = fallback.data
+        } else if (withAuthor.error) {
+          throw withAuthor.error
+        } else {
+          ins = withAuthor.data
+        }
+        finalGuideId = ins!.id
         setGuideId(finalGuideId)
       }
 
