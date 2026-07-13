@@ -309,7 +309,7 @@ export default function GarageCarsEditPage() {
         </div>
       ) : !confirmDelete ? (
         <>
-          <div className="form-scroll" style={{ flex: 1, overflowY: 'auto', overscrollBehaviorY: 'contain', touchAction: 'pan-y', padding: `${SPACE_MD}px ${SPACE_MD}px 0`, position: 'relative', zIndex: 1 }}>
+          <div className="form-scroll" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehaviorY: 'contain', touchAction: 'pan-y', padding: `${SPACE_MD}px ${SPACE_MD}px 0`, position: 'relative', zIndex: 1 }}>
             <div style={{ marginBottom: SPACE_LG }}>
               <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 28, color: COLOR_HEADER_TITLE, margin: '0 0 4px', lineHeight: 1.1 }}>
                 {meta.year} {meta.model}
