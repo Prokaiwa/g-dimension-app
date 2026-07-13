@@ -11,7 +11,7 @@ import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import {
   getIncomingOffers, acceptTransfer, declineTransfer, transferCarName,
-  type IncomingTransfer,
+  getTransferSource, type IncomingTransfer, type TransferSource,
 } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
@@ -529,6 +529,7 @@ export default function GarageCarsPage() {
   const [picker, setPicker]                   = useState<'year' | 'make' | 'model' | null>(null)
   const [showDetails, setShowDetails]         = useState(false)
   const [detailsData, setDetailsData]         = useState<Record<string, string> | null>(null)
+  const [detailsTransferSource, setDetailsTransferSource] = useState<TransferSource | null>(null)
   const [pressedAction, setPressedAction]     = useState<string | null>(null)
   const [addPhotoBlob, setAddPhotoBlob]       = useState<Blob | null>(null)
   const [addPhotoOriginal, setAddPhotoOriginal] = useState<File | null>(null)
@@ -751,18 +752,21 @@ export default function GarageCarsPage() {
     // Open immediately (hero shows from the carousel data); specs stream in.
     detailsCarId.current = car.id
     setDetailsData(null)
+    setDetailsTransferSource(null)
     setSheetDragY(0)
     setSheetDragging(false)
     setShowDetails(true)
-    const [{ data }, priv] = await Promise.all([
+    const [{ data }, priv, source] = await Promise.all([
       supabase
         .from('cars')
         .select('color, paint_code, nickname, trim, variant, current_mileage, mileage_unit, chassis_code, engine_type, forced_induction, horsepower, torque, transmission, drivetrain, oil_type, tire_size, battery_model, purchase_date, purchase_story, garage_photo_url')
         .eq('id', car.id)
         .single(),
       getCarPrivate(car.id),
+      getTransferSource(car.id),
     ])
     if (detailsCarId.current !== car.id) return  // a newer open superseded this fetch
+    setDetailsTransferSource(source)
     const autoNick = [car.year, car.make, car.model, car.variant].filter(Boolean).join(' ')
     setDetailsData({
       color:             data?.color              ?? '',
@@ -1166,6 +1170,9 @@ export default function GarageCarsPage() {
                     ['Purchase Price', d.purchasePrice ? `${d.purchaseCurrency || 'USD'} ${num(d.purchasePrice)}` : ''],
                     ['Mileage at Purchase', d.mileageAtPurchase ? `${num(d.mileageAtPurchase)} ${d.mileageUnit}` : ''],
                     ['Acquired Via', d.wherePurchased],
+                    ['Transferred From', detailsTransferSource
+                      ? `${detailsTransferSource.fromUsername ? `@${detailsTransferSource.fromUsername}` : 'a previous owner'} · ${new Date(detailsTransferSource.respondedAt).toLocaleDateString()}`
+                      : ''],
                   ]
                   const hasStory = !!d.originStory && d.originStory.trim() !== ''
                   const anyFilled = [...identity, ...specs, ...purchase].some(([, v]) => v && v.trim() !== '') || hasStory

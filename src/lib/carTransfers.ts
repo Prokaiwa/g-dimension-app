@@ -180,6 +180,52 @@ export async function getIncomingOffers(): Promise<IncomingTransfer[]> {
   }
 }
 
+// The provenance line shown to a car's current owner: who they got it from,
+// if it was ever transferred to them.
+export interface TransferSource {
+  fromUsername: string | null
+  fromDisplayName: string | null
+  respondedAt: string
+}
+
+/**
+ * The most recent accepted transfer INTO the signed-in user for this car, if
+ * any — "Transferred from @handle" on the new owner's side. Scoped to
+ * to_user_id = me so a car that's since moved on again doesn't surface a
+ * stale/unrelated row. Guarded: null pre-migration, not signed in, or on any
+ * error (including "never transferred," the common case).
+ */
+export async function getTransferSource(carId: string): Promise<TransferSource | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const me = session?.user?.id
+    if (!me) return null
+
+    const { data, error } = await supabase
+      .from('car_transfers')
+      .select(`responded_at, sender:users!car_transfers_from_user_id_fkey (username, display_name)`)
+      .eq('car_id', carId)
+      .eq('to_user_id', me)
+      .eq('status', 'accepted')
+      .order('responded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error || !data) return null
+    const row = data as unknown as {
+      responded_at: string
+      sender: { username: string | null; display_name: string | null } | null
+    }
+    if (!row.responded_at) return null
+    return {
+      fromUsername: row.sender?.username ?? null,
+      fromDisplayName: row.sender?.display_name ?? null,
+      respondedAt: row.responded_at,
+    }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Accept an offer — the app's first supabase.rpc() call. The SECURITY DEFINER
  * function re-validates everything and swaps cars.user_id + car_private.user_id,

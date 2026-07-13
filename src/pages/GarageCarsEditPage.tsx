@@ -11,8 +11,8 @@ import { prewarmBackgroundRemoval } from '../lib/backgroundRemoval'
 import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import {
-  createTransferOffer, getPendingOfferForCar, cancelTransfer,
-  type CarTransfer,
+  createTransferOffer, getPendingOfferForCar, getTransferSource, cancelTransfer,
+  type CarTransfer, type TransferSource,
 } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import CarPhotoUpload from '../components/CarPhotoUpload'
@@ -113,6 +113,8 @@ export default function GarageCarsEditPage() {
   const [transferErr, setTransferErr] = useState<string | null>(null)
   const [pendingOffer, setPendingOffer] =
     useState<(CarTransfer & { recipient_username: string | null }) | null>(null)
+  // Provenance: who I got this car from, if it was ever transferred to me.
+  const [transferSource, setTransferSource] = useState<TransferSource | null>(null)
 
   // Warm the background-removal model so the photo picker is instant.
   useEffect(() => { prewarmBackgroundRemoval() }, [])
@@ -124,10 +126,12 @@ export default function GarageCarsEditPage() {
       supabase.from('cars').select(DETAIL_COLUMNS).eq('id', carId).is('deleted_at', null).single(),
       getCarPrivate(carId),
       getPendingOfferForCar(carId),
+      getTransferSource(carId),
     ])
-      .then(([{ data: row }, priv, offer]) => {
+      .then(([{ data: row }, priv, offer, source]) => {
         if (!active) return
         setPendingOffer(offer)
+        setTransferSource(source)
         if (!row) { setLoading(false); return }
         setMeta({ year: row.year, make: row.make, model: row.model, variant: row.variant })
         setData({
@@ -475,6 +479,11 @@ export default function GarageCarsEditPage() {
                 <span style={LABEL}>Where you got it <span style={OPT}>opt</span></span>
                 <input type="text" autoCapitalize="words" placeholder="e.g. private party, dealer, gift…" value={data.wherePurchased} onChange={upd('wherePurchased')} style={INPUT} />
               </div>
+              {transferSource && (
+                <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: 'rgba(200,102,26,0.75)', margin: 0, lineHeight: 1.5 }}>
+                  Transferred from {transferSource.fromUsername ? `@${transferSource.fromUsername}` : 'a previous owner'} on {new Date(transferSource.respondedAt).toLocaleDateString()}
+                </p>
+              )}
 
               <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: `${SPACE_XS}px 0` }} />
               <div style={FIELD}>
