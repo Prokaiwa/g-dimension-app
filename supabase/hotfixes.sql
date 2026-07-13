@@ -5,7 +5,11 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 072_car_transfers.sql (applied 2026-07-11)
+-- Last migration applied : 073_diy_guide_author.sql (applied 2026-07-13)
+--   - 073 (diy_guides.created_by — records the original DIY guide author
+--     independent of the car's current owner, so credit survives a car
+--     transfer; backfilled existing guides to their car's current owner;
+--     ADR-018) applied 2026-07-13.
 --   - 072 (car ownership transfer, offer -> accept: car_transfers table +
 --     accept_car_transfer(uuid), the schema's first PostgREST-exposed RPC —
 --     flips cars.user_id, re-keys car_private, wipes seller financials, clears
