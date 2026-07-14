@@ -5,7 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 073_diy_guide_author.sql (applied 2026-07-13)
+-- Last migration applied : 074_car_ghosts.sql (applied 2026-07-13)
+--   - 074 (SOLD ghost cars: car_ghosts table — a durable frozen-snapshot
+--     keepsake of a car the seller transferred away (car_id on delete set
+--     null so it outlives the car), inserted inside accept_car_transfer;
+--     owner-only RLS + column grant update(archived_at); public_sold_cars
+--     definer view; backfilled existing accepted transfers; ADR-019) applied
+--     2026-07-13.
 --   - 073 (diy_guides.created_by — records the original DIY guide author
 --     independent of the car's current owner, so credit survives a car
 --     transfer; backfilled existing guides to their car's current owner;
