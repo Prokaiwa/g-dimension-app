@@ -12,6 +12,7 @@ import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
   COLOR_CAVITY_BG,
   COLOR_BURGUNDY_M,
+  COLOR_BRAND,
   COLOR_ACCENT,
   COLOR_HEADER_TITLE,
   FONT_UI,
@@ -19,6 +20,7 @@ import {
   SPACE_SM,
   SPACE_MD,
   SPACE_LG,
+  RADIUS_BADGE,
 } from '../tokens'
 
 export default function PublicSoldCarPage() {
@@ -89,7 +91,7 @@ export default function PublicSoldCarPage() {
           alt={name}
           style={{ width: '100%', maxHeight: 220, objectFit: 'contain', filter: 'grayscale(0.65) brightness(0.7) drop-shadow(0 8px 14px rgba(0,0,0,0.9))', opacity: 0.92 }}
         />
-        <div style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%,-50%) rotate(-9deg)', border: `3px solid ${COLOR_BURGUNDY_M}`, color: COLOR_BURGUNDY_M, padding: '5px 20px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 38, letterSpacing: '0.14em', opacity: 0.85, background: 'rgba(10,8,8,0.28)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%,-50%) rotate(-9deg)', border: `3px solid ${COLOR_BRAND}`, color: COLOR_BRAND, borderRadius: RADIUS_BADGE, padding: '5px 20px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 38, letterSpacing: '0.14em', opacity: 0.95, background: 'rgba(10,8,8,0.32)', boxShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
           SOLD
         </div>
       </div>

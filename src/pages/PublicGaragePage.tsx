@@ -22,6 +22,7 @@ import {
   COLOR_HEADER_WARM,
   COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_M,
+  COLOR_BRAND,
   COLOR_TEXT_SECONDARY,
   COLOR_ACCENT,
   FONT_UI,
@@ -33,6 +34,7 @@ import {
   SPACE_LG,
   SPACE_XL,
   EASING_SETTLE,
+  RADIUS_BADGE,
 } from '../tokens'
 
 const _now        = new Date()
@@ -409,13 +411,13 @@ export default function PublicGaragePage() {
                 <div style={{ width: '88%', filter: 'grayscale(0.65) brightness(0.68)', opacity: 0.9 }}>
                   <CarStage src={ghost.snapshot_photo_url || garagePlaceholder} placeholder={!ghost.snapshot_photo_url} priority={false} />
                 </div>
-                <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%) rotate(-9deg)', border: `3px solid ${COLOR_BURGUNDY_M}`, color: COLOR_BURGUNDY_M, padding: '4px 18px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 34, letterSpacing: '0.14em', opacity: 0.82, pointerEvents: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', background: 'rgba(10,8,8,0.25)' }}>
+                <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%) rotate(-9deg)', border: `3px solid ${COLOR_BRAND}`, color: COLOR_BRAND, borderRadius: RADIUS_BADGE, padding: '4px 18px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 34, letterSpacing: '0.14em', opacity: 0.92, pointerEvents: 'none', boxShadow: '0 2px 10px rgba(0,0,0,0.5)', background: 'rgba(10,8,8,0.3)' }}>
                   SOLD
                 </div>
               </div>
               <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)' }}>
                 <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'baseline', padding: `9px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_BURGUNDY_M }}>Sold</span>
+                  <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_BRAND }}>Sold</span>
                   <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.7)' }}>
                     {ghost.buyer_username ? `to @${ghost.buyer_username}` : ''} · {new Date(ghost.sold_at).toLocaleDateString()}
                   </span>
@@ -552,7 +554,7 @@ export default function PublicGaragePage() {
           <div onClick={() => setGhostTarget(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
           <div style={{ position: 'relative', background: '#121316', borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: `${SPACE_LG}px ${SPACE_MD}px calc(${SPACE_LG}px + env(safe-area-inset-bottom))` }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: SPACE_SM, marginBottom: 10 }}>
-              <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 11, letterSpacing: '0.16em', color: COLOR_BURGUNDY_M, border: `1.5px solid ${COLOR_BURGUNDY_M}`, padding: '1px 7px' }}>SOLD</span>
+              <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 11, letterSpacing: '0.16em', color: COLOR_BRAND, border: `1.5px solid ${COLOR_BRAND}`, borderRadius: RADIUS_BADGE, padding: '1px 7px' }}>SOLD</span>
               <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 22, color: COLOR_HEADER_TITLE, margin: 0, lineHeight: 1.1 }}>{soldCarName(ghostTarget)}</p>
             </div>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>

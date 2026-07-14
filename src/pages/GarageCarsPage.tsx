@@ -24,6 +24,7 @@ import {
   COLOR_HEADER_WARM,
   COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_M,
+  COLOR_BRAND,
   COLOR_ACCENT,
   COLOR_PANEL_TEXT,
   GRADIENT_PANEL,
@@ -39,6 +40,7 @@ import {
   SPACE_XL,
   EASING_SETTLE,
   RADIUS_BOTTOM_SHEET,
+  RADIUS_BADGE,
 } from '../tokens'
 
 // In an installed standalone PWA there's no browser toolbar/URL bar eating the
@@ -1132,33 +1134,29 @@ export default function GarageCarsPage() {
                             alt=""
                             style={{ width: '100%', maxHeight: 200, objectFit: 'contain', objectPosition: 'bottom', display: 'block', filter: 'grayscale(0.4) brightness(0.82) drop-shadow(0px 8px 14px rgba(0,0,0,0.92))' }}
                           />
-                          <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%) rotate(-8deg)', border: `3px solid ${COLOR_BURGUNDY_M}`, color: COLOR_BURGUNDY_M, padding: '3px 16px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 30, letterSpacing: '0.14em', opacity: 0.92, background: 'rgba(10,8,8,0.35)', boxShadow: '0 2px 12px rgba(0,0,0,0.6)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                          <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%) rotate(-8deg)', border: `3px solid ${COLOR_BRAND}`, color: COLOR_BRAND, borderRadius: RADIUS_BADGE, padding: '3px 16px', fontFamily: FONT_UI, fontWeight: 900, fontSize: 30, letterSpacing: '0.14em', opacity: 0.95, background: 'rgba(10,8,8,0.35)', boxShadow: '0 2px 12px rgba(0,0,0,0.6)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                             SOLD
                           </div>
                         </div>
                       </div>
-                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.16em', color: COLOR_BURGUNDY_M, textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
+                      <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 800, fontSize: 10, letterSpacing: '0.16em', color: COLOR_BRAND, textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                         Sold
                       </div>
                     </div>
 
-                    {/* Info strip — matches real cars (Color / Year·Trim), single Details action */}
+                    {/* Info strip — minimal (Color / Trim only; Year lives in Details) */}
                     <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', backdropFilter: 'blur(10px)', position: 'relative', zIndex: 2, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease', pointerEvents: detail ? 'none' : undefined }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        {ghost.snapshot_color && <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{ghost.snapshot_color}</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'center', padding: `7px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
-                        <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
-                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Year</span>
-                          <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{ghost.snapshot_year ?? '—'}</span>
+                      {(ghost.snapshot_color || ghost.snapshot_trim) && (
+                        <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'center', padding: `7px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          {ghost.snapshot_color && <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{ghost.snapshot_color}</span>}
+                          {ghost.snapshot_trim && (
+                            <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Trim</span>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{ghost.snapshot_trim}</span>
+                            </div>
+                          )}
                         </div>
-                        {ghost.snapshot_trim && (
-                          <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Trim</span>
-                            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, color: 'rgba(245,240,228,0.9)' }}>{ghost.snapshot_trim}</span>
-                          </div>
-                        )}
-                      </div>
+                      )}
                       <div style={{ display: 'flex', justifyContent: 'center', padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD + PWA_LIFT}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         <button onClick={openGhostDetails}
                           onPointerDown={() => setPressedAction(`gd-${ghost.id}`)}
@@ -1267,7 +1265,7 @@ export default function GarageCarsPage() {
                   )}
                   {!car && activeGhost && (
                     <div style={{ padding: `0 ${SPACE_MD}px ${SPACE_SM}px`, display: 'flex', alignItems: 'baseline', gap: SPACE_SM }}>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 11, letterSpacing: '0.16em', color: COLOR_BURGUNDY_M, border: `1.5px solid ${COLOR_BURGUNDY_M}`, padding: '1px 7px' }}>SOLD</span>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 11, letterSpacing: '0.16em', color: COLOR_BRAND, border: `1.5px solid ${COLOR_BRAND}`, borderRadius: RADIUS_BADGE, padding: '1px 7px' }}>SOLD</span>
                       <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 24, color: COLOR_HEADER_TITLE, margin: 0, lineHeight: 1.1 }}>{soldCarName(activeGhost)}</p>
                     </div>
                   )}
