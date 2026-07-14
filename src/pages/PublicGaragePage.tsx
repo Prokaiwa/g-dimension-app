@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { getPublicSoldCars, soldCarName, type PublicSoldCar } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import ArrivalFade from '../components/ArrivalFade'
+import GarageStageBackdrop from '../components/GarageStageBackdrop'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import iconChoose from '../assets/icons/car-carousel/choose.png'
 import iconDetails from '../assets/icons/car-carousel/details.png'
@@ -322,12 +323,7 @@ export default function PublicGaragePage() {
 
                 {/* GT-style garage stage */}
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                  <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.53) 58%, rgba(0,0,0,0.87) 100%)' }} />
-                  <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: ['linear-gradient(to bottom, transparent calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 1.5px), transparent calc(38% + 1.5px))', 'repeating-linear-gradient(to bottom, transparent 0px, transparent 10px, rgba(0,0,0,0.20) 10px, rgba(0,0,0,0.20) 10.5px, rgba(255,255,255,0.035) 10.5px, rgba(255,255,255,0.035) 11px)'].join(', ') }} />
-                  <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: ['linear-gradient(to right, transparent calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 4px), transparent calc(14% + 4px))', 'linear-gradient(to right, transparent calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 4px), transparent calc(86% + 4px))'].join(', ') }} />
-                  <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', background: 'linear-gradient(to bottom, #07070a 0%, transparent 40%)', pointerEvents: 'none', zIndex: 1 }} />
-                  <div aria-hidden style={{ position: 'absolute', bottom: '46%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-                  <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%', background: ['radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)', 'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)'].join(', ') }} />
+                  <GarageStageBackdrop />
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
                     <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} priority={i === activeIdx} />
                   </div>
@@ -418,12 +414,7 @@ export default function PublicGaragePage() {
 
               {/* GT-style garage stage (same as real cars) */}
               <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 4, background: 'radial-gradient(ellipse 70% 65% at 50% 55%, transparent 20%, rgba(0,0,0,0.53) 58%, rgba(0,0,0,0.87) 100%)' }} />
-                <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: ['linear-gradient(to bottom, transparent calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% - 1.5px), rgba(0,0,0,0.39) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 0.5px), rgba(255,255,255,0.09) calc(38% + 1.5px), transparent calc(38% + 1.5px))', 'repeating-linear-gradient(to bottom, transparent 0px, transparent 10px, rgba(0,0,0,0.20) 10px, rgba(0,0,0,0.20) 10.5px, rgba(255,255,255,0.035) 10.5px, rgba(255,255,255,0.035) 11px)'].join(', ') }} />
-                <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', backgroundImage: ['linear-gradient(to right, transparent calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 4px), rgba(0,0,0,0.32) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% - 3px), rgba(255,255,255,0.04) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 3px), rgba(255,255,255,0.11) calc(14% + 4px), transparent calc(14% + 4px))', 'linear-gradient(to right, transparent calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 4px), rgba(255,255,255,0.11) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% - 3px), rgba(255,255,255,0.04) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 3px), rgba(0,0,0,0.32) calc(86% + 4px), transparent calc(86% + 4px))'].join(', ') }} />
-                <div aria-hidden style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '46%', background: 'linear-gradient(to bottom, #07070a 0%, transparent 40%)', pointerEvents: 'none', zIndex: 1 }} />
-                <div aria-hidden style={{ position: 'absolute', bottom: '46%', left: 0, right: 0, height: 1, background: 'rgba(255,255,255,0.07)' }} />
-                <div aria-hidden style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '46%', background: ['radial-gradient(ellipse 140% 75% at 50% 35%, rgba(220,215,200,0.68) 0%, rgba(200,195,180,0.32) 38%, rgba(175,165,145,0.1) 62%, transparent 80%)', 'linear-gradient(to bottom, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.18) 100%)'].join(', ') }} />
+                <GarageStageBackdrop />
                 {/* Car — same position/lift as real cars; SOLD stamp rides on top */}
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
                   <div style={{ position: 'relative', width: '88%' }}>

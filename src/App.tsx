@@ -115,6 +115,7 @@ const PublicSoldCarPage = lazyWithRetry(() => import('./pages/PublicSoldCarPage'
 // Dev tools
 const SpecTestPage = lazyWithRetry(() => import('./pages/SpecTestPage'))
 const SoundTestPage = lazyWithRetry(() => import('./pages/SoundTestPage'))
+const DevTradingCardsPage = lazyWithRetry(() => import('./pages/DevTradingCardsPage'))
 
 // Auth + onboarding gate. 'loading' until resolved, then one of:
 //   'anon'       — no session → /login
@@ -403,9 +404,11 @@ export default function App() {
       <Route path="/builds/:username/sold/:ghostId" element={<PublicSoldCarPage />} />
 
       {/* Dev tools. /spec-test WRITES test jobs/specs to a real car, so it's
-          dev-only (stripped from production builds). /sound-test is read-only. */}
+          dev-only (stripped from production builds). /sound-test and
+          /dev/trading-cards are read-only. All unlinked from any nav. */}
       {import.meta.env.DEV && <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />}
       <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
+      <Route path="/dev/trading-cards" element={<ProtectedRoute><DevTradingCardsPage /></ProtectedRoute>} />
       </Routes>
       </Suspense>
     </TourProvider>
