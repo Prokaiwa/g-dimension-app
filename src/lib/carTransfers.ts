@@ -353,3 +353,59 @@ export async function unarchiveSoldCar(ghostId: string): Promise<TransferResult>
     return { ok: false, error: 'Couldn’t restore.' }
   }
 }
+
+// ── Public sold cars (the `public_sold_cars` definer view — anon-readable) ────
+// Non-archived ghosts, exposed for a seller's public profile carousel + the
+// shareable sold-car page. Snapshot + resolved seller/buyer handles only.
+
+export interface PublicSoldCar {
+  id: string
+  car_id: string | null
+  sold_at: string
+  seller_username: string | null
+  buyer_username: string | null
+  buyer_display_name: string | null
+  snapshot_year: number | null
+  snapshot_make: string | null
+  snapshot_model: string | null
+  snapshot_variant: string | null
+  snapshot_trim: string | null
+  snapshot_nickname: string | null
+  snapshot_color: string | null
+  snapshot_photo_url: string | null
+}
+
+const PUBLIC_SOLD_COLS =
+  'id, car_id, sold_at, seller_username, buyer_username, buyer_display_name, ' +
+  'snapshot_year, snapshot_make, snapshot_model, snapshot_variant, ' +
+  'snapshot_trim, snapshot_nickname, snapshot_color, snapshot_photo_url'
+
+// A seller's publicly-shown sold cars, for their public garage carousel.
+export async function getPublicSoldCars(username: string): Promise<PublicSoldCar[]> {
+  try {
+    const { data, error } = await supabase
+      .from('public_sold_cars')
+      .select(PUBLIC_SOLD_COLS)
+      .eq('seller_username', username)
+      .order('sold_at', { ascending: false })
+    if (error || !data) return []
+    return data as unknown as PublicSoldCar[]
+  } catch {
+    return []
+  }
+}
+
+// One sold car by ghost id, for the shareable sold-car page.
+export async function getPublicSoldCar(ghostId: string): Promise<PublicSoldCar | null> {
+  try {
+    const { data, error } = await supabase
+      .from('public_sold_cars')
+      .select(PUBLIC_SOLD_COLS)
+      .eq('id', ghostId)
+      .maybeSingle()
+    if (error || !data) return null
+    return data as unknown as PublicSoldCar
+  } catch {
+    return null
+  }
+}

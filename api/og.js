@@ -56,6 +56,32 @@ function carImage(car) {
   )
 }
 
+// SOLD ghost display name (frozen snapshot): nickname else "year make model variant".
+function soldName(g) {
+  if (g.snapshot_nickname && g.snapshot_nickname.trim()) return g.snapshot_nickname.trim()
+  const parts = [g.snapshot_year, g.snapshot_make, g.snapshot_model, g.snapshot_variant].filter(Boolean)
+  return parts.join(' ').trim() || 'A car'
+}
+
+// Resolve a sold-car ghost by id from the anon-readable public_sold_cars view.
+async function resolveSoldCar(ghostId) {
+  if (!ghostId || !SUPABASE_ANON_KEY) return null
+  const select =
+    'id,seller_username,buyer_username,buyer_display_name,' +
+    'snapshot_year,snapshot_make,snapshot_model,snapshot_variant,snapshot_nickname,snapshot_photo_url'
+  const url =
+    `${SUPABASE_URL}/rest/v1/public_sold_cars` +
+    `?id=eq.${encodeURIComponent(ghostId)}` +
+    `&select=${encodeURIComponent(select)}` +
+    `&limit=1`
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  })
+  if (!res.ok) return null
+  const rows = await res.json()
+  return Array.isArray(rows) && rows.length ? rows[0] : null
+}
+
 // Fetch the deployed, BUILT index.html (hashed asset links intact) so the SPA
 // still boots for real visitors. /index.html is served by Vercel's filesystem
 // handler (it sits before the SPA fallback), so this never loops back here.
@@ -105,8 +131,11 @@ export default async function handler(req, res) {
   // original query (so ?car= survives). p="john", "john/garage", "john/mods/123".
   const parsed = new URL(req.url, `https://${host}`)
   const p = parsed.searchParams.get('p') || ''
-  const username = decodeURIComponent(p.split('/')[0] || '')
+  const segs = p.split('/')
+  const username = decodeURIComponent(segs[0] || '')
   const carParam = parsed.searchParams.get('car')
+  // /builds/:username/sold/:ghostId → a sold-car unfurl.
+  const soldId = segs[1] === 'sold' ? decodeURIComponent(segs[2] || '') : null
 
   let html
   try {
@@ -119,32 +148,47 @@ export default async function handler(req, res) {
     return
   }
 
-  let car = null
-  try {
-    car = await resolveCar(username, carParam)
-  } catch {
-    car = null
-  }
-
-  // Build the OG values (generic default for private/missing cars — no leak).
+  // Build the OG values (generic default for private/missing — no leak).
   let title = DEFAULT_TITLE
   let description = DEFAULT_DESC
   let image = DEFAULT_IMAGE
   let canonical = `${SITE}/builds/${username ? encodeURIComponent(username) : ''}`
 
-  if (car) {
-    const name = carName(car)
-    const owner = car.display_name || `@${car.username}`
-    title = `${name} · G-Dimension`
-    description = `${name} — a build by ${owner} on G-Dimension.`
-    image = carImage(car)
-    canonical = `${SITE}/builds/${encodeURIComponent(car.username)}` +
-      (carParam ? `?car=${encodeURIComponent(carParam)}` : '')
+  let sold = null
+  if (soldId) {
+    try { sold = await resolveSoldCar(soldId) } catch { sold = null }
+  }
 
-    // All sub-pages — including Featured — unfurl with the car's own photo
-    // (carImage above). The Featured magazine-cover render (api/og-cover.ts) was
-    // deliberately dropped: a straight photo of the owner's car reads more
-    // clearly in a link preview. og-cover.ts is now unused.
+  if (sold) {
+    const name = soldName(sold)
+    title = `${name} — Sold · G-Dimension`
+    description = sold.buyer_username
+      ? `${name} was sold to @${sold.buyer_username} on G-Dimension.`
+      : `${name} was sold on G-Dimension.`
+    image = sold.snapshot_photo_url || DEFAULT_IMAGE
+    canonical = `${SITE}/builds/${encodeURIComponent(sold.seller_username || username)}/sold/${encodeURIComponent(sold.id)}`
+  } else {
+    let car = null
+    try {
+      car = await resolveCar(username, carParam)
+    } catch {
+      car = null
+    }
+
+    if (car) {
+      const name = carName(car)
+      const owner = car.display_name || `@${car.username}`
+      title = `${name} · G-Dimension`
+      description = `${name} — a build by ${owner} on G-Dimension.`
+      image = carImage(car)
+      canonical = `${SITE}/builds/${encodeURIComponent(car.username)}` +
+        (carParam ? `?car=${encodeURIComponent(carParam)}` : '')
+
+      // All sub-pages — including Featured — unfurl with the car's own photo
+      // (carImage above). The Featured magazine-cover render (api/og-cover.ts) was
+      // deliberately dropped: a straight photo of the owner's car reads more
+      // clearly in a link preview. og-cover.ts is now unused.
+    }
   }
 
   const t = esc(title)

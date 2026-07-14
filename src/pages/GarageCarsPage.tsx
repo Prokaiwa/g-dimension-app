@@ -11,9 +11,10 @@ import { uploadGaragePhoto, uploadCarOriginal } from '../lib/carPhoto'
 import { getCarPrivate, upsertCarPrivate } from '../lib/carPrivate'
 import {
   getIncomingOffers, acceptTransfer, declineTransfer, transferCarName,
-  getTransferSource, getSoldCars, archiveSoldCar, soldCarName,
+  getTransferSource, getSoldCars, archiveSoldCar, soldCarName, getPublicSoldCar,
   type IncomingTransfer, type TransferSource, type SoldCar,
 } from '../lib/carTransfers'
+import { shareLink } from '../lib/share'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
@@ -645,6 +646,19 @@ export default function GarageCarsPage() {
     if (res.ok) setOffers(o => o.filter(x => x.id !== offer.id))
     else setOfferErr(res.error ?? 'Couldn’t decline the transfer.')
     setOfferBusy(false)
+  }
+
+  // Share a sold car — resolves the seller handle for the public sold-car URL,
+  // then the native share sheet / clipboard.
+  async function shareGhost(ghost: SoldCar) {
+    const pub = await getPublicSoldCar(ghost.id)
+    const seller = pub?.seller_username ?? ''
+    const name = soldCarName(ghost)
+    await shareLink({
+      url: `${window.location.origin}/builds/${seller}/sold/${ghost.id}`,
+      title: `${name} — sold on G-Dimension`,
+      text: ghost.buyer_username ? `${name} was sold to @${ghost.buyer_username}.` : `${name} was sold.`,
+    })
   }
 
   // Archive a sold-car ghost: drops it from the carousel (and public profile);
@@ -1327,13 +1341,17 @@ export default function GarageCarsPage() {
             </p>
             <div style={{ display: 'flex', gap: SPACE_SM, marginTop: SPACE_LG }}>
               <button disabled={ghostBusy} onClick={() => archiveGhost(ghostTarget)}
-                style={{ flex: 1, padding: '13px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(245,245,245,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', opacity: ghostBusy ? 0.6 : 1 }}>
+                style={{ flex: 1, padding: '13px 8px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(245,245,245,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', opacity: ghostBusy ? 0.6 : 1 }}>
                 {ghostBusy ? 'Archiving…' : 'Archive'}
+              </button>
+              <button onClick={() => shareGhost(ghostTarget)}
+                style={{ flex: 1, padding: '13px 8px', background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(245,245,245,0.7)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                Share
               </button>
               {ghostTarget.buyer_username && (
                 <button onClick={() => navigate(`/builds/${ghostTarget.buyer_username}${ghostTarget.car_id ? `?car=${ghostTarget.car_id}` : ''}`)}
-                  style={{ flex: 1, padding: '13px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                  Visit Build
+                  style={{ flex: 1, padding: '13px 8px', background: COLOR_ACCENT, border: 'none', color: '#fff', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  Visit
                 </button>
               )}
             </div>

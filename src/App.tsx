@@ -110,6 +110,7 @@ const PublicModDetailPage = lazyWithRetry(() => import('./pages/PublicModDetailP
 const PublicDiyPage = lazyWithRetry(() => import('./pages/PublicDiyPage'))
 const PublicEntryDetailPage = lazyWithRetry(() => import('./pages/PublicEntryDetailPage'))
 const PublicFeaturedPage = lazyWithRetry(() => import('./pages/PublicFeaturedPage'))
+const PublicSoldCarPage = lazyWithRetry(() => import('./pages/PublicSoldCarPage'))
 
 // Dev tools
 const SpecTestPage = lazyWithRetry(() => import('./pages/SpecTestPage'))
@@ -399,6 +400,7 @@ export default function App() {
       <Route path="/builds/:username/mods/:modId/diy" element={<PublicDiyPage />} />
       <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
+      <Route path="/builds/:username/sold/:ghostId" element={<PublicSoldCarPage />} />
 
       {/* Dev tools. /spec-test WRITES test jobs/specs to a real car, so it's
           dev-only (stripped from production builds). /sound-test is read-only. */}
