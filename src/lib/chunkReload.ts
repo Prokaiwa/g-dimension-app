@@ -16,6 +16,17 @@ const KEY = 'gdim_chunk_reloads'
 const MAX_RELOADS = 2 // per stale episode; reset after the app runs cleanly
 let reloadedThisLoad = false
 
+// Single source of truth for "this is a stale-chunk load failure" — every
+// known signature across browsers, including the Safari/WebKit one
+// (_result.default / reading 'default') where a dynamic import() resolves
+// with `undefined` instead of the module. errorTracking.ts's Sentry
+// `ignoreErrors` reuses this exact pattern so the two lists can't drift out
+// of sync again (they did once — see git history on this file vs
+// errorTracking.ts — which is why a recognized, already-recovered case could
+// still page as "new" noise in Sentry).
+export const CHUNK_LOAD_ERROR_PATTERN =
+  /dynamically imported module|module script failed|valid JavaScript MIME type|Loading chunk|ChunkLoadError|_result\.default|reading 'default'|reading "default"/i
+
 export function isChunkLoadError(reason: unknown): boolean {
   let msg = ''
   if (typeof reason === 'string') msg = reason
@@ -23,7 +34,7 @@ export function isChunkLoadError(reason: unknown): boolean {
     const r = reason as { name?: unknown; message?: unknown }
     msg = `${String(r.name ?? '')} ${String(r.message ?? '')}`
   }
-  return /dynamically imported module|module script failed|valid JavaScript MIME type|Loading chunk|ChunkLoadError|_result\.default|reading 'default'|reading "default"/i.test(msg)
+  return CHUNK_LOAD_ERROR_PATTERN.test(msg)
 }
 
 /** Reload to fetch fresh chunk names. Returns true if a reload was triggered. */

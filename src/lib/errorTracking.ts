@@ -7,6 +7,7 @@
 //
 // Deliberately minimal: error capture only — no performance tracing, no
 // session replay — to keep the payload small and the free-tier quota lean.
+import { CHUNK_LOAD_ERROR_PATTERN } from './chunkReload'
 
 // The DSN is a PUBLIC identifier (it ships in every client bundle by design —
 // same story as the Supabase anon key); inlining it as the fallback means
@@ -34,11 +35,16 @@ export function initErrorTracking(): void {
             /lock:sb-.*-auth-token/i,
             /Navigator LocksManager/i,
             /lock .* was released/i,
-            // Stale-chunk loads are auto-reloaded by chunkReload.ts; the
-            // reload itself is the fix, reporting each one is pure noise.
-            /dynamically imported module/i,
-            /module script failed/i,
-            /valid JavaScript MIME type/i,
+            // Stale-chunk loads are auto-reloaded by chunkReload.ts (or shown
+            // a branded "Reload" button by AppErrorBoundary if the per-session
+            // reload budget is already spent) — the recovery IS the fix, so
+            // reporting each one is pure noise. Shares the exact pattern
+            // chunkReload.ts uses to recognize/recover from these, so this
+            // list can't silently drift out of sync with what's actually
+            // handled (it did once: a broadened Safari signature landed in
+            // isChunkLoadError() without a matching update here, so an
+            // already-recovered case still paged as a "new" Sentry error).
+            CHUNK_LOAD_ERROR_PATTERN,
           ],
         })
         // Deterministic wiring check: visit any page with ?sentry-test in the
