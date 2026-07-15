@@ -89,10 +89,12 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
         <img
           src={`/manufacturer_logos/${(car.make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
           alt={car.make ?? ''}
-          style={{ height: 51, width: 'auto', objectFit: 'contain', mixBlendMode: 'screen' }}
+          style={{ height: 46, width: 'auto', maxWidth: '52%', objectFit: 'contain', mixBlendMode: 'screen', flexShrink: 0 }}
           onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
         />
-        <span style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 33, color: 'rgba(245,240,228,0.95)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+        {/* nowrap so "LS 430" stays on one line — wide wordmark logos (Lexus)
+            otherwise leave just enough room that flex wraps it at the space. */}
+        <span style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 33, color: 'rgba(245,240,228,0.95)', letterSpacing: '-0.03em', lineHeight: 1, whiteSpace: 'nowrap', textAlign: 'right' }}>
           {[car.model, car.variant].filter(Boolean).join(' ')}
         </span>
       </div>
@@ -122,7 +124,7 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
       <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', position: 'relative', zIndex: 2, paddingBottom: CONTENT_PAD - 7 }}>
         {car.color && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${CONTENT_PAD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{car.color}</span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY, whiteSpace: 'nowrap' }}>{car.color}</span>
           </div>
         )}
         {(car.year != null || car.trim) && (
