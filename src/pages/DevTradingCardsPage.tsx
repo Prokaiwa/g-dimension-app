@@ -54,6 +54,10 @@ const CARD_W = FULL_IN.w * BASE_DPI // 408
 const CARD_H = FULL_IN.h * BASE_DPI // 555
 const BLEED_PX = BLEED_IN * BASE_DPI // 18 — trim line inset
 const SAFE_PX = (BLEED_IN + SAFE_IN) * BASE_DPI // 33 — keep all content inside
+// Boxed content (top bar, info strip, QR) sits a touch further in than the
+// safe line so nothing kisses the dashed guide — safer against cut drift and
+// more composed.
+const CONTENT_PAD = SAFE_PX + 8 // 41
 
 const DPI_PRESETS = [300, 600, 900] as const
 
@@ -81,7 +85,7 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
     <div style={{ width: CARD_W, height: CARD_H, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: GARAGE_STAGE_BASE_BG, fontFamily: FONT_UI }}>
 
       {/* Top bar — logo + model (carousel top-bar styling, inset to the safe zone) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${SAFE_PX}px ${SAFE_PX}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${CONTENT_PAD}px ${CONTENT_PAD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
         <img
           src={`/manufacturer_logos/${(car.make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
           alt={car.make ?? ''}
@@ -115,14 +119,14 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
       </div>
 
       {/* Info strip — carousel label/value styling; rows only when the field has a value */}
-      <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', position: 'relative', zIndex: 2, paddingBottom: SAFE_PX - 7 }}>
+      <div style={{ flexShrink: 0, background: 'rgba(5,5,7,0.9)', position: 'relative', zIndex: 2, paddingBottom: CONTENT_PAD - 7 }}>
         {car.color && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${SAFE_PX}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: `5px ${CONTENT_PAD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>{car.color}</span>
           </div>
         )}
         {(car.year != null || car.trim) && (
-          <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'center', padding: `7px ${SAFE_PX}px`, borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
+          <div style={{ display: 'flex', gap: SPACE_LG, alignItems: 'center', padding: `7px ${CONTENT_PAD}px`, borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
             {car.year != null && (
               <div style={{ display: 'flex', gap: 5, alignItems: 'baseline' }}>
                 <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_TEXT_SECONDARY }}>Year</span>
@@ -140,15 +144,15 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
       </div>
 
       {/* @handle — down the left edge, reading top-to-bottom (no rotate → the
-          book-spine direction), lifted into the black just under the logo so it
-          sits off the car. Cormorant italic for the "fancy" feel. */}
-      <span style={{ position: 'absolute', left: SAFE_PX, top: SAFE_PX + 60, writingMode: 'vertical-rl', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 19, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.85)', zIndex: 5 }}>
+          book-spine direction), in the black below the logo so it sits off the
+          car. Cormorant italic for the "fancy" feel. */}
+      <span style={{ position: 'absolute', left: SAFE_PX, top: SAFE_PX + 84, writingMode: 'vertical-rl', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 19, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.85)', zIndex: 5 }}>
         @{car.username}
       </span>
 
       {/* QR — deep link to this car's public garage page */}
       {qrDataUrl && (
-        <div style={{ position: 'absolute', right: SAFE_PX, bottom: SAFE_PX, zIndex: 6, background: '#ffffff', padding: 3 }}>
+        <div style={{ position: 'absolute', right: CONTENT_PAD, bottom: CONTENT_PAD, zIndex: 6, background: '#ffffff', padding: 3 }}>
           <img src={qrDataUrl} alt="" style={{ width: 52, height: 52, display: 'block' }} />
         </div>
       )}
@@ -160,10 +164,17 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
 // login/signup radial (GRADIENT_APP_BG) — deliberately NOT the flat splash bg.
 function CardBack() {
   return (
-    <div style={{ width: CARD_W, height: CARD_H, position: 'relative', overflow: 'hidden', background: GRADIENT_APP_BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    // paddingBottom lifts the badge+wordmark group off dead-center (~12px up):
+    // with the wordmark weighting the bottom, mathematical centering reads low.
+    <div style={{ width: CARD_W, height: CARD_H, position: 'relative', overflow: 'hidden', background: GRADIENT_APP_BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 24 }}>
       <img src={gBadge} alt="" style={{ width: 220, height: 'auto', display: 'block' }} />
-      <span style={{ marginTop: 6, display: 'block', fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 32, letterSpacing: '-0.085em', color: COLOR_TEXT_PRIMARY }}>
+      <span style={{ marginTop: 6, display: 'block', fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28, letterSpacing: '-0.085em', color: COLOR_TEXT_PRIMARY }}>
         G-Dimension
+      </span>
+      {/* Quiet real-world CTA — the only wayfinding on a physical card. Kept
+          generic (no username/car) so the whole deck can share one back file. */}
+      <span style={{ position: 'absolute', left: 0, right: 0, bottom: SAFE_PX + 6, textAlign: 'center', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(245,240,228,0.4)' }}>
+        gdimension.app
       </span>
     </div>
   )
