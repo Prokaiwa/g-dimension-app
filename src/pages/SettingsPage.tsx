@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import { isMusicEnabled, setMusicEnabled } from '../lib/music'
+import { downloadAccountExport } from '../lib/dataExport'
 import { useTour } from '../tour/TourContext'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
@@ -144,6 +145,7 @@ export default function SettingsPage() {
   const [eggOpen, setEggOpen] = useState(false)
   const [sound, setSound] = useState(isSoundEnabled())
   const [music, setMusic] = useState(isMusicEnabled())
+  const [exportState, setExportState] = useState<'idle' | 'working' | 'error'>('idle')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -192,6 +194,19 @@ export default function SettingsPage() {
     const on = v === 'on'
     setMusic(on)
     setMusicEnabled(on) // starts/stops the loop immediately
+  }
+
+  // Download all of the user's rows as one JSON file (client-side, read-only).
+  async function handleExport() {
+    if (exportState === 'working') return
+    setExportState('working')
+    try {
+      await downloadAccountExport()
+      setExportState('idle')
+    } catch {
+      setExportState('error')
+      setTimeout(() => setExportState('idle'), 4000)
+    }
   }
 
   // Permanently deletes the account server-side (Edge Function — needs the
@@ -290,6 +305,18 @@ export default function SettingsPage() {
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
               <NavRow label="Terms of Service" onClick={() => navigate('/terms')} />
               <NavRow label="Privacy Policy" onClick={() => navigate('/privacy')} />
+            </div>
+
+            {/* Your Data */}
+            <SectionLabel>Your Data</SectionLabel>
+            <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
+              <NavRow
+                label={exportState === 'working' ? 'Preparing your file…' : 'Download My Data'}
+                sub={exportState === 'error'
+                  ? 'Something went wrong — please try again'
+                  : 'Export all your cars, mods, records, and photo links as a JSON file'}
+                onClick={handleExport}
+              />
             </div>
 
             {/* Account */}
