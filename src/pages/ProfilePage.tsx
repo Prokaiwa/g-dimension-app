@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   getCurrentUserProfile,
+  getCachedProfile,
+  setCachedProfile,
   getProfileStats,
   profileName,
   normalizeUsername,
@@ -16,7 +18,6 @@ import {
   USERNAME_MIN_LEN,
   PROFILE_COLS,
   type UserProfile,
-  type ProfileCar,
   type ProfileStats,
 } from '../lib/userProfile'
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
@@ -73,10 +74,6 @@ function memberSince(iso: string): string {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return ''
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
-}
-
-function carSubtitle(c: ProfileCar): string {
-  return [c.year, c.make, c.model].filter(Boolean).join(' ')
 }
 
 // One headline number in the stats strip.
@@ -137,9 +134,11 @@ function CameraIcon() {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  // Seed from the in-memory profile cache so returning to this screen doesn't
+  // flash "Loading…" every time; the effect below revalidates in the background.
+  const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile())
   const [stats, setStats]     = useState<ProfileStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !getCachedProfile())
   // 'copied' flashes a small label on the share icon after a clipboard fallback
   // (native-sheet shares need no feedback — the sheet itself is the feedback).
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
@@ -174,7 +173,9 @@ export default function ProfilePage() {
       const url = await uploadAvatar(file, profile.id, profile.avatar_url)
       const { error } = await supabase.from('users').update({ avatar_url: url }).eq('id', profile.id)
       if (error) throw error
-      setProfile({ ...profile, avatar_url: url })
+      const updated = { ...profile, avatar_url: url }
+      setProfile(updated)
+      setCachedProfile(updated)
     } catch {
       setUploadError('Couldn’t update your photo — please try again.')
     } finally {
@@ -249,7 +250,7 @@ export default function ProfilePage() {
       }
       return
     }
-    if (data) setProfile(data as UserProfile)
+    if (data) { setProfile(data as UserProfile); setCachedProfile(data as UserProfile) }
     setDraft(null)
   }
 
@@ -285,7 +286,6 @@ export default function ProfilePage() {
       <style>{`
         @keyframes profileIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes profileSpin { to { transform: rotate(360deg); } }
-        .garage-scroll::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* ── Header ── */}
@@ -398,37 +398,6 @@ export default function ProfilePage() {
               <div style={{ width: 1, background: 'rgba(240,228,200,0.07)' }} />
               <Stat value={stats?.photoCount ?? 0} label="Photos" />
             </div>
-
-            {/* Garage preview */}
-            <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, margin: `${SPACE_XL}px 0 ${SPACE_SM}px` }}>Garage</p>
-            {stats && stats.cars.length === 0 ? (
-              <button onClick={() => navigate('/garage/cars')} style={{
-                width: '100%', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: SPACE_SM,
-                background: 'rgba(240,228,200,0.04)', border: '1px dashed rgba(240,228,200,0.2)', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-              }}>
-                <span style={{ color: COLOR_ACCENT, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>+</span>
-                <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: MUTED }}>Add your first car</span>
-              </button>
-            ) : (
-              <div className="garage-scroll" style={{ display: 'flex', gap: SPACE_SM, overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', margin: `0 -${SPACE_MD}px`, padding: `0 ${SPACE_MD}px` }}>
-                {(stats?.cars ?? []).map(c => (
-                  <button key={c.id} onClick={() => navigate('/garage/cars')} style={{
-                    flexShrink: 0, width: 150, background: 'rgba(240,228,200,0.04)', border: '1px solid rgba(240,228,200,0.08)',
-                    cursor: 'pointer', padding: 0, textAlign: 'left', WebkitTapHighlightColor: 'transparent',
-                  }}>
-                    <div style={{ height: 92, background: '#0c0a08', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      {c.garage_photo_url
-                        ? <img src={c.garage_photo_url} alt={c.nickname} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        : <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: FAINT }}>No photo</span>}
-                    </div>
-                    <div style={{ padding: `${SPACE_SM}px ${SPACE_SM}px ${SPACE_SM + 2}px` }}>
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nickname}</p>
-                      <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: MUTED, margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{carSubtitle(c) || '—'}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
 
             {/* Navigation */}
             <div style={{ marginTop: SPACE_XL, borderTop: '1px solid rgba(240,228,200,0.07)' }}>

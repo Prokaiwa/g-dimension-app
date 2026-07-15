@@ -6,7 +6,7 @@ import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
-import { isOnboarded } from './lib/userProfile'
+import { isOnboarded, clearProfileCache } from './lib/userProfile'
 import { initMusic, setMusicAllowed, syncMusicPrefFromServer } from './lib/music'
 import { prewarmSfx, syncSoundPrefFromServer } from './lib/sound'
 import { initUiSfx } from './lib/uiSfx'
@@ -246,7 +246,7 @@ export default function App() {
       // browser can't inherit it (localStorage is not namespaced per user).
       // Sound/music don't need the same treatment — the next sign-in's sync
       // always overwrites them (the DB columns are NOT NULL, never ambiguous).
-      if (event === 'SIGNED_OUT') clearActiveCar()
+      if (event === 'SIGNED_OUT') { clearActiveCar(); clearProfileCache() }
     })
     return () => subscription.unsubscribe()
   }, [])

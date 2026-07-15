@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
-import { getCurrentUserProfile, profileName } from '../lib/userProfile'
+import { getCurrentUserProfile, getCachedProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
 import { playConfirm } from '../lib/sound'
 import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, ICON_FEATURED } from '../lib/destinationIcons'
@@ -166,8 +166,10 @@ export default function HomePage() {
   const stageRef = useRef<HTMLDivElement>(null)
   const rafRef   = useRef<number>(0)
   const rectRef  = useRef<DOMRect | null>(null)
-  const [displayName, setDisplayName] = useState('...')
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  // Seed from the in-memory profile cache so the name/avatar don't blip through
+  // a placeholder every time you return to Home; the effect below revalidates.
+  const [displayName, setDisplayName] = useState(() => { const c = getCachedProfile(); return c ? profileName(c) : '...' })
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => { const c = getCachedProfile(); return c ? (c.avatar_url ?? '') : null })
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [_entered, setEntered] = useState(false)
   const [pressedNode, setPressedNode] = useState<string | null>(null)

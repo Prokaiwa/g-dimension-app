@@ -21,6 +21,17 @@ export type UserProfile = {
 export const PROFILE_COLS =
   'id, username, email, display_name, avatar_url, city, country, country_code, bio, subscription_status, created_at'
 
+// Cache the current user's profile in-memory so the Home header and Profile
+// screen render instantly on every navigation instead of blipping through a
+// placeholder while the query runs. Populated by getCurrentUserProfile, kept
+// fresh by setCachedProfile after an edit, and cleared on sign-out (App.tsx)
+// so the next account on this browser can't inherit it. Cleared naturally on
+// reload (same lifetime as onboardedCache below).
+let cachedProfile: UserProfile | null = null
+export function getCachedProfile(): UserProfile | null { return cachedProfile }
+export function setCachedProfile(p: UserProfile | null): void { cachedProfile = p }
+export function clearProfileCache(): void { cachedProfile = null }
+
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   const { data: auth } = await supabase.auth.getUser()
   const uid = auth?.user?.id
@@ -30,7 +41,9 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     .select(PROFILE_COLS)
     .eq('id', uid)
     .single()
-  return (data as UserProfile) ?? null
+  const p = (data as UserProfile) ?? null
+  if (p) cachedProfile = p
+  return p
 }
 
 // The name to surface in the header / avatar: the chosen display name wins,
