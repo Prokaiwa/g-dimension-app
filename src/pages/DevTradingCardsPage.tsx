@@ -85,11 +85,11 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
     <div style={{ width: CARD_W, height: CARD_H, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: GARAGE_STAGE_BASE_BG, fontFamily: FONT_UI }}>
 
       {/* Top bar — logo + model (carousel top-bar styling, inset to the safe zone) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${CONTENT_PAD}px ${CONTENT_PAD}px ${SPACE_XS}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${CONTENT_PAD}px ${CONTENT_PAD + 12}px ${SPACE_XS}px ${CONTENT_PAD}px`, flexShrink: 0, position: 'relative', zIndex: 2 }}>
         <img
           src={`/manufacturer_logos/${(car.make ?? '').toLowerCase().replace(/\s+/g, '-')}.png`}
           alt={car.make ?? ''}
-          style={{ height: 46, width: 'auto', maxWidth: '52%', objectFit: 'contain', mixBlendMode: 'screen', flexShrink: 0 }}
+          style={{ height: 44, width: 'auto', maxWidth: '50%', objectFit: 'contain', mixBlendMode: 'screen', flexShrink: 0 }}
           onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
         />
         {/* nowrap so "LS 430" stays on one line — wide wordmark logos (Lexus)
