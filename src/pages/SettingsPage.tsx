@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import { isMusicEnabled, setMusicEnabled } from '../lib/music'
 import { downloadAccountExport } from '../lib/dataExport'
+import { setCachedUnitPrefs } from '../lib/unitPrefs'
 import { useTour } from '../tour/TourContext'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
@@ -174,11 +175,13 @@ export default function SettingsPage() {
   async function update<K extends keyof UnitPrefs>(key: K, value: UnitPrefs[K]) {
     if (!uid || !prefs || prefs[key] === value) return
     const prev = prefs
-    setPrefs({ ...prefs, [key]: value })
+    const next = { ...prefs, [key]: value }
+    setPrefs(next)
+    setCachedUnitPrefs(next) // reflect on the build sheet / details immediately
     setSaving(true)
     const { error } = await supabase.from('users').update({ [key]: value }).eq('id', uid)
     setSaving(false)
-    if (error) setPrefs(prev)
+    if (error) { setPrefs(prev); setCachedUnitPrefs(prev) }
   }
 
   // Device-local — sound is a per-phone preference, not a profile column.

@@ -29,6 +29,8 @@ import { useNavigate }          from 'react-router-dom'
 import { supabase }             from '../lib/supabase'
 import { getActiveCarId }       from '../lib/activeCar'
 import { MOD_GROUPS, GROUP_PHOTO_COL } from '../lib/buildGroups'
+import { getCachedUnitPrefs } from '../lib/unitPrefs'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
 import garagePlaceholder        from '../assets/garage_placeholder.webp'
 import iconEngine      from '../assets/icons/tuning/tuning_engine.png'
 import iconDrivetrain  from '../assets/icons/tuning/tuning_drivetrain.png'
@@ -289,6 +291,7 @@ function ModList({
 
 export default function TuningBuildSheetPage() {
   const navigate = useNavigate()
+  const unitPrefs = getCachedUnitPrefs() // display units for the hp/torque stats
   const [car, setCar]           = useState<Car | null>(null)
   const [mods, setMods]         = useState<Mod[]>([])
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
@@ -582,14 +585,14 @@ export default function TuningBuildSheetPage() {
                 <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {car?.horsepower != null && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                      <CountUp value={car.horsepower} delay={350} />{' '}
-                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>hp</span>
+                      <CountUp value={Math.round(convertPower(car.horsepower, unitPrefs.power_unit))} delay={350} />{' '}
+                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{powerLabel(unitPrefs.power_unit)}</span>
                     </span>
                   )}
                   {car?.torque != null && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                      <CountUp value={car.torque} delay={450} />{' '}
-                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb-ft</span>
+                      <CountUp value={Math.round(convertTorque(car.torque, unitPrefs.torque_unit))} delay={450} />{' '}
+                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{torqueLabel(unitPrefs.torque_unit)}</span>
                     </span>
                   )}
                   {car?.weight_lbs != null && (

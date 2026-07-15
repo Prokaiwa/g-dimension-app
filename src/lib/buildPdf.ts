@@ -10,6 +10,8 @@
 
 import type { jsPDF as JsPDFClass } from 'jspdf'
 import QRCode from 'qrcode'
+import { loadUnitPrefs } from './unitPrefs'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
 
 async function qrDataUrl(text: string): Promise<string | null> {
   try {
@@ -120,6 +122,7 @@ async function imgToDataUrl(url: string): Promise<{ dataUrl: string; w: number; 
 
 // ── main generator ────────────────────────────────────────────────────────────
 export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
+  const prefs = await loadUnitPrefs() // honor the user's power/torque display units
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
   const PW = doc.internal.pageSize.getWidth()   // 210 mm
@@ -254,8 +257,8 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
   // Stats row + cosmetic summary line (mods · services · oldest date)
   const stats: { v: string; u: string }[] = []
-  if (car.horsepower != null) stats.push({ v: String(car.horsepower), u: 'HP' })
-  if (car.torque != null)     stats.push({ v: String(car.torque), u: 'LB-FT' })
+  if (car.horsepower != null) stats.push({ v: String(Math.round(convertPower(car.horsepower, prefs.power_unit))), u: powerLabel(prefs.power_unit).toUpperCase() })
+  if (car.torque != null)     stats.push({ v: String(Math.round(convertTorque(car.torque, prefs.torque_unit))), u: torqueLabel(prefs.torque_unit).toUpperCase() })
   if (car.weight_lbs != null) stats.push({ v: String(car.weight_lbs), u: 'LBS' })
   if (stats.length) {
     const sw = ID_W / stats.length

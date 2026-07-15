@@ -19,6 +19,7 @@ import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
+import { formatPower, formatTorque } from '../lib/unitPrefs'
 import {
   COLOR_CAVITY_BG,
   COLOR_HEADER_BLACK,
@@ -1270,8 +1271,8 @@ export default function GarageCarsPage() {
                     ['License Plate', d.licensePlate],
                     ['Engine', d.engineType],
                     ['Forced Induction', d.forcedInduction && d.forcedInduction !== 'none' ? (FORCED_INDUCTION_LABELS[d.forcedInduction] ?? d.forcedInduction) : ''],
-                    ['Horsepower', d.horsepower ? `${num(d.horsepower)} hp` : ''],
-                    ['Torque', d.torque ? `${num(d.torque)} lb-ft` : ''],
+                    ['Horsepower', d.horsepower ? formatPower(Number(d.horsepower)) : ''],
+                    ['Torque', d.torque ? formatTorque(Number(d.torque)) : ''],
                     ['Transmission', TRANSMISSION_LABELS[d.transmission] ?? ''],
                     ['Drivetrain', DRIVETRAIN_LABELS[d.drivetrain] ?? ''],
                     ['Oil Type', d.oilType],

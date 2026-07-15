@@ -7,6 +7,7 @@ import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded, clearProfileCache } from './lib/userProfile'
+import { loadUnitPrefs, clearUnitPrefs } from './lib/unitPrefs'
 import { initMusic, setMusicAllowed, syncMusicPrefFromServer } from './lib/music'
 import { prewarmSfx, syncSoundPrefFromServer } from './lib/sound'
 import { initUiSfx } from './lib/uiSfx'
@@ -230,6 +231,7 @@ export default function App() {
     syncActiveCarFromServer()
     syncSoundPrefFromServer()
     syncMusicPrefFromServer()
+    loadUnitPrefs()
     supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -241,12 +243,13 @@ export default function App() {
         syncActiveCarFromServer()
         syncSoundPrefFromServer()
         syncMusicPrefFromServer()
+        loadUnitPrefs()
       }, 0)
       // Drop the cached active car on sign-out so the next account on this
       // browser can't inherit it (localStorage is not namespaced per user).
       // Sound/music don't need the same treatment — the next sign-in's sync
       // always overwrites them (the DB columns are NOT NULL, never ambiguous).
-      if (event === 'SIGNED_OUT') { clearActiveCar(); clearProfileCache() }
+      if (event === 'SIGNED_OUT') { clearActiveCar(); clearProfileCache(); clearUnitPrefs() }
     })
     return () => subscription.unsubscribe()
   }, [])
