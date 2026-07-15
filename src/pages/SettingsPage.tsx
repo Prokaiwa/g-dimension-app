@@ -265,7 +265,7 @@ export default function SettingsPage() {
               Display only — your numbers are always stored in base units and converted on the fly.
             </p>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
-              <UnitRow label="Distance" sub="Mileage, odometer, service intervals" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
+              <UnitRow label="Distance" sub="Default odometer unit for new cars — each car can override on Edit Car" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
               <UnitRow label="Power" sub="Horsepower figures across your builds" value={prefs.power_unit} options={POWER_OPTS} onPick={v => update('power_unit', v)} disabled={saving} />
               <UnitRow label="Torque" sub="Torque figures across your builds" value={prefs.torque_unit} options={TORQUE_OPTS} onPick={v => update('torque_unit', v)} disabled={saving} />
             </div>

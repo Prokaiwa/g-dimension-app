@@ -12,6 +12,7 @@ import type { jsPDF as JsPDFClass } from 'jspdf'
 import QRCode from 'qrcode'
 import { loadUnitPrefs } from './unitPrefs'
 import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
+import { asMileageUnit, milesToUnit } from './mileage'
 
 async function qrDataUrl(text: string): Promise<string | null> {
   try {
@@ -39,6 +40,7 @@ export type PdfCar = {
   variant: string | null
   vin: string | null
   current_mileage: number | null
+  mileage_unit?: string | null
   horsepower: number | null
   torque: number | null
   weight_lbs: number | null
@@ -130,6 +132,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   const MX = 16                                  // outer margin
   const CW = PW - MX * 2                         // 178 mm content width
   const { car, mods, services, investment, gLogoUrl, includePricing, ownerHandle } = data
+  const mUnit = asMileageUnit(car.mileage_unit) // odometer display unit for this car
 
   const carTitle = [car.year, car.model, car.variant].filter(Boolean).join(' ') || 'Unknown Build'
   const publicUrl = ownerHandle ? `https://gdimension.app/builds/${ownerHandle}` : null
@@ -342,7 +345,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
   idRow('Model',           car.model)
   idRow('Variant / Trim',  car.variant)
   idRow('VIN',             car.vin)
-  idRow('Current Mileage', car.current_mileage != null ? car.current_mileage.toLocaleString() + ' mi' : null)
+  idRow('Current Mileage', car.current_mileage != null ? milesToUnit(car.current_mileage, mUnit).toLocaleString() + ' ' + mUnit : null)
   cy += 6
 
   // ── Modification History ──────────────────────────────────────────────────────
@@ -402,7 +405,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(m.date_installed), COL_DATE, textY)
-      doc.text(m.install_mileage != null ? m.install_mileage.toLocaleString() : '—', COL_MI, textY)
+      doc.text(m.install_mileage != null ? milesToUnit(m.install_mileage, mUnit).toLocaleString() : '—', COL_MI, textY)
       shopLines.forEach((line, li) => doc.text(line, COL_SHOP, textY + li * LINE_H))
       doc.setTextColor(...C_INK)
       titleLines.forEach((line, li) => doc.text(line, COL_TITLE, textY + li * LINE_H))
@@ -486,7 +489,7 @@ export async function generateBuildPdf(data: PdfData): Promise<JsPDFClass> {
 
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(...C_MID)
       doc.text(fmtDate(s.date_performed), COL_DATE, textY)
-      doc.text(s.mileage != null ? s.mileage.toLocaleString() : '—', COL_MI, textY)
+      doc.text(s.mileage != null ? milesToUnit(s.mileage, mUnit).toLocaleString() : '—', COL_MI, textY)
       shopLines.forEach((line, li) => doc.text(line, COL_SHOP, textY + li * LINE_H))
       doc.setTextColor(...C_INK)
       labelLines.forEach((line, li) => doc.text(line, COL_DETAIL, textY + li * LINE_H))

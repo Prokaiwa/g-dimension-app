@@ -55,7 +55,7 @@ export default function GaragePdfPage() {
       const [carRes, modsRes, , svcRes, ownerRes] = await Promise.all([
         supabase
           .from('cars')
-          .select('id,year,make,model,variant,current_mileage,horsepower,torque,weight_lbs,garage_photo_url,original_photo_url')
+          .select('id,year,make,model,variant,current_mileage,mileage_unit,horsepower,torque,weight_lbs,garage_photo_url,original_photo_url')
           .eq('id', carId).single(),
         supabase
           .from('jobs')

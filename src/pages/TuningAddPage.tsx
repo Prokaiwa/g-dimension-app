@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { asMileageUnit, unitToMiles, milesToUnit, type MileageUnit } from '../lib/mileage'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { TUNING_CATEGORIES } from './TuningBuildSheetPage'
 import { TITLE_PLACEHOLDER, TITLE_FALLBACK, brandPlaceholder } from '../lib/tuningExamples'
@@ -120,6 +121,7 @@ export default function TuningAddPage() {
     notes: '',
   })
   const [currentMileage, setCurrentMileage] = useState<number | null>(null)
+  const [mileageUnit, setMileageUnit] = useState<MileageUnit>('mi') // the car's odometer unit
   const [updateOdometer, setUpdateOdometer] = useState(true)
   const [specValues, setSpecValues]       = useState<Record<string, string>>({})
   const [multiValues, setMultiValues]     = useState<Record<string, string[]>>({})
@@ -235,8 +237,13 @@ export default function TuningAddPage() {
   useEffect(() => {
     getActiveCarId().then(id => {
       if (!id) return
-      supabase.from('cars').select('current_mileage').eq('id', id).single()
-        .then(({ data }) => { if (data) setCurrentMileage((data as { current_mileage: number | null }).current_mileage ?? null) })
+      supabase.from('cars').select('current_mileage, mileage_unit').eq('id', id).single()
+        .then(({ data }) => {
+          if (!data) return
+          const d = data as { current_mileage: number | null; mileage_unit: string | null }
+          setCurrentMileage(d.current_mileage ?? null)
+          setMileageUnit(asMileageUnit(d.mileage_unit))
+        })
     })
   }, [])
 
@@ -518,7 +525,7 @@ export default function TuningAddPage() {
         part_number:    form.partNumber.trim()  || null,
         date_installed: form.dateInstalled      || null,
         // Only include when set, so mod-adding still works before migration 038.
-        ...(!partsBinMode && form.installMileage.trim() ? { install_mileage: parseInt(form.installMileage, 10) } : {}),
+        ...(!partsBinMode && form.installMileage.trim() ? { install_mileage: unitToMiles(parseInt(form.installMileage, 10), mileageUnit) } : {}),
         parts_cost:     form.partsCost  ? parseFloat(form.partsCost)  : null,
         labor_cost:     form.laborCost  ? parseFloat(form.laborCost)  : null,
         installed_by:   form.installedBy        || null,
@@ -538,7 +545,8 @@ export default function TuningAddPage() {
     const jobId = jobData.id as string
 
     // Keep the odometer fresh from the install mileage (opt-in, only if higher).
-    const enteredMi = form.installMileage ? parseInt(form.installMileage, 10) : NaN
+    // Convert the typed value (car's unit) to base miles before comparing/storing.
+    const enteredMi = form.installMileage ? unitToMiles(parseInt(form.installMileage, 10), mileageUnit) : NaN
     if (!partsBinMode && updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
       await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
     }
@@ -582,7 +590,7 @@ export default function TuningAddPage() {
           brand:             tireForm.brand.trim() || null,
           condition:         tireForm.condition    || null,
           date_installed:    form.dateInstalled     || null,
-          ...(form.installMileage.trim() ? { install_mileage: parseInt(form.installMileage, 10) } : {}),
+          ...(form.installMileage.trim() ? { install_mileage: unitToMiles(parseInt(form.installMileage, 10), mileageUnit) } : {}),
           parts_cost:        tireForm.partsCost ? parseFloat(tireForm.partsCost) : null,
           installed_by:      form.installedBy       || null,
           status:            'installed',
@@ -1092,11 +1100,14 @@ export default function TuningAddPage() {
                       placeholder="e.g. 85000"
                       style={{ ...inp, flex: 1, caretColor: '#39ff14' }}
                     />
-                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, paddingBottom: 1 }}>mi</span>
+                    <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.32)', marginLeft: 8, paddingBottom: 1 }}>{mileageUnit}</span>
                   </div>
                   {(() => {
+                    // `entered` is in the car's unit (as typed); compare + store in
+                    // base miles so a km reading isn't mistaken for a mile reading.
                     const entered = form.installMileage ? parseInt(form.installMileage, 10) : NaN
-                    if (!Number.isFinite(entered) || entered <= (currentMileage ?? -1)) return null
+                    const enteredMi = Number.isFinite(entered) ? unitToMiles(entered, mileageUnit) : NaN
+                    if (!Number.isFinite(enteredMi) || enteredMi <= (currentMileage ?? -1)) return null
                     return (
                       <button
                         onClick={() => setUpdateOdometer(v => !v)}
@@ -1111,8 +1122,8 @@ export default function TuningAddPage() {
                           {updateOdometer && <span style={{ color: '#c8661a', fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
                         </div>
                         <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: 'rgba(245,240,228,0.5)', lineHeight: 1.4 }}>
-                          Update odometer to {entered.toLocaleString()} mi
-                          {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {currentMileage.toLocaleString()})</span>}
+                          Update odometer to {entered.toLocaleString()} {mileageUnit}
+                          {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {milesToUnit(currentMileage, mileageUnit).toLocaleString()})</span>}
                         </span>
                       </button>
                     )

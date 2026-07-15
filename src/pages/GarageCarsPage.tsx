@@ -19,7 +19,7 @@ import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
-import { formatPower, formatTorque } from '../lib/unitPrefs'
+import { formatPower, formatTorque, getCachedUnitPrefs } from '../lib/unitPrefs'
 import {
   COLOR_CAVITY_BG,
   COLOR_HEADER_BLACK,
@@ -684,7 +684,9 @@ export default function GarageCarsPage() {
 
   async function openAdd() {
     notify('add-open')
-    setStep(1); setForm(EMPTY_FORM); setSaveErr(null)
+    // Seed the odometer unit from the user's global Distance preference (the
+    // default for new cars); they can still flip it per-car below.
+    setStep(1); setForm({ ...EMPTY_FORM, mileageUnit: getCachedUnitPrefs().distance_unit }); setSaveErr(null)
     setAllMakes([]); setMakeModels([])
     setSelectedMakeId(null); setSelectedModelId(null); setShowAdd(true)
     setAddPhotoBlob(null); setAddPhotoOriginal(null); setPhotoFieldKey(k => k + 1)
