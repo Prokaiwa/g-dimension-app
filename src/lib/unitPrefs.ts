@@ -48,3 +48,23 @@ export function formatPower(hp: number, p: UnitPrefs = getCachedUnitPrefs()): st
 export function formatTorque(lbft: number, p: UnitPrefs = getCachedUnitPrefs()): string {
   return `${Math.round(convertTorque(lbft, p.torque_unit)).toLocaleString()} ${torqueLabel(p.torque_unit)}`
 }
+
+// Coerce an unknown/absent value (e.g. a pre-migration public row) to a valid
+// unit, falling back to the base unit. Used by the public /builds pages, which
+// show the OWNER's units read from public_car_profiles.
+export function powerUnitOf(unit: unknown): UnitPrefs['power_unit'] {
+  return unit === 'ps' || unit === 'kw' ? unit : 'hp'
+}
+export function torqueUnitOf(unit: unknown): UnitPrefs['torque_unit'] {
+  return unit === 'nm' ? 'nm' : 'lbft'
+}
+
+// Format in an EXPLICIT unit (not the current user's) — for public /builds pages.
+export function formatPowerIn(hp: number, unit: unknown): string {
+  const u = powerUnitOf(unit)
+  return `${Math.round(convertPower(hp, u)).toLocaleString()} ${powerLabel(u)}`
+}
+export function formatTorqueIn(lbft: number, unit: unknown): string {
+  const u = torqueUnitOf(unit)
+  return `${Math.round(convertTorque(lbft, u)).toLocaleString()} ${torqueLabel(u)}`
+}

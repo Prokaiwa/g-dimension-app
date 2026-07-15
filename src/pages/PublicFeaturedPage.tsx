@@ -32,6 +32,7 @@ interface CarData {
   featured_layout?: FeaturedLayout | null
   show_featured_publicly?: boolean | null
   is_public?: boolean | null
+  distance_unit?: string | null; power_unit?: string | null
 }
 
 interface FeaturedLayout {
@@ -352,7 +353,12 @@ export default function PublicFeaturedPage() {
       },
       modData,
       null,
-      { distance_unit: 'mi', power_unit: 'hp' },
+      // Owner's units (migration 075 exposes them on the public view) so the
+      // Featured spec reads in the units the owner authored the build in.
+      {
+        distance_unit: car.distance_unit === 'km' ? 'km' : 'mi',
+        power_unit: car.power_unit === 'ps' ? 'ps' : car.power_unit === 'kw' ? 'kw' : 'hp',
+      },
       slots,
     )
   }, [car, jobs, timelinePhotos])

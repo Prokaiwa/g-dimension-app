@@ -14,6 +14,7 @@ import { getPublicSoldCars, soldCarName, type PublicSoldCar } from '../lib/carTr
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import ArrivalFade from '../components/ArrivalFade'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
+import { formatPowerIn, formatTorqueIn } from '../lib/unitPrefs'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import iconChoose from '../assets/icons/car-carousel/choose.png'
 import iconDetails from '../assets/icons/car-carousel/details.png'
@@ -70,6 +71,8 @@ type Car = {
   forced_induction: string | null
   horsepower: number | null
   torque: number | null
+  power_unit: string | null
+  torque_unit: string | null
   transmission: string | null
   drivetrain: string | null
   purchase_date: string | null
@@ -513,7 +516,6 @@ export default function PublicGaragePage() {
         const activeGhost = !car && activeIdx >= cars.length
           ? soldCars[activeIdx - cars.length] ?? null
           : null
-        const num = (n: number | null) => n != null ? n.toLocaleString() : ''
         const identity: [string, string][] = car ? [
           ['Paint Color', car.color ?? ''],
           ['Nickname', car.nickname ?? ''],
@@ -525,8 +527,8 @@ export default function PublicGaragePage() {
           ['Chassis Code', car.chassis_code ?? ''],
           ['Engine', car.engine_type ?? ''],
           ['Forced Induction', car.forced_induction && car.forced_induction !== 'none' ? (FORCED_INDUCTION_LABELS[car.forced_induction] ?? car.forced_induction) : ''],
-          ['Horsepower', car.horsepower != null ? `${num(car.horsepower)} hp` : ''],
-          ['Torque', car.torque != null ? `${num(car.torque)} lb-ft` : ''],
+          ['Horsepower', car.horsepower != null ? formatPowerIn(car.horsepower, car.power_unit) : ''],
+          ['Torque', car.torque != null ? formatTorqueIn(car.torque, car.torque_unit) : ''],
           ['Transmission', car.transmission ? (TRANSMISSION_LABELS[car.transmission] ?? '') : ''],
           ['Drivetrain', car.drivetrain ? (DRIVETRAIN_LABELS[car.drivetrain] ?? '') : ''],
         ] : []

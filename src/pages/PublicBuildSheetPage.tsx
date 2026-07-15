@@ -17,6 +17,8 @@ import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import { MOD_GROUPS } from '../lib/buildGroups'
+import { powerUnitOf, torqueUnitOf } from '../lib/unitPrefs'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
   COLOR_BURGUNDY_M, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
@@ -37,6 +39,8 @@ type Car = {
   photo_y_offset: number | null
   horsepower: number | null
   torque: number | null
+  power_unit: string | null
+  torque_unit: string | null
   weight_lbs: number | null
   build_sheet_power_photo: string | null
   build_sheet_chassis_photo: string | null
@@ -297,7 +301,11 @@ export default function PublicBuildSheetPage() {
       // is_public = true and joins to users.username.
       const { data: cars } = await supabase
         .from('public_car_profiles')
-        .select('id, year, make, model, garage_photo_url, photo_y_offset, horsepower, torque, weight_lbs, build_sheet_power_photo, build_sheet_chassis_photo, build_sheet_exterior_photo, build_sheet_interior_photo, show_buildsheet_publicly, active_car_id')
+        // select('*') (not an explicit list) so this stays resilient to the
+        // deploy-before-migration window: power_unit/torque_unit (migration 075)
+        // are simply absent until it runs, and powerUnitOf/torqueUnitOf fall back
+        // to base units — an explicit select of a not-yet-existing column errors.
+        .select('*')
         .eq('username', username)
 
       if (!active) return
@@ -499,14 +507,14 @@ export default function PublicBuildSheetPage() {
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {car?.horsepower != null && (
                       <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                        <CountUp value={car.horsepower} delay={350} />{' '}
-                        <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>hp</span>
+                        <CountUp value={Math.round(convertPower(car.horsepower, powerUnitOf(car.power_unit)))} delay={350} />{' '}
+                        <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{powerLabel(powerUnitOf(car.power_unit))}</span>
                       </span>
                     )}
                     {car?.torque != null && (
                       <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: 'rgba(245,240,228,0.55)', lineHeight: 1.4 }}>
-                        <CountUp value={car.torque} delay={450} />{' '}
-                        <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>lb-ft</span>
+                        <CountUp value={Math.round(convertTorque(car.torque, torqueUnitOf(car.torque_unit)))} delay={450} />{' '}
+                        <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{torqueLabel(torqueUnitOf(car.torque_unit))}</span>
                       </span>
                     )}
                     {car?.weight_lbs != null && (
