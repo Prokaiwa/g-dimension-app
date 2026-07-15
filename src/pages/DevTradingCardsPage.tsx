@@ -96,9 +96,12 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
       {/* GT-style garage stage */}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <GarageStageBackdrop />
-        {/* Car — sits just above the floor line, same geometry as the carousel */}
+        {/* Car — sits just above the floor line, same geometry as the carousel.
+            Narrower than the carousel's 88% (card is portrait, not a phone
+            viewport) so it clears the safe zone on both sides and doesn't crowd
+            the model text / QR on the right. */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2 }}>
-          <div style={{ position: 'relative', width: '88%' }}>
+          <div style={{ position: 'relative', width: '80%' }}>
             {car.garage_photo_url && (
               <img
                 src={car.garage_photo_url}
@@ -136,8 +139,10 @@ function CardFront({ car, qrDataUrl }: { car: PublicCar; qrDataUrl: string | nul
         )}
       </div>
 
-      {/* @handle — vertical along the left edge, inside the safe zone */}
-      <span style={{ position: 'absolute', left: SAFE_PX, top: '50%', transform: 'translateY(-50%) rotate(180deg)', writingMode: 'vertical-rl', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.18em', color: COLOR_TEXT_SECONDARY, zIndex: 5 }}>
+      {/* @handle — down the left edge, reading top-to-bottom (no rotate → the
+          book-spine direction), lifted into the black just under the logo so it
+          sits off the car. Cormorant italic for the "fancy" feel. */}
+      <span style={{ position: 'absolute', left: SAFE_PX, top: SAFE_PX + 60, writingMode: 'vertical-rl', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 19, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.85)', zIndex: 5 }}>
         @{car.username}
       </span>
 
