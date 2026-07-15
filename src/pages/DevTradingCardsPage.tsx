@@ -170,12 +170,12 @@ function CardBack() {
     // with the wordmark weighting the bottom, mathematical centering reads low.
     <div style={{ width: CARD_W, height: CARD_H, position: 'relative', overflow: 'hidden', background: GRADIENT_APP_BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 24 }}>
       <img src={gBadge} alt="" style={{ width: 220, height: 'auto', display: 'block' }} />
-      <span style={{ marginTop: 6, display: 'block', fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28, letterSpacing: '-0.085em', color: COLOR_TEXT_PRIMARY }}>
+      <span style={{ marginTop: 6, display: 'block', fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28, letterSpacing: '-0.085em', color: COLOR_TEXT_PRIMARY, whiteSpace: 'nowrap' }}>
         G-Dimension
       </span>
       {/* Quiet real-world CTA — the only wayfinding on a physical card. Kept
           generic (no username/car) so the whole deck can share one back file. */}
-      <span style={{ position: 'absolute', left: 0, right: 0, bottom: SAFE_PX + 6, textAlign: 'center', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(245,240,228,0.4)' }}>
+      <span style={{ position: 'absolute', left: 0, right: 0, bottom: SAFE_PX + 6, textAlign: 'center', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.2em', color: 'rgba(245,240,228,0.4)' }}>
         gdimension.app
       </span>
     </div>
