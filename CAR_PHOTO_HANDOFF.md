@@ -71,11 +71,13 @@ no server, no recurring cost, **$0 at any scale**.
     `createImageBitmap`; HEIC/HEIF is decoded via the `heic-to` library, loaded
     on demand) → run the model → mask → `applyMask()` (mask becomes the alpha
     channel) → `trimToBlob()` (wipes faint matte residue, crops transparent
-    margins, outputs a transparent **PNG**).
+    margins, caps the long edge at 1200px, outputs a transparent **WebP** via
+    `encodeCutout()` — **PNG** on browsers that can't encode WebP).
   - Exports: `removeCarBackground`, `prewarmBackgroundRemoval`,
     `subscribeModelState`, `getModelStatus`, `getModelProgress`.
 - **`src/lib/carPhoto.ts`** — `uploadGaragePhoto(userId, carId, blob)` uploads
-  the PNG to the `car-photos` bucket, returns the public URL.
+  the cutout to the `car-photos` bucket (extension/contentType follow
+  `blob.type` — `.webp` or `.png`), returns the public URL.
 - **`src/components/CarPhotoUpload.tsx`** — the upload UI: a `<label>`-wrapped
   hidden file input, a branded "Preparing your garage" model-download screen,
   and a processing state. Hands the processed Blob back via `onChange`.
@@ -86,10 +88,12 @@ no server, no recurring cost, **$0 at any scale**.
 
 ### Data & deps
 
-- Cutout stored as a transparent **PNG** in the `car-photos` bucket (PUBLIC);
-  URL saved to `cars.garage_photo_url`. Path: `{userId}/{carId}/garage-{ts}.png`.
-- PNG, not JPEG: a background-removed cutout needs an alpha channel. This is the
-  one deliberate exception to the project's "always JPEG" photo rule.
+- Cutout stored as a transparent **WebP** (PNG fallback) in the `car-photos`
+  bucket (PUBLIC); URL saved to `cars.garage_photo_url`.
+  Path: `{userId}/{carId}/garage-{ts}.webp` (or `.png`). Cars uploaded before
+  2026-07 are full-res (1600px) PNGs until re-uploaded.
+- WebP/PNG, not JPEG: a background-removed cutout needs an alpha channel. This
+  is the one deliberate exception to the project's "always JPEG" photo rule.
 - Dependencies added: `@huggingface/transformers`, `heic-to`.
 - Deleted the orphaned, unrouted `src/pages/GarageCarsNewPage.tsx`.
 

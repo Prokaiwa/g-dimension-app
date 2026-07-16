@@ -234,7 +234,8 @@ export default function PublicProfilePage() {
   // the owner's real active_car_id.
   const carParam = new URLSearchParams(window.location.search).get('car')
 
-  const [state, setState] = useState<'loading' | 'ready' | 'empty'>('loading')
+  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [retryTick, setRetryTick] = useState(0)
   const [car, setCar] = useState<CarRow | null>(null)
   // Anonymous visitor? Gates the "start your own" signup CTAs (a logged-in
   // visitor already has an account — don't pitch them one).
@@ -282,7 +283,10 @@ export default function PublicProfilePage() {
       const activeId = rows[0]?.active_car_id
       const row = (carParam ? rows.find(r => r.id === carParam) : null)
         ?? rows.find(r => r.id === activeId) ?? rows[0] ?? null
-      if (error || !row) { setState('empty'); return }
+      // A backend failure is NOT "no build" — surface a retryable error so a
+      // flaky connection doesn't read as an empty/private profile.
+      if (error) { setState('error'); return }
+      if (!row) { setState('empty'); return }
 
       const [jobs, tl] = await Promise.all([
         supabase.from('jobs').select('id')
@@ -319,7 +323,7 @@ export default function PublicProfilePage() {
       setState('ready')
     })()
     return () => { cancelled = true }
-  }, [username])
+  }, [username, retryTick])
 
   const template = useMemo(
     () => TEMPLATES[Math.min(5, Math.max(1, nodes.length))] ?? TEMPLATES[1],
@@ -604,6 +608,28 @@ export default function PublicProfilePage() {
             New here? Start your own build journal →
           </button>
         )}
+      </div>
+    )}
+
+    {/* ── Error state — a failed fetch is not an empty profile; offer retry ── */}
+    {state === 'error' && introPhase === 'out' && (
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 10,
+        background: 'radial-gradient(ellipse at center, #e9ebf0 0%, #cdd2db 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 14, padding: 24, textAlign: 'center',
+      }}>
+        <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: '#2a2e36' }}>
+          Couldn't load this build
+        </div>
+        <div style={{ fontFamily: FONT_UI, fontSize: 13, color: '#717784', maxWidth: 260, lineHeight: 1.5 }}>
+          Something went wrong. Check your connection and try again.
+        </div>
+        <button onClick={() => { setState('loading'); setRetryTick(t => t + 1) }} style={{
+          marginTop: 8, padding: '9px 18px', borderRadius: 10, border: 'none',
+          background: COLOR_BRAND, color: '#f5f0ea', fontFamily: FONT_UI,
+          fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer',
+        }}>Retry</button>
       </div>
     )}
 

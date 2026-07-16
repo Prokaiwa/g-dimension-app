@@ -15,6 +15,7 @@ import {
   type IncomingTransfer, type TransferSource, type SoldCar,
 } from '../lib/carTransfers'
 import { shareLink } from '../lib/share'
+import { preloadImagesOnIdle } from '../lib/preloadImages'
 import { asMileageUnit, milesToUnit, unitToMiles } from '../lib/mileage'
 import { useTour } from '../tour/TourContext'
 import CarPhotoUpload from '../components/CarPhotoUpload'
@@ -607,6 +608,15 @@ export default function GarageCarsPage() {
   useEffect(() => {
     if (tourStep?.id === 'add-car' && cars.length > 0) jump('car-success')
   }, [tourStep, cars.length, jump])
+
+  // Idle-preload the neighbor cars' cutouts so a swipe lands on a warm image
+  // instead of racing a multi-MB PNG download.
+  useEffect(() => {
+    return preloadImagesOnIdle([
+      cars[activeIdx - 1]?.garage_photo_url,
+      cars[activeIdx + 1]?.garage_photo_url,
+    ])
+  }, [activeIdx, cars])
 
   function onCarouselScroll() {
     const el = scrollRef.current; if (!el) return

@@ -203,7 +203,8 @@ async function decodeToCanvas(file: File | Blob): Promise<HTMLCanvasElement> {
 const ALPHA_THRESHOLD = 16   // alpha at or below this counts as background
 const RESIDUE_ALPHA = 60     // wipe matte residue fainter than this
 const TRIM_PADDING = 0.015   // breathing room kept around the car, fraction of size
-const MAX_OUTPUT_EDGE = 1600 // cap the stored cutout's long edge
+const MAX_OUTPUT_EDGE = 1200 // cap the stored cutout's long edge (card shows ~200px tall; 1200 covers 3× retina + the Featured cover)
+const WEBP_QUALITY = 0.85    // lossy WebP keeps the alpha channel at a fraction of lossless PNG's bytes
 
 // Apply a single-channel foreground mask as the alpha channel of the image.
 function applyMask(canvas: HTMLCanvasElement, mask: RawImageLike): RawImageLike {
@@ -305,19 +306,31 @@ function trimToBlob(image: RawImageLike): Promise<Blob> {
   if (!outCtx) throw new Error('Canvas is unavailable')
   outCtx.drawImage(source, minX, minY, cropW, cropH, 0, 0, outW, outH)
 
-  return new Promise<Blob>((resolve, reject) => {
-    out.toBlob(
-      blob => (blob ? resolve(blob) : reject(new Error('Could not encode the image'))),
-      'image/png',
-    )
+  return encodeCutout(out)
+}
+
+// Encode the cutout as WebP-with-alpha where the browser can (typically
+// 5–10× smaller than lossless PNG for a photographic subject); browsers that
+// can't encode WebP (older Safari) hand back a PNG-typed blob from toBlob,
+// so the PNG path is the natural fallback. carPhoto.ts derives the upload
+// extension/contentType from blob.type — never assume the format here.
+function encodeCutout(out: HTMLCanvasElement): Promise<Blob> {
+  const encode = (type: string, quality?: number) =>
+    new Promise<Blob | null>(resolve => out.toBlob(b => resolve(b), type, quality))
+  return encode('image/webp', WEBP_QUALITY).then(async webp => {
+    if (webp && webp.type === 'image/webp') return webp
+    const png = await encode('image/png')
+    if (!png) throw new Error('Could not encode the image')
+    return png
   })
 }
 
 /**
  * Decode the input, remove its background, and trim it. Returns a
- * transparent PNG ready to upload.
+ * transparent WebP (or PNG where the browser can't encode WebP), ready
+ * to upload.
  *
- * The result is intentionally a PNG, not a JPEG: a cut-out car needs an
+ * The result is intentionally never a JPEG: a cut-out car needs an
  * alpha channel, which JPEG cannot store.
  */
 export async function removeCarBackground(file: File | Blob): Promise<Blob> {

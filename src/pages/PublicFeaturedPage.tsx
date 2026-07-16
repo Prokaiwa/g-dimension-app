@@ -659,7 +659,19 @@ export default function PublicFeaturedPage() {
     touchStartXRef.current = null
   }
 
-  if (loading) return <div style={{ position:'fixed', inset:0, background:'#08080a' }} />
+  if (loading) {
+    // Branded loading beat (mirrors the private FeaturedPage) instead of a
+    // bare black screen while the magazine assembles.
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#08080a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+        <style>{`@keyframes featLoadPulse{0%,100%{opacity:0.25}50%{opacity:0.9}}`}</style>
+        <div style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 30, color: '#f5f5f5', letterSpacing: '0.02em', animation: 'featLoadPulse 1.6s ease-in-out infinite' }}>
+          Featured
+        </div>
+        <div style={{ width: 34, height: 1, background: 'rgba(245,245,245,0.35)' }} />
+      </div>
+    )
+  }
   if (notFound) {
     return (
       <div style={{ position:'fixed', inset:0, background:'#08080a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>

@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, getCachedProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
+import { preloadImagesOnIdle } from '../lib/preloadImages'
 import { playConfirm } from '../lib/sound'
 import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, ICON_FEATURED } from '../lib/destinationIcons'
 import {
@@ -40,11 +41,16 @@ import type { TourNode } from '../tour/tourSteps'
 
 // Road bezier paths (390×800 viewBox) — single source for the glow line and
 // the dashed centerline of each road.
-const ROAD_GARAGE_TUNING   = 'M 228 238 C 300 250, 350 310, 300 340 C 260 370, 300 390, 293 402'
-const ROAD_GARAGE_TIMELINE = 'M 162 240 C 120 270, 60 310, 65 360 C 70 390, 90 398, 98 404'
-const ROAD_TUNING_MAINT    = 'M 296 420 C 350 460, 345 550, 310 590 C 295 610, 285 618, 272 622'
-const ROAD_TIMELINE_PHOTOS = 'M 92 420 C 72 470, 60 520, 90 570 C 105 600, 115 612, 120 622'
-const ROAD_MAINT_PHOTOS    = 'M 256 636 C 215 650, 170 645, 134 638'
+// Every endpoint sits EXACTLY on a MAP_NODE_* center (tokens/index.ts), so the
+// segments genuinely connect under the node icons. The SVG is stretched with
+// preserveAspectRatio="none" while the icons are fixed-pixel, so any gap
+// between a road end and its node center grows with viewport height — the
+// only aspect-ratio-proof join is a shared exact point.
+const ROAD_GARAGE_TUNING   = 'M 195 220 C 285 238, 350 310, 300 340 C 260 370, 302 396, 295 428'
+const ROAD_GARAGE_TIMELINE = 'M 195 220 C 125 252, 60 310, 65 360 C 70 392, 88 406, 95 428'
+const ROAD_TUNING_MAINT    = 'M 295 428 C 350 466, 345 550, 310 590 C 295 610, 283 619, 270 625'
+const ROAD_TIMELINE_PHOTOS = 'M 95 428 C 74 474, 60 520, 90 570 C 105 600, 116 616, 120 625'
+const ROAD_MAINT_PHOTOS    = 'M 270 625 C 222 650, 168 648, 120 625'
 
 // The roads form a small graph; the wandering driver dot travels it,
 // parking at each destination for a moment before picking the next leg.
@@ -192,12 +198,16 @@ export default function HomePage() {
       if (!carId) return
       supabase
         .from('cars')
-        .select('year, model, variant')
+        .select('year, model, variant, garage_photo_url')
         .eq('id', carId)
         .is('deleted_at', null)
         .single()
         .then(({ data }) => {
-          if (data) setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' '))
+          if (!data) return
+          setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' '))
+          // Warm the active car's cutout while Home idles, so the Garage
+          // carousel's first card is a cache hit on arrival.
+          preloadImagesOnIdle([data.garage_photo_url])
         })
     })
   }, [])
@@ -809,16 +819,18 @@ export default function HomePage() {
                 style={{ strokeDasharray: 1, animation: 'roadDraw 600ms ease-out 760ms both' }}/>
             </g>
 
-            {/* Road labels */}
+            {/* Road labels — these guide paths MUST mirror the ROAD_* constants
+                (rlB/rlD are reversed so the text reads left-to-right) or the
+                labels drift off the roads. */}
             <g fontFamily="Cormorant Garamond, serif" fontStyle="italic" fontSize="10.5" fontWeight="500"
                fill="rgba(20,30,42,0.58)" letterSpacing="1.2">
-              <path id="rlA" d="M 228 238 C 300 250, 350 310, 300 340 C 260 370, 300 390, 293 402" fill="none"/>
+              <path id="rlA" d={ROAD_GARAGE_TUNING} fill="none"/>
               <text><textPath href="#rlA" startOffset="18">To Tuning</textPath></text>
-              <path id="rlB" d="M 98 404 C 90 398, 70 390, 65 360 C 60 310, 120 270, 162 240" fill="none"/>
+              <path id="rlB" d="M 95 428 C 88 406, 70 392, 65 360 C 60 310, 125 252, 195 220" fill="none"/>
               <text><textPath href="#rlB" startOffset="105">To Timeline</textPath></text>
-              <path id="rlC" d="M 296 420 C 350 460, 345 550, 310 590" fill="none"/>
+              <path id="rlC" d="M 295 428 C 350 466, 345 550, 310 590" fill="none"/>
               <text><textPath href="#rlC" startOffset="30">To Maintenance</textPath></text>
-              <path id="rlD" d="M 120 622 C 115 612, 105 600, 90 570 C 60 520, 72 470, 92 420" fill="none"/>
+              <path id="rlD" d="M 120 625 C 116 616, 105 600, 90 570 C 60 520, 74 474, 95 428" fill="none"/>
               <text><textPath href="#rlD" startOffset="125">To Featured</textPath></text>
             </g>
 

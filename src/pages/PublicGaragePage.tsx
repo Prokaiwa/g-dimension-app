@@ -12,6 +12,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getPublicSoldCars, soldCarName, type PublicSoldCar } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
+import { preloadImagesOnIdle } from '../lib/preloadImages'
 import ArrivalFade from '../components/ArrivalFade'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
 import { formatPowerIn, formatTorqueIn } from '../lib/unitPrefs'
@@ -154,7 +155,8 @@ export default function PublicGaragePage() {
 
   const [cars, setCars]               = useState<Car[]>([])
   const [soldCars, setSoldCars]       = useState<PublicSoldCar[]>([])
-  const [state, setState]             = useState<'loading' | 'ready' | 'empty'>('loading')
+  const [state, setState]             = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
+  const [retryTick, setRetryTick]     = useState(0)
   const [activeIdx, setActiveIdx]     = useState(0)
   const [showHints, setShowHints]     = useState(false)
   const [showDetails, setShowDetails] = useState(false)
@@ -178,9 +180,12 @@ export default function PublicGaragePage() {
         getPublicSoldCars(username),   // sold "ghosts" — locked SOLD slides
       ])
       if (cancelled) return
+      // A backend failure is NOT "no cars" — show a retryable error instead of
+      // reading as an empty garage.
+      if (error) { setState('error'); return }
       const rows = (data as Car[] | null) ?? []
       // A profile with only sold cars (all transferred away) still has ghosts to show.
-      if (error || (rows.length === 0 && ghosts.length === 0)) { setState('empty'); return }
+      if (rows.length === 0 && ghosts.length === 0) { setState('empty'); return }
       // Move the target car (visitor-selected or owner's active) to position 0.
       const activeId = (rows[0] as Car | undefined)?.active_car_id ?? null
       const targetId = carParam ?? activeId ?? rows[0]?.id
@@ -194,13 +199,22 @@ export default function PublicGaragePage() {
       if (ordered.length + ghosts.length > 1) setShowHints(true)
     })()
     return () => { cancelled = true }
-  }, [username, carParam])
+  }, [username, carParam, retryTick])
 
   useEffect(() => {
     if (!showHints) return
     const t = setTimeout(() => setShowHints(false), 3200)
     return () => clearTimeout(t)
   }, [showHints])
+
+  // Idle-preload the neighbor cars' cutouts so a swipe lands on a warm image
+  // (mirrors the private Garage carousel).
+  useEffect(() => {
+    return preloadImagesOnIdle([
+      cars[activeIdx - 1]?.garage_photo_url,
+      cars[activeIdx + 1]?.garage_photo_url,
+    ])
+  }, [activeIdx, cars])
 
   function onCarouselScroll() {
     const el = scrollRef.current; if (!el) return
@@ -257,6 +271,14 @@ export default function PublicGaragePage() {
         <style>{`@keyframes pubgspin{to{transform:rotate(360deg)}}`}</style>
         {state === 'loading' ? (
           <div style={{ width: 30, height: 30, borderRadius: '50%', border: '2.5px solid rgba(245,245,245,0.12)', borderTopColor: COLOR_BURGUNDY_M, animation: 'pubgspin 750ms linear infinite' }} />
+        ) : state === 'error' ? (
+          <>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: 'rgba(245,245,245,0.85)' }}>Couldn't load this garage</div>
+            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,245,245,0.45)', maxWidth: 260, lineHeight: 1.5 }}>
+              Something went wrong. Check your connection and try again.
+            </div>
+            <button onClick={() => { setState('loading'); setRetryTick(t => t + 1) }} style={{ marginTop: 8, padding: '9px 18px', borderRadius: 10, border: 'none', background: COLOR_BURGUNDY_M, color: '#f5f0ea', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer' }}>Retry</button>
+          </>
         ) : (
           <>
             <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 17, color: 'rgba(245,245,245,0.85)' }}>No cars to show</div>

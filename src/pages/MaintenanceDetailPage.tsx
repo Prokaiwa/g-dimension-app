@@ -128,6 +128,18 @@ export default function MaintenanceDetailPage() {
 
       {/* ── Session list ── */}
       <div style={{ position: 'relative', zIndex: 5, flex: 1, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)` }}>
+        {loading && (
+          <>
+            <style>{`@keyframes mDetSkel{0%,100%{opacity:0.45}50%{opacity:1}}`}</style>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: i % 2 === 0 ? 'rgba(138,176,200,0.06)' : 'rgba(6,16,26,0.10)', borderBottom: '1px solid rgba(138,176,200,0.05)', padding: '15px 16px', animation: 'mDetSkel 1.2s ease-in-out infinite', animationDelay: `${i * 140}ms` }}>
+                <div style={{ width: 62, height: 9, background: 'rgba(138,176,200,0.18)' }} />
+                <div style={{ flex: 1, height: 9, background: 'rgba(245,245,245,0.07)' }} />
+                <div style={{ width: 36, height: 9, background: 'rgba(245,245,245,0.05)' }} />
+              </div>
+            ))}
+          </>
+        )}
         {!loading && sessions.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 13, color: 'rgba(138,176,200,0.35)', letterSpacing: '0.06em' }}>No detail sessions yet</div>
         )}

@@ -129,6 +129,18 @@ export default function MaintenanceServicePage() {
 
       {/* ── Session list ── */}
       <div style={{ position: 'relative', zIndex: 5, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)` }}>
+        {loading && (
+          <>
+            <style>{`@keyframes mSvcSkel{0%,100%{opacity:0.45}50%{opacity:1}}`}</style>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: i % 2 === 0 ? 'rgba(212,184,106,0.05)' : 'rgba(14,18,24,0.10)', borderBottom: '1px solid rgba(212,184,106,0.05)', padding: '15px 16px', animation: 'mSvcSkel 1.2s ease-in-out infinite', animationDelay: `${i * 140}ms` }}>
+                <div style={{ width: 62, height: 9, background: 'rgba(212,184,106,0.16)' }} />
+                <div style={{ flex: 1, height: 9, background: 'rgba(245,245,245,0.07)' }} />
+                <div style={{ width: 36, height: 9, background: 'rgba(245,245,245,0.05)' }} />
+              </div>
+            ))}
+          </>
+        )}
         {!loading && sessions.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 13, color: 'rgba(212,184,106,0.30)', letterSpacing: '0.06em' }}>No service records yet</div>
         )}

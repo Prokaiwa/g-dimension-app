@@ -43,11 +43,11 @@ const TYPE_META: Record<EntryType, { label: string; color: string }> = {
 }
 
 // Supabase photo that fades in on load (matches the CarStage idiom).
-function FadeImg({ src, style, onLoaded }: { src: string; style?: React.CSSProperties; onLoaded?: () => void }) {
+function FadeImg({ src, style, onLoaded, lazy }: { src: string; style?: React.CSSProperties; onLoaded?: () => void; lazy?: boolean }) {
   const [loaded, setLoaded] = useState(false)
   return (
     <img
-      src={src} alt="" aria-hidden decoding="async"
+      src={src} alt="" aria-hidden decoding="async" loading={lazy ? 'lazy' : undefined}
       onLoad={() => { setLoaded(true); onLoaded?.() }}
       style={{ ...style, opacity: loaded ? 1 : 0, transition: 'opacity 200ms ease' }}
     />
@@ -307,7 +307,7 @@ export default function EntryDetailPage() {
           >
             <div style={{ display: 'flex', height: '100%', transform: `translateX(-${photoIndex * 100}%)`, transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)' }}>
               {photos.map((src, i) => (
-                <FadeImg key={i} src={src} style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }} />
+                <FadeImg key={i} src={src} lazy={i > 0} style={{ width: '100%', height: '100%', flexShrink: 0, objectFit: 'cover', display: 'block' }} />
               ))}
             </div>
           </div>
@@ -417,7 +417,7 @@ export default function EntryDetailPage() {
                   }}>
                   {ytId ? (
                     <div style={{ width: 72, height: 41, flexShrink: 0, borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                      <img src={getYouTubeThumbnail(ytId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <img src={getYouTubeThumbnail(ytId)} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)' }}>
                         <svg width="11" height="13" viewBox="0 0 10 12" fill="none"><path d="M0 0L10 6L0 12V0Z" fill="#fff" fillOpacity="0.9" /></svg>
                       </div>

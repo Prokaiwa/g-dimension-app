@@ -307,6 +307,8 @@ export default function PublicDiyPage() {
                           <img
                             src={ph.photo_url}
                             alt={ph.caption ?? ''}
+                            loading="lazy"
+                            decoding="async"
                             onClick={() => setLightbox({ src: ph.photo_url, caption: ph.caption })}
                             style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
                           />

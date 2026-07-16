@@ -4,8 +4,9 @@ import { supabase } from './supabase'
 const BUCKET = 'car-photos'
 
 // Original car photo is stored as a JPEG (the project's standard photo rule).
-// Only garage_photo_url (the background-removed cutout) is a PNG, because a
-// cutout needs an alpha channel — the original does not.
+// Only garage_photo_url (the background-removed cutout) carries an alpha
+// channel — WebP where the browser can encode it, PNG otherwise; the
+// original does not need alpha.
 const ORIGINAL_COMPRESSION = {
   maxSizeMB: 1,
   maxWidthOrHeight: 1920,
@@ -25,10 +26,13 @@ export async function uploadGaragePhoto(
   carId: string,
   blob: Blob,
 ): Promise<string> {
-  const path = `${userId}/${carId}/garage-${Date.now()}.png`
+  // The cutout is WebP-with-alpha where the browser could encode it, PNG
+  // otherwise (see encodeCutout in backgroundRemoval.ts) — follow the blob.
+  const ext = blob.type === 'image/webp' ? 'webp' : 'png'
+  const path = `${userId}/${carId}/garage-${Date.now()}.${ext}`
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, blob, { contentType: 'image/png', cacheControl: '31536000' })
+    .upload(path, blob, { contentType: blob.type || 'image/png', cacheControl: '31536000' })
   if (error) throw error
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }

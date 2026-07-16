@@ -189,9 +189,12 @@ export const HEADER_WEDGE_RIGHT = 'M 390 0 L 230 0 L 210 44 L 390 44 Z';
 export const HEADER_HEIGHT      = 44;
 
 // Home map destination coordinates (center-anchored via translate(-50%,-50%)) — Part 10
+// The ROAD_* bezier endpoints in HomePage.tsx must terminate EXACTLY at these
+// centers — the map SVG stretches non-uniformly, so any offset becomes a
+// visible road break on tall screens.
 export const MAP_NODE_HOME        = { left: 195, top: 220 };
-export const MAP_NODE_TUNING      = { left: 295, top: 428 }; // nudged down to sit over the road ends
-export const MAP_NODE_TIMELINE    = { left: 95,  top: 428 }; // nudged down to sit over the road ends
+export const MAP_NODE_TUNING      = { left: 295, top: 428 };
+export const MAP_NODE_TIMELINE    = { left: 95,  top: 428 };
 export const MAP_NODE_MAINTENANCE = { left: 270, top: 625 };
 export const MAP_NODE_PHOTOS      = { left: 120, top: 625 };
 

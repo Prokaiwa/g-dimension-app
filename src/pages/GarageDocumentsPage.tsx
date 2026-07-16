@@ -1212,7 +1212,7 @@ export default function GarageDocumentsPage() {
                       >
                         {detailImages.map((im, i) => (
                           <div key={i} style={{ width: '100%', flexShrink: 0, minHeight: 200, maxHeight: '50vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <img src={im.url} alt="" draggable={false} style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
+                            <img src={im.url} alt="" draggable={false} loading={i === 0 ? undefined : 'lazy'} decoding="async" style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
                           </div>
                         ))}
                       </div>
@@ -1517,7 +1517,7 @@ export default function GarageDocumentsPage() {
                 {extraPhotos.filter(p => !removedExtraIds.includes(p.id)).map(p => (
                   <div key={p.id} style={{ position: 'relative', width: 72, height: 72 }}>
                     {p.signedUrl
-                      ? <img src={p.signedUrl} alt="" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
+                      ? <img src={p.signedUrl} alt="" loading="lazy" decoding="async" style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }} />
                       : <div style={{ width: 72, height: 72, background: 'rgba(240,228,200,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontFamily: FONT_UI, fontSize: 9, color: DIM }}>IMG</span></div>
                     }
                     <button onClick={() => setRemovedExtraIds(prev => [...prev, p.id])} style={{ position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.7)', border: 'none', color: '#f5f5f5', fontSize: 14, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
