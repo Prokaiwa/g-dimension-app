@@ -138,10 +138,23 @@ If the dispute is not resolved informally, you and [OPERATOR ENTITY] agree that 
 
 ---
 
-## Owner action checklist (nothing below can be done from code)
+## Legal launch checklist (sequenced)
 
-1. **Register a DMCA designated agent** — https://dmca.copyright.gov/ ($6, renew every 3 years). Then have a lawyer review Appendix A and add it to `TermsPage.tsx` (new `<LegalSection heading="Copyright Complaints (DMCA)">` block; the section components are in `src/components/LegalLayout.tsx`).
-2. **Attorney review of Appendix B** (arbitration/class waiver), including choice of arbitral body, seat, fees, opt-out window, and EU/UK consumer carve-outs — then add to `TermsPage.tsx` and bump `effectiveDate` in `src/lib/legalMeta.ts`.
-3. **Confirm the operating entity + governing law** in `src/lib/legalMeta.ts` before launch (existing CLAUDE.md launch item).
-4. **Export a 2× header logo** (~76×72 PNG) from the design source and swap the base64 in `marketing.html` (see M3).
-5. After this deploy, **re-run PageSpeed Insights** on https://gdimension.app to confirm the FCP/LCP and reflow wins, and to get a fresh long-task profile for M5/D2.
+Do these in order — the DMCA track is cheap and high-value; the arbitration track is deferrable. **None of this is legal advice; the review steps are where a qualified attorney signs off.**
+
+### Track 1 — DMCA safe harbor (do now, ~$6)
+1. **Register the designated agent** at https://dmca.copyright.gov/ — create an account (Designated Agent Directory, *not* copyright registration), register the Service Provider "G-Dimension", and designate an agent with a real monitored email (`hi@gdimension.app` is sufficient; a dedicated `dmca@` alias is optional). Pay $6. **Set a 3-year renewal reminder** — the safe harbor lapses if registration expires.
+2. **Lawyer-review Appendix A**, then paste the final text into `TermsPage.tsx` as a new `<LegalSection heading="Copyright Complaints (DMCA)">` block (components in `src/components/LegalLayout.tsx`). The agent contact in the ToS **must match** the directory registration.
+3. Bump `effectiveDate` in `src/lib/legalMeta.ts` when the ToS changes.
+
+### Track 2 — Arbitration / class waiver (defer until real traction)
+4. This is the higher-stakes, jurisdiction-sensitive clause and the one that can backfire if drafted wrong — **safe to launch without it.** When ready, have an attorney review Appendix B (choice of arbitral body, seat, fees, opt-out window, EU/UK consumer carve-outs), then add it to `TermsPage.tsx` and bump `effectiveDate`.
+
+### Track 3 — Entity + review (bundle into the same lawyer pass)
+5. **Confirm the operating entity + governing law** in `src/lib/legalMeta.ts` (`operator` is currently the individual "David Scantee"; existing CLAUDE.md launch item). Ideally get the whole ToS + Privacy Policy reviewed in the same sitting as Appendix A.
+
+## Owner action checklist (non-legal, nothing below can be done from code)
+
+1. ✅ **2× header logo** — done this session (76×72 export swapped into `marketing.html`, see M2/M3).
+2. ✅ **PageSpeed re-run** — done: performance 80 → **94**, SEO 100, agent-driven browsing 3/3. Remaining points are the deferred D1/D2 items (marginal).
+3. **(Optional follow-up)** Recompress the ~154 KB of inline destination-icon base64 (lossless oxipng or WebP data URIs) if you want the last few performance points — see D2. Needs visual QA on the transparent edges.
