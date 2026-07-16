@@ -1366,6 +1366,16 @@ function showMsg(el, text, type) {
   if (!surface) return;
   var tX=0,tY=0,cX=0,cY=0,ready=false;
 
+  // Measure BEFORE the entry-animation style writes below: reading layout
+  // (getBoundingClientRect) right after a style write forces a synchronous
+  // reflow (PageSpeed flagged ~610ms here). The .world-stage element is also
+  // cached once instead of re-queried on every resize.
+  var stage = document.querySelector('.world-stage');
+  var rect = null;
+  function updRect(){ rect = stage.getBoundingClientRect(); }
+  updRect();
+  window.addEventListener('resize', updRect, {passive:true});
+
   // Entry animation
   surface.style.opacity = '0';
   surface.style.transform = 'rotateX(6deg) scale(0.96)';
@@ -1377,11 +1387,6 @@ function showMsg(el, text, type) {
       setTimeout(function(){ surface.style.transition = ''; ready = true; }, 960);
     });
   });
-
-  var rect = null;
-  function updRect(){ rect = document.querySelector('.world-stage').getBoundingClientRect(); }
-  updRect();
-  window.addEventListener('resize', updRect, {passive:true});
 
   document.addEventListener('mousemove', function(e){
     if (!rect) updRect();

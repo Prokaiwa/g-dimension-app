@@ -12,6 +12,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { computeCspReport } from './csp-hashes.mjs'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const SRC = join(ROOT, 'src')
@@ -184,6 +185,27 @@ section('Migration discipline')
     `migration numbers contiguous 001–${String(max).padStart(3, '0')} (028 excepted)`,
     holes.length === 0,
     `missing numbers: ${holes.join(', ')} — numbering gaps make the applied-migration watermark ambiguous`
+  )
+}
+
+// ---------------------------------------------------------------------------
+section('CSP inline-script hashes')
+{
+  // Every executable inline <script> in index.html / public/marketing.html is
+  // allowlisted in vercel.json's script-src BY SHA-256 HASH. A mismatch means
+  // production silently blocks the script while dev keeps working — this
+  // exact failure shipped once before (CLAUDE.md CSP note). Run
+  // `node scripts/csp-hashes.mjs` to print the hash to paste into vercel.json.
+  const { missing, orphans } = computeCspReport()
+  check(
+    'every inline script hash present in vercel.json script-src',
+    missing.length === 0,
+    `missing: ${missing.map((s) => `${s.file} script #${s.index} → '${s.hash}'`).join('; ')}`
+  )
+  check(
+    'no orphan sha256 hashes in vercel.json script-src',
+    orphans.length === 0,
+    `stale entries (no matching inline script): ${orphans.join(', ')} — remove them or restore the script they hashed`
   )
 }
 
