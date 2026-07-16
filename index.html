@@ -97,13 +97,29 @@
       })()
     </script>
 
-    <!-- Google Fonts — Part 4 -->
+    <!-- Preconnect to Supabase — the first data fetch (auth session check) hits
+         this origin on every boot; warming DNS+TLS here shaves that round-trip. -->
+    <link rel="preconnect" href="https://uxqoernfrtgclpneirvc.supabase.co" />
+
+    <!-- Google Fonts — Part 4. Loaded async (media=print → all on load) so the
+         CSS never blocks first paint; font-display:swap in the CSS handles the
+         swap-in. The onload attribute is allowed by CSP (script-src-attr
+         'unsafe-inline' in vercel.json) and is NOT part of the inline-script
+         hash allowlist — no hash recompute needed for this tag. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Caveat:wght@400;500;600;700&family=Permanent+Marker&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Caveat:wght@400;500;600;700&family=Permanent+Marker&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>

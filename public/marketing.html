@@ -56,10 +56,17 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-<!-- ═══ FONTS ═══ -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- ═══ FONTS — self-hosted (latin subset, variable weight) ═══
+     Both families are served from /fonts/ as variable woff2 files (one file
+     covers every weight this page uses), declared via @font-face at the top of
+     the <style> block below. This removes the render-blocking
+     fonts.googleapis.com CSS request and the fonts.gstatic.com round-trip from
+     the critical path (~1.8s on PageSpeed). The @font-face rules keep Google's
+     original latin unicode-range + font-display:swap, so rendering is identical.
+     NOTE: the SPA (index.html) still uses Google Fonts (async) — these two files
+     only serve this static marketing page. -->
+<link rel="preload" href="/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/cormorant-garamond-italic-latin.woff2" as="font" type="font/woff2" crossorigin>
 
 <!-- ═══ SCHEMA.ORG STRUCTURED DATA ═══
      JSON-LD is a data block, not executable script, so it is NOT governed by the
@@ -116,6 +123,25 @@
 </script>
 
 <style>
+
+/* Self-hosted variable fonts (see FONTS comment in <head>). Weight ranges cover
+   everything this page uses: Hanken 400-900, Cormorant italic 400-600. */
+@font-face {
+  font-family: 'Hanken Grotesk';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url(/fonts/hanken-grotesk-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: italic;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url(/fonts/cormorant-garamond-italic-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
   --brand:        #780E12;
