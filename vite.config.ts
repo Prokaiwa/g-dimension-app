@@ -33,6 +33,9 @@ export default defineConfig({
         // Precache only the light app shell + icons — never the heavy chunks
         // (transformers, heic-to, jspdf) so install stays fast.
         globPatterns: ['**/*.{css,ico,svg,woff2,webmanifest}', 'index.html'],
+        // public/fonts/ holds the self-hosted marketing-page fonts; the SW
+        // never serves marketing.html, so keep them out of the app precache.
+        globIgnores: ['fonts/**'],
         maximumFileSizeToCacheInBytes: 600 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
