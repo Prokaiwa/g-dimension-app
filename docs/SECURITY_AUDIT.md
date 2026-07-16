@@ -143,9 +143,9 @@ If the dispute is not resolved informally, you and [OPERATOR ENTITY] agree that 
 Do these in order — the DMCA track is cheap and high-value; the arbitration track is deferrable. **None of this is legal advice; the review steps are where a qualified attorney signs off.**
 
 ### Track 1 — DMCA safe harbor (do now, ~$6)
-1. **Register the designated agent** at https://dmca.copyright.gov/ — create an account (Designated Agent Directory, *not* copyright registration), register the Service Provider "G-Dimension", and designate an agent with a real monitored email (`hi@gdimension.app` is sufficient; a dedicated `dmca@` alias is optional). Pay $6. **Set a 3-year renewal reminder** — the safe harbor lapses if registration expires.
-2. **Lawyer-review Appendix A**, then paste the final text into `TermsPage.tsx` as a new `<LegalSection heading="Copyright Complaints (DMCA)">` block (components in `src/components/LegalLayout.tsx`). The agent contact in the ToS **must match** the directory registration.
-3. Bump `effectiveDate` in `src/lib/legalMeta.ts` when the ToS changes.
+1. ✅ **Designated agent registered** (2026-07-16) at https://dmca.copyright.gov/ — Service Provider "G-Dimension", agent David Scantee, email `hi@gdimension.app`. **⏰ Set a 3-year renewal reminder (before 2029-07)** — the safe harbor lapses if registration expires.
+2. ⏳ **Add Appendix A to the live ToS** — a "Copyright complaints (DMCA)" `<LegalSection>` in `TermsPage.tsx`, facts in `src/lib/legalMeta.ts`, agent contact **matching the directory registration** (name + registered mailing address + `hi@gdimension.app`). Ships as the drafted text so the takedown process is published; **lawyer review of the wording remains recommended.**
+3. ⏳ Bump `effectiveDate` in `src/lib/legalMeta.ts` when the DMCA section lands.
 
 ### Track 2 — Arbitration / class waiver (defer until real traction)
 4. This is the higher-stakes, jurisdiction-sensitive clause and the one that can backfire if drafted wrong — **safe to launch without it.** When ready, have an attorney review Appendix B (choice of arbitral body, seat, fees, opt-out window, EU/UK consumer carve-outs), then add it to `TermsPage.tsx` and bump `effectiveDate`.
