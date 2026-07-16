@@ -39,9 +39,9 @@
   |---|---|---|---|---|
   | `.h-signup` "Sign Up" chip (10px text) | `#fff` on `#c8661a` | 3.91:1 ✗ | `#050507` on `#c8661a` | 5.21:1 ✓ |
   | `.faq-eyebrow` "Questions" | `#3f3f46` | 1.95:1 ✗ | `#8a8a8c` | 5.91:1 ✓ |
-  | `.catchphrase` "Build it. Log it. Own it." | `rgba(240,228,200,.5)` | 4.45:1 ✗ | alpha `.62` | ≥6.5:1 ✓ |
+  | `.catchphrase` "Build it. Log it. Own it." | `rgba(240,228,200,.5)` | 4.45:1 ✗ | alpha `.62` | 6.35:1 ✓ |
   | `.cta-login-line` body | `#3f3f46` | 1.95:1 ✗ | `#8a8a8c` | 5.91:1 ✓ |
-  | `.cta-login-line a` "Log in" | `#8a8a8c` | 4.4:1 (borderline, on form-strip bg) | `#c8661a` accent (with underline already present) | 5.21:1 ✓ |
+  | `.cta-login-line a` "Log in" | `#8a8a8c` | 4.4:1 (borderline, on form-strip bg) | `--text-primary` `#f5f5f5` (hover stays accent) | 18.68:1 ✓ |
   | `.footer-brand` wordmark | `#fff` at opacity `.28` | 2.34:1 ✗ | opacity `.55` | 6.30:1 ✓ |
   | `.legal` Terms/Privacy/© links | `#181820` | **1.15:1** ✗ (near-invisible) | `#8a8a8c` | 5.91:1 ✓ |
   | `.ig` "@gdimensionapp" link | `#3f3f46` | 1.95:1 ✗ | `#8a8a8c` | 5.91:1 ✓ |
