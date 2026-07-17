@@ -202,6 +202,13 @@ export default function FeaturedPage() {
   const [timelinePhotos, setTimelinePhotos] = useState<{id: string; photo_url: string; title: string | null}[]>([])
   const [userUnits, setUserUnits] = useState<{ distance_unit: 'mi'|'km'; power_unit: 'hp'|'ps'|'kw' }>({ distance_unit: 'mi', power_unit: 'hp' })
   const [loading, setLoading] = useState(true)
+  // Splash lifecycle: the "Featured" masthead beat holds for a minimum time
+  // (so it never blips past even when the data is cache-fast), then its text
+  // softly fades before the magazine is revealed under its own ArrivalFade —
+  // a continuous dark handoff rather than a hard cut.
+  const [splashMinDone, setSplashMinDone] = useState(false)
+  const [splashFading, setSplashFading]   = useState(false)
+  const [splashGone, setSplashGone]       = useState(false)
   const [coverIdx, setCoverIdx] = useState(0)
   const [pageIdx, setPageIdx]   = useState(0) // 0=cover
   const [isTurning, setIsTurning] = useState(false)
@@ -443,6 +450,18 @@ export default function FeaturedPage() {
     })()
     return () => { alive = false }
   }, [])
+
+  // Splash: hold for a minimum beat, then fade its text and reveal the magazine.
+  useEffect(() => {
+    const t = setTimeout(() => setSplashMinDone(true), 1300)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    if (loading || !splashMinDone || splashFading) return
+    setSplashFading(true)                                   // text fades over 500ms
+    const t = setTimeout(() => setSplashGone(true), 560)    // then hand off to the magazine
+    return () => clearTimeout(t)
+  }, [loading, splashMinDone, splashFading])
 
   // ── derived: seed from car.id so renames never reshuffle the issue ─────────────
   const seed       = useMemo(() => seedFrom(car?.id ?? ''), [car?.id])
@@ -1385,16 +1404,20 @@ export default function FeaturedPage() {
     touchStartXRef.current = null
   }
 
-  if (loading) {
-    // Branded loading beat instead of a bare black screen — the magazine takes
-    // a moment to assemble (car row + photos + layout), so say so.
+  // Branded splash: shows while loading AND until the min beat + fade complete.
+  // The dark bg stays fully opaque the whole time (a solid dark field), and only
+  // the wordmark fades out — so the handoff to the magazine's ArrivalFade (also
+  // dark) is a seamless dark cross-fade, never a hard blip.
+  if (!splashGone) {
     return (
-      <div style={{ position: 'fixed', inset: 0, background: '#08080a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#08080a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
         <style>{`@keyframes featLoadPulse{0%,100%{opacity:0.25}50%{opacity:0.9}}`}</style>
-        <div style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 30, color: '#f5f5f5', letterSpacing: '0.02em', animation: 'featLoadPulse 1.6s ease-in-out infinite' }}>
-          Featured
+        <div style={{ opacity: splashFading ? 0 : 1, transition: 'opacity 500ms ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 30, color: '#f5f5f5', letterSpacing: '0.02em', animation: 'featLoadPulse 1.6s ease-in-out infinite' }}>
+            Featured
+          </div>
+          <div style={{ width: 34, height: 1, background: 'rgba(245,245,245,0.35)' }} />
         </div>
-        <div style={{ width: 34, height: 1, background: 'rgba(245,245,245,0.35)' }} />
       </div>
     )
   }

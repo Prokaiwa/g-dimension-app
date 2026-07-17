@@ -15,21 +15,21 @@ export default function PartsBoxOpen() {
   return (
     <>
       <style>{`
-        @keyframes partsBoxLeft  { 0%,21% { transform: translateX(0); } 100% { transform: translateX(-101%); } }
-        @keyframes partsBoxRight { 0%,21% { transform: translateX(0); } 100% { transform: translateX(101%); } }
+        @keyframes partsBoxLeft  { 0%,18% { transform: translateX(0); } 100% { transform: translateX(-101%); } }
+        @keyframes partsBoxRight { 0%,18% { transform: translateX(0); } 100% { transform: translateX(101%); } }
       `}</style>
       <div style={{ position: 'fixed', inset: 0, zIndex: 95, pointerEvents: 'none', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', top: 0, bottom: 0, left: 0, width: '50.6%',
           background: 'linear-gradient(90deg, #0a0806 0%, #0a0806 86%, #170f08 100%)',
           boxShadow: 'inset -1px 0 0 rgba(200,140,70,0.16), 6px 0 18px rgba(0,0,0,0.5)',
-          animation: 'partsBoxLeft 620ms cubic-bezier(0.22,1,0.36,1) both',
+          animation: 'partsBoxLeft 780ms cubic-bezier(0.22,1,0.36,1) both',
         }} />
         <div style={{
           position: 'absolute', top: 0, bottom: 0, right: 0, width: '50.6%',
           background: 'linear-gradient(270deg, #0a0806 0%, #0a0806 86%, #170f08 100%)',
           boxShadow: 'inset 1px 0 0 rgba(200,140,70,0.16), -6px 0 18px rgba(0,0,0,0.5)',
-          animation: 'partsBoxRight 620ms cubic-bezier(0.22,1,0.36,1) both',
+          animation: 'partsBoxRight 780ms cubic-bezier(0.22,1,0.36,1) both',
         }} />
       </div>
     </>
