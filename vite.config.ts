@@ -1,6 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
+
+// Source-map upload to Sentry (build-time only). Turns the minified stack
+// traces in the Sentry dashboard back into real file:line frames from our
+// source. Fully OPT-IN via the SENTRY_AUTH_TOKEN env var — set it in Vercel's
+// Production env (org:ci-scoped token), and it's absent locally, so local and
+// token-less CI builds behave exactly as before (no upload, no source maps
+// emitted). The `release` here must match the one errorTracking.ts sends
+// (Vercel's commit SHA) so Sentry can pair the maps to incoming events.
+const SENTRY_AUTH_TOKEN = process.env.SENTRY_AUTH_TOKEN
+const SENTRY_RELEASE = process.env.VITE_VERCEL_GIT_COMMIT_SHA
+const sentryEnabled = !!SENTRY_AUTH_TOKEN
 
 // PWA / service worker.
 // Goal: make gdimension.app installable ("Add to Home Screen" -> real app icon,
@@ -22,6 +34,13 @@ import { VitePWA } from 'vite-plugin-pwa'
 //                              (hashed chunk names mean a new deploy requests new
 //                              URLs, so StaleWhileRevalidate never serves stale JS).
 export default defineConfig({
+  // `hidden` emits source maps but writes NO `//# sourceMappingURL=` comment
+  // into the shipped JS, so browsers never fetch them and they aren't publicly
+  // referenced — the Sentry plugin uploads them privately and (by default)
+  // deletes them from dist after upload, so our source never reaches the CDN.
+  // Only emit them when we're actually going to upload, to avoid the extra
+  // build work otherwise.
+  build: sentryEnabled ? { sourcemap: 'hidden' } : {},
   plugins: [
     react(),
     VitePWA({
@@ -90,5 +109,19 @@ export default defineConfig({
       },
       devOptions: { enabled: false },
     }),
+    // Keep last so it sees the final emitted bundle + maps. No-op unless the
+    // auth token is set (see note above).
+    ...(sentryEnabled
+      ? [sentryVitePlugin({
+          org: 'g-dimension',
+          project: 'javascript-react',
+          authToken: SENTRY_AUTH_TOKEN,
+          release: SENTRY_RELEASE ? { name: SENTRY_RELEASE } : undefined,
+          // Belt-and-suspenders: strip any emitted .map files from dist after
+          // upload so they can never ship to the CDN (hidden maps aren't
+          // referenced, but this guarantees they're gone).
+          sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+        })]
+      : []),
   ],
 })
