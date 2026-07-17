@@ -164,7 +164,7 @@ The `cars.garage_photo_url` comment in `004_cars.sql` ("Remove.bg pipeline") is 
 | `receipts` | **PRIVATE** | receipts.file_url — financial records |
 | `car-documents` | **PRIVATE** | car_documents.file_url — VINs, registration, insurance |
 
-For private buckets use `supabase.storage.from('receipts').createSignedUrl(path, 60)`. Never `getPublicUrl()`.
+For private buckets use `supabase.storage.from('receipts').createSignedUrl(path, SIGNED_URL_TTL)` (the shared 1-hour TTL from `src/lib/signedUrls.ts` — 300s used to expire mid-session and show broken images). Never `getPublicUrl()`.
 
 ---
 

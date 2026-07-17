@@ -42,11 +42,19 @@ export default function ErrorBanner() {
       const r = e.reason
       push(`Unhandled: ${r instanceof Error ? r.message : String(r)}`)
     }
+    // Explicitly-reported action failures (failed saves/deletes) — see
+    // reportActionError in lib/appError.ts.
+    const onAction = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      push(typeof detail === 'string' && detail ? detail : 'Something went wrong')
+    }
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
+    window.addEventListener('gdim-action-error', onAction)
     return () => {
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
+      window.removeEventListener('gdim-action-error', onAction)
     }
   }, [])
 

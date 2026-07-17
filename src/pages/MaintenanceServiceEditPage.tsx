@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import gIcon from '../assets/logo/gdimensionG.webp'
 import imageCompression from 'browser-image-compression'
@@ -164,7 +165,7 @@ export default function MaintenanceServiceEditPage() {
       if (r) {
         const rows = r as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]
         const withUrls = await Promise.all(rows.map(async row => {
-          const { data } = await supabase.storage.from('receipts').createSignedUrl(row.file_url, 300)
+          const { data } = await supabase.storage.from('receipts').createSignedUrl(row.file_url, SIGNED_URL_TTL)
           return { ...row, url: data?.signedUrl ?? null }
         }))
         setExistingReceipts(withUrls)

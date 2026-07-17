@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { reportActionError } from '../lib/appError'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
@@ -236,12 +237,15 @@ export default function GarageRemindersPage() {
       const { data, error } = await supabase
         .from('car_reminders').update(payload).eq('id', draft.id)
         .select('id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id').single()
-      if (!error && data) setReminders(prev => prev.map(r => (r.id === draft.id ? (data as Reminder) : r)))
+      // On failure keep the sheet open so the typed data isn't lost.
+      if (error || !data) { reportActionError("Couldn't save the reminder", error); setSaving(false); return }
+      setReminders(prev => prev.map(r => (r.id === draft.id ? (data as Reminder) : r)))
     } else {
       const { data, error } = await supabase
         .from('car_reminders').insert({ ...payload, car_id: carId })
         .select('id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id').single()
-      if (!error && data) setReminders(prev => [...prev, data as Reminder])
+      if (error || !data) { reportActionError("Couldn't save the reminder", error); setSaving(false); return }
+      setReminders(prev => [...prev, data as Reminder])
     }
     setSaving(false)
     setDraft(null)
@@ -250,15 +254,21 @@ export default function GarageRemindersPage() {
   async function toggleComplete(r: Reminder) {
     const next = !r.is_complete
     const completed_at = next ? new Date().toISOString() : null
+    // Optimistic flip; revert if the write fails.
     setReminders(prev => prev.map(x => (x.id === r.id ? { ...x, is_complete: next, completed_at } : x)))
-    await supabase.from('car_reminders').update({ is_complete: next, completed_at }).eq('id', r.id)
+    const { error } = await supabase.from('car_reminders').update({ is_complete: next, completed_at }).eq('id', r.id)
+    if (error) {
+      reportActionError("Couldn't update the reminder", error)
+      setReminders(prev => prev.map(x => (x.id === r.id ? { ...x, is_complete: r.is_complete, completed_at: r.completed_at } : x)))
+    }
   }
 
   async function remove() {
     if (!draft?.id) return
     setSaving(true)
     const { error } = await supabase.from('car_reminders').delete().eq('id', draft.id)
-    if (!error) setReminders(prev => prev.filter(r => r.id !== draft.id))
+    if (error) { reportActionError("Couldn't delete the reminder", error); setSaving(false); return }
+    setReminders(prev => prev.filter(r => r.id !== draft.id))
     setSaving(false)
     setDraft(null)
   }

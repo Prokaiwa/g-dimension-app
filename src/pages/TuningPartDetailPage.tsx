@@ -2,7 +2,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { getActiveCarId } from '../lib/activeCar'
+import { reportActionError } from '../lib/appError'
 import {
   FONT_HANDWRITTEN, FONT_STAMP, FONT_UI,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
@@ -220,7 +222,7 @@ export default function TuningPartDetailPage() {
         .order('created_at', { ascending: true })
       if (receiptData && (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).length > 0) {
         const paths = (receiptData as { id: string; file_url: string; file_type: 'image' | 'pdf'; file_name: string | null }[]).map(r => r.file_url)
-        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, SIGNED_URL_TTL)
         const urlMap: Record<string, string> = {}
         if (signed) {
           for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {
@@ -238,7 +240,8 @@ export default function TuningPartDetailPage() {
   const handleInstall = async () => {
     if (!partId) return
     setActioning(true)
-    await supabase.from('jobs').update({ status: 'installed', date_removed: null }).eq('id', partId)
+    const { error } = await supabase.from('jobs').update({ status: 'installed', date_removed: null }).eq('id', partId)
+    if (error) { reportActionError("Couldn't install the part", error); setActioning(false); return }
     navigate('/tuning/build-sheet')
   }
 
@@ -260,23 +263,26 @@ export default function TuningPartDetailPage() {
   const handleMoveBack = async () => {
     if (!partId) return
     setActioning(true)
-    await supabase.from('jobs').update({
+    const { error } = await supabase.from('jobs').update({
       status: 'removed', still_owned: true, sale_price: null, sale_date: null,
     }).eq('id', partId)
+    if (error) { reportActionError("Couldn't move the part back", error); setActioning(false); return }
     navigate('/tuning/parts-bin')
   }
 
   const handleMarkPurchased = async () => {
     if (!partId) return
     setActioning(true)
-    await supabase.from('jobs').update({ status: 'purchased', still_owned: true }).eq('id', partId)
+    const { error } = await supabase.from('jobs').update({ status: 'purchased', still_owned: true }).eq('id', partId)
+    if (error) { reportActionError("Couldn't update the part", error); setActioning(false); return }
     navigate('/tuning/parts-bin')
   }
 
   const handleRemoveFromWishlist = async () => {
     if (!partId) return
     setActioning(true)
-    await supabase.from('jobs').delete().eq('id', partId)
+    const { error } = await supabase.from('jobs').delete().eq('id', partId)
+    if (error) { reportActionError("Couldn't remove the part", error); setActioning(false); return }
     navigate('/tuning/parts-bin')
   }
 

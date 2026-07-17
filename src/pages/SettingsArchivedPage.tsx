@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { reportActionError } from '../lib/appError'
 import {
   getArchivedSoldCars, unarchiveSoldCar, soldCarName, type SoldCar,
 } from '../lib/carTransfers'
@@ -117,14 +118,16 @@ export default function SettingsArchivedPage() {
   async function restoreGhost(g: SoldCar) {
     setBusyId(g.id)
     const res = await unarchiveSoldCar(g.id)
-    if (res.ok) setGhosts(list => list.filter(x => x.id !== g.id))
+    if (!res.ok) reportActionError("Couldn't restore the sold car")
+    else setGhosts(list => list.filter(x => x.id !== g.id))
     setBusyId(null)
   }
 
   async function restoreDeleted(c: DeletedCar) {
     setBusyId(c.id)
     const { error } = await supabase.from('cars').update({ deleted_at: null }).eq('id', c.id)
-    if (!error) setDeleted(list => list.filter(x => x.id !== c.id))
+    if (error) reportActionError("Couldn't restore the car", error)
+    else setDeleted(list => list.filter(x => x.id !== c.id))
     setBusyId(null)
   }
 

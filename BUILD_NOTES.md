@@ -10,18 +10,18 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 1. **Error observability (Sentry)** — `ErrorBanner` is device-local; add Sentry free tier so crashes surface without friends having to report them. Wire into `App.tsx` before anything else.
 2. **Empty states** — walk every section as a brand-new user (no car, no mods, no timeline). Each screen should look intentional when empty, not just blank.
 3. **Safe area insets** — audit fixed headers/footers for `env(safe-area-inset-top/bottom)`. Notch + home indicator on newer iPhones clip content that isn't padded.
-4. **Account deletion** — "Delete my account" in Settings (Edge Function → wipes user data + calls `supabase.auth.admin.deleteUser`). Required even pre-payment.
-5. **Public profile end-to-end** — test `/builds/:username` as a logged-out visitor on mobile. Often silently broken.
-6. **Onboarding walkthrough** — video-game style first-run guide directing new users through adding a car → first mod → first service. Triggered by `users.username_set` becoming true (already in schema).
-7. **UI sounds** — new sounds for home-map node taps and key actions (save, delete confirm, etc.). Extend `src/lib/sound.ts`.
-8. **Security audit** — thorough review of RLS policies, storage bucket policies, Edge Function auth, and any client-side secrets.
+4. ~~**Account deletion**~~ ✅ DONE — "Delete my account" in Settings (`SettingsPage.tsx` + the `delete-account` Edge Function; skips transferred-car storage folders per migration 072).
+5. **Public profile end-to-end** — test `/builds/:username` as a logged-out visitor on mobile. (2026-07-17: backend errors on the public landing + garage now show a retryable error state instead of reading as "empty" — retest after that.)
+6. ~~**Onboarding walkthrough**~~ ✅ DONE — guided home-map tour (`src/tour/`, migration 062 `users.tutorial_seen`; "Replay App Tour" in Settings).
+7. ~~**UI sounds**~~ ✅ DONE — GT-style synthesized sounds (`src/lib/sound.ts`, account-synced via migrations 068/069, audition board at `/sound-test`).
+8. ~~**Security audit**~~ ✅ DONE — see `docs/SECURITY_AUDIT.md` (2026-07; column-level anon grants in 071, `car_private` split in 061 came out of it).
 9. **Inconsistency check** — cross-file audit: token usage, shared component props, route links, category/group mapping sync (`CATEGORY_TO_GROUP` in two files).
 10. **Dead code / file cleanup** — unused imports, unreferenced assets, stale routes.
 11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
 
 ### Known lower-priority items
 - WASM background-removal bundle is ~24MB — measure first-load on mobile data
-- Signed URL expiry mid-session (currently 300s on receipts/documents — may need extending or refresh logic)
+- ~~Signed URL expiry mid-session~~ ✅ FIXED (2026-07-17) — all receipts/car-documents signing now uses the shared `SIGNED_URL_TTL` (1 hour) from `src/lib/signedUrls.ts` (was 300s, which broke images on sheets left open >5 min)
 - Multi-car stress test: 3+ cars in the carousel
 
 ---
@@ -214,8 +214,8 @@ Selling a car you loved shouldn't erase it. After a transfer, a car persists in 
 - **Install-from-Parts-Bin flow** — no flow yet to install a part directly from the Parts Bin into the build.
 - **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
 - **YouTube in-app playback** — currently `window.open`. When the PWA becomes a native Capacitor app, replace with `<iframe>` embed or a native video player. The DB schema supports this with no changes.
-- **Unit conversion display** — `users.distance_unit`, `power_unit`, `torque_unit` columns exist but display conversion is not wired up on all screens.
+- ~~**Unit conversion display**~~ ✅ MOSTLY DONE (2026-07) — `src/lib/unitPrefs.ts` (`formatPower`/`formatTorque` + cached prefs) wired on the private carousel/details and the public pages (owner's units via migration 075); per-car mileage unit via 063 (`src/lib/mileage.ts`). Remaining: sweep any stray hardcoded "hp"/"lb-ft" labels on lesser screens.
 - **Detailing log list visual treatment** — `MaintenanceDetailPage` still minimal; "watery feel" TBD with owner.
-- **"Download my data" JSON export** (user-requested) — Settings button that exports the account's rows (cars/jobs/sessions/timeline/etc.) + photo URLs as JSON. Cheap trust-builder answering "what if the app goes away". (Full offline-first sync is a separate, much larger architecture project — revisit at native-app time.)
+- ~~**"Download my data" JSON export**~~ ✅ DONE (2026-07) — Settings → "Download My Data" (`src/lib/dataExport.ts`). Full offline-first sync remains a separate future project.
 - **Recurring service intervals** (user-requested; replaces the "import manufacturer schedules" idea — OEM schedule data is a licensing/scraping minefield) — `car_reminders` is one-shot only today (`due_date`/`due_mileage` + `is_complete`, no recurrence). Add an interval concept (every N mi / N months, auto-regenerate on complete), then later community-shared templates per model.
 - **Social layer (parked — Phase 7 in MASTER_ARCHITECTURE Part 29)** — groups, meets, events; "forums beautified, GT vibe". Needs its own dedicated design session (data model, moderation, location privacy) before any code.

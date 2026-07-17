@@ -6,6 +6,7 @@ const DAY_LABEL   = String(_now.getDate())
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import gLogo from '../assets/logo/gdimensionG.webp'
 import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
@@ -117,7 +118,7 @@ export default function MaintenanceSessionDetailPage() {
   async function loadReceiptUrls(rcpts: ReceiptRow[]) {
     const urls: Record<string, string> = {}
     await Promise.all(rcpts.map(async r => {
-      const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url, 300)
+      const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url, SIGNED_URL_TTL)
       if (data?.signedUrl) urls[r.id] = data.signedUrl
     }))
     setReceiptUrls(urls)

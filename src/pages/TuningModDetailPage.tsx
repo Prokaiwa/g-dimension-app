@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { getActiveCarId } from '../lib/activeCar'
 import { CATEGORY_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
@@ -183,7 +184,7 @@ export default function TuningModDetailPage() {
         .order('created_at', { ascending: true })
       if (receiptData && receiptData.length > 0) {
         const paths = receiptData.map((r: { file_url: string }) => r.file_url)
-        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, 300)
+        const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(paths, SIGNED_URL_TTL)
         const urlMap: Record<string, string> = {}
         if (signed) {
           for (const s of signed as { path: string; signedUrl: string | null; error: string | null }[]) {

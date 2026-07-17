@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { reportActionError } from '../lib/appError'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
@@ -202,10 +203,13 @@ export default function GarageContactsPage() {
     const SEL = 'id, label, name, phone, email, website, social, notes, display_order'
     if (draft.id) {
       const { data, error } = await supabase.from('user_contacts').update(payload).eq('id', draft.id).select(SEL).single()
-      if (!error && data) setContacts(prev => prev.map(c => (c.id === draft.id ? (data as Contact) : c)))
+      // On failure keep the sheet open so the typed data isn't lost.
+      if (error || !data) { reportActionError("Couldn't save the contact", error); setSaving(false); return }
+      setContacts(prev => prev.map(c => (c.id === draft.id ? (data as Contact) : c)))
     } else {
       const { data, error } = await supabase.from('user_contacts').insert({ ...payload, user_id: userId, display_order: contacts.length }).select(SEL).single()
-      if (!error && data) setContacts(prev => [...prev, data as Contact])
+      if (error || !data) { reportActionError("Couldn't save the contact", error); setSaving(false); return }
+      setContacts(prev => [...prev, data as Contact])
     }
     setSaving(false)
     setDraft(null)
@@ -215,7 +219,8 @@ export default function GarageContactsPage() {
     if (!draft?.id) return
     setSaving(true)
     const { error } = await supabase.from('user_contacts').delete().eq('id', draft.id)
-    if (!error) setContacts(prev => prev.filter(c => c.id !== draft.id))
+    if (error) { reportActionError("Couldn't delete the contact", error); setSaving(false); return }
+    setContacts(prev => prev.filter(c => c.id !== draft.id))
     setSaving(false)
     setDraft(null)
   }

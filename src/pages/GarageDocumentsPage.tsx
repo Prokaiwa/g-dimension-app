@@ -16,6 +16,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
+import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { getActiveCarId } from '../lib/activeCar'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
@@ -284,7 +285,7 @@ export default function GarageDocumentsPage() {
       const paths = imageRows.map(d => d.file_url as string)
       const { data: signedList } = await supabase.storage
         .from('car-documents')
-        .createSignedUrls(paths, 600)
+        .createSignedUrls(paths, SIGNED_URL_TTL)
       if (signedList) {
         for (const item of signedList) {
           if (!item.signedUrl) continue
@@ -389,14 +390,14 @@ export default function GarageDocumentsPage() {
         const imgPaths = imageRcpts.map(r => r.file_url!)
         const imgs: { url: string }[] = []
         if (imgPaths.length > 0) {
-          const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(imgPaths, 300)
+          const { data: signed } = await supabase.storage.from('receipts').createSignedUrls(imgPaths, SIGNED_URL_TTL)
           for (const s of signed ?? []) if (s.signedUrl) imgs.push({ url: s.signedUrl })
           if (imgs[0]) setDetailSignedUrl(imgs[0].url)
         }
         const pdfSigned: { url: string; name: string | null }[] = []
         if (pdfRcpts.length > 0) {
           await Promise.all(pdfRcpts.map(async r => {
-            const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url!, 300)
+            const { data } = await supabase.storage.from('receipts').createSignedUrl(r.file_url!, SIGNED_URL_TTL)
             if (data?.signedUrl) pdfSigned.push({ url: data.signedUrl, name: r.file_name })
           }))
           if (!imgs.length && pdfSigned[0]) setDetailSignedUrl(pdfSigned[0].url)
@@ -415,13 +416,13 @@ export default function GarageDocumentsPage() {
     setDetailUrlLoading(true)
     ;(async () => {
       if (fileType === 'pdf') {
-        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 300)
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL)
         setDetailUrlLoading(false)
         if (data?.signedUrl) setDetailSignedUrl(data.signedUrl)
         return
       }
       // Image: sign primary + any car_document_photos extras
-      const primaryPromise = supabase.storage.from(bucket).createSignedUrl(path, 300)
+      const primaryPromise = supabase.storage.from(bucket).createSignedUrl(path, SIGNED_URL_TTL)
       const extrasPromise = detailItem.kind === 'doc'
         ? supabase.from('car_document_photos').select('id, file_url, file_type').eq('document_id', detailItem.doc.id).order('display_order').order('created_at')
         : Promise.resolve({ data: [] as { id: string; file_url: string; file_type: string | null }[] })
@@ -431,7 +432,7 @@ export default function GarageDocumentsPage() {
       if (pData?.signedUrl) { setDetailSignedUrl(pData.signedUrl); imgs.push({ url: pData.signedUrl }) }
       const imagePaths = (extraRows ?? []).filter(r => r.file_type === 'image' && r.file_url).map(r => r.file_url)
       if (imagePaths.length > 0) {
-        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(imagePaths, 300)
+        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(imagePaths, SIGNED_URL_TTL)
         for (const s of signed ?? []) if (s.signedUrl) imgs.push({ url: s.signedUrl })
       }
       setDetailImages(imgs)
@@ -514,7 +515,7 @@ export default function GarageDocumentsPage() {
       .then(async ({ data: rows }) => {
         if (!rows?.length) return
         const paths = rows.map(r => r.file_url as string)
-        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(paths, 300)
+        const { data: signed } = await supabase.storage.from('car-documents').createSignedUrls(paths, SIGNED_URL_TTL)
         const photos = rows.map((r, i) => ({ id: r.id as string, file_url: r.file_url as string, signedUrl: signed?.[i]?.signedUrl ?? undefined }))
         setExtraPhotos(photos)
       })

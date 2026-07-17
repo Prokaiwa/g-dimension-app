@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { reportActionError } from '../lib/appError'
 import { CATEGORY_TO_GROUP as CAT_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import ArrivalFade from '../components/ArrivalFade'
 import {
@@ -462,7 +463,8 @@ export default function FeaturedPage() {
     if (car) {
       const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), template: TEMPLATES[nextIdx].id }
       supabase.from('cars').update({ featured_layout: nextLayout }).eq('id', car.id).then(({ error }) => {
-        if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
+        if (error) { reportActionError("Couldn't save the cover template", error); return }
+        setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
       })
     }
   }
@@ -476,7 +478,8 @@ export default function FeaturedPage() {
     if (car && nextMode) {
       const nextLayout: FeaturedLayout = { ...(car.featured_layout ?? {}), cover_photo_mode: nextMode }
       supabase.from('cars').update({ featured_layout: nextLayout }).eq('id', car.id).then(({ error }) => {
-        if (!error) setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
+        if (error) { reportActionError("Couldn't save the cover photo choice", error); return }
+        setCar(prev => prev ? { ...prev, featured_layout: nextLayout } : prev)
       })
     }
   }
