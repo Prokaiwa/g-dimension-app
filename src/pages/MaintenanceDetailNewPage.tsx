@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import imageCompression from 'browser-image-compression'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { reportActionError } from '../lib/appError'
 import { getActiveCarId } from '../lib/activeCar'
 import { asMileageUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
@@ -198,7 +199,8 @@ export default function MaintenanceDetailNewPage() {
   }
 
   async function handleSave() {
-    if (saving || !carId) return
+    if (saving) return
+    if (!carId) { reportActionError('No active car — add a car in My Cars first, then save this detail session'); return }
     setSaving(true)
 
     const { data: session, error } = await supabase.from('sessions').insert({
@@ -216,7 +218,7 @@ export default function MaintenanceDetailNewPage() {
       journal_entry: timelineStory.trim() || null,
     }).select('id').single()
 
-    if (error || !session) { setSaving(false); return }
+    if (error || !session) { reportActionError("Couldn't save the detail session", error); setSaving(false); return }
 
     const sid = (session as { id: string }).id
     const jobRows = [

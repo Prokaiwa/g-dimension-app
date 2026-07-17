@@ -465,10 +465,10 @@ export default function TuningAddPage() {
     setSaving(true)
     setSaveErr(null)
     const carId = await getActiveCarId()
-    if (!carId) { setSaving(false); return }
+    if (!carId) { setSaveErr('No active car — add a car in My Cars first, then save this mod.'); setSaving(false); return }
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
-    if (!userId) { setSaving(false); return }
+    if (!userId) { setSaveErr("You're signed out — sign in again, then save this mod."); setSaving(false); return }
 
     const today = new Date().toISOString().split('T')[0]
 

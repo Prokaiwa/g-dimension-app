@@ -3,6 +3,7 @@ const TODAY = new Date().toISOString().split('T')[0]
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { reportActionError } from '../lib/appError'
 import { getActiveCarId } from '../lib/activeCar'
 import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import gIcon from '../assets/logo/gdimensionG.webp'
@@ -125,7 +126,8 @@ export default function MaintenanceServiceNewPage() {
   }
 
   async function handleSave() {
-    if (saving || !carId) return
+    if (saving) return
+    if (!carId) { reportActionError('No active car — add a car in My Cars first, then save this service'); return }
     setSaving(true)
     const { data: session, error } = await supabase.from('sessions').insert({
       car_id: carId, type: 'maintenance',
@@ -140,7 +142,7 @@ export default function MaintenanceServiceNewPage() {
       timeline_title: timelineTitle.trim() || null,
       journal_entry: timelineStory.trim() || null,
     }).select('id').single()
-    if (error || !session) { setSaving(false); return }
+    if (error || !session) { reportActionError("Couldn't save the service session", error); setSaving(false); return }
     // Keep the odometer fresh from the logged mileage (opt-in, only if higher).
     const enteredMi = mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : NaN
     if (updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
@@ -155,7 +157,7 @@ export default function MaintenanceServiceNewPage() {
         cost: j.cost ? parseFloat(j.cost) : null,
         status: 'installed',
       })))
-      if (jobsError) { console.error('Jobs insert error:', jobsError); setSaving(false); return }
+      if (jobsError) { reportActionError("Couldn't save the service items", jobsError); setSaving(false); return }
     }
     if (pendingReceipts.length > 0) {
       const { data: authData } = await supabase.auth.getUser()
