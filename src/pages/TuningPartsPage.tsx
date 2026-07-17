@@ -1,5 +1,6 @@
 // Route: /tuning/parts-bin — Owned, not installed
 import { kraftLayers } from '../lib/kraft'
+import PartsBoxOpen from '../components/PartsBoxOpen'
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -128,6 +129,9 @@ export default function TuningPartsPage() {
       background: COLOR_CARDBOARD_BG,
       position: 'relative',
     }}>
+
+      {/* "Open the box" entry transition — signature for the Parts Bin island */}
+      <PartsBoxOpen />
 
       {/* Real kraft paper photo — fixed like a desk surface under the scrolling
           content (vertical ribbing is genuine; the old CSS corrugation lines are
