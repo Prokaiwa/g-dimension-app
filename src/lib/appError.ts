@@ -7,6 +7,8 @@
 //
 // The action string should be human-readable and specific ("Couldn't delete
 // the reminder"); the raw error detail is appended for the testing phase.
+import { captureHandledError } from './errorTracking'
+
 export function reportActionError(action: string, error?: unknown): void {
   const detail =
     error instanceof Error ? error.message
@@ -16,4 +18,7 @@ export function reportActionError(action: string, error?: unknown): void {
   window.dispatchEvent(new CustomEvent('gdim-action-error', {
     detail: detail ? `${action} — ${detail}` : action,
   }))
+  // Mirror to Sentry — a failed save on a tester's phone should be visible
+  // remotely, not only in their on-device banner.
+  captureHandledError(action, error)
 }

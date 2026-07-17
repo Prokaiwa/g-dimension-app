@@ -10,6 +10,7 @@ import { isOnboarded, clearProfileCache } from './lib/userProfile'
 import { loadUnitPrefs, clearUnitPrefs } from './lib/unitPrefs'
 import { initMusic, setMusicAllowed, syncMusicPrefFromServer } from './lib/music'
 import { prewarmSfx, syncSoundPrefFromServer } from './lib/sound'
+import { setErrorTrackingUser } from './lib/errorTracking'
 import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
 import { Analytics } from '@vercel/analytics/react'
@@ -232,10 +233,16 @@ export default function App() {
     syncSoundPrefFromServer()
     syncMusicPrefFromServer()
     loadUnitPrefs()
-    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session))
+    supabase.auth.getSession().then(({ data }) => {
+      setHasSession(!!data.session)
+      setErrorTrackingUser(data.session?.user.id ?? null)
+    })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setHasSession(!!session)
+      // Tag Sentry events with the user id (no Supabase query — deadlock-safe
+      // to call inline here).
+      setErrorTrackingUser(session?.user.id ?? null)
       // Defer out of the callback — these query Supabase, which needs the auth
       // lock this callback is still holding (see the note in useAuthGate).
       // Calling them inline can deadlock.
