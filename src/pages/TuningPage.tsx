@@ -12,8 +12,8 @@ import { preloadImagesOnIdle } from '../lib/preloadImages'
 import { KRAFT_BG_URL } from '../lib/kraft'
 import ArrivalFade from '../components/ArrivalFade'
 import tuningHero     from '../assets/backgrounds/tuning_hero.webp'
-import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
-import iconPartsBin   from '../assets/icons/tuning-dashboard/tuning_partsbin.png'
+import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.webp'
+import iconPartsBin   from '../assets/icons/tuning-dashboard/tuning_partsbin.webp'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,

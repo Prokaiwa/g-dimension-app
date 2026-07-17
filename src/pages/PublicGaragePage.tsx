@@ -17,8 +17,8 @@ import ArrivalFade from '../components/ArrivalFade'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
 import { formatPowerIn, formatTorqueIn } from '../lib/unitPrefs'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
-import iconChoose from '../assets/icons/car-carousel/choose.png'
-import iconDetails from '../assets/icons/car-carousel/details.png'
+import iconChoose from '../assets/icons/car-carousel/choose.webp'
+import iconDetails from '../assets/icons/car-carousel/details.webp'
 import {
   COLOR_CAVITY_BG,
   COLOR_HEADER_BLACK,

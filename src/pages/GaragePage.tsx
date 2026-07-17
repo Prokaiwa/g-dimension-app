@@ -12,12 +12,12 @@ import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import { useTour } from '../tour/TourContext'
 import ArrivalFade from '../components/ArrivalFade'
 import garageHero    from '../assets/backgrounds/garage_hero.webp'
-import iconMyCars    from '../assets/icons/garage/my_cars.png'
-import iconSnapshot  from '../assets/icons/garage/snapshot.png'
-import iconBuildPdf  from '../assets/icons/garage/buildpdf.png'
-import iconDocs      from '../assets/icons/garage/docs.png'
-import iconContacts  from '../assets/icons/garage/contacts.png'
-import iconReminders from '../assets/icons/garage/reminders.png'
+import iconMyCars    from '../assets/icons/garage/my_cars.webp'
+import iconSnapshot  from '../assets/icons/garage/snapshot.webp'
+import iconBuildPdf  from '../assets/icons/garage/buildpdf.webp'
+import iconDocs      from '../assets/icons/garage/docs.webp'
+import iconContacts  from '../assets/icons/garage/contacts.webp'
+import iconReminders from '../assets/icons/garage/reminders.webp'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,

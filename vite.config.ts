@@ -105,6 +105,26 @@ export default defineConfig({
               expiration: { maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 },
             },
           },
+          {
+            // Same-origin app images — bundled UI icons (hashed /assets/*) and
+            // the public manufacturer logos (/manufacturer_logos/*). Before this
+            // rule, images fell through to plain browser HTTP cache, which iOS
+            // standalone-PWA mode evicts aggressively, so icons/backgrounds
+            // visibly re-fetched on every launch. CacheFirst means each image is
+            // fetched once, then served from disk instantly forever (offline
+            // too). Scoped to sameOrigin so cross-origin Supabase user photos are
+            // NOT swept in here (they keep their own handling + shorter life).
+            // Hashed /assets/ images are immutable; the fixed-path public logos
+            // are effectively static, so staleness within maxAgeSeconds is fine.
+            urlPattern: ({ request, sameOrigin }) =>
+              sameOrigin && request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gdim-images',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 24 * 60 * 60 },
+            },
+          },
         ],
       },
       devOptions: { enabled: false },

@@ -8,8 +8,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import ArrivalFade from '../components/ArrivalFade'
-import iconService    from '../assets/icons/maintenance/service.png'
-import iconDetail     from '../assets/icons/maintenance/maintenance_detail.png'
+import iconService    from '../assets/icons/maintenance/service.webp'
+import iconDetail     from '../assets/icons/maintenance/maintenance_detail.webp'
 import maintenanceHero from '../assets/backgrounds/maintenance_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
