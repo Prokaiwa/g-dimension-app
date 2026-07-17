@@ -1,4 +1,5 @@
 // Route: /tuning/parts-bin — Owned, not installed
+import kraftBg from '../assets/backgrounds/kraft.webp'
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -125,22 +126,23 @@ export default function TuningPartsPage() {
     <div style={{
       minHeight: '100dvh',
       background: COLOR_CARDBOARD_BG,
-      backgroundImage: [
-        // Horizontal corrugation — primary structure
-        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
-        // Vertical cross-layer — very faint, suggests cardboard internal structure
-        `repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(100,60,20,0.028) 18px, rgba(100,60,20,0.028) 19px)`,
-        // Edge vignette
-        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.28) 100%)`,
-      ].join(', '),
       position: 'relative',
     }}>
 
-      {/* Kraft paper grain */}
+      {/* Real kraft paper photo — fixed like a desk surface under the scrolling
+          content (vertical ribbing is genuine; the old CSS corrugation lines are
+          gone). Vignette layered on top of the photo in the same paint. */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.28) 100%), url(${kraftBg})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }} />
+
+      {/* Kraft paper grain — kept faint on top of the photo for retina crispness */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1,
         backgroundImage: NOISE_SVG, backgroundSize: '180px 180px',
-        opacity: 0.09, mixBlendMode: 'multiply',
+        opacity: 0.05, mixBlendMode: 'multiply',
       }} />
 
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 100 }}>

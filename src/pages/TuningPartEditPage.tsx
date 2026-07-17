@@ -1,4 +1,5 @@
 // Route: /tuning/parts-bin/:partId/edit
+import kraftBg from '../assets/backgrounds/kraft.webp'
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
@@ -496,18 +497,21 @@ export default function TuningPartEditPage() {
     <div style={{
       minHeight: '100dvh',
       background: COLOR_CARDBOARD_BG,
-      backgroundImage: [
-        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
-        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
-      ].join(', '),
       position: 'relative',
     }}>
 
       {/* Placeholder color injection */}
       <style>{`.kraft-input::placeholder { color: rgba(26,16,8,0.35); }`}</style>
 
-      {/* Kraft grain */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.09, mixBlendMode: 'multiply' }} />
+      {/* Real kraft paper photo — fixed desk-surface layer (see TuningPartsPage) */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%), url(${kraftBg})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }} />
+
+      {/* Kraft grain — kept faint on top of the photo for retina crispness */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.05, mixBlendMode: 'multiply' }} />
 
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 120 }}>
 

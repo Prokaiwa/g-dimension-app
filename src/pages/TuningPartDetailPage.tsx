@@ -1,4 +1,5 @@
 // Route: /tuning/parts-bin/:partId — Part detail from Parts Bin
+import kraftBg from '../assets/backgrounds/kraft.webp'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -330,16 +331,19 @@ export default function TuningPartDetailPage() {
     <div style={{
       minHeight: '100dvh',
       background: COLOR_CARDBOARD_BG,
-      backgroundImage: [
-        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
-        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
-      ].join(', '),
       position: 'relative',
       overscrollBehavior: 'none',
     }}>
 
-      {/* Kraft paper grain */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.09, mixBlendMode: 'multiply' }} />
+      {/* Real kraft paper photo — fixed desk-surface layer (see TuningPartsPage) */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
+        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%), url(${kraftBg})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }} />
+
+      {/* Kraft paper grain — kept faint on top of the photo for retina crispness */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1, backgroundImage: NOISE_SVG, backgroundSize: '180px 180px', opacity: 0.05, mixBlendMode: 'multiply' }} />
 
       <div ref={scrollRef} style={{ position: 'relative', zIndex: 2, paddingBottom: 120 }}>
 
