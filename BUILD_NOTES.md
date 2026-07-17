@@ -7,7 +7,7 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 ## Beta Readiness Checklist (pre-friends test, no payment yet)
 
 ### Planned next sessions (in priority order)
-1. **Error observability (Sentry)** — `ErrorBanner` is device-local; add Sentry free tier so crashes surface without friends having to report them. Wire into `App.tsx` before anything else.
+1. ~~**Error observability (Sentry)**~~ ✅ DONE (2026-07-17) — `src/lib/errorTracking.ts`: lazy idle init (adds nothing to boot), inlined public DSN, CSP already allows the ingest domain, `?sentry-test` wiring check. Events are tagged with the user id (set on auth changes in `App.tsx`), the deploy SHA/environment (Vercel system env vars), and every `reportActionError()` save failure is mirrored remotely (`handled:action-error` tag). Errors only — no tracing/replay, to keep the free-tier quota lean. Remaining nice-to-have: readable prod stack traces via `@sentry/vite-plugin` source-map upload (needs a `SENTRY_AUTH_TOKEN` in Vercel).
 2. **Empty states** — walk every section as a brand-new user (no car, no mods, no timeline). Each screen should look intentional when empty, not just blank.
 3. **Safe area insets** — audit fixed headers/footers for `env(safe-area-inset-top/bottom)`. Notch + home indicator on newer iPhones clip content that isn't padded.
 4. ~~**Account deletion**~~ ✅ DONE — "Delete my account" in Settings (`SettingsPage.tsx` + the `delete-account` Edge Function; skips transferred-car storage folders per migration 072).
