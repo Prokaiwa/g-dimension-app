@@ -1,5 +1,5 @@
 // Route: /tuning/parts-bin/:partId — Part detail from Parts Bin
-import kraftBg from '../assets/backgrounds/kraft.webp'
+import { kraftLayers } from '../lib/kraft'
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -338,7 +338,7 @@ export default function TuningPartDetailPage() {
       {/* Real kraft paper photo — fixed desk-surface layer (see TuningPartsPage) */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%), url(${kraftBg})`,
+        backgroundImage: kraftLayers(0.25),
         backgroundSize: 'cover', backgroundPosition: 'center',
       }} />
 
@@ -360,18 +360,18 @@ export default function TuningPartDetailPage() {
             {(active || part.status === 'planned') && (
               <button
                 onClick={() => navigate(`/tuning/parts-bin/${partId}/edit`)}
-                style={{ background: 'none', border: `1px solid rgba(26,16,8,0.2)`, padding: '4px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                style={{ background: 'none', border: `1px solid rgba(26,16,8,0.35)`, padding: '4px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
               >
-                <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.55 }}>Edit</span>
+                <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.9 }}>Edit</span>
               </button>
             )}
             {car && (
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.85 }}>
                 {[car.year, car.model].filter(Boolean).join(' ')}
               </span>
             )}
-            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px', flexShrink: 0 }}>
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: 'rgba(26,16,8,0.55)' }}>
+            <div style={{ border: '1px solid rgba(26,16,8,0.35)', padding: '4px 14px', flexShrink: 0 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: 'rgba(26,16,8,0.85)' }}>
                 {todayMonth} {todayDay}
               </span>
             </div>
@@ -657,7 +657,9 @@ export default function TuningPartDetailPage() {
       )}
 
       {/* ── Actions ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px calc(36px + env(safe-area-inset-bottom))', background: `linear-gradient(to top, ${COLOR_CARDBOARD_BG} 70%, transparent)` }}>
+      {/* Soft dark scrim instead of an opaque tan fade — keeps the kraft photo
+          visible behind the action buttons (the old gradient painted over it). */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20, padding: '16px 20px calc(36px + env(safe-area-inset-bottom))', background: 'linear-gradient(to top, rgba(92,58,20,0.30) 55%, transparent)' }}>
         {part.status === 'planned' ? (
           <div style={{ display: 'flex', gap: 10 }}>
             <button

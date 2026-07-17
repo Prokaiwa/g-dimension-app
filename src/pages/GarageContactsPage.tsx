@@ -265,7 +265,7 @@ export default function GarageContactsPage() {
               </div>
               <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: '#f0e4c8', margin: '0 0 6px' }}>Your address book</p>
               <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: 'rgba(240,228,200,0.5)', margin: 0, lineHeight: 1.5 }}>
-                Keep your people in one place — across every car you own.
+                Keep your people in one place, across every car you own.
               </p>
             </div>
             <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.4)', margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>Quick add</p>

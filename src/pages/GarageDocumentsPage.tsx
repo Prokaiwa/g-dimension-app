@@ -73,7 +73,7 @@ const LABEL_PLACEHOLDER: Record<DocType, string> = {
   inspection: 'e.g. Safety inspection',
   warranty: 'e.g. Powertrain warranty',
   purchase: 'e.g. Bill of sale',
-  receipt: 'e.g. Insurance payment — June',
+  receipt: 'e.g. Insurance payment, June',
   other: 'e.g. Document name',
 }
 
@@ -528,7 +528,7 @@ export default function GarageDocumentsPage() {
 
     const { data: authData } = await supabase.auth.getUser()
     const userId = authData?.user?.id
-    if (!userId) { setError('Not signed in — please reload.'); setSaving(false); return }
+    if (!userId) { setError('Not signed in. Please reload.'); setSaving(false); return }
 
     // Upload a new file if one was picked.
     let fileUrl: string | undefined
@@ -745,7 +745,7 @@ export default function GarageDocumentsPage() {
                       </div>
                       <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '0 0 6px' }}>The glovebox</p>
                       <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: DIM, margin: 0, lineHeight: 1.5 }}>
-                        Registration, insurance, title — kept private, opened only by you.
+                        Registration, insurance, title. Kept private, opened only by you.
                       </p>
                     </div>
                     <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: DIM, margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>Add a document</p>
@@ -1416,7 +1416,7 @@ export default function GarageDocumentsPage() {
             <input
               value={draft.label}
               onChange={e => setDraft({ ...draft, label: e.target.value })}
-              placeholder={isReceiptDraft ? 'e.g. Insurance payment — June' : LABEL_PLACEHOLDER[draft.doc_type]}
+              placeholder={isReceiptDraft ? 'e.g. Insurance payment, June' : LABEL_PLACEHOLDER[draft.doc_type]}
               style={{ ...sheetInput, marginBottom: SPACE_MD }}
             />
 

@@ -25,7 +25,9 @@ import {
   COLOR_BURGUNDY_L,
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
+  COLOR_ACCENT,
   FONT_UI,
+  FONT_TITLE,
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
@@ -177,7 +179,9 @@ export default function GaragePage() {
         </div>
       </div>
 
-      {/* Empty state — no car yet */}
+      {/* Empty state — no car yet. The glow stays decorative; the copy is a
+          real tap target into My Cars (the dashboard grid behind must remain
+          tappable, so only the text takes pointer events). */}
       {hasCar === false && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -191,6 +195,21 @@ export default function GaragePage() {
             background: 'radial-gradient(ellipse at 50% 70%, rgba(200,102,26,0.22) 0%, transparent 70%)',
             animation: 'floorPulse 3.5s ease-in-out infinite',
           }} />
+          <button
+            onClick={() => navigate('/garage/cars')}
+            style={{
+              pointerEvents: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent', padding: '4px 16px', marginTop: '-12%',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+            }}
+          >
+            <span style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 23, color: COLOR_HEADER_WARM, lineHeight: 1.25 }}>
+              Every build starts with a car.
+            </span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: COLOR_ACCENT }}>
+              Open My Cars to add yours
+            </span>
+          </button>
         </div>
       )}
 

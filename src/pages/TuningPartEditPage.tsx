@@ -1,5 +1,5 @@
 // Route: /tuning/parts-bin/:partId/edit
-import kraftBg from '../assets/backgrounds/kraft.webp'
+import { kraftLayers } from '../lib/kraft'
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
@@ -506,7 +506,7 @@ export default function TuningPartEditPage() {
       {/* Real kraft paper photo — fixed desk-surface layer (see TuningPartsPage) */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%), url(${kraftBg})`,
+        backgroundImage: kraftLayers(0.25),
         backgroundSize: 'cover', backgroundPosition: 'center',
       }} />
 
@@ -524,7 +524,7 @@ export default function TuningPartEditPage() {
             <span style={{ color: COLOR_CARDBOARD_STAMP, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 16, color: COLOR_CARDBOARD_STAMP }}>Part</span>
           </button>
-          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.85, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Edit
           </span>
         </div>

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
+import { kraftLayers } from '../lib/kraft'
 import { getActiveCarId } from '../lib/activeCar'
 import { asMileageUnit, unitToMiles, milesToUnit, type MileageUnit } from '../lib/mileage'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
@@ -465,10 +466,10 @@ export default function TuningAddPage() {
     setSaving(true)
     setSaveErr(null)
     const carId = await getActiveCarId()
-    if (!carId) { setSaveErr('No active car — add a car in My Cars first, then save this mod.'); setSaving(false); return }
+    if (!carId) { setSaveErr('No active car. Add a car in My Cars first, then save this mod.'); setSaving(false); return }
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
-    if (!userId) { setSaveErr("You're signed out — sign in again, then save this mod."); setSaving(false); return }
+    if (!userId) { setSaveErr("You're signed out. Sign in again, then save this mod."); setSaving(false); return }
 
     const today = new Date().toISOString().split('T')[0]
 
@@ -730,18 +731,23 @@ export default function TuningAddPage() {
     <div style={partsBinMode ? {
       height: '100dvh', overflow: 'hidden', position: 'relative' as const,
       background: COLOR_CARDBOARD_BG,
-      backgroundImage: [
-        `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
-        `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.25) 100%)`,
-      ].join(', '),
     } : { height: '100dvh', background: '#000', overflow: 'hidden', position: 'relative' as const }}>
 
       {partsBinMode && (
-        <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
-          backgroundImage: NOISE_SVG, backgroundSize: '180px 180px',
-          opacity: 0.09, mixBlendMode: 'multiply' as const,
-        }} />
+        <>
+          {/* Real kraft paper photo — same desk-surface layer as the other
+              Parts Bin pages (see src/lib/kraft.ts) */}
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+            backgroundImage: kraftLayers(0.25),
+            backgroundSize: 'cover', backgroundPosition: 'center',
+          }} />
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+            backgroundImage: NOISE_SVG, backgroundSize: '180px 180px',
+            opacity: 0.05, mixBlendMode: 'multiply' as const,
+          }} />
+        </>
       )}
 
       <style>{`

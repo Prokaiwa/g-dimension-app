@@ -1,5 +1,5 @@
 // Route: /tuning/parts-bin — Owned, not installed
-import kraftBg from '../assets/backgrounds/kraft.webp'
+import { kraftLayers } from '../lib/kraft'
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -134,7 +134,7 @@ export default function TuningPartsPage() {
           gone). Vignette layered on top of the photo in the same paint. */}
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        backgroundImage: `radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(80,40,10,0.28) 100%), url(${kraftBg})`,
+        backgroundImage: kraftLayers(0.28),
         backgroundSize: 'cover', backgroundPosition: 'center',
       }} />
 
@@ -158,12 +158,12 @@ export default function TuningPartsPage() {
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             {car && (
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.55, whiteSpace: 'nowrap', flexShrink: 0, paddingRight: 3 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: COLOR_CARDBOARD_INK, opacity: 0.85, whiteSpace: 'nowrap', flexShrink: 0, paddingRight: 3 }}>
                 {[car.year, car.model, car.variant].filter(Boolean).join(' ')}
               </span>
             )}
-            <div style={{ border: '1px solid rgba(26,16,8,0.2)', padding: '4px 14px', flexShrink: 0 }}>
-              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: 'rgba(26,16,8,0.55)' }}>
+            <div style={{ border: '1px solid rgba(26,16,8,0.35)', padding: '4px 14px', flexShrink: 0 }}>
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 13, color: 'rgba(26,16,8,0.85)' }}>
                 {todayMonth} {todayDay}
               </span>
             </div>
@@ -217,14 +217,15 @@ export default function TuningPartsPage() {
             {/* Sub-label */}
             <p style={{
               fontFamily: FONT_HANDWRITTEN,
+              fontWeight: 700,
               fontSize: 11,
               color: COLOR_CARDBOARD_STAMP,
-              opacity: 0.4,
+              opacity: 0.7,
               margin: 0,
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
             }}>
-              — inventory —
+              · inventory ·
             </p>
           </div>
         </div>
@@ -537,17 +538,17 @@ function PartRow({ part, dateLabel, dateLine, isLast, dimmed = false, onClick }:
           )}
         </div>
         {dateLabel && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.5, margin: '3px 0 0', textTransform: 'capitalize' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.8, margin: '3px 0 0', textTransform: 'capitalize' }}>
             {dateLine} {dateLabel}
           </p>
         )}
         {part.status === 'sold' && part.sale_price != null && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.75, margin: '2px 0 0' }}>
             sold for ${part.sale_price.toLocaleString()}
           </p>
         )}
         {part.parts_cost != null && part.status !== 'sold' && (
-          <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.45, margin: '2px 0 0' }}>
+          <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 600, fontSize: 13, color: COLOR_CARDBOARD_INK2, opacity: 0.75, margin: '2px 0 0' }}>
             ${part.parts_cost.toLocaleString()}
           </p>
         )}

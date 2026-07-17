@@ -8,6 +8,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
+import { preloadImagesOnIdle } from '../lib/preloadImages'
+import { KRAFT_BG_URL } from '../lib/kraft'
 import ArrivalFade from '../components/ArrivalFade'
 import tuningHero     from '../assets/backgrounds/tuning_hero.webp'
 import iconBuildSheet from '../assets/icons/tuning-dashboard/tuning_buildsheet.png'
@@ -43,6 +45,10 @@ export default function TuningPage() {
   useEffect(() => {
     if (bgRef.current?.complete) setBgLoaded(true)
   }, [])
+
+  // Warm the Parts Bin kraft photo while the user reads this landing, so the
+  // parts pages arrive with the texture already cached (no pop-in).
+  useEffect(() => preloadImagesOnIdle([KRAFT_BG_URL]), [])
 
   useEffect(() => {
     getActiveCarId().then(carId => {

@@ -570,7 +570,7 @@ export default function TuningBuildSheetPage() {
                 fontSize: 26, letterSpacing: '-0.01em', lineHeight: 1.1,
                 color: 'rgba(245,240,228,0.95)', margin: 0,
               }}>
-                {[car?.year, car?.model, car?.variant].filter(Boolean).join(' ') || 'Unknown'}
+                {[car?.year, car?.model, car?.variant].filter(Boolean).join(' ') || 'No car yet'}
               </p>
               {car?.make && (
                 <p style={{
@@ -605,6 +605,18 @@ export default function TuningBuildSheetPage() {
               )}
             </div>
           </div>
+
+          {/* ── Empty build sheet — zero installed mods ── */}
+          {!loading && activeGroups.length === 0 && (
+            <div style={{ padding: '64px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, animation: `sectionIn 480ms ${EASING_SETTLE} 120ms both` }}>
+              <p style={{ fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 21, color: 'rgba(245,240,228,0.9)', margin: 0 }}>
+                Bone stock, for now.
+              </p>
+              <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5, color: 'rgba(245,240,228,0.45)', margin: 0, lineHeight: 1.5 }}>
+                Log your first mod with + MODS below.
+              </p>
+            </div>
+          )}
 
           {/* ── Mod sections — vertical hero layout ── */}
           {activeGroups.map((group, idx) => {

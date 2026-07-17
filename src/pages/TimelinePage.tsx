@@ -642,8 +642,19 @@ export default function TimelinePage() {
 
   if (!hasCar) {
     return shell(
-      <div style={{ paddingTop: '40vh', textAlign: 'center', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}>
-        No car selected yet.
+      <div style={{ paddingTop: '38vh', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '38vh 30px 0' }}>
+        <div style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontSize: 24, color: COLOR_TIMELINE_YEAR, lineHeight: 1.3 }}>
+          The story hasn't started yet.
+        </div>
+        <div style={{ fontFamily: FONT_UI, fontSize: 13, color: COLOR_TIMELINE_MUTED }}>
+          Add a car to begin your timeline.
+        </div>
+        <button
+          onClick={() => navigate('/garage/cars')}
+          style={{ marginTop: 6, padding: '9px 20px', borderRadius: 10, border: 'none', background: COLOR_TIMELINE_CHEVRON, color: '#fff8ec', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+        >
+          My Cars
+        </button>
       </div>,
     )
   }

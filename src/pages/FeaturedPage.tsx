@@ -1399,6 +1399,33 @@ export default function FeaturedPage() {
     )
   }
 
+  // No car yet — gate the magazine instead of rendering a placeholder cover
+  // titled "YOUR BUILD" (which read as a broken feature, not an empty state).
+  if (!car) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#08080a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 28, textAlign: 'center' }}>
+        <div style={{ fontFamily: FONT_MASTHEAD, fontSize: 34, color: '#f5f5f5', letterSpacing: '0.03em', lineHeight: 1.1, textTransform: 'uppercase' }}>
+          Every cover<br />needs a car
+        </div>
+        <div style={{ fontFamily: FONT_DECK, fontSize: 14, color: 'rgba(245,245,245,0.55)', letterSpacing: '0.04em', maxWidth: 260, lineHeight: 1.5 }}>
+          Add yours in the Garage and the magazine shoots itself.
+        </div>
+        <button
+          onClick={() => navigate('/garage/cars')}
+          style={{ marginTop: 8, padding: '10px 22px', border: '1px solid rgba(245,245,245,0.4)', background: 'none', color: '#f5f5f5', fontFamily: FONT_DECK, fontWeight: 600, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+        >
+          Go to My Cars
+        </button>
+        <button
+          onClick={() => navigate('/home')}
+          style={{ background: 'none', border: 'none', color: 'rgba(245,245,245,0.4)', fontFamily: FONT_DECK, fontSize: 12, letterSpacing: '0.04em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', padding: 8 }}
+        >
+          Back to Home
+        </button>
+      </div>
+    )
+  }
+
   // ── page renderer (closes over component scope) ────────────────────────────────
   const renderPageInner = (pg: PageDesc, i: number) => {
     const prev = pages[i - 1], next = pages[i + 1]

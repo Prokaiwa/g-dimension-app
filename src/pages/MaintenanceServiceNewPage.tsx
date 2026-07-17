@@ -127,7 +127,7 @@ export default function MaintenanceServiceNewPage() {
 
   async function handleSave() {
     if (saving) return
-    if (!carId) { reportActionError('No active car — add a car in My Cars first, then save this service'); return }
+    if (!carId) { reportActionError('No active car. Add a car in My Cars first, then save this service'); return }
     setSaving(true)
     const { data: session, error } = await supabase.from('sessions').insert({
       car_id: carId, type: 'maintenance',

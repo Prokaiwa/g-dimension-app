@@ -28,10 +28,11 @@ export default function MaintenanceServicePage() {
   const [loading,  setLoading]  = useState(true)
   const [bgLoaded, setBgLoaded] = useState(false)
   const [carInfo,  setCarInfo]  = useState('')
+  const [noCar,    setNoCar]    = useState(false)
 
   useEffect(() => {
     getActiveCarId().then(carId => {
-      if (!carId) { setLoading(false); return }
+      if (!carId) { setNoCar(true); setLoading(false); return }
       supabase.from('cars').select('year, model, variant').eq('id', carId).single()
         .then(({ data }) => { if (data) setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' ')) })
       supabase
@@ -141,7 +142,15 @@ export default function MaintenanceServicePage() {
             ))}
           </>
         )}
-        {!loading && sessions.length === 0 && (
+        {!loading && noCar && (
+          <div style={{ padding: '40px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(212,184,106,0.45)', letterSpacing: '0.06em' }}>No car in the garage. Add one from My Cars first.</div>
+            <button onClick={() => navigate('/garage/cars')} style={{ padding: '8px 18px', borderRadius: 10, border: '1px solid rgba(212,184,106,0.4)', background: 'none', color: 'rgba(212,184,106,0.85)', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+              My Cars
+            </button>
+          </div>
+        )}
+        {!loading && !noCar && sessions.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', fontFamily: FONT_UI, fontSize: 13, color: 'rgba(212,184,106,0.30)', letterSpacing: '0.06em' }}>No service records yet</div>
         )}
         {!loading && sessions.map((s, i) => (

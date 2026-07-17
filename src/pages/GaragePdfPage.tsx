@@ -191,8 +191,11 @@ export default function GaragePdfPage() {
             <span style={{ fontSize:12, color:TEXT_MUTED, letterSpacing:'0.1em', textTransform:'uppercase' }}>Loading…</span>
           </div>
         ) : !pdfData ? (
-          <div style={{ textAlign:'center', paddingTop:60 }}>
-            <p style={{ fontSize:14, color:TEXT_MUTED }}>No active car. Add a car first.</p>
+          <div style={{ textAlign:'center', paddingTop:60, display:'flex', flexDirection:'column', alignItems:'center', gap:14 }}>
+            <p style={{ fontSize:14, color:TEXT_MUTED, margin:0 }}>No car in the garage. Add one from My Cars first.</p>
+            <button onClick={() => navigate('/garage/cars')} style={{ padding:'9px 18px', borderRadius:10, border:'none', background:COLOR_ACCENT, color:'#fff5dc', fontFamily:FONT_UI, fontWeight:700, fontSize:13, letterSpacing:'0.04em', cursor:'pointer', WebkitTapHighlightColor:'transparent' }}>
+              My Cars
+            </button>
           </div>
         ) : (
           <>

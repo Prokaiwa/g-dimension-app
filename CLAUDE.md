@@ -114,6 +114,9 @@ These are enforced decisions. Do not deviate without explicit instruction.
 
 **Tap targets:** 44×44px minimum
 
+**Voice / wording:**
+- **No em dashes (—) in user-facing copy** — empty states, error messages, placeholders, labels, marketing text. Use a period, comma, or rewrite the sentence. (Owner's call: they read as AI-generated.) The standalone `—` glyph as an empty-value marker in data cells is fine; this rule is about prose punctuation. Code comments are exempt.
+
 **22.5° cast shadow:** Garage dashboard grid (3×2 icon grid) ONLY. Not on Home map, not anywhere else.
 
 ---
