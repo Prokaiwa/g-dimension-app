@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { getActiveCarId } from '../lib/activeCar'
 import { reportActionError } from '../lib/appError'
+import { asMileageUnit, unitToMiles } from '../lib/mileage'
 import {
   FONT_HANDWRITTEN, FONT_STAMP, FONT_UI,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
@@ -34,7 +35,7 @@ type Part = {
 type SpecRow = { label: string; value: string; unit: string | null; inputType: string; group: string | null; order: number }
 
 type Photo = { id: string; photo_url: string; display_order: number | null }
-type Car   = { year: number | null; make: string | null; model: string | null }
+type Car   = { year: number | null; make: string | null; model: string | null; mileage_unit?: string | null; current_mileage?: number | null }
 
 // ── Kraft paper grain ─────────────────────────────────────────────────────
 
@@ -159,6 +160,16 @@ export default function TuningPartDetailPage() {
   const [disposeType,   setDisposeType]   = useState<'sold' | 'scrapped' | null>(null)
   const [salePrice,     setSalePrice]     = useState('')
 
+  // Install-to-car flow: captures install date + mileage + who fitted it, so a
+  // part fitted from the Bin lands on the Build Sheet as a dated mod (not a
+  // dateless status flip).
+  const [carId,         setCarId]         = useState<string | null>(null)
+  const [installOpen,   setInstallOpen]   = useState(false)
+  const [installDate,   setInstallDate]   = useState(() => new Date().toISOString().split('T')[0])
+  const [installMileage, setInstallMileage] = useState('')
+  const [installedBy,   setInstalledBy]   = useState<'self' | 'shop'>('self')
+  const [installLabor,  setInstallLabor]  = useState('')
+
   const touchStartX = useRef<number>(0)
 
   const now        = new Date()
@@ -170,6 +181,7 @@ export default function TuningPartDetailPage() {
     if (!partId) return
     async function load() {
       const carId = await getActiveCarId()
+      setCarId(carId)
       const [{ data: partData }, { data: photoData }, { data: carData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
@@ -182,7 +194,7 @@ export default function TuningPartDetailPage() {
           .eq('job_id', partId)
           .order('display_order', { ascending: true }),
         carId
-          ? supabase.from('cars').select('year, make, model').eq('id', carId).single()
+          ? supabase.from('cars').select('year, make, model, mileage_unit, current_mileage').eq('id', carId).single()
           : Promise.resolve({ data: null }),
         supabase
           .from('job_specs')
@@ -238,11 +250,30 @@ export default function TuningPartDetailPage() {
     load()
   }, [partId])
 
-  const handleInstall = async () => {
+  // Open the install sheet (was a bare status flip with no date/mileage).
+  const handleInstall = () => { setActionError(null); setInstallOpen(true) }
+
+  const confirmInstall = async () => {
     if (!partId) return
-    setActioning(true)
-    const { error } = await supabase.from('jobs').update({ status: 'installed', date_removed: null }).eq('id', partId)
+    setActioning(true); setActionError(null)
+    const unit = asMileageUnit(car?.mileage_unit)
+    const enteredMi = installMileage.trim()
+      ? unitToMiles(parseInt(installMileage.replace(/[^\d]/g, ''), 10), unit)
+      : NaN
+    const patch: Record<string, unknown> = {
+      status: 'installed',
+      date_removed: null,
+      date_installed: installDate || null,
+      installed_by: installedBy,
+      labor_cost: installedBy === 'shop' && installLabor.trim() ? parseFloat(installLabor) : null,
+    }
+    if (Number.isFinite(enteredMi)) patch.install_mileage = enteredMi
+    const { error } = await supabase.from('jobs').update(patch).eq('id', partId)
     if (error) { reportActionError("Couldn't install the part", error); setActioning(false); return }
+    // Keep the odometer fresh from the install mileage (only if higher).
+    if (carId && Number.isFinite(enteredMi) && enteredMi > (car?.current_mileage ?? -1)) {
+      await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
+    }
     navigate('/tuning/build-sheet')
   }
 
@@ -711,6 +742,108 @@ export default function TuningPartDetailPage() {
       </div>
 
       {/* ── Sell / Scrap bottom sheet ── */}
+      {/* ── Install-to-car bottom sheet ── */}
+      {installOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
+          <div onClick={() => { if (!actioning) setInstallOpen(false) }} style={{ position: 'absolute', inset: 0, background: 'rgba(26,16,8,0.55)' }} />
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            background: '#e8c98a',
+            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(100,60,20,0.07) 14px, rgba(100,60,20,0.07) 15px)`,
+            borderTop: `2px solid rgba(26,16,8,0.15)`,
+            borderRadius: '12px 12px 0 0',
+            padding: '24px 20px calc(48px + env(safe-area-inset-bottom))',
+          }}>
+            <p style={{ fontFamily: FONT_STAMP, fontSize: 18, color: COLOR_CARDBOARD_INK, opacity: 0.8, marginBottom: 6 }}>
+              Fit it to the car
+            </p>
+            <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.55, marginBottom: 20 }}>
+              This part moves onto the Build Sheet.
+            </p>
+
+            {/* Install date */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
+                Install Date
+              </p>
+              <input
+                type="date" value={installDate} onChange={e => setInstallDate(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', border: `1px solid rgba(26,16,8,0.25)`, background: 'rgba(26,16,8,0.04)', outline: 'none', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, padding: '12px 14px' }}
+              />
+            </div>
+
+            {/* Mileage at install (optional) */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
+                Mileage at install (optional)
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid rgba(26,16,8,0.25)`, background: 'rgba(26,16,8,0.04)' }}>
+                <input
+                  type="number" inputMode="numeric" placeholder="0"
+                  value={installMileage} onChange={e => setInstallMileage(e.target.value)}
+                  style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, padding: '12px 8px 12px 14px' }}
+                />
+                <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.6, padding: '12px 14px 12px 0' }}>
+                  {asMileageUnit(car?.mileage_unit)}
+                </span>
+              </div>
+            </div>
+
+            {/* Installed by */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
+                Installed by
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {(['self', 'shop'] as const).map(who => (
+                  <button
+                    key={who} onClick={() => setInstalledBy(who)}
+                    style={{ flex: 1, padding: '12px 10px', background: installedBy === who ? 'rgba(139,58,10,0.2)' : 'transparent', border: installedBy === who ? `2px solid ${COLOR_CARDBOARD_STAMP}` : `1px solid rgba(26,16,8,0.2)`, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 16, color: installedBy === who ? COLOR_CARDBOARD_STAMP : COLOR_CARDBOARD_INK2, opacity: installedBy === who ? 1 : 0.45, display: 'block', textTransform: 'capitalize' }}>
+                      {who === 'self' ? 'Myself' : 'A shop'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Labor cost — only when a shop fitted it */}
+            {installedBy === 'shop' && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_CARDBOARD_INK2, opacity: 0.5, marginBottom: 8 }}>
+                  Labor cost (optional)
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', border: `1px solid rgba(26,16,8,0.25)`, background: 'rgba(26,16,8,0.04)' }}>
+                  <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_STAMP, padding: '12px 8px 12px 14px', opacity: 0.7 }}>$</span>
+                  <input
+                    type="number" inputMode="decimal" placeholder="0.00"
+                    value={installLabor} onChange={e => setInstallLabor(e.target.value)}
+                    style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 18, color: COLOR_CARDBOARD_INK, padding: '12px 14px 12px 0' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {actionError && (
+              <p style={{ fontFamily: FONT_HANDWRITTEN, fontSize: 14, color: '#8b0000', marginBottom: 12 }}>{actionError}</p>
+            )}
+
+            <button
+              onClick={confirmInstall} disabled={actioning}
+              style={{ width: '100%', padding: '15px', background: 'rgba(139,58,10,0.15)', border: `1.5px solid ${COLOR_CARDBOARD_STAMP}`, cursor: actioning ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent', marginBottom: 10 }}
+            >
+              <span style={{ fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 17, color: COLOR_CARDBOARD_STAMP }}>
+                {actioning ? 'Installing…' : 'Install →'}
+              </span>
+            </button>
+            <button onClick={() => { if (!actioning) setInstallOpen(false) }} style={{ width: '100%', padding: '12px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_HANDWRITTEN, fontWeight: 700, fontSize: 15, color: COLOR_CARDBOARD_INK2, opacity: 0.4 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {sellScrapOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60 }}>
           <div onClick={closeSellScrap} style={{ position: 'absolute', inset: 0, background: 'rgba(26,16,8,0.55)' }} />
