@@ -453,7 +453,7 @@ export default function MaintenanceServiceNewPage() {
       <div style={{
         flexShrink: 0, background: XP_BG,
         borderTop: `2px solid ${XP_BORDER}`,
-        padding: '8px 12px',
+        padding: '8px 12px calc(8px + env(safe-area-inset-bottom))',
         display: 'flex', justifyContent: 'flex-end', gap: 6,
       }}>
         <button onClick={() => navigate('/maintenance/service')} className="xp-btn" style={xpBtn}>
