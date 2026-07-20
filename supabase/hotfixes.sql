@@ -5,7 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 074_car_ghosts.sql (applied 2026-07-13)
+-- Last migration applied : 076_public_sessions_links.sql (applied 2026-07-20)
+--   - 076 (logged-out visitor audit: sessions_public_read + job_links_public_read
+--     policies with column-scoped anon grants — costs/journal/user_id excluded;
+--     jobs_public_read now honors show_buildsheet_publicly OR show_featured_publicly
+--     so a public Featured magazine survives a private Build Sheet).
+--   - 075 (public_car_profiles view refreshed with the owner's distance/power/
+--     torque display-unit prefs so public /builds pages render in the owner's units).
 --   - 074 (SOLD ghost cars: car_ghosts table — a durable frozen-snapshot
 --     keepsake of a car the seller transferred away (car_id on delete set
 --     null so it outlives the car), inserted inside accept_car_transfer;
