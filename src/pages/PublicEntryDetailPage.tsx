@@ -61,6 +61,8 @@ export default function PublicEntryDetailPage() {
   const carParam = new URLSearchParams(window.location.search).get('car')
 
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
   const [entry, setEntry]     = useState<Entry | null>(null)
   const [title, setTitle]     = useState('')
   const [photos, setPhotos]   = useState<string[]>([])
@@ -173,11 +175,14 @@ export default function PublicEntryDetailPage() {
     if (!entryId) return
     let active = true
     ;(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('timeline_entries')
         .select('id, car_id, entry_type, is_origin, title, photo_url, journal_entry, display_date, session_id')
         .eq('id', entryId).single()
       if (!active) return
+      // A backend failure is NOT "entry not found" — offer a retry.
+      // (PGRST116 = zero rows from .single(), a genuine not-found.)
+      if (error && error.code !== 'PGRST116') { setLoadError(true); setLoading(false); return }
       if (!data) { setLoading(false); return }
       const e = data as Entry
       setEntry(e)
@@ -239,7 +244,7 @@ export default function PublicEntryDetailPage() {
       setLoading(false)
     })()
     return () => { active = false }
-  }, [entryId])
+  }, [entryId, retryTick])
 
   const backHref = `/builds/${username}/timeline${carParam ? `?car=${carParam}` : ''}`
 
@@ -269,8 +274,16 @@ export default function PublicEntryDetailPage() {
   if (loading) return page(null)
   if (!entry) {
     return page(
-      <div style={{ paddingTop: '40vh', textAlign: 'center', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}>
-        Entry not found.
+      <div style={{ paddingTop: '40vh', textAlign: 'center', color: COLOR_TIMELINE_MUTED, fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <span>{loadError ? "Couldn't load this entry. Check your connection and try again." : 'Entry not found.'}</span>
+        {loadError && (
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); setRetryTick(t => t + 1) }}
+            style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: COLOR_TIMELINE_CHEVRON, color: '#fff8ec', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+          >
+            Retry
+          </button>
+        )}
       </div>,
     )
   }

@@ -183,6 +183,8 @@ export default function PublicTimelinePage() {
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
   const [carId, setCarId] = useState<string | null>(null)
   const [carMileageUnit, setCarMileageUnit] = useState('mi')
   const [origin, setOrigin] = useState<OriginCard | null>(null)
@@ -207,11 +209,13 @@ export default function PublicTimelinePage() {
     let active = true
     ;(async () => {
       if (!username) { setNotFound(true); setLoading(false); return }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('public_car_profiles')
         .select('id, active_car_id, purchase_story, purchase_date, created_at, show_timeline_publicly, mileage_unit, nickname, year, model, variant')
         .eq('username', username)
       if (!active) return
+      // A backend failure is NOT a private/missing timeline — offer a retry.
+      if (error) { setLoadError(true); setLoading(false); return }
       const rows = (data as Array<{
         id: string; active_car_id: string | null
         purchase_story: string | null; purchase_date: string | null; created_at: string | null
@@ -286,7 +290,7 @@ export default function PublicTimelinePage() {
       }
     })()
     return () => { active = false }
-  }, [username, carParam])
+  }, [username, carParam, retryTick])
 
   const back = () => navigate(`/builds/${username}${carId ? `?car=${carId}` : ''}`)
 
@@ -532,10 +536,18 @@ export default function PublicTimelinePage() {
 
   if (loading) return shell(null)
 
-  if (notFound) {
+  if (notFound || loadError) {
     return shell(
-      <div style={{ paddingTop: '40vh', textAlign: 'center', color: COLOR_TIMELINE_MUTED, fontSize: 14 }}>
-        This timeline isn’t available.
+      <div style={{ paddingTop: '40vh', textAlign: 'center', color: COLOR_TIMELINE_MUTED, fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+        <span>{loadError ? "Couldn't load this timeline. Check your connection and try again." : 'This timeline isn’t available.'}</span>
+        {loadError && (
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); setRetryTick(t => t + 1) }}
+            style={{ padding: '9px 20px', borderRadius: 10, border: 'none', background: COLOR_TIMELINE_CHEVRON, color: '#fff8ec', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+          >
+            Retry
+          </button>
+        )}
       </div>,
     )
   }

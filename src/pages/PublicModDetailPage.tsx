@@ -51,6 +51,8 @@ export default function PublicModDetailPage() {
   const [specRows,     setSpecRows]     = useState<SpecRow[]>([])
   const [links,        setLinks]        = useState<JobLink[]>([])
   const [loading,      setLoading]      = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
   const [loadedUrls,   setLoadedUrls]   = useState<Set<string>>(new Set())
   const [hasDiyGuide,  setHasDiyGuide]  = useState(false)
 
@@ -162,7 +164,7 @@ export default function PublicModDetailPage() {
   useEffect(() => {
     if (!modId) return
     async function load() {
-      const [{ data: jobData }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
+      const [{ data: jobData, error: jobErr }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase.from('jobs')
           .select('id, title, brand, category, date_installed, installed_by, notes, part_type_id')
           .eq('id', modId).single(),
@@ -176,6 +178,9 @@ export default function PublicModDetailPage() {
           .select('id, url, label, display_order')
           .eq('job_id', modId).order('display_order'),
       ])
+      // A backend failure is NOT "mod not found" — offer a retry.
+      // (PGRST116 = zero rows from .single(), which IS a genuine not-found.)
+      if (jobErr && jobErr.code !== 'PGRST116') { setLoadError(true); setLoading(false); return }
       if (jobData) {
         setJob(jobData as unknown as Job)
         const j = jobData as unknown as Job
@@ -203,7 +208,7 @@ export default function PublicModDetailPage() {
       setLoading(false)
     }
     load()
-  }, [modId])
+  }, [modId, retryTick])
 
   const back = () => navigate(`/builds/${username}/buildsheet${carParam ? `?car=${carParam}` : ''}`)
 
@@ -239,7 +244,14 @@ export default function PublicModDetailPage() {
     return (
       <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 440, height: '100dvh', display: 'flex', flexDirection: 'column', background: '#0d0d0f', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-          <span style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.35)' }}>Mod not found</span>
+          <span style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.35)' }}>
+            {loadError ? "Couldn't load this mod. Check your connection and try again." : 'Mod not found'}
+          </span>
+          {loadError && (
+            <button onClick={() => { setLoadError(false); setLoading(true); setRetryTick(t => t + 1) }} style={{ background: 'none', border: '1px solid rgba(245,240,228,0.3)', padding: '10px 24px', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.7)' }}>
+              Retry
+            </button>
+          )}
           <button onClick={back} style={{ background: 'none', border: '1px solid rgba(245,240,228,0.14)', padding: '10px 24px', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)' }}>
             ← Build Sheet
           </button>

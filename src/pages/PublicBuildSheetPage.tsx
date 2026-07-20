@@ -21,7 +21,7 @@ import { powerUnitOf, torqueUnitOf } from '../lib/unitPrefs'
 import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
-  COLOR_BURGUNDY_M, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
+  COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
   EASING_SETTLE,
 } from '../tokens'
 
@@ -280,6 +280,8 @@ export default function PublicBuildSheetPage() {
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loading,   setLoading]   = useState(true)
   const [notFound,  setNotFound]  = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const [retryTick,  setRetryTick]  = useState(0)
   const [isPrivate, setIsPrivate] = useState(false)
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -299,7 +301,7 @@ export default function PublicBuildSheetPage() {
       // Query the view directly by username — avoids a separate users-table
       // lookup that would be blocked by anon RLS. The view already filters
       // is_public = true and joins to users.username.
-      const { data: cars } = await supabase
+      const { data: cars, error } = await supabase
         .from('public_car_profiles')
         // select('*') (not an explicit list) so this stays resilient to the
         // deploy-before-migration window: power_unit/torque_unit (migration 075)
@@ -309,6 +311,8 @@ export default function PublicBuildSheetPage() {
         .eq('username', username)
 
       if (!active) return
+      // A backend failure is NOT "not found" — surface a retryable error.
+      if (error) { setLoadError(true); setLoading(false); return }
       if (!cars || cars.length === 0) { setNotFound(true); setLoading(false); return }
 
       const activeId = (cars[0] as { active_car_id?: string }).active_car_id
@@ -368,7 +372,7 @@ export default function PublicBuildSheetPage() {
     }
     load()
     return () => { active = false }
-  }, [username, carParam])
+  }, [username, carParam, retryTick])
 
   const back = () => navigate(`/builds/${username}${carId ? `?car=${carId}` : ''}`)
 
@@ -470,7 +474,9 @@ export default function PublicBuildSheetPage() {
         {!loading && (
           <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 48, position: 'relative', zIndex: 6, animation: 'pageReveal 1100ms ease-in-out both' }}>
 
-            {/* ── Hero: car photo + identity ── */}
+            {/* ── Hero: car photo + identity (hidden when there is no car to
+                show — a not-found/error page must not render an "Unknown" hero) ── */}
+            {!notFound && !loadError && (
             <div style={{
               padding: '24px 16px 20px',
               borderBottom: '1px solid rgba(255,255,255,0.07)',
@@ -527,8 +533,26 @@ export default function PublicBuildSheetPage() {
                 )}
               </div>
             </div>
+            )}
 
             {/* ── Private notice ── */}
+            {/* Not-found / load-error — previously never rendered, leaving a
+                dead-end blank page with an "Unknown" hero */}
+            {(notFound || loadError) && (
+              <div style={{ padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, animation: `sectionIn 480ms ${EASING_SETTLE} 80ms both` }}>
+                <p style={{ fontFamily: FONT_UI, fontSize: 13, color: 'rgba(245,240,228,0.4)', lineHeight: 1.6, margin: 0 }}>
+                  {loadError
+                    ? 'Couldn\'t load this Build Sheet. Check your connection and try again.'
+                    : 'This Build Sheet isn\'t available. The build may be private or the link may be wrong.'}
+                </p>
+                {loadError && (
+                  <button onClick={() => { setLoadError(false); setLoading(true); setRetryTick(t => t + 1) }} style={{ padding: '9px 18px', borderRadius: 10, border: 'none', background: COLOR_ACCENT, color: '#fff5dc', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.04em', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
+
             {isPrivate && (
               <div style={{
                 padding: '48px 24px',

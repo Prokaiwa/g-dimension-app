@@ -81,6 +81,8 @@ export default function PublicDiyPage() {
   const [steps,     setSteps]     = useState<Step[]>([])
   const [photos,    setPhotos]    = useState<Photo[]>([])
   const [loading,   setLoading]   = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
   const [notFound,  setNotFound]  = useState(false)
   const [lightbox,  setLightbox]  = useState<{ src: string; caption: string | null } | null>(null)
 
@@ -90,12 +92,14 @@ export default function PublicDiyPage() {
       // Guide first — RLS only returns it when the car is public AND its Build
       // Sheet is public (migration 059). This is the real visibility gate, and
       // it sidesteps the multi-car ambiguity of looking a car up by username.
-      const { data: g } = await supabase
+      const { data: g, error } = await supabase
         .from('diy_guides')
         .select('id, car_id, difficulty, estimated_time, youtube_url, tools')
         .eq('job_id', modId)
         .maybeSingle()
 
+      // A backend failure is NOT "guide not found" — offer a retry.
+      if (error) { setLoadError(true); setLoading(false); return }
       if (!g) { setNotFound(true); setLoading(false); return }
       setGuide(g)
 
@@ -146,7 +150,7 @@ export default function PublicDiyPage() {
       setLoading(false)
     }
     load()
-  }, [username, modId])
+  }, [username, modId, retryTick])
 
   if (loading) {
     return (
@@ -156,16 +160,19 @@ export default function PublicDiyPage() {
     )
   }
 
-  if (notFound || !guide) {
+  if (notFound || loadError || !guide) {
     return (
       <div style={{ minHeight: '100dvh', background: BG, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_UI, gap: 12 }}>
-        <div style={{ color: DARK, fontSize: 20, fontWeight: 700 }}>Guide not found</div>
-        <div style={{ color: MID, fontSize: 14 }}>This guide may be private or doesn't exist.</div>
+        <div style={{ color: DARK, fontSize: 20, fontWeight: 700 }}>{loadError ? "Couldn't load this guide" : 'Guide not found'}</div>
+        <div style={{ color: MID, fontSize: 14 }}>{loadError ? 'Check your connection and try again.' : "This guide may be private or doesn't exist."}</div>
         <button
-          onClick={() => navigate(`/builds/${username}`)}
+          onClick={() => {
+            if (loadError) { setLoadError(false); setLoading(true); setRetryTick(t => t + 1) }
+            else navigate(`/builds/${username}`)
+          }}
           style={{ marginTop: 16, padding: '10px 24px', background: ACCENT, color: '#fff', border: 'none', borderRadius: 10, fontFamily: FONT_UI, fontWeight: 600, fontSize: 14, cursor: 'pointer', letterSpacing: '0.05em' }}
         >
-          VIEW BUILD
+          {loadError ? 'RETRY' : 'VIEW BUILD'}
         </button>
       </div>
     )

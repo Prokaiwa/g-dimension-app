@@ -3,7 +3,7 @@
 // Same fold animation as FeaturedPage, stripped of all owner-only controls.
 import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { CATEGORY_TO_GROUP as CAT_TO_GROUP } from '../lib/buildGroups'
 import ArrivalFade from '../components/ArrivalFade'
@@ -164,6 +164,11 @@ function paginateSpec(sections: SpecSection[], availFirst: number, availCont: nu
 export default function PublicFeaturedPage() {
   const { username } = useParams<{ username: string }>()
   const navigate = useNavigate()
+  // Honor the visitor's car pick from the public Garage (?car=...) — without
+  // this, a visitor browsing a non-active car got the ACTIVE car's magazine.
+  const [searchParams] = useSearchParams()
+  const carParam = searchParams.get('car')
+  const backToProfile = () => navigate(`/builds/${username ?? ''}${carParam ? `?car=${carParam}` : ''}`)
 
   const [car, setCar]       = useState<CarData | null>(null)
   const [jobs, setJobs]     = useState<Job[]>([])
@@ -213,10 +218,12 @@ export default function PublicFeaturedPage() {
         setNotFound(true); setLoading(false); return
       }
 
-      // Pick the car to show: prefer active_car_id, else first.
+      // Pick the car to show: visitor's ?car pick first, then the owner's
+      // active car, else first public car.
       const rows = profileRows as CarData[]
       const activeId = (rows[0] as unknown as { active_car_id?: string }).active_car_id
-      const row = rows.find(r => r.id === activeId) ?? rows[0]
+      const row = (carParam ? rows.find(r => r.id === carParam) : null)
+        ?? rows.find(r => r.id === activeId) ?? rows[0]
 
       if (!row?.is_public || row.show_featured_publicly === false) {
         setNotFound(true); setLoading(false); return
@@ -276,7 +283,7 @@ export default function PublicFeaturedPage() {
       setLoading(false)
     })()
     return () => { alive = false }
-  }, [username])
+  }, [username, carParam])
 
   // ── derived ────────────────────────────────────────────────────────────────────
   const seed         = useMemo(() => seedFrom(car?.id ?? ''), [car?.id])
@@ -676,7 +683,7 @@ export default function PublicFeaturedPage() {
     return (
       <div style={{ position:'fixed', inset:0, background:'#08080a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
         <span style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.4)', letterSpacing:'0.3em', fontSize:11, textTransform:'uppercase' }}>Featured not available</span>
-        <button onClick={() => navigate(`/builds/${username ?? ''}`)}
+        <button onClick={backToProfile}
           style={{ fontFamily:FONT_DECK, fontWeight:700, fontSize:11, letterSpacing:'0.18em', textTransform:'uppercase', color:COLOR_ACCENT, background:'transparent', border:'none', cursor:'pointer' }}>
           ‹ Back
         </button>
@@ -899,7 +906,7 @@ export default function PublicFeaturedPage() {
       )}
 
       {/* Back chevron */}
-      <div data-sfx="back" onClick={() => navigate(`/builds/${username ?? ''}`)}
+      <div data-sfx="back" onClick={backToProfile}
         style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
