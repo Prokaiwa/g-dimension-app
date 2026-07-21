@@ -339,7 +339,7 @@ src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diago
 src/pages/MaintenanceServiceNewPage.tsx   — Add Service Session form (invoice/Courier aesthetic)
 src/pages/MaintenanceServiceEditPage.tsx  — Edit Service Session (Windows XP aesthetic, loads + UPDATEs)
 src/pages/MaintenanceSessionDetailPage.tsx — Session detail view (shared by maintenance + detail types)
-src/pages/MaintenanceDetailPage.tsx       — Detailing log list (aesthetic TBD — watery feel pending)
+src/pages/MaintenanceDetailPage.tsx       — Detailing log list (watery visual treatment done)
 src/pages/MaintenanceDetailNewPage.tsx    — Log a Detail Session form (blue Car Wash aesthetic)
 src/pages/MaintenanceDetailEditPage.tsx   — Edit Detail Session (blue Car Wash aesthetic, loads + UPDATEs)
 src/pages/TimelinePage.tsx          — Timeline scroll (parchment, NO header, floating amber chevron). Reads timeline_entries oldest-at-top; Origin cover (settable photo) + connecting thread + year dividers + photo-print thumbnails; "+ Add Entry" FAB → /timeline/new
@@ -442,4 +442,4 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 
 ## What's Next
 
-The "not yet built" backlog (install-from-Parts-Bin flow, link reordering, YouTube in-app playback, unit conversion display, Detailing list visual treatment) lives in `BUILD_NOTES.md`.
+The "not yet built" backlog (install-from-Parts-Bin flow, link reordering, YouTube in-app playback, unit conversion display) lives in `BUILD_NOTES.md`.

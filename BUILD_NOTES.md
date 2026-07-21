@@ -135,7 +135,7 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 *Detailing aesthetic — blue "Car Wash" identity:*
 - `MaintenanceDetailNewPage` + `MaintenanceDetailEditPage` use `COLOR_TIMELINE_DETAIL` (`#8ab0c8`, muted cool blue), `FONT_UI`, light blue background (`#f4f8fb`), chip selectors for Exterior/Interior services.
 - Do NOT apply the Courier/invoice styling to these pages.
-- `MaintenanceDetailPage` (the log list) is still visually minimal — a richer "watery feel" treatment is TBD with the owner before building.
+- `MaintenanceDetailPage` (the log list) — watery visual treatment DONE (signed off by owner 2026-07-21).
 
 *Tile config in MaintenancePage (do not reorder — left=Detailing, right=Service):*
 ```ts
@@ -215,7 +215,7 @@ Selling a car you loved shouldn't erase it. After a transfer, a car persists in 
 - **Link reordering** — `job_links.display_order` column exists but there is no drag-to-reorder UI. Links render in insert order.
 - **YouTube in-app playback** — currently `window.open`. When the PWA becomes a native Capacitor app, replace with `<iframe>` embed or a native video player. The DB schema supports this with no changes.
 - ~~**Unit conversion display**~~ ✅ MOSTLY DONE (2026-07) — `src/lib/unitPrefs.ts` (`formatPower`/`formatTorque` + cached prefs) wired on the private carousel/details and the public pages (owner's units via migration 075); per-car mileage unit via 063 (`src/lib/mileage.ts`). Remaining: sweep any stray hardcoded "hp"/"lb-ft" labels on lesser screens.
-- **Detailing log list visual treatment** — `MaintenanceDetailPage` still minimal; "watery feel" TBD with owner.
+- ~~**Detailing log list visual treatment**~~ ✅ DONE (2026-07-21) — `MaintenanceDetailPage` "watery feel" treatment signed off by owner.
 - ~~**"Download my data" JSON export**~~ ✅ DONE (2026-07) — Settings → "Download My Data" (`src/lib/dataExport.ts`). Full offline-first sync remains a separate future project.
-- **Recurring service intervals** (user-requested; replaces the "import manufacturer schedules" idea — OEM schedule data is a licensing/scraping minefield) — `car_reminders` is one-shot only today (`due_date`/`due_mileage` + `is_complete`, no recurrence). Add an interval concept (every N mi / N months, auto-regenerate on complete), then later community-shared templates per model.
+- ~~**Recurring service intervals**~~ ✅ DONE (2026-07-21, migration 078) — `car_reminders.recur_months` + `recur_miles`; completing a recurring reminder auto-spawns the next occurrence. Delivery is on-device local notifications in the native Capacitor app (`src/lib/reminderNotifications.ts`, no push infra). Still future: community-shared schedule templates per model.
 - **Social layer (parked — Phase 7 in MASTER_ARCHITECTURE Part 29)** — groups, meets, events; "forums beautified, GT vibe". Needs its own dedicated design session (data model, moderation, location privacy) before any code.
