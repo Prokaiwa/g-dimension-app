@@ -177,11 +177,13 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
   grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean
 }) {
   return (
-    // Belt-and-suspenders over backface-visibility (which WebKit doesn't always
-    // honor for image/SVG children): the face's content is switched off at the
-    // flip's midpoint (edge-on, so the swap is invisible) — kills the moment
-    // where the front QR/text showed through the back.
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined, ...m.bg }}>
+    // The material BACKGROUND stays visible the whole flip (backface-visibility
+    // handles solid backgrounds fine — so the card is seen turning). Only the
+    // CONTENT layer (rail, text, QR, checker) is switched off at the flip's
+    // midpoint (edge-on, invisible), because WebKit doesn't honor
+    // backface-visibility for image/SVG children — that leak was the bug.
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
       <GradeRail grade={grade} m={m} />
       <div style={{ position: 'absolute', left: 52, top: 0, right: 0, bottom: 0, padding: '18px 20px' }}>
@@ -202,6 +204,7 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
           G-DIMENSION
         </div>
       </div>
+      </div>
     </div>
   )
 }
@@ -209,7 +212,8 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
 function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean }) {
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   return (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined, ...m.bg }}>
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
         {next ? (
@@ -245,6 +249,7 @@ function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; t
         <div style={{ marginTop: 'auto', paddingTop: 6, fontFamily: FONT_UI, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: m.inkDim, opacity: 0.7 }}>
           Tap to flip back
         </div>
+      </div>
       </div>
     </div>
   )
