@@ -414,6 +414,7 @@ export default function ProfilePage() {
                   driver={profileName(profile)}
                   handle={`@${profile.username}`}
                   licensed={licensedDate(profile.created_at)}
+                  profileUrl={`https://gdimension.app/builds/${profile.username}`}
                 />
                 {license.current && license.next && license.toNext.length > 0 && (
                   <p style={{ textAlign: 'center', fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, letterSpacing: '0.06em', color: MUTED, margin: `${SPACE_SM}px 0 0` }}>

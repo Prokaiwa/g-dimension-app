@@ -14,7 +14,8 @@ export type LicenseStats = {
   cars: number
   mods: number
   timeline: number
-  services: number
+  services: number       // maintenance-type sessions
+  details: number        // detail-type sessions (car washes)
   buildSheetPhotos: number
   diyGuides: number
   featuredPublished: number
@@ -40,31 +41,42 @@ export type Grade = {
 export const GRADES: Grade[] = [
   {
     id: 'C', className: 'Street', material: 'bronze',
-    reqs: [{ key: 'cars', need: 1, label: 'Add your first car' }],
+    reqs: [
+      { key: 'cars', need: 1, label: 'Add your first car' },
+      { key: 'services', need: 1, label: 'Record your first service' },
+      { key: 'timeline', need: 1, label: 'Write your first timeline entry' },
+    ],
   },
   {
     id: 'B', className: 'Builder', material: 'silver',
     reqs: [
       { key: 'mods', need: 5, label: 'Log 5 mods' },
       { key: 'timeline', need: 3, label: 'Write 3 timeline entries' },
-      { key: 'services', need: 1, label: 'Record 1 service' },
+      { key: 'services', need: 3, label: 'Record 3 services' },
+      { key: 'details', need: 1, label: 'Log a detail wash' },
+      { key: 'buildSheetPhotos', need: 1, label: 'Add a Build Sheet section photo' },
+      { key: 'diyGuides', need: 1, label: 'Publish a DIY install guide' },
     ],
   },
   {
     id: 'A', className: 'Tuner', material: 'gold',
     reqs: [
       { key: 'mods', need: 15, label: 'Log 15 mods' },
-      { key: 'timeline', need: 10, label: 'Write 10 timeline entries' },
+      { key: 'timeline', need: 15, label: 'Write 15 timeline entries' },
       { key: 'services', need: 5, label: 'Record 5 services' },
-      { key: 'buildSheetPhotos', need: 1, label: 'Add a Build Sheet section photo' },
+      { key: 'buildSheetPhotos', need: 2, label: 'Fill 2 Build Sheet sections' },
+      { key: 'diyGuides', need: 2, label: 'Publish 2 DIY guides' },
+      { key: 'publicShared', need: 1, label: 'Share your build publicly' },
     ],
   },
   {
     id: 'IA', className: 'Master', material: 'crimson',
     reqs: [
       { key: 'mods', need: 25, label: 'Log 25 mods' },
-      { key: 'timeline', need: 20, label: 'Write 20 timeline entries' },
-      { key: 'diyGuides', need: 1, label: 'Publish a DIY install guide' },
+      { key: 'timeline', need: 30, label: 'Write 30 timeline entries' },
+      { key: 'services', need: 10, label: 'Record 10 services' },
+      { key: 'buildSheetPhotos', need: 4, label: 'Fill all 4 Build Sheet sections' },
+      { key: 'diyGuides', need: 3, label: 'Publish 3 DIY guides' },
       { key: 'featuredPublished', need: 1, label: 'Publish your Featured magazine' },
     ],
   },
@@ -73,9 +85,9 @@ export const GRADES: Grade[] = [
     reqs: [
       { key: 'mods', need: 50, label: 'Log 50 mods' },
       { key: 'cars', need: 2, label: 'Build 2 cars' },
-      { key: 'timeline', need: 40, label: 'Write 40 timeline entries' },
-      { key: 'services', need: 10, label: 'Record 10 services' },
-      { key: 'publicShared', need: 1, label: 'Share your build publicly' },
+      { key: 'timeline', need: 50, label: 'Write 50 timeline entries' },
+      { key: 'services', need: 15, label: 'Record 15 services' },
+      { key: 'diyGuides', need: 5, label: 'Publish 5 DIY guides' },
     ],
   },
 ]
@@ -128,7 +140,7 @@ export function computeLicense(stats: LicenseStats): LicenseState {
  *  counts + one cars row read — cheap, safe to call after the profile mounts. */
 export async function getLicenseStats(uid: string): Promise<LicenseStats> {
   const empty: LicenseStats = {
-    cars: 0, mods: 0, timeline: 0, services: 0,
+    cars: 0, mods: 0, timeline: 0, services: 0, details: 0,
     buildSheetPhotos: 0, diyGuides: 0, featuredPublished: 0, publicShared: 0,
   }
 
@@ -152,10 +164,11 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
     n + (c.build_sheet_power_photo ? 1 : 0) + (c.build_sheet_chassis_photo ? 1 : 0)
       + (c.build_sheet_exterior_photo ? 1 : 0) + (c.build_sheet_interior_photo ? 1 : 0), 0)
 
-  const [mods, timeline, services, diyGuides] = await Promise.all([
+  const [mods, timeline, services, details, diyGuides] = await Promise.all([
     supabase.from('jobs').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('status', 'installed'),
     supabase.from('timeline_entries').select('id', { count: 'exact', head: true }).in('car_id', carIds),
     supabase.from('sessions').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('type', 'maintenance'),
+    supabase.from('sessions').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('type', 'detail'),
     supabase.from('diy_guides').select('id', { count: 'exact', head: true }).in('car_id', carIds),
   ])
 
@@ -164,6 +177,7 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
     mods: mods.count ?? 0,
     timeline: timeline.count ?? 0,
     services: services.count ?? 0,
+    details: details.count ?? 0,
     buildSheetPhotos,
     diyGuides: diyGuides.count ?? 0,
     featuredPublished,

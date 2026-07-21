@@ -12,7 +12,7 @@ import { FONT_UI, COLOR_ACCENT, COLOR_CAVITY_BG } from '../tokens'
 // partially met (~55%) so the flip side shows a realistic in-progress mix.
 function statsAtGrade(i: number): LicenseStats {
   const s: LicenseStats = {
-    cars: 0, mods: 0, timeline: 0, services: 0,
+    cars: 0, mods: 0, timeline: 0, services: 0, details: 0,
     buildSheetPhotos: 0, diyGuides: 0, featuredPublished: 0, publicShared: 0,
   }
   // Meet every req of grades 0..i (take the max threshold seen per key).
@@ -57,7 +57,7 @@ export default function LicensePreviewPage() {
                 toNext={lic.toNext}
                 driver="Hiroshi"
                 handle="@hiroshi_ls430"
-                licensed="06.2026"
+                licensed="06.2026" profileUrl="https://gdimension.app/builds/hiroshi_ls430"
               />
             </div>
           )
@@ -68,7 +68,7 @@ export default function LicensePreviewPage() {
           <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)', margin: '0 0 10px' }}>
             Provisional (no car yet)
           </div>
-          <LicenseCard grade={null} next={null} toNext={[]} driver="Hiroshi" handle="@hiroshi_ls430" licensed="06.2026" />
+          <LicenseCard grade={null} next={null} toNext={[]} driver="Hiroshi" handle="@hiroshi_ls430" licensed="06.2026" profileUrl="https://gdimension.app/builds/hiroshi_ls430" />
         </div>
       </div>
     </div>
