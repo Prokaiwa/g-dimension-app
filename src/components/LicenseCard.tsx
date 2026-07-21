@@ -183,7 +183,7 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
     // midpoint (edge-on, invisible), because WebKit doesn't honor
     // backface-visibility for image/SVG children — that leak was the bug.
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 240ms ease 0ms' : 'opacity 240ms ease 380ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
       <GradeRail grade={grade} m={m} />
       <div style={{ position: 'absolute', left: 52, top: 0, right: 0, bottom: 0, padding: '18px 20px' }}>
@@ -213,7 +213,7 @@ function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; t
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   return (
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 240ms ease 0ms' : 'opacity 240ms ease 380ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
         {next ? (
