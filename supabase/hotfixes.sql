@@ -5,7 +5,11 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 076_public_sessions_links.sql (applied 2026-07-20)
+-- Last migration applied : 077_license_grade.sql (applied 2026-07-21)
+--   - 077 (G-Dimension Permit public badge: users.license_grade text column +
+--     public_car_profiles view refreshed to expose it; written client-side on
+--     Profile view from the full all-cars grade computation, shown as a chip on
+--     the public /builds driver card).
 --   - 076 (logged-out visitor audit: sessions_public_read + job_links_public_read
 --     policies with column-scoped anon grants — costs/journal/user_id excluded;
 --     jobs_public_read now honors show_buildsheet_publicly OR show_featured_publicly
