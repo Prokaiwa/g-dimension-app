@@ -5,7 +5,11 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 077_license_grade.sql (applied 2026-07-21)
+-- Last migration applied : 078_reminder_recurrence.sql (applied 2026-07-21)
+--   - 078 (recurring service reminders: car_reminders.recur_months + recur_miles
+--     nullable int columns — completing a recurring reminder spawns the next
+--     occurrence; delivery is on-device local notifications in the native
+--     Capacitor app, no push infra. NULL/NULL = plain one-shot, unchanged).
 --   - 077 (G-Dimension Permit public badge: users.license_grade text column +
 --     public_car_profiles view refreshed to expose it; written client-side on
 --     Profile view from the full all-cars grade computation, shown as a chip on
