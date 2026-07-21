@@ -24,6 +24,8 @@ import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
+import { getLicenseStats, computeLicense, type LicenseState } from '../lib/license'
+import LicenseCard from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
@@ -68,6 +70,13 @@ type Draft = {
 
 function avatarLetter(p: UserProfile): string {
   return profileName(p).charAt(0).toUpperCase() || '?'
+}
+
+// "Licensed" date on the permit: MM.YYYY of the account's creation.
+function licensedDate(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
 }
 
 function memberSince(iso: string): string {
@@ -138,6 +147,7 @@ export default function ProfilePage() {
   // flash "Loading…" every time; the effect below revalidates in the background.
   const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile())
   const [stats, setStats]     = useState<ProfileStats | null>(null)
+  const [license, setLicense] = useState<LicenseState | null>(null)
   const [loading, setLoading] = useState(() => !getCachedProfile())
   // 'copied' flashes a small label on the share icon after a clipboard fallback
   // (native-sheet shares need no feedback — the sheet itself is the feedback).
@@ -187,7 +197,10 @@ export default function ProfilePage() {
     getCurrentUserProfile().then(p => {
       setProfile(p)
       setLoading(false)
-      if (p) getProfileStats(p.id).then(setStats)
+      if (p) {
+        getProfileStats(p.id).then(setStats)
+        getLicenseStats(p.id).then(s => setLicense(computeLicense(s)))
+      }
     })
   }, [])
 
@@ -389,6 +402,26 @@ export default function ProfilePage() {
                 Edit Profile
               </button>
             </div>
+
+            {/* ── G-Dimension Permit (licence) — tap to flip to the next-grade
+                checklist. The progression hook. ── */}
+            {license && (
+              <div style={{ marginTop: SPACE_XL }}>
+                <LicenseCard
+                  grade={license.current}
+                  next={license.next}
+                  toNext={license.toNext}
+                  driver={profileName(profile)}
+                  handle={`@${profile.username}`}
+                  licensed={licensedDate(profile.created_at)}
+                />
+                {license.current && license.next && license.toNext.length > 0 && (
+                  <p style={{ textAlign: 'center', fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, letterSpacing: '0.06em', color: MUTED, margin: `${SPACE_SM}px 0 0` }}>
+                    Tap the permit to see what's left for Grade {license.next.id}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Stats strip */}
             <div style={{ display: 'flex', alignItems: 'stretch', marginTop: SPACE_XL, padding: `4px 0`, borderTop: '1px solid rgba(240,228,200,0.07)', borderBottom: '1px solid rgba(240,228,200,0.07)' }}>
