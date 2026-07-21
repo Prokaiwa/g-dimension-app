@@ -173,11 +173,15 @@ function Field({ label, value, m }: { label: string; value: string; m: Material 
   )
 }
 
-function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed }: {
-  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number
+function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidden }: {
+  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean
 }) {
   return (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
+    // Belt-and-suspenders over backface-visibility (which WebKit doesn't always
+    // honor for image/SVG children): the face's content is switched off at the
+    // flip's midpoint (edge-on, so the swap is invisible) — kills the moment
+    // where the front QR/text showed through the back.
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined, ...m.bg }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
       <GradeRail grade={grade} m={m} />
       <div style={{ position: 'absolute', left: 52, top: 0, right: 0, bottom: 0, padding: '18px 20px' }}>
@@ -202,10 +206,10 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed }: {
   )
 }
 
-function ProgressFace({ next, toNext, m, seed }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number }) {
+function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean }) {
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   return (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', opacity: hidden ? 0 : 1, transition: 'opacity 0s linear 310ms', pointerEvents: hidden ? 'none' : undefined, ...m.bg }}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
         {next ? (
@@ -284,8 +288,8 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
       <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
       <div style={{ position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d', transition: 'transform 620ms cubic-bezier(0.22,1,0.36,1)', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12 }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} />
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} />
       </div>
     </div>
   )

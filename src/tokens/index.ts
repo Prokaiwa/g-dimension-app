@@ -205,7 +205,7 @@ export const RADIUS_TIMELINE_CARD = 4;
 // PARTS BIN COLOR TOKENS — cardboard / kraft paper palette
 // ------------------------------------------------------------
 
-export const COLOR_CARDBOARD_BG     = '#c4a26a'; // kraft tan base
+export const COLOR_CARDBOARD_BG     = '#9c7040'; // rich kraft base (behind the parts-bin photo; browner than the old #c4a26a)
 export const COLOR_CARDBOARD_DARK   = '#c9a96e'; // slightly lighter kraft (section areas)
 export const COLOR_CARDBOARD_INK    = '#1a1008'; // near-black warm — primary text
 export const COLOR_CARDBOARD_INK2   = '#3d2810'; // secondary ink — muted text

@@ -55,7 +55,6 @@ export const GRADES: Grade[] = [
       { key: 'services', need: 3, label: 'Record 3 services' },
       { key: 'details', need: 1, label: 'Log a detail wash' },
       { key: 'buildSheetPhotos', need: 1, label: 'Add a Build Sheet section photo' },
-      { key: 'diyGuides', need: 1, label: 'Publish a DIY install guide' },
     ],
   },
   {
@@ -65,7 +64,7 @@ export const GRADES: Grade[] = [
       { key: 'timeline', need: 15, label: 'Write 15 timeline entries' },
       { key: 'services', need: 5, label: 'Record 5 services' },
       { key: 'buildSheetPhotos', need: 2, label: 'Fill 2 Build Sheet sections' },
-      { key: 'diyGuides', need: 2, label: 'Publish 2 DIY guides' },
+      { key: 'diyGuides', need: 1, label: 'Publish a DIY install guide' },
       { key: 'publicShared', need: 1, label: 'Share your build publicly' },
     ],
   },
