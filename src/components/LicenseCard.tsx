@@ -183,7 +183,7 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
     // midpoint (edge-on, invisible), because WebKit doesn't honor
     // backface-visibility for image/SVG children — that leak was the bug.
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 240ms ease 0ms' : 'opacity 240ms ease 380ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
       <GradeRail grade={grade} m={m} />
       <div style={{ position: 'absolute', left: 52, top: 0, right: 0, bottom: 0, padding: '18px 20px' }}>
@@ -213,7 +213,7 @@ function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; t
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   return (
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 240ms ease 0ms' : 'opacity 240ms ease 380ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
         {next ? (
@@ -292,7 +292,9 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
       <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d', transition: 'transform 620ms cubic-bezier(0.22,1,0.36,1)', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12 }}>
+      {/* ease-in-out so the card is edge-on predictably at the 50% mark (~320ms)
+          — the content fades are timed to that so the swap is masked. */}
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d', transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12 }}>
         <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} />
         <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} />
       </div>
