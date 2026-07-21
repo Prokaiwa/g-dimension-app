@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { reportActionError } from '../lib/appError'
+import { syncReminderNotifications } from '../lib/reminderNotifications'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
   COLOR_HEADER_BLACK,
@@ -66,6 +67,8 @@ type Reminder = {
   completed_at: string | null
   job_id: string | null
   remind_days_before: number | null
+  recur_months: number | null
+  recur_miles: number | null
 }
 
 type Draft = {
@@ -77,9 +80,11 @@ type Draft = {
   due_mileage: string
   job_id: string | null
   job_title: string | null   // display-only label for a linked part
+  recur_months: string       // repeat every N months (empty = no time recurrence)
+  recur_miles: string        // repeat every N miles (empty = no mileage recurrence)
 }
 
-const EMPTY_DRAFT: Draft = { title: '', category: 'service', notes: '', due_date: '', due_mileage: '', job_id: null, job_title: null }
+const EMPTY_DRAFT: Draft = { title: '', category: 'service', notes: '', due_date: '', due_mileage: '', job_id: null, job_title: null, recur_months: '', recur_miles: '' }
 
 type Urgency = 'overdue' | 'soon' | 'upcoming'
 const RANK: Record<Urgency, number> = { overdue: 0, soon: 1, upcoming: 2 }
@@ -171,7 +176,7 @@ export default function GarageRemindersPage() {
       if (!id) { setLoading(false); setNoCar(true); return }
       setCarId(id)
 
-      const REM_FULL = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id, remind_days_before'
+      const REM_FULL = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id, remind_days_before, recur_months, recur_miles'
       const REM_BASE = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id'
       const [{ data: car }, remFull] = await Promise.all([
         supabase.from('cars').select('year, model, current_mileage').eq('id', id).is('deleted_at', null).single(),
@@ -187,8 +192,11 @@ export default function GarageRemindersPage() {
         setCarInfo([car.year, car.model].filter(Boolean).join(' '))
         setCurrentMileage(car.current_mileage ?? null)
       }
-      setReminders((rows ?? []) as Reminder[])
+      const loaded = (rows ?? []) as Reminder[]
+      setReminders(loaded)
       setLoading(false)
+      // Native only: (re)schedule on-device notifications for the dated ones.
+      void syncReminderNotifications(loaded, [car?.year, car?.model].filter(Boolean).join(' '))
 
       // Prefill from part link, then clear router state so back/refresh won't re-open.
       const pf = prefillRef.current?.reminderForJob
@@ -214,6 +222,8 @@ export default function GarageRemindersPage() {
       due_mileage: r.due_mileage != null ? String(r.due_mileage) : '',
       job_id: r.job_id,
       job_title: null,
+      recur_months: r.recur_months != null ? String(r.recur_months) : '',
+      recur_miles: r.recur_miles != null ? String(r.recur_miles) : '',
     })
   }
 
@@ -224,6 +234,8 @@ export default function GarageRemindersPage() {
 
     setSaving(true)
     const mileage = draft.due_mileage.trim() ? parseInt(draft.due_mileage.replace(/[^\d]/g, ''), 10) : null
+    const rMonths = draft.recur_months.trim() ? parseInt(draft.recur_months.replace(/[^\d]/g, ''), 10) : null
+    const rMiles  = draft.recur_miles.trim()  ? parseInt(draft.recur_miles.replace(/[^\d]/g, ''), 10)  : null
     const payload = {
       title,
       category: draft.category,
@@ -231,24 +243,39 @@ export default function GarageRemindersPage() {
       due_date: draft.due_date || null,
       due_mileage: Number.isFinite(mileage as number) ? mileage : null,
       job_id: draft.job_id,
+      recur_months: rMonths && rMonths > 0 ? rMonths : null,
+      recur_miles:  rMiles && rMiles > 0 ? rMiles : null,
     }
+    const SEL = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id, remind_days_before, recur_months, recur_miles'
 
+    let nextReminders: Reminder[] = reminders
     if (draft.id) {
       const { data, error } = await supabase
-        .from('car_reminders').update(payload).eq('id', draft.id)
-        .select('id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id').single()
+        .from('car_reminders').update(payload).eq('id', draft.id).select(SEL).single()
       // On failure keep the sheet open so the typed data isn't lost.
       if (error || !data) { reportActionError("Couldn't save the reminder", error); setSaving(false); return }
-      setReminders(prev => prev.map(r => (r.id === draft.id ? (data as Reminder) : r)))
+      nextReminders = reminders.map(r => (r.id === draft.id ? (data as Reminder) : r))
     } else {
       const { data, error } = await supabase
-        .from('car_reminders').insert({ ...payload, car_id: carId })
-        .select('id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id').single()
+        .from('car_reminders').insert({ ...payload, car_id: carId }).select(SEL).single()
       if (error || !data) { reportActionError("Couldn't save the reminder", error); setSaving(false); return }
-      setReminders(prev => [...prev, data as Reminder])
+      nextReminders = [...reminders, data as Reminder]
     }
+    setReminders(nextReminders)
+    void syncReminderNotifications(nextReminders, carInfo)
     setSaving(false)
     setDraft(null)
+  }
+
+  // Add N months to a YYYY-MM-DD date, clamping the day to the target month.
+  function addMonths(dateStr: string, months: number): string {
+    const d = new Date(dateStr + 'T00:00:00')
+    const day = d.getDate()
+    d.setDate(1)
+    d.setMonth(d.getMonth() + months)
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+    d.setDate(Math.min(day, daysInMonth))
+    return d.toISOString().split('T')[0]
   }
 
   async function toggleComplete(r: Reminder) {
@@ -260,6 +287,34 @@ export default function GarageRemindersPage() {
     if (error) {
       reportActionError("Couldn't update the reminder", error)
       setReminders(prev => prev.map(x => (x.id === r.id ? { ...x, is_complete: r.is_complete, completed_at: r.completed_at } : x)))
+      return
+    }
+
+    // Recurrence: completing a repeating reminder spawns its next occurrence.
+    if (next && carId && (r.recur_months || r.recur_miles)) {
+      const today = new Date().toISOString().split('T')[0]
+      const baseDate = r.due_date || today
+      const nextDue = r.recur_months ? addMonths(baseDate, r.recur_months) : null
+      const nextMileage = r.recur_miles != null
+        ? (currentMileage ?? r.due_mileage ?? 0) + r.recur_miles
+        : null
+      const SEL = 'id, title, category, notes, due_date, due_mileage, is_complete, completed_at, job_id, remind_days_before, recur_months, recur_miles'
+      const { data, error: insErr } = await supabase.from('car_reminders').insert({
+        car_id: carId, title: r.title, category: r.category, notes: r.notes,
+        due_date: nextDue, due_mileage: nextMileage, job_id: r.job_id,
+        remind_days_before: r.remind_days_before,
+        recur_months: r.recur_months, recur_miles: r.recur_miles,
+      }).select(SEL).single()
+      if (!insErr && data) {
+        setReminders(prev => {
+          const nextList = [...prev, data as Reminder]
+          void syncReminderNotifications(nextList, carInfo)
+          return nextList
+        })
+      }
+    } else {
+      // Completing/uncompleting a one-shot only changes what's scheduled.
+      setReminders(prev => { void syncReminderNotifications(prev, carInfo); return prev })
     }
   }
 
@@ -268,7 +323,9 @@ export default function GarageRemindersPage() {
     setSaving(true)
     const { error } = await supabase.from('car_reminders').delete().eq('id', draft.id)
     if (error) { reportActionError("Couldn't delete the reminder", error); setSaving(false); return }
-    setReminders(prev => prev.filter(r => r.id !== draft.id))
+    const nextList = reminders.filter(r => r.id !== draft.id)
+    setReminders(nextList)
+    void syncReminderNotifications(nextList, carInfo)
     setSaving(false)
     setDraft(null)
   }
@@ -488,7 +545,20 @@ export default function GarageRemindersPage() {
               </div>
             </div>
             <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `-6px 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
-              Set a date, a mileage, or both — whichever comes first lights up.
+              Set a date, a mileage, or both. Whichever comes first lights up.
+            </p>
+
+            <FieldLabel>Repeats (optional)</FieldLabel>
+            <div style={{ display: 'flex', gap: SPACE_MD }}>
+              <div style={{ flex: 1 }}>
+                <input value={draft.recur_months} onChange={e => setDraft({ ...draft, recur_months: e.target.value })} placeholder="every N months" inputMode="numeric" style={{ ...sheetInput, marginBottom: 6 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <input value={draft.recur_miles} onChange={e => setDraft({ ...draft, recur_miles: e.target.value })} placeholder="every N miles" inputMode="numeric" style={{ ...sheetInput, marginBottom: 6 }} />
+              </div>
+            </div>
+            <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `0 0 ${SPACE_MD}px`, lineHeight: 1.4 }}>
+              When you mark this done, the next one is scheduled automatically. The native app can also send a notification when it's due.
             </p>
 
             <FieldLabel>Notes</FieldLabel>
