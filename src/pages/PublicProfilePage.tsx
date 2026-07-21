@@ -14,6 +14,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
 import { shareLink } from '../lib/share'
+import { gradeById, GRADE_CHIP } from '../lib/license'
 import { ShareIcon } from '../components/ShareIcon'
 import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
@@ -213,6 +214,9 @@ interface CarRow {
   show_featured_publicly: boolean | null
   active_car_id: string | null
   created_at: string | null
+  // The owner's permit grade (migration 077) — read defensively (undefined
+  // pre-migration) so the badge simply doesn't render until it's applied.
+  license_grade?: string | null
 }
 
 export default function PublicProfilePage() {
@@ -789,6 +793,19 @@ export default function PublicProfilePage() {
                   {car.display_name || `@${username}`}
                 </p>
                 <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: '#6c7280', margin: '2px 0 0' }}>@{username}</p>
+                {(() => {
+                  // G-Dimension Permit grade badge (migration 077).
+                  const g = gradeById(car.license_grade)
+                  if (!g) return null
+                  const chip = GRADE_CHIP[g.id]
+                  return (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, padding: '3px 8px', background: chip.bg, borderRadius: 3, boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }}>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 9.5, letterSpacing: '0.12em', color: chip.fg }}>GRADE {g.id}</span>
+                      <span style={{ width: 1, height: 9, background: chip.fg, opacity: 0.4 }} />
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: chip.fg, opacity: 0.92 }}>{g.className}</span>
+                    </span>
+                  )
+                })()}
               </div>
             </div>
             {(car.city || car.country) && (

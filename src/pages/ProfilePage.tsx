@@ -199,7 +199,14 @@ export default function ProfilePage() {
       setLoading(false)
       if (p) {
         getProfileStats(p.id).then(setStats)
-        getLicenseStats(p.id).then(s => setLicense(computeLicense(s)))
+        getLicenseStats(p.id).then(s => {
+          const lic = computeLicense(s)
+          setLicense(lic)
+          // Persist the TRUE grade (computed from all cars) so the public
+          // /builds driver card can show the badge without recomputing.
+          // Best-effort; a pre-077 gap or failure just leaves it unset.
+          supabase.from('users').update({ license_grade: lic.current?.id ?? null }).eq('id', p.id).then(() => {}, () => {})
+        })
       }
     })
   }, [])

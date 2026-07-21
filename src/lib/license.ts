@@ -91,6 +91,21 @@ export const GRADES: Grade[] = [
   },
 ]
 
+/** Look up a grade by its persisted id (e.g. from users.license_grade). */
+export function gradeById(id: string | null | undefined): Grade | null {
+  if (!id) return null
+  return GRADES.find(g => g.id === id) ?? null
+}
+
+/** Compact chip colors for the public grade badge — the material's key tone. */
+export const GRADE_CHIP: Record<GradeId, { bg: string; fg: string }> = {
+  C:  { bg: '#9c7040', fg: '#f3e4c6' },
+  B:  { bg: '#8a8a90', fg: '#f7f7f8' },
+  A:  { bg: '#c49a42', fg: '#241a08' },
+  IA: { bg: '#5a1418', fg: '#f2e2d6' },
+  S:  { bg: '#18181c', fg: '#c8661a' },
+}
+
 export type GradeProgress = {
   key: StatKey
   label: string
