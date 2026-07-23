@@ -16,7 +16,7 @@
     },
     { "src": "^/$", "dest": "/marketing.html" },
     { "handle": "filesystem" },
-    { "src": "^/sitemap-builds\\.xml$", "dest": "/api/sitemap-builds" },
+    { "src": "^/sitemap\\.xml$", "dest": "/api/sitemap" },
     { "src": "^/builds/(.*)", "dest": "/api/og?p=$1" },
     { "src": "^/api/(.*)", "dest": "/api/$1" },
     { "src": "^/(.*)", "dest": "/index.html" }

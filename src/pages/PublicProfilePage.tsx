@@ -9,8 +9,14 @@
 // ADAPTIVE map: a node only appears when the owner has content behind it.
 // One designed layout template per node count (1–5).
 // Node taps are stubbed — read-only sub-screens are the next build.
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import {
+  useEffect, useMemo, useRef, useState,
+  type ElementType,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
 import { shareLink } from '../lib/share'
@@ -265,6 +271,10 @@ export default function PublicProfilePage() {
   const rafRef        = useRef<number>(0)
   const parallaxRef   = useRef({ px: 0, py: 0 })  // live parallax for exit zoom
   const pressStartRef = useRef<{ id: string; x: number; y: number } | null>(null)
+  // Mirrors the pointerdown position but is NOT cleared on pointerup (which runs
+  // before the anchor's click event) — lets the <Link> onClick suppress a
+  // click-after-drag using the same 34px tap slop as the pointerup handler.
+  const clickDownRef  = useRef<{ x: number; y: number } | null>(null)
   const exitingRef    = useRef(false)
 
   // ── Fetch ──
@@ -480,8 +490,9 @@ export default function PublicProfilePage() {
   const toastTimerRef  = useRef<number>(0)
   const onNodeTapRef   = useRef<(n: NodeDef) => void>(() => {})
 
-  const onNodeTap = (n: NodeDef) => {
-    if (exitingRef.current) return
+  // Single source for a node's destination path — used both by the real <Link
+  // href> (so crawlers can follow it) and by onNodeTap's animated navigation.
+  const destFor = (id: string): string | undefined => {
     const q = car?.id ? `?car=${car.id}` : ''
     const routes: Record<string, string> = {
       garage:      `/builds/${username}/garage${q}`,
@@ -489,7 +500,12 @@ export default function PublicProfilePage() {
       buildsheet:  `/builds/${username}/buildsheet${q}`,
       featured:    `/builds/${username}/featured${q}`,
     }
-    const dest = routes[n.id]
+    return routes[id]
+  }
+
+  const onNodeTap = (n: NodeDef) => {
+    if (exitingRef.current) return
+    const dest = destFor(n.id)
     if (dest) {
       playConfirm()
       // Arm the Timeline's cinematic Overture for this dive only (consumed once
@@ -994,19 +1010,43 @@ export default function PublicProfilePage() {
           {nodes.map((n, i) => {
             const pos  = effNodes[i] ?? template.nodes[i]
             const size = n.focal ? ICON_WRAPPER_FOCAL : ICON_WRAPPER_STANDARD
+            const dest = destFor(n.id)
+            // Render a real <Link> (crawlable <a href>) when the node has a
+            // destination; fall back to a plain <div> only for dev-preview
+            // nodes with no route (e.g. `guides` via ?preview=5). The rendered
+            // box, styles, handlers and children are otherwise identical.
+            const Wrapper: ElementType = dest ? Link : 'div'
+            const linkProps = dest
+              // draggable=false + onDragStart preventDefault kill the native
+              // anchor drag-ghost; textDecoration/color reset the <a> defaults so
+              // the node looks pixel-identical to the old <div>.
+              ? { to: dest, draggable: false, onDragStart: (e: ReactDragEvent) => e.preventDefault() }
+              : {}
             return (
-              <div
+              <Wrapper
                 key={n.id}
-                // Arms the press; document-level pointerup completes it. onClick
-                // is a redundant fallback (exitingRef dedupes). setPointerCapture
-                // keeps the pointer bound through gyro/finger drift so iOS can't
-                // cancel the tap.
-                onPointerDown={e => {
+                {...linkProps}
+                // Arms the press; document-level pointerup completes it (34px
+                // slop). setPointerCapture keeps the pointer bound through
+                // gyro/finger drift so iOS can't cancel the tap.
+                onPointerDown={(e: ReactPointerEvent) => {
                   pressStartRef.current = { id: n.id, x: e.clientX, y: e.clientY }
+                  clickDownRef.current = { x: e.clientX, y: e.clientY }
                   setPressedNode(n.id)
                   try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* non-critical */ }
                 }}
-                onClick={() => onNodeTap(n)}
+                onClick={(e: ReactMouseEvent) => {
+                  // Never let the anchor navigate synchronously — onNodeTap runs
+                  // the sound + 380ms zoom-out, then navigate(). (No-op on the
+                  // <div> fallback.) exitingRef dedupes against the pointerup path.
+                  e.preventDefault()
+                  // Suppress a click-after-drag: if the pointer panned past the
+                  // tap slop, treat it as a pan, not a tap. Keyboard activation
+                  // (detail 0, no coords) always navigates.
+                  const s = clickDownRef.current
+                  if (e.detail !== 0 && s && Math.hypot(e.clientX - s.x, e.clientY - s.y) >= 34) return
+                  onNodeTap(n)
+                }}
                 style={{
                   position: 'absolute',
                   left: `${(pos.x / 390 * 100).toFixed(2)}%`,
@@ -1015,6 +1055,7 @@ export default function PublicProfilePage() {
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                   touchAction: 'none', userSelect: 'none',
+                  textDecoration: 'none', color: 'inherit',
                   animation: `pubDestIn 700ms ${EASING_SETTLE} ${STAGGER_MS[i] ?? 700}ms both`,
                 }}
               >
@@ -1098,7 +1139,7 @@ export default function PublicProfilePage() {
                     }} />
                   )}
                 </div>
-              </div>
+              </Wrapper>
             )
           })}
         </div>
