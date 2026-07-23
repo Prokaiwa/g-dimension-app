@@ -100,7 +100,8 @@ async function resolveCar(username, carParam) {
   if (!username || !SUPABASE_ANON_KEY) return null
   const select =
     'id,year,make,model,variant,nickname,username,display_name,' +
-    'original_photo_url,showcase_photo_url,garage_photo_url,active_car_id,created_at'
+    'original_photo_url,showcase_photo_url,garage_photo_url,active_car_id,created_at,' +
+    'show_buildsheet_publicly'
   const url =
     `${SUPABASE_URL}/rest/v1/public_car_profiles` +
     `?username=eq.${encodeURIComponent(username)}` +
@@ -124,6 +125,68 @@ async function resolveCar(username, carParam) {
   )
 }
 
+// Self/consolidated canonical for a /builds/* path. The room landing pages
+// (hub, garage, buildsheet, timeline, featured) point at THEMSELVES so each is
+// independently indexable; the thin per-record detail pages consolidate into
+// their room (mod detail + DIY → the build sheet, timeline entry → timeline) so
+// they don't compete with it in search. Query params (incl. ?car) are dropped
+// so a car's room has ONE canonical URL, matching the sitemap.
+function roomCanonical(username, room) {
+  const bare = `${SITE}/builds/${encodeURIComponent(username)}`
+  if (!room) return bare
+  if (room === 'garage' || room === 'buildsheet' || room === 'timeline' || room === 'featured') {
+    return `${bare}/${room}`
+  }
+  if (room === 'mods') return `${bare}/buildsheet` // mod detail + /diy live under the build sheet
+  return bare
+}
+
+// Fetch a car's installed mods for the crawlable build-sheet block. Anon key +
+// RLS (jobs_public_read) return rows ONLY for a public build sheet, and we
+// select just the public columns — brand / title / category, NEVER costs.
+async function resolveBuildSheetMods(carId) {
+  if (!carId || !SUPABASE_ANON_KEY) return []
+  const url =
+    `${SUPABASE_URL}/rest/v1/jobs` +
+    `?car_id=eq.${encodeURIComponent(carId)}` +
+    `&status=eq.installed` +
+    `&select=${encodeURIComponent('title,brand,category')}` +
+    `&order=category.asc&limit=500`
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  })
+  if (!res.ok) return []
+  const rows = await res.json()
+  return Array.isArray(rows) ? rows : []
+}
+
+// "Brand Title" for one mod (brand optional). No costs, ever.
+function modLabel(m) {
+  const brand = m.brand && m.brand.trim() ? m.brand.trim() + ' ' : ''
+  return (brand + (m.title || 'Mod')).trim()
+}
+
+// The crawlable content injected into #root for the build-sheet page. React
+// (createRoot) replaces #root on mount, so this is a fast-paint fallback that
+// ALSO gives non-JS crawlers (Google's first pass, AI answer engines) the real
+// mod list. Dark background matches the app so the hand-off is invisible.
+function buildSheetBlock(name, owner, mods) {
+  const items = mods
+    .map(m => {
+      const cat = m.category ? ` <span>(${esc(m.category)})</span>` : ''
+      return `<li>${esc(modLabel(m))}${cat}</li>`
+    })
+    .join('')
+  return (
+    `<main style="max-width:720px;margin:0 auto;padding:24px 20px;` +
+    `font-family:system-ui,sans-serif;background:#050507;color:#e8eaf0;min-height:100vh">` +
+    `<h1>${esc(name)} Build Sheet</h1>` +
+    `<p>Modifications on ${esc(name)}, a build by ${esc(owner)} on G-Dimension.</p>` +
+    (items ? `<ul>${items}</ul>` : `<p>No mods logged yet.</p>`) +
+    `</main>`
+  )
+}
+
 export default async function handler(req, res) {
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'gdimension.app'
 
@@ -134,8 +197,13 @@ export default async function handler(req, res) {
   const segs = p.split('/')
   const username = decodeURIComponent(segs[0] || '')
   const carParam = parsed.searchParams.get('car')
+  // The room segment: '', 'garage', 'buildsheet', 'timeline', 'featured',
+  // 'mods', 'sold'. Drives the canonical and the build-sheet content injection.
+  const room = decodeURIComponent(segs[1] || '')
   // /builds/:username/sold/:ghostId → a sold-car unfurl.
-  const soldId = segs[1] === 'sold' ? decodeURIComponent(segs[2] || '') : null
+  const soldId = room === 'sold' ? decodeURIComponent(segs[2] || '') : null
+  // Crawlable HTML injected into #root (build sheet only); null keeps #root empty.
+  let rootBlock = null
 
   let html
   try {
@@ -181,14 +249,33 @@ export default async function handler(req, res) {
       title = `${name} · G-Dimension`
       description = `${name} — a build by ${owner} on G-Dimension.`
       image = carImage(car)
-      canonical = `${SITE}/builds/${encodeURIComponent(car.username)}` +
-        (carParam ? `?car=${encodeURIComponent(carParam)}` : '')
 
       // All sub-pages — including Featured — unfurl with the car's own photo
       // (carImage above). The Featured magazine-cover render (api/og-cover.ts) was
       // deliberately dropped: a straight photo of the owner's car reads more
       // clearly in a link preview. og-cover.ts is now unused.
+
+      // Build sheet: inject the real mod list so the page is indexable on its
+      // own part names (e.g. "Revel Coilovers"), not just the car name — and so
+      // it ranks/lands as itself rather than folding into the profile hub.
+      // Gated on show_buildsheet_publicly so a hidden build sheet stays generic.
+      if (room === 'buildsheet' && car.show_buildsheet_publicly !== false) {
+        let mods = []
+        try { mods = await resolveBuildSheetMods(car.id) } catch { mods = [] }
+        rootBlock = buildSheetBlock(name, owner, mods)
+        title = `${name} Build Sheet · G-Dimension`
+        const labels = mods.map(modLabel).filter(Boolean)
+        let desc = labels.length
+          ? `${name} mods: ${labels.join(', ')}.`
+          : `The build sheet for ${name} on G-Dimension.`
+        if (desc.length > 160) desc = desc.slice(0, 157) + '…'
+        description = desc
+      }
     }
+
+    // Self/consolidated canonical per room (drops ?car). Overrides the old
+    // "everything → hub" behaviour so each room page is indexable as itself.
+    canonical = roomCanonical(username, room)
   }
 
   const t = esc(title)
@@ -236,6 +323,12 @@ export default async function handler(req, res) {
       /<meta name="twitter:image"[^>]*>/,
       `<meta name="twitter:image" content="${img}" />`,
     )
+
+  // Inject the crawlable build-sheet content into the (otherwise empty) #root.
+  // createRoot() replaces these children on mount, so humans still get the SPA.
+  if (rootBlock) {
+    html = html.replace('<div id="root"></div>', `<div id="root">${rootBlock}</div>`)
+  }
 
   res.statusCode = 200
   res.setHeader('content-type', 'text/html; charset=utf-8')
