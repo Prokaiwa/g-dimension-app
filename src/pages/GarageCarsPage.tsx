@@ -609,6 +609,17 @@ export default function GarageCarsPage() {
     if (tourStep?.id === 'add-car' && cars.length > 0) jump('car-success')
   }, [tourStep, cars.length, jump])
 
+  // When the Add-Car overlay closes, snap the window back to the top. Focusing
+  // an input inside the overlay makes iOS Safari scroll the whole window to
+  // reveal it, and that scroll can stay stuck after the overlay slides away —
+  // leaving the carousel scrolled up with the (closed) form showing below it.
+  useEffect(() => {
+    if (showAdd) return
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    if (document.body) document.body.scrollTop = 0
+  }, [showAdd])
+
   // Idle-preload the neighbor cars' cutouts so a swipe lands on a warm image
   // instead of racing a multi-MB PNG download.
   useEffect(() => {
@@ -1379,7 +1390,16 @@ export default function GarageCarsPage() {
       )}
 
       {/* ── ADD CAR OVERLAY ── */}
-      <div style={{ position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20, transform: showAdd ? 'translateY(0)' : 'translateY(100%)', transition: `transform 380ms ${EASING_SETTLE}`, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{
+        position: 'absolute', inset: 0, background: COLOR_CAVITY_BG, zIndex: 20,
+        transform: showAdd ? 'translateY(0)' : 'translateY(100%)',
+        // visibility:hidden once closed so it paints NOTHING below the fold even
+        // if the container fails to clip it (iOS 100dvh + transform quirk). The
+        // delay keeps it visible through the 380ms slide-out, then hides it.
+        visibility: showAdd ? 'visible' : 'hidden',
+        transition: `transform 380ms ${EASING_SETTLE}, visibility 0s ${showAdd ? '0s' : '380ms'}`,
+        overflow: 'hidden', display: 'flex', flexDirection: 'column',
+      }}>
         <GarageBg />
         <GarageHeader onBack={() => picker !== null ? setPicker(null) : step === 2 ? setStep(1) : setShowAdd(false)} />
 
