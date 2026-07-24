@@ -126,30 +126,17 @@ export function swellMusic(): void {
   swellRaf = requestAnimationFrame(tick)
 }
 
-// Smoothly ramp the element's volume to `to` over `ms`. Shares swellRaf so a
-// duck and a swell can't fight each other.
-function rampVolume(a: HTMLAudioElement, to: number, ms: number): void {
-  cancelAnimationFrame(swellRaf)
-  const from = a.volume
-  const start = performance.now()
-  const step = (now: number) => {
-    if (!el) return
-    const p = Math.min(1, (now - start) / ms)
-    a.volume = Math.max(0, Math.min(1, from + (to - from) * p))
-    if (p < 1) swellRaf = requestAnimationFrame(step)
-  }
-  swellRaf = requestAnimationFrame(step)
-}
-
-// Duck the bed hard for a foreground moment (the rank-up celebration plays its
-// own track over the top). Returns a restore fn that eases back to the resting
-// volume. No-op when music isn't playing.
+// Silence the bed for a foreground moment (the rank-up celebration plays its own
+// track over the top). Returns a restore fn that resumes it. We PAUSE rather than
+// duck the volume because iOS Safari ignores programmatic HTMLMediaElement.volume
+// — a volume duck is a no-op on iPhone, so the bed kept playing over the
+// celebration. Pausing works on every platform. No-op when music isn't playing.
 export function duckMusic(): () => void {
   if (!el || el.paused) return () => {}
   const target = el
-  rampVolume(target, 0.03, 320)
+  target.pause()
   return () => {
-    if (el === target && !target.paused) rampVolume(target, MUSIC_VOLUME, 800)
+    if (el === target && isMusicEnabled() && allowed) void target.play().catch(() => {})
   }
 }
 
