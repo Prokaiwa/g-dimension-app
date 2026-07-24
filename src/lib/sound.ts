@@ -268,6 +268,29 @@ export function prewarmRankUp(): void {
 }
 
 /**
+ * Unlock the rank-up <audio> element for later programmatic playback. iOS
+ * requires each media element's FIRST play() to originate from a user gesture;
+ * the celebration fires from app state (after the tour), not a tap, so without
+ * this its play() is blocked and it falls back to the synth. Call from a
+ * gesture (a muted play/pause counts as the unlock). Harmless if sound is off.
+ */
+export function unlockRankUp(): void {
+  const el = ensureRankEl()
+  const prevMuted = el.muted
+  el.muted = true
+  const p = el.play()
+  if (p) {
+    p.then(() => {
+      el.pause()
+      try { el.currentTime = 0 } catch { /* not seekable yet */ }
+      el.muted = prevMuted
+    }).catch(() => { el.muted = prevMuted })
+  } else {
+    el.muted = prevMuted
+  }
+}
+
+/**
  * Triumphant one-shot for a permit rank-up. Returns a STOP handle (fade out +
  * pause) so the celebration can cut the track when dismissed. Streams the
  * Pixabay file; if it can't play (missing / blocked) it falls back to the short

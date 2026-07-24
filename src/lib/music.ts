@@ -14,7 +14,7 @@
 // Drop the track at: public/audio/music.mp3  (served at /audio/music.mp3).
 // Until that file exists the element just fails to play — no crash.
 
-import { configureAudioSession, reviveSfx } from './sound'
+import { configureAudioSession, reviveSfx, unlockRankUp } from './sound'
 import { supabase } from './supabase'
 
 const MUSIC_KEY = 'gdim_music_enabled'
@@ -152,6 +152,7 @@ export function initMusic(): void {
 
   const onFirstGesture = () => {
     void startMusic()
+    unlockRankUp() // prime the rank-up track so the (non-gesture) celebration can play it
     window.removeEventListener('pointerdown', onFirstGesture)
     window.removeEventListener('touchstart', onFirstGesture)
     window.removeEventListener('keydown', onFirstGesture)
