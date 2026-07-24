@@ -7,7 +7,7 @@
 // /builds driver card can show it without recomputing.
 import { supabase } from './supabase'
 
-export type GradeId = 'C' | 'B' | 'A' | 'IA' | 'S'
+export type GradeId = 'P' | 'C' | 'B' | 'A' | 'IA' | 'S'
 
 // All stats are numeric so requirements compare uniformly; booleans are 0/1.
 export type LicenseStats = {
@@ -20,6 +20,7 @@ export type LicenseStats = {
   diyGuides: number
   featuredPublished: number
   publicShared: number
+  records: number        // mods + services + details — "did something to the car" (Grade C entry)
 }
 
 export type StatKey = keyof LicenseStats
@@ -30,7 +31,7 @@ export type Grade = {
   id: GradeId
   className: string
   // Card material — keys into the styling in LicenseCard.tsx.
-  material: 'bronze' | 'silver' | 'gold' | 'crimson' | 'carbon'
+  material: 'provisional' | 'bronze' | 'silver' | 'gold' | 'crimson' | 'carbon'
   // ALL reqs must be met to HOLD this grade (grades are cumulative: a higher
   // grade's numeric thresholds supersede the lower ones).
   reqs: GradeReq[]
@@ -40,42 +41,51 @@ export type Grade = {
 // names shown on the card — change a name here and it updates everywhere.
 export const GRADES: Grade[] = [
   {
-    id: 'C', className: 'Street', material: 'bronze',
+    // Provisional (Learner) — the walkthrough reward. Adding your first car
+    // makes you licensed; the ladder proper starts at Grade C.
+    id: 'P', className: 'Provisional', material: 'provisional',
     reqs: [
       { key: 'cars', need: 1, label: 'Add your first car' },
-      { key: 'services', need: 1, label: 'Record your first service' },
-      { key: 'timeline', need: 1, label: 'Write your first timeline entry' },
     ],
   },
   {
+    // Grade C — one substantive action, mod OR service (via the `records`
+    // derived stat). Both a modder and a maintenance-only owner reach it in one
+    // step, right after the car — no forced tour of other sections at the door.
+    id: 'C', className: 'Street', material: 'bronze',
+    reqs: [
+      { key: 'records', need: 1, label: 'Log your first mod or service' },
+    ],
+  },
+  {
+    // Grade B — breadth kicks in here, once someone's invested enough to explore.
     id: 'B', className: 'Builder', material: 'silver',
     reqs: [
       { key: 'mods', need: 5, label: 'Log 5 mods' },
-      { key: 'timeline', need: 3, label: 'Write 3 timeline entries' },
-      { key: 'services', need: 3, label: 'Record 3 services' },
-      { key: 'details', need: 1, label: 'Log a detail wash' },
+      { key: 'services', need: 2, label: 'Record 2 services' },
+      { key: 'timeline', need: 2, label: 'Write 2 timeline entries' },
       { key: 'buildSheetPhotos', need: 1, label: 'Add a Build Sheet section photo' },
+      { key: 'publicShared', need: 1, label: 'Share your build publicly' },
     ],
   },
   {
     id: 'A', className: 'Tuner', material: 'gold',
     reqs: [
       { key: 'mods', need: 15, label: 'Log 15 mods' },
-      { key: 'timeline', need: 15, label: 'Write 15 timeline entries' },
-      { key: 'services', need: 5, label: 'Record 5 services' },
+      { key: 'services', need: 4, label: 'Record 4 services' },
+      { key: 'timeline', need: 8, label: 'Write 8 timeline entries' },
       { key: 'buildSheetPhotos', need: 2, label: 'Fill 2 Build Sheet sections' },
       { key: 'diyGuides', need: 1, label: 'Publish a DIY install guide' },
-      { key: 'publicShared', need: 1, label: 'Share your build publicly' },
     ],
   },
   {
     id: 'IA', className: 'Master', material: 'crimson',
     reqs: [
-      { key: 'mods', need: 25, label: 'Log 25 mods' },
-      { key: 'timeline', need: 30, label: 'Write 30 timeline entries' },
-      { key: 'services', need: 10, label: 'Record 10 services' },
+      { key: 'mods', need: 30, label: 'Log 30 mods' },
+      { key: 'services', need: 8, label: 'Record 8 services' },
+      { key: 'timeline', need: 20, label: 'Write 20 timeline entries' },
       { key: 'buildSheetPhotos', need: 4, label: 'Fill all 4 Build Sheet sections' },
-      { key: 'diyGuides', need: 3, label: 'Publish 3 DIY guides' },
+      { key: 'diyGuides', need: 2, label: 'Publish 2 DIY guides' },
       { key: 'featuredPublished', need: 1, label: 'Publish your Featured magazine' },
     ],
   },
@@ -84,9 +94,9 @@ export const GRADES: Grade[] = [
     reqs: [
       { key: 'mods', need: 50, label: 'Log 50 mods' },
       { key: 'cars', need: 2, label: 'Build 2 cars' },
-      { key: 'timeline', need: 50, label: 'Write 50 timeline entries' },
-      { key: 'services', need: 15, label: 'Record 15 services' },
-      { key: 'diyGuides', need: 5, label: 'Publish 5 DIY guides' },
+      { key: 'timeline', need: 40, label: 'Write 40 timeline entries' },
+      { key: 'services', need: 12, label: 'Record 12 services' },
+      { key: 'diyGuides', need: 4, label: 'Publish 4 DIY guides' },
     ],
   },
 ]
@@ -99,6 +109,7 @@ export function gradeById(id: string | null | undefined): Grade | null {
 
 /** Compact chip colors for the public grade badge — the material's key tone. */
 export const GRADE_CHIP: Record<GradeId, { bg: string; fg: string }> = {
+  P:  { bg: '#c3c7cd', fg: '#2c3038' },
   C:  { bg: '#9c7040', fg: '#f3e4c6' },
   B:  { bg: '#8a8a90', fg: '#f7f7f8' },
   A:  { bg: '#c49a42', fg: '#241a08' },
@@ -156,6 +167,7 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
   const empty: LicenseStats = {
     cars: 0, mods: 0, timeline: 0, services: 0, details: 0,
     buildSheetPhotos: 0, diyGuides: 0, featuredPublished: 0, publicShared: 0,
+    records: 0,
   }
 
   const { data: carRows } = await supabase
@@ -186,15 +198,59 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
     supabase.from('diy_guides').select('id', { count: 'exact', head: true }).in('car_id', carIds),
   ])
 
+  const modsCount = mods.count ?? 0
+  const servicesCount = services.count ?? 0
+  const detailsCount = details.count ?? 0
+
   return {
     cars: cars.length,
-    mods: mods.count ?? 0,
+    mods: modsCount,
     timeline: timeline.count ?? 0,
-    services: services.count ?? 0,
-    details: details.count ?? 0,
+    services: servicesCount,
+    details: detailsCount,
     buildSheetPhotos,
     diyGuides: diyGuides.count ?? 0,
     featuredPublished,
     publicShared,
+    // "Did something to the car" — any mod, service, or detail. Backs Grade C's
+    // single mod-OR-service requirement.
+    records: modsCount + servicesCount + detailsCount,
+  }
+}
+
+/**
+ * The permit is a RATCHET (high-water mark): it never goes DOWN. Given the live
+ * stats and the last-persisted grade id (users.license_grade), the effective
+ * grade is the higher of the two — so selling/transferring a car, deleting a
+ * mod, or going private can never demote someone from a rung they earned.
+ *
+ * Returns the LicenseState to display, plus `rankedUp` (the live grade exceeds
+ * what was stored → a genuine new achievement worth celebrating) and `persistId`
+ * (the grade to write back — always >= stored, never lower).
+ */
+export function resolveLicense(
+  stats: LicenseStats,
+  storedGradeId: string | null | undefined,
+): LicenseState & { rankedUp: boolean; persistId: GradeId | null } {
+  const live = computeLicense(stats)
+  const liveIdx = live.current ? GRADES.indexOf(live.current) : -1
+  const storedIdx = storedGradeId ? GRADES.findIndex(g => g.id === storedGradeId) : -1
+  const effIdx = Math.max(liveIdx, storedIdx)
+
+  const current = effIdx >= 0 ? GRADES[effIdx] : null
+  const next = GRADES[effIdx + 1] ?? null
+  // Checklist toward the next rung, from LIVE counts (honest about what's left).
+  const toNext: GradeProgress[] = next
+    ? next.reqs.map(r => ({
+        key: r.key, label: r.label,
+        have: Math.min(stats[r.key], r.need), need: r.need,
+        done: stats[r.key] >= r.need,
+      }))
+    : []
+
+  return {
+    current, next, toNext,
+    rankedUp: liveIdx > storedIdx,
+    persistId: current?.id ?? null,
   }
 }

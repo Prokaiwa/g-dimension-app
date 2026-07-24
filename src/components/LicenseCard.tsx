@@ -37,6 +37,13 @@ const CARBON_BG: React.CSSProperties = {
 }
 
 const MATERIALS: Record<Grade['material'], Material> = {
+  // Learner permit — cool-white laminate. Held once you add your first car.
+  provisional: {
+    bg: { background: 'linear-gradient(145deg, #f4f6f8 0%, #e3e6ea 55%, #d3d7dd 100%)' },
+    ink: '#2c3038', inkDim: 'rgba(44,48,56,0.5)',
+    rail: 'linear-gradient(180deg, #b8bcc4, #9aa0a8)', railInk: '#fbfcfe',
+    grid: '#000', gridAlpha: 0.7, accent: '#2c3038', qrTile: false,
+  },
   bronze: {
     bg: { background: 'linear-gradient(145deg, #b98a52 0%, #9c7040 55%, #855c30 100%)' },
     ink: '#2a1c0c', inkDim: 'rgba(42,28,12,0.6)',
@@ -69,12 +76,6 @@ const MATERIALS: Record<Grade['material'], Material> = {
   },
 }
 
-const PROVISIONAL: Material = {
-  bg: { background: 'linear-gradient(145deg, #f4f6f8 0%, #e3e6ea 55%, #d3d7dd 100%)' },
-  ink: '#2c3038', inkDim: 'rgba(44,48,56,0.5)',
-  rail: 'linear-gradient(180deg, #b8bcc4, #9aa0a8)', railInk: '#fbfcfe',
-  grid: '#000', gridAlpha: 0.7, accent: '#2c3038', qrTile: false,
-}
 
 // ── Nürburgring-style dissolving checker field ──────────────────────────────
 // A seeded scatter of filled cells (denser toward the right, dissolving left)
@@ -138,8 +139,8 @@ function GradeRail({ grade, m }: { grade: Grade; m: Material }) {
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)', pointerEvents: 'none' }} />
       {/* moving sheen band */}
       <div style={{ position: 'absolute', left: '-60%', top: '-30%', width: '80%', height: '160%', background: 'linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.06) 65%, transparent 100%)', transform: 'skewX(-16deg)', animation: 'permitSheen 5s ease-in-out 1.5s infinite', pointerEvents: 'none' }} />
-      <span style={{ position: 'relative', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 900, fontSize: 14, letterSpacing: '0.32em', color: m.railInk, textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
-        GRADE&nbsp;&nbsp;{grade.id}
+      <span style={{ position: 'relative', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 900, fontSize: grade.id === 'P' ? 11 : 14, letterSpacing: '0.32em', color: m.railInk, textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+        {grade.id === 'P' ? 'PROVISIONAL' : <>GRADE&nbsp;&nbsp;{grade.id}</>}
       </span>
     </div>
   )
@@ -274,15 +275,17 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   const [flipped, setFlipped] = useState(false)
   const seed = useMemo(() => seedFrom(handle), [handle])
 
-  // Not licensed yet (no car): a cool-white provisional permit.
+  // Not licensed yet (no car AND no earned grade on record): a cool-white
+  // pre-permit card prompting the first car. Once a car exists the holder is
+  // Grade P (Provisional) and renders the full card below.
   if (!grade) {
-    const m = PROVISIONAL
+    const m = MATERIALS.provisional
     return (
       <div style={{ width: '100%', maxWidth: 420, aspectRatio: '420 / 264', borderRadius: 12, overflow: 'hidden', position: 'relative', margin: '0 auto', boxShadow: '0 16px 34px rgba(0,0,0,0.4)', ...m.bg }}>
         <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, textAlign: 'center', padding: 24 }}>
           <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 17, letterSpacing: '0.06em', textTransform: 'uppercase', color: m.ink }}>Provisional Permit</div>
-          <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: m.inkDim, maxWidth: 240, lineHeight: 1.5 }}>Add your first car to earn your Grade C · Street permit.</div>
+          <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: m.inkDim, maxWidth: 240, lineHeight: 1.5 }}>Add your first car to earn your Provisional permit.</div>
         </div>
       </div>
     )

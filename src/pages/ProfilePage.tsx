@@ -24,7 +24,7 @@ import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
-import { getLicenseStats, computeLicense, type LicenseState } from '../lib/license'
+import { getLicenseStats, resolveLicense, type LicenseState } from '../lib/license'
 import LicenseCard from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
@@ -199,13 +199,22 @@ export default function ProfilePage() {
       setLoading(false)
       if (p) {
         getProfileStats(p.id).then(setStats)
-        getLicenseStats(p.id).then(s => {
-          const lic = computeLicense(s)
+        getLicenseStats(p.id).then(async s => {
+          // Ratchet: read the last-persisted grade so the permit never demotes
+          // (selling/transferring a car, deleting a mod, going private can't
+          // knock you down a rung you earned). resolveLicense returns the higher
+          // of live vs stored.
+          const { data: row } = await supabase
+            .from('users').select('license_grade').eq('id', p.id).maybeSingle()
+          const stored = (row as { license_grade: string | null } | null)?.license_grade ?? null
+          const lic = resolveLicense(s, stored)
           setLicense(lic)
-          // Persist the TRUE grade (computed from all cars) so the public
-          // /builds driver card can show the badge without recomputing.
-          // Best-effort; a pre-077 gap or failure just leaves it unset.
-          supabase.from('users').update({ license_grade: lic.current?.id ?? null }).eq('id', p.id).then(() => {}, () => {})
+          // Persist ONLY upward (persistId is always >= stored) so the public
+          // /builds badge stays current without ever revoking a grade.
+          // Best-effort; a pre-077 gap or failure just leaves it unchanged.
+          if (lic.persistId !== stored) {
+            supabase.from('users').update({ license_grade: lic.persistId }).eq('id', p.id).then(() => {}, () => {})
+          }
         })
       }
     })

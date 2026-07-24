@@ -14,6 +14,7 @@ function statsAtGrade(i: number): LicenseStats {
   const s: LicenseStats = {
     cars: 0, mods: 0, timeline: 0, services: 0, details: 0,
     buildSheetPhotos: 0, diyGuides: 0, featuredPublished: 0, publicShared: 0,
+    records: 0,
   }
   // Meet every req of grades 0..i (take the max threshold seen per key).
   for (let g = 0; g <= i; g++) {
