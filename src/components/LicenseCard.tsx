@@ -181,11 +181,13 @@ function Field({ label, value, m }: { label: string; value: string; m: Material 
   )
 }
 
-function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidden, spin }: {
-  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean; spin?: boolean
+function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidden, spin, spinDelay = '0s' }: {
+  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean; spin?: boolean; spinDelay?: string
 }) {
   const contentStyle: CSSProperties = spin
-    ? { position: 'absolute', inset: 0, animation: `permitFaceFront ${SPIN_DUR} linear infinite`, pointerEvents: 'none' }
+    // `backwards` fill holds the 0% state (front visible, back hidden) through
+    // spinDelay, so the card sits still and front-facing before it starts turning.
+    ? { position: 'absolute', inset: 0, animation: `permitFaceFront ${SPIN_DUR} linear ${spinDelay} infinite backwards`, pointerEvents: 'none' }
     : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
     // The material BACKGROUND stays visible the whole flip (backface-visibility
@@ -220,10 +222,10 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
   )
 }
 
-function ProgressFace({ next, toNext, m, seed, hidden, spin }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean; spin?: boolean }) {
+function ProgressFace({ next, toNext, m, seed, hidden, spin, spinDelay = '0s' }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean; spin?: boolean; spinDelay?: string }) {
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   const contentStyle: CSSProperties = spin
-    ? { position: 'absolute', inset: 0, animation: `permitFaceBack ${SPIN_DUR} linear infinite`, pointerEvents: 'none' }
+    ? { position: 'absolute', inset: 0, animation: `permitFaceBack ${SPIN_DUR} linear ${spinDelay} infinite backwards`, pointerEvents: 'none' }
     : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
@@ -276,7 +278,7 @@ function seedFrom(s: string): number {
   return h >>> 0
 }
 
-export default function LicenseCard({ grade, next, toNext, driver, handle, licensed, profileUrl, spin = false }: {
+export default function LicenseCard({ grade, next, toNext, driver, handle, licensed, profileUrl, spin = false, spinDelay = '0s' }: {
   grade: Grade | null
   next: Grade | null
   toNext: GradeProgress[]
@@ -284,7 +286,8 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   handle: string
   licensed: string
   profileUrl: string
-  spin?: boolean   // slow continuous Y-axis rotation (rank-up celebration)
+  spin?: boolean       // slow continuous Y-axis rotation (rank-up celebration)
+  spinDelay?: string   // hold still (front-facing) this long before the spin starts
 }) {
   const [flipped, setFlipped] = useState(false)
   const seed = useMemo(() => seedFrom(handle), [handle])
@@ -321,11 +324,11 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
         position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
         boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
         ...(spin
-          ? { animation: `permitCardSpin ${SPIN_DUR} linear infinite` }
+          ? { animation: `permitCardSpin ${SPIN_DUR} linear ${spinDelay} infinite backwards` }
           : { transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }),
       }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} spin={spin} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} spin={spin} />
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} spin={spin} spinDelay={spinDelay} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} spin={spin} spinDelay={spinDelay} />
       </div>
     </div>
   )

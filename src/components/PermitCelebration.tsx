@@ -67,7 +67,7 @@ export default function PermitCelebration({
         @keyframes permitBeam { 0% { opacity: 0; transform: translateX(-50%) scaleY(0.15); } 100% { opacity: 0.5; transform: translateX(-50%) scaleY(1); } }
         @keyframes permitSpot { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.35); } 100% { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
         @keyframes permitFadeUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
-        @keyframes permitCardIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes permitCardIn { 0% { opacity: 0; transform: scale(0.965); filter: blur(9px); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
         @keyframes permitBreathe { 0%,100% { opacity: 0.55; } 50% { opacity: 0.9; } }
       `}</style>
 
@@ -78,7 +78,7 @@ export default function PermitCelebration({
           transform: 'translateX(-50%)', transformOrigin: 'top center',
           background: `linear-gradient(to bottom, ${ring}3a 0%, ${ring}14 38%, rgba(0,0,0,0) 80%)`,
           filter: 'blur(8px)', pointerEvents: 'none',
-          animation: 'permitBeam 2200ms cubic-bezier(0.22,1,0.36,1) both',
+          animation: 'permitBeam 2600ms cubic-bezier(0.22,1,0.36,1) both',
         }} />
       )}
       {/* Spotlight pool, growing slowly */}
@@ -87,7 +87,7 @@ export default function PermitCelebration({
         width: 560, height: 560, borderRadius: '50%',
         background: `radial-gradient(circle, ${ring}20 0%, ${ring}0b 42%, rgba(0,0,0,0) 72%)`,
         transform: 'translate(-50%,-50%)', pointerEvents: 'none',
-        animation: reduced ? undefined : 'permitSpot 2200ms cubic-bezier(0.22,1,0.36,1) both',
+        animation: reduced ? undefined : 'permitSpot 2600ms cubic-bezier(0.22,1,0.36,1) both',
       }} />
 
       {/* Kicker */}
@@ -95,7 +95,7 @@ export default function PermitCelebration({
         position: 'relative',
         fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.44em',
         textTransform: 'uppercase', color: ring, textAlign: 'center',
-        animation: reduced ? undefined : 'permitFadeUp 1400ms cubic-bezier(0.22,1,0.36,1) 700ms both',
+        animation: reduced ? undefined : 'permitFadeUp 1600ms cubic-bezier(0.22,1,0.36,1) 900ms both',
       }}>
         {kicker}
         <div style={{ marginTop: 8, fontSize: 10.5, letterSpacing: '0.3em', color: 'rgba(245,245,245,0.5)' }}>
@@ -107,12 +107,16 @@ export default function PermitCelebration({
           tap anywhere dismisses instead of flipping the card. */}
       <div style={{
         position: 'relative', width: 'min(86vw, 380px)', pointerEvents: 'none',
-        animation: reduced ? undefined : 'permitCardIn 2400ms cubic-bezier(0.22,1,0.36,1) 500ms both',
+        // Soft, delayed entry: invisible until 1.5s, then a gentle blur-fade up
+        // over 2s. `backwards` fill leaves NO lingering filter afterwards, so the
+        // 3D spin (which starts at spinDelay, after the fade) renders with depth.
+        animation: reduced ? undefined : 'permitCardIn 2000ms cubic-bezier(0.22,1,0.36,1) 1500ms backwards',
       }}>
         <LicenseCard
           grade={grade} next={next} toNext={toNext}
           driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl}
           spin={!reduced}
+          spinDelay={reduced ? '0s' : '3600ms'}
         />
       </div>
 
@@ -121,7 +125,7 @@ export default function PermitCelebration({
         position: 'relative',
         fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5, letterSpacing: '0.06em',
         color: 'rgba(245,240,228,0.55)', textAlign: 'center',
-        animation: reduced ? undefined : 'permitFadeUp 1200ms ease 2600ms both, permitBreathe 3s ease-in-out 3800ms infinite',
+        animation: reduced ? undefined : 'permitFadeUp 1200ms ease 3800ms both, permitBreathe 3s ease-in-out 5000ms infinite',
       }}>
         {grade.id === 'P' ? 'Tap anywhere to accept your permit' : 'Tap anywhere to accept your new ranking'}
       </div>
