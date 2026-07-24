@@ -6,17 +6,28 @@
 // Card material follows the grade (bronze → silver → gold → crimson → carbon,
 // the last a real carbon-fibre weave); the pre-first-car state is a cool-white
 // provisional permit.
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import QRCode from 'qrcode'
 import type { Grade, GradeProgress } from '../lib/license'
 import { FONT_UI } from '../tokens'
 
-// Slow "showroom" sway used by the rank-up celebration (spin mode) — a gentle
-// ±18° Y-axis tilt, one full cycle per this duration. Deliberately NOT a full
-// 360° turn: keeping the front always toward the viewer avoids iOS Safari's
-// delayed-repaint of an away-facing 3D layer (the "front blanks then blips in"
-// bug) and the WebKit backface content-leak entirely.
-const SPIN_DUR = '9s'
+// Slow "showroom" rotation used by the rank-up celebration (spin mode): one full
+// 360° turn per SPIN_MS, driven by requestAnimationFrame — NOT a CSS 3D
+// animation. iOS Safari repeatedly failed to repaint CSS-composited 3D layers on
+// schedule (the face blanked ~2s then blipped in; keyframes, will-change, and
+// even a never-turning-away tilt all still blipped). So no face is ever allowed
+// to face away from the viewer: the card renders at a rotation clamped within
+// ±90°, and at each edge-on instant (zero apparent width) the visible face is
+// swapped front ↔ back via display. The eye sees a continuous full rotation —
+// grade front, checklist back — but the browser never has a backface to
+// mis-repaint and no opacity ever animates.
+const SPIN_MS = 9000
+
+// Parse a CSS-style duration ('8100ms' / '3.6s') to milliseconds.
+function msOf(d: string): number {
+  const n = parseFloat(d)
+  return Number.isFinite(n) ? (/ms\s*$/.test(d.trim()) ? n : n * 1000) : 0
+}
 
 type Material = {
   bg: React.CSSProperties     // full background spec (supports the carbon weave)
@@ -185,8 +196,9 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
   grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean; spin?: boolean
 }) {
   const contentStyle: CSSProperties = spin
-    // Tilt mode: the front never turns away, so its content just stays visible —
-    // no opacity animation (which is what iOS failed to repaint on the spin).
+    // Spin mode: only one face is mounted-visible at a time (the turntable swaps
+    // them at edge-on), so content just stays visible — no opacity animation
+    // (which is what iOS failed to repaint).
     ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
     : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
@@ -222,15 +234,17 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
   )
 }
 
-function ProgressFace({ next, toNext, m, seed, hidden, spin }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean; spin?: boolean }) {
+function ProgressFace({ next, toNext, m, seed, hidden, spin, flat }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean; spin?: boolean; flat?: boolean }) {
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
   const contentStyle: CSSProperties = spin
-    // Tilt mode never shows the back (it stays turned away, occluded by the
-    // front's opaque face), so its content can stay put — no opacity animation.
+    // Spin mode: the turntable presents this face head-on only while it's the
+    // visible one, so content just stays put — no opacity animation.
     ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
     : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
-    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
+    // flat: presented face-on by the spin turntable, so the flip-mode 180°
+    // pre-rotation (which the flipped container normally cancels out) is dropped.
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: flat ? undefined : 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
       <div style={contentStyle}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
@@ -294,6 +308,35 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   const [flipped, setFlipped] = useState(false)
   const seed = useMemo(() => seedFrom(handle), [handle])
 
+  // Spin turntable (see the SPIN_MS comment): rAF drives the rotation directly
+  // on the element (no CSS animation, no React render per frame); React state
+  // changes only at the two edge-on face swaps per revolution.
+  const spinBoxRef = useRef<HTMLDivElement>(null)
+  const [spinFace, setSpinFace] = useState<'front' | 'back'>('front')
+  useEffect(() => {
+    if (!spin) return
+    const box = spinBoxRef.current
+    if (!box) return
+    const delay = msOf(spinDelay)
+    let raf = 0
+    let start = 0
+    let back = false
+    const tick = (t: number) => {
+      if (start === 0) start = t
+      const el = t - start - delay
+      // Hold at 0° through the delay, then one revolution per SPIN_MS.
+      const angle = el <= 0 ? 0 : ((el / SPIN_MS) * 360) % 360
+      const isBack = angle > 90 && angle < 270
+      // Present whichever face is toward the viewer at a rotation within ±90°.
+      const render = isBack ? angle - 180 : angle >= 270 ? angle - 360 : angle
+      if (isBack !== back) { back = isBack; setSpinFace(isBack ? 'back' : 'front') }
+      box.style.transform = `rotateY(${render.toFixed(2)}deg)`
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [spin, spinDelay])
+
   // Not licensed yet (no car AND no earned grade on record): a cool-white
   // pre-permit card prompting the first car. Once a car exists the holder is
   // Grade P (Provisional) and renders the full card below.
@@ -311,24 +354,44 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   }
 
   const m = MATERIALS[grade.material]
+
+  // ── Spin mode (rank-up celebration): the rAF turntable ──
+  // Both faces stay mounted (so the QR's decoded image survives the swaps) but
+  // only the toward-the-viewer one is displayed; the swap lands at edge-on,
+  // where the card has zero apparent width, so it's invisible.
+  if (spin) {
+    return (
+      <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', WebkitTapHighlightColor: 'transparent' }}>
+        <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
+        <div ref={spinBoxRef} style={{
+          position: 'relative', width: '100%', aspectRatio: '420 / 264',
+          boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
+          willChange: 'transform',
+        }}>
+          <div style={{ position: 'absolute', inset: 0, display: spinFace === 'front' ? 'block' : 'none' }}>
+            <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={false} spin />
+          </div>
+          <div style={{ position: 'absolute', inset: 0, display: spinFace === 'back' ? 'block' : 'none' }}>
+            <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={false} spin flat />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Flip mode (profile): tap to flip to the next-grade checklist ──
   return (
-    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: spin ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={spin ? undefined : () => setFlipped(f => !f)}>
-      <style>{`
-        @keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }
-        @keyframes permitCardTilt { 0% { transform: rotateY(0deg); } 25% { transform: rotateY(18deg); } 50% { transform: rotateY(0deg); } 75% { transform: rotateY(-18deg); } 100% { transform: rotateY(0deg); } }
-      `}</style>
-      {/* Flip mode: ease-in-out so the card is edge-on at the 50% mark and the
-          content fades mask the swap. Spin mode: a slow continuous turn, with
-          each face's content synced to the angle (permitFaceFront/Back). */}
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
+      <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
+      {/* ease-in-out so the card is edge-on predictably at the 50% mark (~320ms)
+          — the content fades are timed to that so the swap is masked. */}
       <div style={{
         position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
         boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
-        ...(spin
-          ? { animation: `permitCardTilt ${SPIN_DUR} ease-in-out ${spinDelay} infinite backwards`, willChange: 'transform' }
-          : { transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }),
+        transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
       }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} spin={spin} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} spin={spin} />
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} />
       </div>
     </div>
   )
