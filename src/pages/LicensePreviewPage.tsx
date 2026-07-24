@@ -4,7 +4,7 @@
 // nav (same pattern as /sound-test); ships to prod but hidden.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GRADES, computeLicense, type LicenseStats, type GradeId } from '../lib/license'
+import { GRADES, computeLicense, type LicenseStats } from '../lib/license'
 import LicenseCard from '../components/LicenseCard'
 import PermitCelebration from '../components/PermitCelebration'
 import { FONT_UI, COLOR_ACCENT, COLOR_CAVITY_BG } from '../tokens'
@@ -36,11 +36,17 @@ function statsAtGrade(i: number): LicenseStats {
 
 export default function LicensePreviewPage() {
   const navigate = useNavigate()
-  const [celebrate, setCelebrate] = useState<GradeId | null>(null)
+  const [celebrateIdx, setCelebrateIdx] = useState<number | null>(null)
+  const celebrateLic = celebrateIdx !== null ? computeLicense(statsAtGrade(celebrateIdx)) : null
   return (
     <div style={{ minHeight: '100dvh', background: COLOR_CAVITY_BG, padding: '20px 16px calc(40px + env(safe-area-inset-bottom))' }}>
-      {celebrate && (
-        <PermitCelebration gradeId={celebrate} onDone={() => setCelebrate(null)} />
+      {celebrateLic?.current && (
+        <PermitCelebration
+          grade={celebrateLic.current} next={celebrateLic.next} toNext={celebrateLic.toNext}
+          driver="Hiroshi" handle="@hiroshi_ls430" licensed="06.2026"
+          profileUrl="https://gdimension.app/builds/hiroshi_ls430"
+          onDone={() => setCelebrateIdx(null)}
+        />
       )}
       <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: '4px 0 16px' }}>
         ‹ Profile
@@ -55,8 +61,8 @@ export default function LicensePreviewPage() {
         <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)', alignSelf: 'center', marginRight: 2 }}>
           Celebrate:
         </span>
-        {GRADES.map(g => (
-          <button key={g.id} onClick={() => setCelebrate(g.id)} style={{
+        {GRADES.map((g, i) => (
+          <button key={g.id} onClick={() => setCelebrateIdx(i)} style={{
             background: 'none', border: `1px solid ${COLOR_ACCENT}`, borderRadius: 8,
             color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
             padding: '6px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',

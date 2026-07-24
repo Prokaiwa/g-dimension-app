@@ -6,10 +6,17 @@
 // Card material follows the grade (bronze → silver → gold → crimson → carbon,
 // the last a real carbon-fibre weave); the pre-first-car state is a cool-white
 // provisional permit.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import QRCode from 'qrcode'
 import type { Grade, GradeProgress } from '../lib/license'
 import { FONT_UI } from '../tokens'
+
+// Slow "showroom" rotation used by the rank-up celebration (spin mode). One full
+// turn takes this long — kept generous so the reveal feels stretched, not spun.
+// The container rotation and both face-content fades share it so they stay in
+// sync (front content hidden while the face is edge-on / turned away — this is
+// what keeps the iOS content-leak from showing on the back).
+const SPIN_DUR = '9s'
 
 type Material = {
   bg: React.CSSProperties     // full background spec (supports the carbon weave)
@@ -174,9 +181,12 @@ function Field({ label, value, m }: { label: string; value: string; m: Material 
   )
 }
 
-function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidden }: {
-  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean
+function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidden, spin }: {
+  grade: Grade; driver: string; handle: string; licensed: string; profileUrl: string; m: Material; seed: number; hidden: boolean; spin?: boolean
 }) {
+  const contentStyle: CSSProperties = spin
+    ? { position: 'absolute', inset: 0, animation: `permitFaceFront ${SPIN_DUR} linear infinite`, pointerEvents: 'none' }
+    : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
     // The material BACKGROUND stays visible the whole flip (backface-visibility
     // handles solid backgrounds fine — so the card is seen turning). Only the
@@ -184,7 +194,7 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
     // midpoint (edge-on, invisible), because WebKit doesn't honor
     // backface-visibility for image/SVG children — that leak was the bug.
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={contentStyle}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.5 }} seed={seed} />
       <GradeRail grade={grade} m={m} />
       <div style={{ position: 'absolute', left: 52, top: 0, right: 0, bottom: 0, padding: '18px 20px' }}>
@@ -210,11 +220,14 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
   )
 }
 
-function ProgressFace({ next, toNext, m, seed, hidden }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean }) {
+function ProgressFace({ next, toNext, m, seed, hidden, spin }: { next: Grade | null; toNext: GradeProgress[]; m: Material; seed: number; hidden: boolean; spin?: boolean }) {
   const tickInk = (m.grid === '#000') ? '#fff' : '#1a0a0a'
+  const contentStyle: CSSProperties = spin
+    ? { position: 'absolute', inset: 0, animation: `permitFaceBack ${SPIN_DUR} linear infinite`, pointerEvents: 'none' }
+    : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
   return (
     <div style={{ position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden', transform: 'rotateY(180deg)', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', ...m.bg }}>
-      <div style={{ position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }}>
+      <div style={contentStyle}>
       <CheckerField m={m} seed={seed + 99} />
       <div style={{ position: 'absolute', inset: 0, padding: '14px 20px', display: 'flex', flexDirection: 'column' }}>
         {next ? (
@@ -263,7 +276,7 @@ function seedFrom(s: string): number {
   return h >>> 0
 }
 
-export default function LicenseCard({ grade, next, toNext, driver, handle, licensed, profileUrl }: {
+export default function LicenseCard({ grade, next, toNext, driver, handle, licensed, profileUrl, spin = false }: {
   grade: Grade | null
   next: Grade | null
   toNext: GradeProgress[]
@@ -271,6 +284,7 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   handle: string
   licensed: string
   profileUrl: string
+  spin?: boolean   // slow continuous Y-axis rotation (rank-up celebration)
 }) {
   const [flipped, setFlipped] = useState(false)
   const seed = useMemo(() => seedFrom(handle), [handle])
@@ -293,13 +307,25 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
 
   const m = MATERIALS[grade.material]
   return (
-    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
-      <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
-      {/* ease-in-out so the card is edge-on predictably at the 50% mark (~320ms)
-          — the content fades are timed to that so the swap is masked. */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d', transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)', boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12 }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} />
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: spin ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={spin ? undefined : () => setFlipped(f => !f)}>
+      <style>{`
+        @keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }
+        @keyframes permitCardSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+        @keyframes permitFaceFront { 0%,20% { opacity: 1; } 30%,70% { opacity: 0; } 80%,100% { opacity: 1; } }
+        @keyframes permitFaceBack { 0%,20% { opacity: 0; } 30%,70% { opacity: 1; } 80%,100% { opacity: 0; } }
+      `}</style>
+      {/* Flip mode: ease-in-out so the card is edge-on at the 50% mark and the
+          content fades mask the swap. Spin mode: a slow continuous turn, with
+          each face's content synced to the angle (permitFaceFront/Back). */}
+      <div style={{
+        position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
+        boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
+        ...(spin
+          ? { animation: `permitCardSpin ${SPIN_DUR} linear infinite` }
+          : { transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }),
+      }}>
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} spin={spin} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} spin={spin} />
       </div>
     </div>
   )
