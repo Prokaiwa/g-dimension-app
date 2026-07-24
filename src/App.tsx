@@ -218,6 +218,9 @@ export default function App() {
   const dismissSplash = () => {
     splashDone.current = true
     try { sessionStorage.setItem('gdim_splash_seen', '1') } catch { /* ignore */ }
+    // Let the onboarding tour know it can start now (it defers until the splash
+    // is gone so it never runs behind it — see TourContext auto-start).
+    try { window.dispatchEvent(new Event('gdim:splash-done')) } catch { /* ignore */ }
     setShowSplash(false)
   }
   useEffect(() => {

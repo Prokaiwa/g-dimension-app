@@ -81,7 +81,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     })
   }, [navigate])
 
-  // Auto-start once per session, when landing on /home, if not yet seen.
+  // Auto-start once per session, when landing on /home, if not yet seen — but
+  // only AFTER the cold-launch splash is dismissed, so the tour never runs behind
+  // it. The splash sets sessionStorage 'gdim_splash_seen' and fires
+  // 'gdim:splash-done' on tap; until then we defer.
   // Retries the tutorial_seen read: right after sign-in the auth token may not
   // be attached yet, and a transient query failure must not silently suppress
   // the tour (which looked like "it only starts after a refresh").
@@ -89,7 +92,14 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     if (autoChecked.current) return
     if (location.pathname !== '/home') return
     let cancelled = false
-    ;(async () => {
+
+    const splashPending = () => {
+      try { return sessionStorage.getItem('gdim_splash_seen') !== '1' } catch { return false }
+    }
+
+    const run = async () => {
+      if (cancelled || autoChecked.current) return
+      if (location.pathname !== '/home' || splashPending()) return  // wait for the splash
       const { data } = await supabase.auth.getUser()
       const uid = data.user?.id
       if (!uid || cancelled) return
@@ -108,8 +118,15 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
         await new Promise(r => setTimeout(r, 400 * (i + 1)))
       }
       // all retries errored — leave autoChecked false so a later /home visit retries
-    })()
-    return () => { cancelled = true }
+    }
+
+    // Try now (proceeds only if the splash is already gone); otherwise the
+    // splash's dismissal event kicks it off.
+    const onSplashDone = () => { void run() }
+    window.addEventListener('gdim:splash-done', onSplashDone)
+    void run()
+
+    return () => { cancelled = true; window.removeEventListener('gdim:splash-done', onSplashDone) }
   }, [location.pathname])
 
   // Keep the URL on the active step's route. Fires only when the STEP changes
