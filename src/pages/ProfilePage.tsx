@@ -25,6 +25,7 @@ import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
 import { getLicenseStats, resolveLicense, type LicenseState } from '../lib/license'
+import { GRADE_RING } from '../lib/permit'
 import LicenseCard from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
@@ -361,7 +362,11 @@ export default function ProfilePage() {
                   width: 92, height: 92, borderRadius: '50%',
                   background: profile.avatar_url ? `center / cover no-repeat url(${profile.avatar_url})` : COLOR_ACCENT,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 6px 18px rgba(0,0,0,0.55)', border: '1px solid rgba(240,228,200,0.12)',
+                  // Grade-frame: a tier-colored ring around the avatar once licensed.
+                  boxShadow: license?.current
+                    ? `0 6px 18px rgba(0,0,0,0.55), 0 0 0 2.5px ${GRADE_RING[license.current.id]}`
+                    : '0 6px 18px rgba(0,0,0,0.55)',
+                  border: '1px solid rgba(240,228,200,0.12)',
                 }}>
                   {!profile.avatar_url && (
                     <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 38, color: '#fff' }}>{avatarLetter(profile)}</span>

@@ -2,9 +2,11 @@
 // (front + tap-to-flip checklist) with sample data, so the whole ladder can be
 // eyeballed without grinding the real counts to each grade. Unlinked from any
 // nav (same pattern as /sound-test); ships to prod but hidden.
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GRADES, computeLicense, type LicenseStats } from '../lib/license'
+import { GRADES, computeLicense, type LicenseStats, type GradeId } from '../lib/license'
 import LicenseCard from '../components/LicenseCard'
+import PermitCelebration from '../components/PermitCelebration'
 import { FONT_UI, COLOR_ACCENT, COLOR_CAVITY_BG } from '../tokens'
 
 // A stats object that sits the holder EXACTLY at grade index `i`: every
@@ -34,15 +36,35 @@ function statsAtGrade(i: number): LicenseStats {
 
 export default function LicensePreviewPage() {
   const navigate = useNavigate()
+  const [celebrate, setCelebrate] = useState<GradeId | null>(null)
   return (
     <div style={{ minHeight: '100dvh', background: COLOR_CAVITY_BG, padding: '20px 16px calc(40px + env(safe-area-inset-bottom))' }}>
+      {celebrate && (
+        <PermitCelebration gradeId={celebrate} onDone={() => setCelebrate(null)} />
+      )}
       <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, cursor: 'pointer', padding: '4px 0 16px' }}>
         ‹ Profile
       </button>
       <h1 style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 20, color: '#f5f5f5', margin: '0 0 4px' }}>Permit Preview</h1>
-      <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: 'rgba(245,240,228,0.5)', margin: '0 0 24px', lineHeight: 1.5 }}>
+      <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: 'rgba(245,240,228,0.5)', margin: '0 0 20px', lineHeight: 1.5 }}>
         Every grade, front and flipped. Tap a card to see its next-grade checklist. Sample data only, this doesn't touch your account.
       </p>
+
+      {/* Preview the rank-up celebration for any grade (sound + motion). */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 26 }}>
+        <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)', alignSelf: 'center', marginRight: 2 }}>
+          Celebrate:
+        </span>
+        {GRADES.map(g => (
+          <button key={g.id} onClick={() => setCelebrate(g.id)} style={{
+            background: 'none', border: `1px solid ${COLOR_ACCENT}`, borderRadius: 8,
+            color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 12,
+            padding: '6px 12px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+          }}>
+            {g.id}
+          </button>
+        ))}
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 30, maxWidth: 420, margin: '0 auto' }}>
         {GRADES.map((g, i) => {

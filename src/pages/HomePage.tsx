@@ -38,6 +38,9 @@ import {
 } from '../tokens'
 import { useTour } from '../tour/TourContext'
 import type { TourNode } from '../tour/tourSteps'
+import PermitWatcher from '../components/PermitWatcher'
+import { GRADE_RING } from '../lib/permit'
+import type { GradeId } from '../lib/license'
 
 // Road bezier paths (390×800 viewBox) — single source for the glow line and
 // the dashed centerline of each road.
@@ -462,6 +465,9 @@ export default function HomePage() {
   // visit fetches the full image and caches a ~3KB downscaled copy for next time.
   const [avatarSrc, setAvatarSrc] = useState<string | null>(() => getCachedAvatarThumb()?.dataUrl ?? null)
   const [avatarLoaded, setAvatarLoaded] = useState(false)
+  // Permit grade for the header avatar's grade-frame (set once PermitWatcher
+  // resolves the live grade; null = no frame yet).
+  const [permitGrade, setPermitGrade] = useState<GradeId | null>(null)
   useEffect(() => {
     if (avatarUrl === null) return  // profile not loaded yet — keep optimistic cache
     if (!avatarUrl) { setAvatarSrc(null); clearAvatarThumbCache(); return }
@@ -601,6 +607,10 @@ export default function HomePage() {
           <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
 
+        {/* Permit rank-up celebration + grade-frame source (renders an overlay
+            only when a rank-up is owed; otherwise nothing). */}
+        <PermitWatcher onState={s => setPermitGrade(s.grade)} />
+
         {/* Left: avatar + username */}
         <div
           onClick={() => navigate('/profile')}
@@ -616,7 +626,10 @@ export default function HomePage() {
             background: '#101013',
             position: 'relative', overflow: 'hidden',
             flexShrink: 0,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+            // Grade-frame: a tier-colored ring once the permit grade is known.
+            boxShadow: permitGrade
+              ? `0 1px 3px rgba(0,0,0,0.5), 0 0 0 1.5px ${GRADE_RING[permitGrade]}`
+              : '0 1px 3px rgba(0,0,0,0.5)',
           }}>
             {/* Grey person silhouette — shows while loading and when no avatar is set */}
             <svg viewBox="0 0 24 24" aria-hidden style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>

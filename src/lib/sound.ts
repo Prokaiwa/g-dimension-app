@@ -232,6 +232,30 @@ function synthConfirm(c: AudioContext): void {
   blip(c, c.currentTime, 1568, 1568, 0.3, 0.12, 'sine')
 }
 
+// Rank-up celebration sting. Plays the Pixabay file if present, else a
+// synthesized ascending major arpeggio with an octave shimmer — triumphant.
+// Drop the track at: public/audio/rankup.mp3 (served at /audio/rankup.mp3).
+const RANKUP_URL = '/audio/rankup.mp3'
+
+function synthRankUp(c: AudioContext): void {
+  const t = c.currentTime
+  // C5 · E5 · G5 · C6 ascending, then a bright G6 sparkle over the top.
+  const arp: Array<[number, number]> = [[523.25, 0], [659.25, 0.11], [783.99, 0.22], [1046.5, 0.34]]
+  for (const [f, at] of arp) blip(c, t + at, f, f, 0.5, 0.14, 'triangle')
+  blip(c, t + 0.34, 1567.98, 1567.98, 0.7, 0.07, 'sine')
+}
+
+/** Triumphant one-shot for a permit rank-up. File if loaded, else synth. */
+export function playRankUp(): void {
+  if (!isSoundEnabled()) return
+  const c = audioCtx()
+  if (!c) return
+  const cached = sampleCache.get(RANKUP_URL)
+  if (cached) { playSample(cached, 0.95); return }
+  if (cached === undefined) void loadSample(RANKUP_URL) // warm for next time
+  synthRankUp(c) // immediate sound now; also the permanent fallback if missing
+}
+
 /** Cursor-move tick — two tiny micro-blips 35ms apart (T5 on /sound-test). */
 export function playTick(): void {
   if (!isSoundEnabled()) return
