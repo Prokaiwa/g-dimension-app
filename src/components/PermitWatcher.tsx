@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { getLicenseStats, resolveLicense, type GradeId } from '../lib/license'
 import { getSeenGrade, setSeenGrade, isRankUp } from '../lib/permit'
+import { prewarmRankUp } from '../lib/sound'
 import { useTour } from '../tour/TourContext'
 import PermitCelebration from './PermitCelebration'
 
@@ -22,6 +23,7 @@ export default function PermitWatcher({ onState }: {
     if (active) return          // never interrupt the onboarding tour
     if (ranRef.current) return
     ranRef.current = true
+    prewarmRankUp()             // warm the celebration track before it's needed
     let cancelled = false
     ;(async () => {
       const { data: auth } = await supabase.auth.getUser()

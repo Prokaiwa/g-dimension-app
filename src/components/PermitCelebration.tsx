@@ -9,10 +9,8 @@ import { useEffect, useRef, useState } from 'react'
 import { gradeById } from '../lib/license'
 import { GRADE_RING } from '../lib/permit'
 import { playRankUp } from '../lib/sound'
-import { swellMusic } from '../lib/music'
+import { duckMusic } from '../lib/music'
 import { FONT_UI, FONT_TITLE } from '../tokens'
-
-const HOLD_MS = 4200
 
 export default function PermitCelebration({ gradeId, onDone }: {
   gradeId: string
@@ -21,25 +19,24 @@ export default function PermitCelebration({ gradeId, onDone }: {
   const grade = gradeById(gradeId)
   const [leaving, setLeaving] = useState(false)
   const doneRef = useRef(false)
+  const stopSound = useRef<() => void>(() => {})
+  const restoreMusic = useRef<() => void>(() => {})
   const reduced = typeof window !== 'undefined'
     && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-  // Fire audio once on mount.
+  // Fire the sting + duck the background bed on mount; both undone on dismiss.
+  // No auto-timer: the moment stays until the user accepts it (tap anywhere),
+  // so they can sit and listen to the whole track if they want.
   useEffect(() => {
-    playRankUp()
-    swellMusic()
-  }, [])
-
-  // Auto-dismiss after the hold.
-  useEffect(() => {
-    const t = window.setTimeout(() => dismiss(), HOLD_MS)
-    return () => window.clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    stopSound.current = playRankUp()
+    restoreMusic.current = duckMusic()
   }, [])
 
   function dismiss() {
     if (doneRef.current) return
     doneRef.current = true
+    stopSound.current()      // fade out the celebration track
+    restoreMusic.current()   // ease the background music back in
     setLeaving(true)
     window.setTimeout(onDone, 320)
   }
@@ -130,9 +127,9 @@ export default function PermitCelebration({ gradeId, onDone }: {
 
         <div style={{
           fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5,
-          color: 'rgba(245,240,228,0.5)', marginTop: 22, letterSpacing: '0.03em',
+          color: 'rgba(245,240,228,0.55)', marginTop: 26, letterSpacing: '0.06em',
         }}>
-          Tap to continue
+          {grade.id === 'P' ? 'Tap anywhere to accept your permit' : 'Tap anywhere to accept your new ranking'}
         </div>
       </div>
     </div>

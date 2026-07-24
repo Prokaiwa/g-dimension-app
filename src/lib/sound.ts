@@ -245,15 +245,49 @@ function synthRankUp(c: AudioContext): void {
   blip(c, t + 0.34, 1567.98, 1567.98, 0.7, 0.07, 'sine')
 }
 
-/** Triumphant one-shot for a permit rank-up. File if loaded, else synth. */
-export function playRankUp(): void {
-  if (!isSoundEnabled()) return
+// Like playSample but returns a fade-then-stop handle, so a long celebration
+// track can be cut cleanly when the user accepts (dismisses the overlay).
+function playSampleStoppable(buf: AudioBuffer, peak = 0.9): () => void {
   const c = audioCtx()
-  if (!c) return
+  if (!c) return () => {}
+  const src = c.createBufferSource()
+  src.buffer = buf
+  const g = c.createGain()
+  g.gain.value = peak
+  src.connect(g)
+  g.connect(c.destination)
+  src.start()
+  return () => {
+    try {
+      const now = c.currentTime
+      g.gain.cancelScheduledValues(now)
+      g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), now)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45)
+      src.stop(now + 0.5)
+    } catch { /* already ended */ }
+  }
+}
+
+/** Warm the rank-up track ahead of a likely celebration (call on the hub). */
+export function prewarmRankUp(): void {
+  if (!isSoundEnabled()) return
+  void loadSample(RANKUP_URL)
+}
+
+/**
+ * Triumphant one-shot for a permit rank-up. Returns a STOP handle (fade + stop)
+ * so the celebration can cut a long track when dismissed. Plays the Pixabay file
+ * if loaded, else the short synth arpeggio (which needs no stop).
+ */
+export function playRankUp(): () => void {
+  if (!isSoundEnabled()) return () => {}
+  const c = audioCtx()
+  if (!c) return () => {}
   const cached = sampleCache.get(RANKUP_URL)
-  if (cached) { playSample(cached, 0.95); return }
+  if (cached) return playSampleStoppable(cached, 0.95)
   if (cached === undefined) void loadSample(RANKUP_URL) // warm for next time
-  synthRankUp(c) // immediate sound now; also the permanent fallback if missing
+  synthRankUp(c) // immediate synth fallback; short, so no stop handle
+  return () => {}
 }
 
 /** Cursor-move tick — two tiny micro-blips 35ms apart (T5 on /sound-test). */

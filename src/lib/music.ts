@@ -126,6 +126,33 @@ export function swellMusic(): void {
   swellRaf = requestAnimationFrame(tick)
 }
 
+// Smoothly ramp the element's volume to `to` over `ms`. Shares swellRaf so a
+// duck and a swell can't fight each other.
+function rampVolume(a: HTMLAudioElement, to: number, ms: number): void {
+  cancelAnimationFrame(swellRaf)
+  const from = a.volume
+  const start = performance.now()
+  const step = (now: number) => {
+    if (!el) return
+    const p = Math.min(1, (now - start) / ms)
+    a.volume = Math.max(0, Math.min(1, from + (to - from) * p))
+    if (p < 1) swellRaf = requestAnimationFrame(step)
+  }
+  swellRaf = requestAnimationFrame(step)
+}
+
+// Duck the bed hard for a foreground moment (the rank-up celebration plays its
+// own track over the top). Returns a restore fn that eases back to the resting
+// volume. No-op when music isn't playing.
+export function duckMusic(): () => void {
+  if (!el || el.paused) return () => {}
+  const target = el
+  rampVolume(target, 0.03, 320)
+  return () => {
+    if (el === target && !target.paused) rampVolume(target, MUSIC_VOLUME, 800)
+  }
+}
+
 // Call once at app start. Tries to play now (likely blocked pre-gesture), then
 // starts on the first user interaction. Also pauses when the tab is hidden and
 // resumes when it returns, so the loop doesn't run in the background forever.
