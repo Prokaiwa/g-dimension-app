@@ -11,7 +11,7 @@ import { GRADE_RING } from '../lib/permit'
 import { playRankUp } from '../lib/sound'
 import { duckMusic } from '../lib/music'
 import LicenseCard from './LicenseCard'
-import { FONT_UI } from '../tokens'
+import { FONT_UI, FONT_TITLE } from '../tokens'
 
 export default function PermitCelebration({
   grade, next, toNext, driver, handle, licensed, profileUrl, onDone,
@@ -78,7 +78,7 @@ export default function PermitCelebration({
           transform: 'translateX(-50%)', transformOrigin: 'top center',
           background: `linear-gradient(to bottom, ${ring}3a 0%, ${ring}14 38%, rgba(0,0,0,0) 80%)`,
           filter: 'blur(8px)', pointerEvents: 'none',
-          animation: 'permitBeam 3800ms cubic-bezier(0.22,1,0.36,1) both',
+          animation: 'permitBeam 5800ms cubic-bezier(0.22,1,0.36,1) both',
         }} />
       )}
       {/* Spotlight pool, growing slowly */}
@@ -87,19 +87,28 @@ export default function PermitCelebration({
         width: 560, height: 560, borderRadius: '50%',
         background: `radial-gradient(circle, ${ring}20 0%, ${ring}0b 42%, rgba(0,0,0,0) 72%)`,
         transform: 'translate(-50%,-50%)', pointerEvents: 'none',
-        animation: reduced ? undefined : 'permitSpot 3800ms cubic-bezier(0.22,1,0.36,1) both',
+        animation: reduced ? undefined : 'permitSpot 5800ms cubic-bezier(0.22,1,0.36,1) both',
       }} />
 
-      {/* Kicker */}
-      <div style={{
-        position: 'relative',
-        fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.44em',
-        textTransform: 'uppercase', color: ring, textAlign: 'center',
-        animation: reduced ? undefined : 'permitFadeUp 1600ms cubic-bezier(0.22,1,0.36,1) 900ms both',
-      }}>
-        {kicker}
-        <div style={{ marginTop: 8, fontSize: 10.5, letterSpacing: '0.3em', color: 'rgba(245,245,245,0.5)' }}>
-          {gradeLabel}
+      {/* Header — a romantic "Congratulations!" in Cormorant over the kicker +
+          grade. Arrives early to cushion the wait before the permit drops. */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center' }}>
+        <div style={{
+          fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 38, lineHeight: 1,
+          color: '#f5f5f5', textShadow: `0 2px 34px ${ring}55`,
+          animation: reduced ? undefined : 'permitFadeUp 1800ms cubic-bezier(0.22,1,0.36,1) 800ms both',
+        }}>
+          Congratulations!
+        </div>
+        <div style={{
+          fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.44em',
+          textTransform: 'uppercase', color: ring,
+          animation: reduced ? undefined : 'permitFadeUp 1500ms cubic-bezier(0.22,1,0.36,1) 1800ms both',
+        }}>
+          {kicker}
+          <div style={{ marginTop: 8, fontSize: 10.5, letterSpacing: '0.3em', color: 'rgba(245,245,245,0.5)' }}>
+            {gradeLabel}
+          </div>
         </div>
       </div>
 
@@ -107,17 +116,17 @@ export default function PermitCelebration({
           tap anywhere dismisses instead of flipping the card. */}
       <div style={{
         position: 'relative', width: 'min(86vw, 380px)', pointerEvents: 'none',
-        // Soft, delayed entry timed to the music: invisible until 4s (the beat),
+        // Soft, delayed entry timed to the music: invisible until 6s (the beat),
         // then a gentle blur-fade up over 2s. `backwards` fill leaves NO lingering
         // filter afterwards, so the 3D spin (which starts at spinDelay, after the
         // fade) renders with depth.
-        animation: reduced ? undefined : 'permitCardIn 2000ms cubic-bezier(0.22,1,0.36,1) 4000ms backwards',
+        animation: reduced ? undefined : 'permitCardIn 2000ms cubic-bezier(0.22,1,0.36,1) 6000ms backwards',
       }}>
         <LicenseCard
           grade={grade} next={next} toNext={toNext}
           driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl}
           spin={!reduced}
-          spinDelay={reduced ? '0s' : '6100ms'}
+          spinDelay={reduced ? '0s' : '8100ms'}
         />
       </div>
 
@@ -126,7 +135,7 @@ export default function PermitCelebration({
         position: 'relative',
         fontFamily: FONT_UI, fontWeight: 600, fontSize: 12.5, letterSpacing: '0.06em',
         color: 'rgba(245,240,228,0.55)', textAlign: 'center',
-        animation: reduced ? undefined : 'permitFadeUp 1200ms ease 6100ms both, permitBreathe 3s ease-in-out 7300ms infinite',
+        animation: reduced ? undefined : 'permitFadeUp 1200ms ease 8100ms both, permitBreathe 3s ease-in-out 9300ms infinite',
       }}>
         {grade.id === 'P' ? 'Tap anywhere to accept your permit' : 'Tap anywhere to accept your new ranking'}
       </div>
