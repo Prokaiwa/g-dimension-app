@@ -96,14 +96,14 @@ export default function PermitCelebration({
         <div style={{
           fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 38, lineHeight: 1,
           color: '#f5f5f5', textShadow: `0 2px 34px ${ring}55`,
-          animation: reduced ? undefined : 'permitFadeUp 1800ms cubic-bezier(0.22,1,0.36,1) 800ms both',
+          animation: reduced ? undefined : 'permitFadeUp 1800ms cubic-bezier(0.22,1,0.36,1) 2200ms both',
         }}>
           Congratulations!
         </div>
         <div style={{
           fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.44em',
           textTransform: 'uppercase', color: ring,
-          animation: reduced ? undefined : 'permitFadeUp 1500ms cubic-bezier(0.22,1,0.36,1) 1800ms both',
+          animation: reduced ? undefined : 'permitFadeUp 1500ms cubic-bezier(0.22,1,0.36,1) 4000ms both',
         }}>
           {kicker}
           <div style={{ marginTop: 8, fontSize: 10.5, letterSpacing: '0.3em', color: 'rgba(245,245,245,0.5)' }}>
