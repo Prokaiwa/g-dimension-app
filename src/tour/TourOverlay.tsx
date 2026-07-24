@@ -68,7 +68,7 @@ export default function TourOverlay() {
         setRect(prev => (prev && prev.top === r.top && prev.left === r.left
           && prev.width === r.width && prev.height === r.height) ? prev : r)
       }
-      if (++tries < 90) raf = requestAnimationFrame(measure)
+      if (++tries < 240) raf = requestAnimationFrame(measure)
     }
     raf = requestAnimationFrame(measure)
     return () => cancelAnimationFrame(raf)
@@ -128,7 +128,14 @@ export default function TourOverlay() {
           }} />
         </>
       )
+    } else if (isTarget) {
+      // Target step, but its rect isn't measured yet (page still loading / the
+      // element hasn't rendered). NEVER fall back to a blocking scrim here — that
+      // would cover the very element the user must tap. A non-blocking dim keeps
+      // the target tappable; the spotlight appears once the rect is found.
+      dimLayer = <div style={{ position: 'absolute', inset: 0, background: DIM, pointerEvents: 'none' }} />
     } else {
+      // Plain step — nothing to interact with, so a full blocking dim is fine.
       dimLayer = <div style={{ position: 'absolute', inset: 0, background: DIM, pointerEvents: 'auto' }} />
     }
   }

@@ -51,7 +51,7 @@ const GRID_TILES = [
 
 export default function GaragePage() {
   const navigate = useNavigate()
-  const { notify } = useTour()
+  const { notify, active: tourActive } = useTour()
   const [displayName, setDisplayName] = useState('')
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [hasCar, setHasCar] = useState<boolean | null>(null)
@@ -181,8 +181,10 @@ export default function GaragePage() {
 
       {/* Empty state — no car yet. The glow stays decorative; the copy is a
           real tap target into My Cars (the dashboard grid behind must remain
-          tappable, so only the text takes pointer events). */}
-      {hasCar === false && (
+          tappable, so only the text takes pointer events). Hidden during the
+          tour: it's redundant with the "Tap My Cars" step and would ghost
+          through the tour dim. */}
+      {hasCar === false && !tourActive && (
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', flexDirection: 'column',
