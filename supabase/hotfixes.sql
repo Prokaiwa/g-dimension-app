@@ -5,7 +5,17 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 078_reminder_recurrence.sql (applied 2026-07-21)
+-- Last migration applied : 080_engine_oil_pump.sql (applied 2026-07-25)
+--   - 080 (Oil Pump Engine part type: inserted after Oil Pan at display_order 20,
+--     shifting the rest of the Engine list down one, + a 10-field spec form
+--     (pump/sump type, gear material, volume increase, relief pressure, dry-sump
+--     stages, crank collar, blueprinted, brand/model). Guarded/idempotent per
+--     the 058 pattern; zero frontend change — the add-mod form is DB-driven).
+--   - 079 (Infiniti backfill: added 'us_manual' to vehicle_makes.source CHECK,
+--     inserted the INFINITI make (country JP, region US), and 31 nameplates —
+--     each engine badge its own model (G35/G37, FX35/37/45/50, EX35/37,
+--     M35/45/37/56, the Q + QX lines, G20/G25, M30/J30/I30/I35). Additive +
+--     idempotent; cars store make/model as free text so no existing car changed).
 --   - 078 (recurring service reminders: car_reminders.recur_months + recur_miles
 --     nullable int columns — completing a recurring reminder spawns the next
 --     occurrence; delivery is on-device local notifications in the native
