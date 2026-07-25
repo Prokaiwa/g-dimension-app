@@ -151,12 +151,17 @@ export default function TuningAddPage() {
   const [tireMultiValues, setTireMultiValues] = useState<Record<string, string[]>>({})
   const [tireSpecsExpanded, setTireSpecsExpanded] = useState(false)
 
-  // Tire replacement — when adding a STANDALONE tire (part_type 2/3) on the build
-  // sheet, auto-mount it on the car's current installed wheels and offer to
-  // retire the tires already on them (Parts Bin or Scrap).
-  const [currentWheel, setCurrentWheel]       = useState<{ id: string; title: string } | null>(null)
+  // Tire mount — when adding a STANDALONE tire (part_type 2/3) on the build sheet,
+  // mount it on a wheel set the user owns. If they own more than one set (installed
+  // + stored), a picker chooses which; otherwise it auto-selects the single set.
+  // The new tire inherits the chosen wheel's status (installed vs stored), and any
+  // tires already on that wheel can be retired to Parts Bin or Scrap.
+  type WheelOpt = { id: string; title: string; status: string }
+  const [candidateWheels, setCandidateWheels] = useState<WheelOpt[]>([])
+  const [selectedWheelId, setSelectedWheelId] = useState<string | null>(null)
   const [oldTires, setOldTires]               = useState<{ id: string; title: string }[]>([])
   const [oldTireDisposition, setOldTireDisposition] = useState<'parts' | 'scrap'>('parts')
+  const selectedWheel = candidateWheels.find(w => w.id === selectedWheelId) ?? null
 
   const release      = () => setPressed(null)
   const selectedCat  = TUNING_CATEGORIES.find(c => c.id === selectedCategory)
@@ -235,40 +240,52 @@ export default function TuningAddPage() {
       })
   }, [addTires, tirePartTypeId])
 
-  // Detect the car's current wheels + the tires already on them when adding a
-  // standalone tire (part_type 2/3) on the build sheet — drives auto-mount and
-  // the "replace old tires?" prompt.
+  // Detect the wheel sets the user owns (installed + stored) when adding a
+  // standalone tire (part_type 2/3) on the build sheet — drives the mount target
+  // picker. Installed sets sort first; the first is the default selection.
   useEffect(() => {
     const isTire = selectedPartType?.id === 2 || selectedPartType?.id === 3
     if (partsBinMode || !isTire) {
-      setCurrentWheel(null)
-      setOldTires([])
+      setCandidateWheels([])
+      setSelectedWheelId(null)
       return
     }
     let cancelled = false
     ;(async () => {
       const carId = await getActiveCarId()
       if (!carId || cancelled) return
+      // Wheels the user still owns: installed, or removed-but-kept (Parts Bin).
       const { data: wheels } = await supabase
         .from('jobs')
-        .select('id, title')
+        .select('id, title, status, still_owned, date_installed')
         .eq('car_id', carId)
         .eq('part_type_id', 1)
-        .eq('status', 'installed')
+        .in('status', ['installed', 'removed'])
         .order('date_installed', { ascending: false, nullsFirst: false })
-        .limit(1)
-      const wheel = (wheels ?? [])[0] as { id: string; title: string } | undefined
-      if (!wheel || cancelled) { setCurrentWheel(null); setOldTires([]); return }
-      setCurrentWheel(wheel)
-      const { data: tires } = await supabase
-        .from('jobs')
-        .select('id, title')
-        .eq('mounted_on_job_id', wheel.id)
-        .eq('status', 'installed')
-      if (!cancelled) setOldTires((tires ?? []) as { id: string; title: string }[])
+      if (cancelled) return
+      const opts = ((wheels ?? []) as { id: string; title: string; status: string; still_owned: boolean }[])
+        .filter(w => w.status === 'installed' || w.still_owned)
+        .sort((a, b) => (a.status === 'installed' ? -1 : 1) - (b.status === 'installed' ? -1 : 1))
+        .map(w => ({ id: w.id, title: w.title, status: w.status }))
+      setCandidateWheels(opts)
+      setSelectedWheelId(opts[0]?.id ?? null)
     })()
     return () => { cancelled = true }
   }, [selectedPartType, partsBinMode])
+
+  // Load the tires already on the currently-selected wheel set (to offer to
+  // retire them when new tires are mounted).
+  useEffect(() => {
+    if (!selectedWheelId) { setOldTires([]); return }
+    let cancelled = false
+    supabase
+      .from('jobs')
+      .select('id, title')
+      .eq('mounted_on_job_id', selectedWheelId)
+      .in('status', ['installed', 'removed'])
+      .then(({ data }) => { if (!cancelled) setOldTires((data ?? []) as { id: string; title: string }[]) })
+    return () => { cancelled = true }
+  }, [selectedWheelId])
 
   // Revoke object URLs on unmount to avoid leaks
   useEffect(() => {
@@ -658,11 +675,16 @@ export default function TuningAddPage() {
       }
     }
 
-    // 3c. Standalone tire on the build sheet — mount it on the current wheels and
-    //     retire the tires already on them (Parts Bin or Scrap) per the prompt.
+    // 3c. Standalone tire on the build sheet — mount it on the chosen wheel set,
+    //     inherit that wheel's status (a stored set keeps the tire in the Parts
+    //     Bin, not on the build sheet), and retire the tires already on it.
     const isTirePart = selectedPartType.id === 2 || selectedPartType.id === 3
-    if (!partsBinMode && isTirePart && currentWheel) {
-      await supabase.from('jobs').update({ mounted_on_job_id: currentWheel.id }).eq('id', jobId)
+    if (!partsBinMode && isTirePart && selectedWheel) {
+      const mount: Record<string, unknown> = { mounted_on_job_id: selectedWheel.id }
+      // If mounting on a stored (not installed) wheel set, the tire lives with it
+      // in the Parts Bin rather than showing as installed on the build sheet.
+      if (selectedWheel.status !== 'installed') { mount.status = 'removed'; mount.still_owned = true }
+      await supabase.from('jobs').update(mount).eq('id', jobId)
       if (oldTires.length > 0) {
         const updates = oldTireDisposition === 'scrap'
           ? { status: 'scrapped', still_owned: false, date_removed: today }
@@ -770,7 +792,7 @@ export default function TuningAddPage() {
   const tireBasicGroups    = groupBy(tireBasic, t => t.group_label ?? '')
   const tireAdvancedGroups = groupBy(tireAdvanced, t => t.group_label ?? '')
   const showTireAddon = !partsBinMode && selectedPartType?.id === 1  // Wheels
-  const showTireMount = !partsBinMode && (selectedPartType?.id === 2 || selectedPartType?.id === 3) && !!currentWheel  // standalone tire on current wheels
+  const showTireMount = !partsBinMode && (selectedPartType?.id === 2 || selectedPartType?.id === 3) && !!selectedWheel  // standalone tire → mount on a wheel set
 
   const canSubmit = form.title.trim().length > 0 && !saving
 
@@ -1741,9 +1763,37 @@ export default function TuningAddPage() {
             {showTireMount && (
               <div style={{ padding: '28px 22px 0' }}>
                 <div style={{ padding: '14px 15px', background: 'rgba(200,102,26,0.06)', border: '1px solid rgba(200,102,26,0.28)' }}>
-                  <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(245,240,228,0.8)', marginBottom: 6 }}>
-                    Mounting on {currentWheel?.title}
-                  </p>
+                  {candidateWheels.length > 1 ? (
+                    <>
+                      <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(245,240,228,0.8)', marginBottom: 10 }}>
+                        Which wheels?
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                        {candidateWheels.map(w => {
+                          const active = selectedWheelId === w.id
+                          return (
+                            <button key={w.id} onClick={() => setSelectedWheelId(w.id)}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '10px 12px', cursor: 'pointer', textAlign: 'left',
+                                background: active ? 'rgba(200,102,26,0.16)' : 'transparent',
+                                border: `1.5px solid ${active ? 'rgba(200,102,26,0.6)' : 'rgba(245,240,228,0.12)'}`,
+                                WebkitTapHighlightColor: 'transparent',
+                              }}>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: active ? 'rgba(245,240,228,0.9)' : 'rgba(245,240,228,0.55)' }}>{w.title}</span>
+                              <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: w.status === 'installed' ? 'rgba(120,200,140,0.8)' : 'rgba(245,240,228,0.35)' }}>
+                                {w.status === 'installed' ? 'On car' : 'Stored'}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(245,240,228,0.8)', marginBottom: 6 }}>
+                      Mounting on {selectedWheel?.title}
+                    </p>
+                  )}
                   {oldTires.length === 0 ? (
                     <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: 'rgba(245,240,228,0.4)', lineHeight: 1.5 }}>
                       These tires will be paired with your current wheels.
