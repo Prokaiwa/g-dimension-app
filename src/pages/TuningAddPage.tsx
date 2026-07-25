@@ -151,6 +151,13 @@ export default function TuningAddPage() {
   const [tireMultiValues, setTireMultiValues] = useState<Record<string, string[]>>({})
   const [tireSpecsExpanded, setTireSpecsExpanded] = useState(false)
 
+  // Tire replacement — when adding a STANDALONE tire (part_type 2/3) on the build
+  // sheet, auto-mount it on the car's current installed wheels and offer to
+  // retire the tires already on them (Parts Bin or Scrap).
+  const [currentWheel, setCurrentWheel]       = useState<{ id: string; title: string } | null>(null)
+  const [oldTires, setOldTires]               = useState<{ id: string; title: string }[]>([])
+  const [oldTireDisposition, setOldTireDisposition] = useState<'parts' | 'scrap'>('parts')
+
   const release      = () => setPressed(null)
   const selectedCat  = TUNING_CATEGORIES.find(c => c.id === selectedCategory)
 
@@ -227,6 +234,41 @@ export default function TuningAddPage() {
         setTireMultiValues({})
       })
   }, [addTires, tirePartTypeId])
+
+  // Detect the car's current wheels + the tires already on them when adding a
+  // standalone tire (part_type 2/3) on the build sheet — drives auto-mount and
+  // the "replace old tires?" prompt.
+  useEffect(() => {
+    const isTire = selectedPartType?.id === 2 || selectedPartType?.id === 3
+    if (partsBinMode || !isTire) {
+      setCurrentWheel(null)
+      setOldTires([])
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const carId = await getActiveCarId()
+      if (!carId || cancelled) return
+      const { data: wheels } = await supabase
+        .from('jobs')
+        .select('id, title')
+        .eq('car_id', carId)
+        .eq('part_type_id', 1)
+        .eq('status', 'installed')
+        .order('date_installed', { ascending: false, nullsFirst: false })
+        .limit(1)
+      const wheel = (wheels ?? [])[0] as { id: string; title: string } | undefined
+      if (!wheel || cancelled) { setCurrentWheel(null); setOldTires([]); return }
+      setCurrentWheel(wheel)
+      const { data: tires } = await supabase
+        .from('jobs')
+        .select('id, title')
+        .eq('mounted_on_job_id', wheel.id)
+        .eq('status', 'installed')
+      if (!cancelled) setOldTires((tires ?? []) as { id: string; title: string }[])
+    })()
+    return () => { cancelled = true }
+  }, [selectedPartType, partsBinMode])
 
   // Revoke object URLs on unmount to avoid leaks
   useEffect(() => {
@@ -616,6 +658,19 @@ export default function TuningAddPage() {
       }
     }
 
+    // 3c. Standalone tire on the build sheet — mount it on the current wheels and
+    //     retire the tires already on them (Parts Bin or Scrap) per the prompt.
+    const isTirePart = selectedPartType.id === 2 || selectedPartType.id === 3
+    if (!partsBinMode && isTirePart && currentWheel) {
+      await supabase.from('jobs').update({ mounted_on_job_id: currentWheel.id }).eq('id', jobId)
+      if (oldTires.length > 0) {
+        const updates = oldTireDisposition === 'scrap'
+          ? { status: 'scrapped', still_owned: false, date_removed: today }
+          : { status: 'removed',   still_owned: true,  date_removed: today }
+        await supabase.from('jobs').update(updates).in('id', oldTires.map(t => t.id))
+      }
+    }
+
     // 4. Compress (EXIF strip) + upload photos, then INSERT job_photos
     for (const photo of photos) {
       try {
@@ -715,6 +770,7 @@ export default function TuningAddPage() {
   const tireBasicGroups    = groupBy(tireBasic, t => t.group_label ?? '')
   const tireAdvancedGroups = groupBy(tireAdvanced, t => t.group_label ?? '')
   const showTireAddon = !partsBinMode && selectedPartType?.id === 1  // Wheels
+  const showTireMount = !partsBinMode && (selectedPartType?.id === 2 || selectedPartType?.id === 3) && !!currentWheel  // standalone tire on current wheels
 
   const canSubmit = form.title.trim().length > 0 && !saving
 
@@ -1678,6 +1734,47 @@ export default function TuningAddPage() {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── Standalone tire on current wheels: auto-mount + replace prompt ── */}
+            {showTireMount && (
+              <div style={{ padding: '28px 22px 0' }}>
+                <div style={{ padding: '14px 15px', background: 'rgba(200,102,26,0.06)', border: '1px solid rgba(200,102,26,0.28)' }}>
+                  <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.04em', color: 'rgba(245,240,228,0.8)', marginBottom: 6 }}>
+                    Mounting on {currentWheel?.title}
+                  </p>
+                  {oldTires.length === 0 ? (
+                    <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: 'rgba(245,240,228,0.4)', lineHeight: 1.5 }}>
+                      These tires will be paired with your current wheels.
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: 'rgba(245,240,228,0.45)', lineHeight: 1.5, marginBottom: 12 }}>
+                        Those wheels already have {oldTires.length === 1 ? 'a tire' : 'tires'} ({oldTires.map(t => t.title).join(', ')}). Where do the old ones go?
+                      </p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {([['parts', 'Parts Bin'], ['scrap', 'Scrap']] as const).map(([val, label]) => {
+                          const active = oldTireDisposition === val
+                          return (
+                            <button key={val} onClick={() => setOldTireDisposition(val)}
+                              style={{
+                                flex: 1, padding: '10px 0',
+                                background: active ? 'rgba(200,102,26,0.16)' : 'transparent',
+                                border: `1.5px solid ${active ? 'rgba(200,102,26,0.6)' : 'rgba(245,240,228,0.12)'}`,
+                                cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: active ? '#e8955a' : 'rgba(245,240,228,0.4)',
+                                transition: 'all 200ms ease', WebkitTapHighlightColor: 'transparent',
+                              }}>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
