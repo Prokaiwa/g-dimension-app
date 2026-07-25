@@ -456,12 +456,18 @@ export default function FeaturedPage() {
     const t = setTimeout(() => setSplashMinDone(true), 1300)
     return () => clearTimeout(t)
   }, [])
+  // Run ONCE, when data is ready and the min beat has elapsed. splashFading must
+  // NOT be a dependency here: setting it would re-run the effect, whose cleanup
+  // would clear the setSplashGone timeout before it fires, leaving the dark
+  // splash stuck on screen forever (covering the whole page + the back chevron).
+  const splashStartedRef = useRef(false)
   useEffect(() => {
-    if (loading || !splashMinDone || splashFading) return
+    if (loading || !splashMinDone || splashStartedRef.current) return
+    splashStartedRef.current = true
     setSplashFading(true)                                   // text fades over 500ms
     const t = setTimeout(() => setSplashGone(true), 560)    // then hand off to the magazine
     return () => clearTimeout(t)
-  }, [loading, splashMinDone, splashFading])
+  }, [loading, splashMinDone])
 
   // ── derived: seed from car.id so renames never reshuffle the issue ─────────────
   const seed       = useMemo(() => seedFrom(car?.id ?? ''), [car?.id])

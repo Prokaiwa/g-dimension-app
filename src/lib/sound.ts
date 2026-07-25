@@ -222,6 +222,32 @@ function playSample(buf: AudioBuffer, peak = 0.9): void {
   src.start()
 }
 
+// Like playSample, but returns a STOP handle that fades the gain out and stops
+// the source. For the rank-up celebration, which needs to cut its track when the
+// user dismisses. Uses a BufferSource + gain node (all Web Audio, one unlocked
+// context) rather than an <audio> element, so there's no per-element iOS gesture
+// unlock and no risk of a stray element playing over the music.
+function playSampleStoppable(buf: AudioBuffer, peak = 0.9): () => void {
+  const c = audioCtx()
+  if (!c) return () => {}
+  const src = c.createBufferSource()
+  src.buffer = buf
+  const g = c.createGain()
+  g.gain.value = peak
+  src.connect(g)
+  g.connect(c.destination)
+  src.start()
+  return () => {
+    try {
+      const now = c.currentTime
+      g.gain.cancelScheduledValues(now)
+      g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), now)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45)
+      src.stop(now + 0.47)
+    } catch { /* already stopped */ }
+  }
+}
+
 /** Decode the file-based sounds ahead of first use (call on first gesture). */
 export function prewarmSfx(): void {
   if (!isSoundEnabled()) return
@@ -245,82 +271,36 @@ function synthRankUp(c: AudioContext): void {
   blip(c, t + 0.34, 1567.98, 1567.98, 0.7, 0.07, 'sine')
 }
 
-// The rank-up track is a full-length song, so it STREAMS through an <audio>
-// element (memory-light) instead of decoding the whole thing into a buffer like
-// the short sfx above — same reasoning as the background music in music.ts. A
-// ~2-minute track decodes to tens of MB of PCM that would sit in memory for the
-// whole session; a streamed element holds no decoded buffer.
-let rankEl: HTMLAudioElement | null = null
-let rankFadeRaf = 0
-function ensureRankEl(): HTMLAudioElement {
-  if (!rankEl) {
-    configureAudioSession()
-    rankEl = new Audio(RANKUP_URL)
-    rankEl.preload = 'auto'
-  }
-  return rankEl
-}
+// The rank-up track plays through the SAME Web Audio context as the sfx above
+// (decoded into an AudioBuffer), NOT a separate <audio> element. An <audio>
+// element needs its own iOS gesture-unlock before its first play() — and the
+// celebration fires from app state (after the tour), not a tap — so the element
+// route silently fell back to the synth, and an unlock-on-gesture workaround let
+// it leak audibly over the music. The context is already unlocked by the first
+// tap (see audioCtx wiring), so a buffer source Just Works from app state, with
+// no second element to fight the music. The ~2-minute track's decoded PCM is a
+// few tens of MB held only after first play — an acceptable cost for the payoff.
 
 /** Warm the rank-up track ahead of a likely celebration (call on the hub). */
 export function prewarmRankUp(): void {
   if (!isSoundEnabled()) return
-  ensureRankEl() // create the element so the browser starts buffering the file
-}
-
-/**
- * Unlock the rank-up <audio> element for later programmatic playback. iOS
- * requires each media element's FIRST play() to originate from a user gesture;
- * the celebration fires from app state (after the tour), not a tap, so without
- * this its play() is blocked and it falls back to the synth. Call from a
- * gesture (a muted play/pause counts as the unlock). Harmless if sound is off.
- */
-export function unlockRankUp(): void {
-  const el = ensureRankEl()
-  const prevMuted = el.muted
-  el.muted = true
-  const p = el.play()
-  if (p) {
-    p.then(() => {
-      el.pause()
-      try { el.currentTime = 0 } catch { /* not seekable yet */ }
-      el.muted = prevMuted
-    }).catch(() => { el.muted = prevMuted })
-  } else {
-    el.muted = prevMuted
-  }
+  void loadSample(RANKUP_URL) // fetch + decode so the celebration plays instantly
 }
 
 /**
  * Triumphant one-shot for a permit rank-up. Returns a STOP handle (fade out +
- * pause) so the celebration can cut the track when dismissed. Streams the
- * Pixabay file; if it can't play (missing / blocked) it falls back to the short
- * synth arpeggio.
+ * stop) so the celebration can cut the track when dismissed. Plays the decoded
+ * Pixabay buffer if ready; if it isn't loaded (or failed) it falls back to the
+ * short synth arpeggio and warms the file for next time.
  */
 export function playRankUp(): () => void {
   if (!isSoundEnabled()) return () => {}
-  const el = ensureRankEl()
-  cancelAnimationFrame(rankFadeRaf)
-  try {
-    el.currentTime = 0
-    el.volume = 0.95
-    const p = el.play()
-    if (p) p.catch(() => { const c = audioCtx(); if (c) synthRankUp(c) })
-  } catch {
-    const c = audioCtx(); if (c) synthRankUp(c)
-    return () => {}
-  }
-  return () => {
-    cancelAnimationFrame(rankFadeRaf)
-    const start = performance.now()
-    const from = el.volume
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / 450)
-      el.volume = Math.max(0, from * (1 - t))
-      if (t < 1) rankFadeRaf = requestAnimationFrame(tick)
-      else { el.pause(); try { el.currentTime = 0 } catch { /* not seekable yet */ } el.volume = 0.95 }
-    }
-    rankFadeRaf = requestAnimationFrame(tick)
-  }
+  const cached = sampleCache.get(RANKUP_URL)
+  if (cached) return playSampleStoppable(cached, 0.95)
+  if (cached === undefined) void loadSample(RANKUP_URL) // warm for next time
+  const c = audioCtx()
+  if (c) synthRankUp(c)
+  return () => {}
 }
 
 /** Cursor-move tick — two tiny micro-blips 35ms apart (T5 on /sound-test). */
