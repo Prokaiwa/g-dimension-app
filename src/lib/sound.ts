@@ -262,6 +262,8 @@ function synthConfirm(c: AudioContext): void {
 // synthesized ascending major arpeggio with an octave shimmer — triumphant.
 // Drop the track at: public/audio/rankup.mp3 (served at /audio/rankup.mp3).
 const RANKUP_URL = '/audio/rankup.mp3'
+// How long the celebration waits for the real track before the synth covers it.
+const RANKUP_WAIT_MS = 4000
 
 function synthRankUp(c: AudioContext): void {
   const t = c.currentTime
@@ -297,10 +299,36 @@ export function playRankUp(): () => void {
   if (!isSoundEnabled()) return () => {}
   const cached = sampleCache.get(RANKUP_URL)
   if (cached) return playSampleStoppable(cached, 0.95)
-  if (cached === undefined) void loadSample(RANKUP_URL) // warm for next time
-  const c = audioCtx()
-  if (c) synthRankUp(c)
-  return () => {}
+
+  // Not decoded yet (a cold PWA launch can reach the celebration before the
+  // multi-MB track has landed). Settling for the synth here is what made the
+  // real track "never play", so instead wait for the in-flight load and start
+  // the moment it lands — the celebration runs ~6s before the card even fades
+  // up, so a slightly late start still reads as intentional. If it can't make
+  // the deadline, or the file is missing, the synth covers the moment.
+  let stop: (() => void) | null = null
+  let settled = false // something already played, or the caller dismissed us
+  const synthFallback = () => {
+    if (settled) return
+    settled = true
+    const c = audioCtx()
+    if (c) synthRankUp(c)
+  }
+  const deadline = window.setTimeout(synthFallback, RANKUP_WAIT_MS)
+
+  void loadSample(RANKUP_URL).then(buf => {
+    window.clearTimeout(deadline)
+    if (settled) return       // synth already covered it, or we were dismissed
+    if (!buf) { synthFallback(); return }
+    settled = true
+    stop = playSampleStoppable(buf, 0.95)
+  })
+
+  return () => {
+    window.clearTimeout(deadline)
+    settled = true            // block a late start after dismissal
+    stop?.()
+  }
 }
 
 /** Cursor-move tick — two tiny micro-blips 35ms apart (T5 on /sound-test). */

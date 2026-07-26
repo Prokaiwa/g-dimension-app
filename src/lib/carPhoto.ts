@@ -27,8 +27,12 @@ export async function uploadGaragePhoto(
   blob: Blob,
 ): Promise<string> {
   // The cutout is WebP-with-alpha where the browser could encode it, PNG
-  // otherwise (see encodeCutout in backgroundRemoval.ts) — follow the blob.
-  const ext = blob.type === 'image/webp' ? 'webp' : 'png'
+  // otherwise (see encodeCutout in backgroundRemoval.ts). Devices that can't run
+  // the remover at all send a plain JPEG (encodePlainCarPhoto) — follow the blob
+  // rather than assuming, so the extension always matches the bytes.
+  const ext = blob.type === 'image/webp' ? 'webp'
+    : blob.type === 'image/jpeg' ? 'jpg'
+    : 'png'
   const path = `${userId}/${carId}/garage-${Date.now()}.${ext}`
   const { error } = await supabase.storage
     .from(BUCKET)

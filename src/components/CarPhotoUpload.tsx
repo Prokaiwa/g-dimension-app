@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   removeCarBackground,
+  encodePlainCarPhoto,
+  isBackgroundRemovalSupported,
   subscribeModelState,
   getModelStatus,
   getModelProgress,
@@ -21,10 +23,14 @@ import {
 type Props = {
   /** Existing garage photo URL, if the car already has one. */
   currentUrl?: string | null
-  /** Called with the processed transparent PNG and the ORIGINAL file (for
-   *  storage), or (null, null) if processing failed. */
+  /** Called with the processed photo (a transparent cutout normally, a plain
+   *  JPEG where the device can't run the remover) and the ORIGINAL file for
+   *  storage, or (null, null) if the photo couldn't be read at all. */
   onChange: (blob: Blob | null, originalFile?: File | null) => void
 }
+
+// Shown when the cut-out can't run — the photo is still accepted, just uncut.
+const UNCUT_NOTICE = 'Background removal is not available on this browser, so your photo is used as it was shot.'
 
 // A dark spotlight backdrop that mirrors how the car reads in the carousel.
 const SPOTLIGHT = 'radial-gradient(ellipse 100% 75% at 50% 42%, #3a3a3a 0%, #1f1f1f 55%, #0d0d0f 100%)'
@@ -39,7 +45,10 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [, forceRender] = useState(0)
+  // Probed once: no point promising an automatic cut-out we can't deliver.
+  const [canCutOut] = useState(isBackgroundRemovalSupported)
 
   // Re-render when the model's download status / progress changes.
   useEffect(() => subscribeModelState(() => forceRender(n => n + 1)), [])
@@ -52,6 +61,7 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     e.target.value = ''
     if (!file) return
     setError(null)
+    setNotice(null)
     setBusy(true)
     // Let the overlay actually paint before the cut-out begins. removeCarBackground
     // does synchronous, main-thread-blocking work (image decode + canvas + WASM)
@@ -62,7 +72,22 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
     const startedAt = Date.now()
     try {
-      const blob = await removeCarBackground(file)
+      // A failed cut-out must never cost the user their photo: on any removal
+      // failure (unsupported device, model load, inference) fall back to the
+      // photo as shot. Only a photo we genuinely can't decode is an error.
+      let blob: Blob
+      if (canCutOut) {
+        try {
+          blob = await removeCarBackground(file)
+        } catch (err) {
+          console.warn('[CarPhotoUpload] cut-out failed, using the photo as-is:', err)
+          blob = await encodePlainCarPhoto(file)
+          setNotice(UNCUT_NOTICE)
+        }
+      } else {
+        blob = await encodePlainCarPhoto(file)
+        setNotice(UNCUT_NOTICE)
+      }
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
       const url = URL.createObjectURL(blob)
       objectUrlRef.current = url
@@ -166,7 +191,9 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
                 maxWidth: 220,
               }}
             >
-              A front three-quarter angle works best. The background is removed automatically.
+              {canCutOut
+                ? 'A front three-quarter angle works best. The background is removed automatically.'
+                : 'A front three-quarter angle works best.'}
             </span>
           </div>
         )}
@@ -182,6 +209,13 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
       {error && (
         <p style={{ fontFamily: FONT_UI, fontSize: 12, color: '#e05555', margin: `${SPACE_XS}px 0 0` }}>
           {error}
+        </p>
+      )}
+
+      {/* Not an error: the photo was accepted, it just isn't cut out. */}
+      {notice && !error && (
+        <p style={{ fontFamily: FONT_UI, fontSize: 12, color: COLOR_TEXT_SECONDARY, lineHeight: 1.5, margin: `${SPACE_XS}px 0 0` }}>
+          {notice}
         </p>
       )}
 

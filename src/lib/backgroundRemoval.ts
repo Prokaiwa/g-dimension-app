@@ -28,7 +28,47 @@ const PROCESSOR_CONFIG = {
   size: { width: 1024, height: 1024 },
 }
 
-export type ModelStatus = 'idle' | 'loading' | 'ready' | 'error'
+export type ModelStatus = 'idle' | 'loading' | 'ready' | 'error' | 'unsupported'
+
+/** Thrown when the device can't run the model at all — the caller should fall
+ *  back to using the photo as shot rather than refusing the upload. */
+export class BackgroundRemovalUnsupportedError extends Error {
+  constructor(message = "this browser can't run the background remover") {
+    super(message)
+    this.name = 'BackgroundRemovalUnsupportedError'
+  }
+}
+
+// RMBG-1.4 runs on onnxruntime-web's WASM backend, which requires WebAssembly
+// SIMD. Safari only shipped SIMD in iOS 16.4, so an older iPhone fails with
+// "no available backend found. ERR: [wasm] ... WebAssembly SIMD is not
+// supported". Probing up front lets the upload skip the multi-MB model download
+// entirely and go straight to the plain-photo fallback, instead of downloading,
+// failing, and blocking the car add behind an error the user can't act on.
+let simdSupport: boolean | null = null
+function hasWasmSimd(): boolean {
+  if (simdSupport !== null) return simdSupport
+  try {
+    // The canonical SIMD feature-detect module (as used by wasm-feature-detect):
+    // a function returning v128 via i8x16.splat + i8x16.popcnt. It only
+    // validates on engines that actually implement SIMD.
+    simdSupport = WebAssembly.validate(new Uint8Array([
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,
+      0x03, 0x02, 0x01, 0x00,
+      0x0a, 0x0a, 0x01, 0x08, 0x00, 0x41, 0x00, 0xfd, 0x0f, 0xfd, 0x62, 0x0b,
+    ]))
+  } catch {
+    simdSupport = false
+  }
+  return simdSupport
+}
+
+/** False when this browser can't run the cut-out model (iOS Safari before 16.4
+ *  and friends). Callers should use the photo as-is instead. */
+export function isBackgroundRemovalSupported(): boolean {
+  return typeof WebAssembly === 'object' && typeof WebAssembly.validate === 'function' && hasWasmSimd()
+}
 
 type RawImageLike = {
   data: Uint8Array | Uint8ClampedArray
@@ -101,6 +141,11 @@ async function buildEngine(dtype: 'q8' | 'fp32'): Promise<Engine> {
 
 function loadEngine(): Promise<Engine> {
   if (enginePromise) return enginePromise
+  if (!isBackgroundRemovalSupported()) {
+    status = 'unsupported'
+    notify()
+    return Promise.reject(new BackgroundRemovalUnsupportedError())
+  }
   status = 'loading'
   progress = 0
   notify()
@@ -138,9 +183,13 @@ function loadEngine(): Promise<Engine> {
  * load is already underway.
  */
 export function prewarmBackgroundRemoval(): void {
-  if (status === 'idle') {
-    loadEngine().catch(() => { /* failure is surfaced via getModelStatus() */ })
+  if (status !== 'idle') return
+  if (!isBackgroundRemovalSupported()) {
+    status = 'unsupported' // don't spend a multi-MB download on a doomed load
+    notify()
+    return
   }
+  loadEngine().catch(() => { /* failure is surfaced via getModelStatus() */ })
 }
 
 const MAX_INPUT_EDGE = 1920 // downscale large photos before inference for speed
@@ -346,8 +395,40 @@ export async function removeCarBackground(file: File | Blob): Promise<Blob> {
     stage = 'trim'
     return await trimToBlob(composed)
   } catch (err) {
+    // Pass the unsupported signal through untouched so the caller can quietly
+    // fall back instead of showing a device limitation as a processing error.
+    if (err instanceof BackgroundRemovalUnsupportedError) throw err
     const detail = err instanceof Error ? err.message : String(err)
     console.error(`[background-removal] failed at stage "${stage}":`, err)
     throw new Error(`${stage} — ${detail}`)
   }
+}
+
+const PLAIN_QUALITY = 0.9
+
+/**
+ * Fallback for devices that can't run the cut-out model: decode the photo
+ * (HEIC and EXIF orientation handled exactly as on the model path), cap its
+ * long edge, and encode a plain JPEG. No alpha channel, so the carousel shows
+ * the photo as shot rather than a floating cutout. That is a far better outcome
+ * than refusing the upload and leaving the car with no photo at all.
+ */
+export async function encodePlainCarPhoto(file: File | Blob): Promise<Blob> {
+  const canvas = await decodeToCanvas(file)
+  const longEdge = Math.max(canvas.width, canvas.height)
+  const scale = longEdge > MAX_OUTPUT_EDGE ? MAX_OUTPUT_EDGE / longEdge : 1
+
+  let out = canvas
+  if (scale < 1) {
+    out = document.createElement('canvas')
+    out.width = Math.max(1, Math.round(canvas.width * scale))
+    out.height = Math.max(1, Math.round(canvas.height * scale))
+    const ctx = out.getContext('2d')
+    if (!ctx) throw new Error('canvas is unavailable')
+    ctx.drawImage(canvas, 0, 0, out.width, out.height)
+  }
+
+  const blob = await new Promise<Blob | null>(r => out.toBlob(b => r(b), 'image/jpeg', PLAIN_QUALITY))
+  if (!blob) throw new Error('could not encode the photo')
+  return blob
 }

@@ -468,6 +468,10 @@ export default function HomePage() {
   // Permit grade for the header avatar's grade-frame (set once PermitWatcher
   // resolves the live grade; null = no frame yet).
   const [permitGrade, setPermitGrade] = useState<GradeId | null>(null)
+  // A rank-up is owed: the avatar glows and its tap claims the permit instead
+  // of opening the profile. Nothing takes over the screen until the user asks.
+  const [permitPending, setPermitPending] = useState(false)
+  const [permitOpen, setPermitOpen] = useState(false)
   useEffect(() => {
     if (avatarUrl === null) return  // profile not loaded yet — keep optimistic cache
     if (!avatarUrl) { setAvatarSrc(null); clearAvatarThumbCache(); return }
@@ -489,6 +493,11 @@ export default function HomePage() {
         @keyframes destIn {
           0%   { opacity: 0; transform: translate(-50%, -40%); }
           100% { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        /* Header avatar halo while a permit is waiting to be claimed. */
+        @keyframes permitWaiting {
+          0%, 100% { opacity: 0.22; transform: scale(0.84); }
+          50%      { opacity: 1;    transform: scale(1.04); }
         }
         /* translate(-50%,-50%) must be repeated here: the animation transform
            REPLACES the halo's base centering transform, so scale-only keyframes
@@ -607,19 +616,42 @@ export default function HomePage() {
           <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>
         </div>
 
-        {/* Permit rank-up celebration + grade-frame source (renders an overlay
-            only when a rank-up is owed; otherwise nothing). */}
-        <PermitWatcher onState={s => setPermitGrade(s.grade)} />
+        {/* Permit grade-frame source. The celebration overlay renders only once
+            the user taps the glowing avatar to claim it (permitOpen). */}
+        <PermitWatcher
+          open={permitOpen}
+          onState={s => {
+            setPermitGrade(s.grade)
+            setPermitPending(s.pending)
+            if (!s.pending) setPermitOpen(false) // claimed: back to a normal avatar
+          }}
+        />
 
         {/* Left: avatar + username */}
         <div
-          onClick={() => navigate('/profile')}
+          onClick={() => {
+            // An unclaimed permit owns the tap: reveal the celebration instead
+            // of leaving for the profile.
+            if (permitPending) { setPermitOpen(true); return }
+            navigate('/profile')
+          }}
           style={{
             position: 'absolute', left: 10, top: 0, height: '100%',
             display: 'flex', alignItems: 'center', gap: 8,
             cursor: 'pointer', padding: '4px 6px',
           }}
         >
+          {/* Wrapper so the pending halo can sit OUTSIDE the avatar, which
+              clips its own children to the circle. */}
+          <div style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
+          {permitPending && (
+            <span aria-hidden style={{
+              position: 'absolute', inset: -6, borderRadius: '50%',
+              border: `1.5px solid ${permitGrade ? GRADE_RING[permitGrade] : COLOR_ACCENT}`,
+              animation: 'permitWaiting 2.2s ease-in-out infinite',
+              pointerEvents: 'none',
+            }} />
+          )}
           <div style={{
             width: 28, height: 28,
             borderRadius: RADIUS_AVATAR,
@@ -647,6 +679,7 @@ export default function HomePage() {
                 }}
               />
             )}
+          </div>
           </div>
           <span style={{
             fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
