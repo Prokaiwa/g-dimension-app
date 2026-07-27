@@ -574,7 +574,12 @@ export default function TimelinePage() {
       onClick={() => navigate('/home')}
       aria-label="Back to home"
       style={{
-        position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
+        // Timeline has no header, so this floating chevron is the only chrome
+        // up here and nothing else pushes it clear of the notch. index.html
+        // sets viewport-fit=cover, so the webview really does extend under the
+        // status bar in the native build - without the inset this sits behind
+        // it on any notched iPhone.
+        position: 'fixed', top: 'calc(8px + env(safe-area-inset-top))', left: 8, width: 44, height: 44, zIndex: 20,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         WebkitTapHighlightColor: 'transparent',

@@ -472,7 +472,10 @@ export default function PublicTimelinePage() {
     <button
       onClick={back} aria-label="Back to profile"
       style={{
-        position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
+        // Mirrors the private TimelinePage chevron - no header here either, so
+        // the safe-area inset is the only thing keeping it out from under the
+        // notch (viewport-fit=cover).
+        position: 'fixed', top: 'calc(8px + env(safe-area-inset-top))', left: 8, width: 44, height: 44, zIndex: 20,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         WebkitTapHighlightColor: 'transparent',
