@@ -20,7 +20,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
 import { shareLink } from '../lib/share'
-import { gradeById, GRADE_CHIP } from '../lib/license'
+import { gradeById } from '../lib/license'
+import { PermitMini, permitInk } from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
@@ -785,96 +786,71 @@ export default function PublicProfilePage() {
         <>
           {/* scrim: tap anywhere outside to close */}
           <div onClick={() => setCardOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 48 }} />
-          <div style={{
-            position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49,
-            width: 264, background: 'rgba(233,236,242,0.98)',
-            border: '1px solid rgba(120,130,150,0.35)',
-            boxShadow: '0 14px 40px rgba(0,0,0,0.45)',
-            animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
-          }}>
-            <style>{`@keyframes pubCardIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }`}</style>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 14px 10px' }}>
+          {(() => {
+            // The driver card IS the owner's permit (migration 077 persists the
+            // grade so the public side never recomputes over private cars). A
+            // driver with no grade yet gets the provisional laminate.
+            const g = gradeById(car.license_grade)
+            const ink = permitInk(g)
+            const place = [car.city, car.country].filter(Boolean).join(', ')
+            const flag = flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')
+            return (
               <div style={{
-                width: 48, height: 48, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
-                background: COLOR_BRAND, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49, width: 274,
+                animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
               }}>
-                {car.avatar_url
-                  ? <img src={car.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 20, color: '#f5f0ea' }}>
-                      {(car.display_name || username || '?').charAt(0).toUpperCase()}
-                    </span>}
+                <style>{`@keyframes pubCardIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }`}</style>
+                <PermitMini
+                  grade={g}
+                  driver={car.display_name || `@${username}`}
+                  handle={username ?? ''}
+                  location={place ? `${flag} ${place}`.trim() : null}
+                  bio={car.bio}
+                  avatarUrl={car.avatar_url}
+                  footer={
+                    <>
+                      <button
+                        onClick={async () => {
+                          const outcome = await shareLink({
+                            url: `https://gdimension.app/builds/${username}${carParam ? `?car=${carParam}` : ''}`,
+                            title: `${car.display_name || '@' + username}'s build — G-Dimension`,
+                            text: 'Check out this build on G-Dimension',
+                          })
+                          if (outcome === 'copied') {
+                            setCardShare('copied')
+                            clearTimeout(cardShareTimer.current)
+                            cardShareTimer.current = setTimeout(() => setCardShare('idle'), 1400)
+                          }
+                        }}
+                        style={{
+                          width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          background: ink.wash, border: 'none', cursor: 'pointer',
+                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em',
+                          textTransform: 'uppercase', color: ink.ink, WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        <ShareIcon size={14} color={ink.ink} />
+                        {cardShare === 'copied' ? 'Link copied' : 'Share this build'}
+                      </button>
+                      {isAnon && (
+                        <button
+                          onClick={() => navigate('/signup?ref=profile')}
+                          style={{
+                            width: '100%', minHeight: 40, background: 'none', border: 'none',
+                            borderTop: `1px solid ${ink.hair}`, cursor: 'pointer',
+                            fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: ink.dim,
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          Start your own build journal →
+                        </button>
+                      )}
+                    </>
+                  }
+                />
               </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, color: '#22262e', margin: 0, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {car.display_name || `@${username}`}
-                </p>
-                <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: '#6c7280', margin: '2px 0 0' }}>@{username}</p>
-                {(() => {
-                  // G-Dimension Permit grade badge (migration 077).
-                  const g = gradeById(car.license_grade)
-                  if (!g) return null
-                  const chip = GRADE_CHIP[g.id]
-                  return (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, padding: '3px 8px', background: chip.bg, borderRadius: 3, boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }}>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 9.5, letterSpacing: '0.12em', color: chip.fg }}>GRADE {g.id}</span>
-                      <span style={{ width: 1, height: 9, background: chip.fg, opacity: 0.4 }} />
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: chip.fg, opacity: 0.92 }}>{g.className}</span>
-                    </span>
-                  )
-                })()}
-              </div>
-            </div>
-            {(car.city || car.country) && (
-              <p style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: '#565c68', margin: '0 14px 8px', lineHeight: 1.4 }}>
-                {flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')}{' '}
-                {[car.city, car.country].filter(Boolean).join(', ')}
-              </p>
-            )}
-            {car.bio && (
-              <p style={{
-                fontFamily: FONT_UI, fontWeight: 500, fontSize: 12.5, color: '#3d434e',
-                margin: '0 14px 12px', lineHeight: 1.5,
-                display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-              }}>{car.bio}</p>
-            )}
-            <button
-              onClick={async () => {
-                const outcome = await shareLink({
-                  url: `https://gdimension.app/builds/${username}${carParam ? `?car=${carParam}` : ''}`,
-                  title: `${car.display_name || '@' + username}'s build — G-Dimension`,
-                  text: 'Check out this build on G-Dimension',
-                })
-                if (outcome === 'copied') {
-                  setCardShare('copied')
-                  clearTimeout(cardShareTimer.current)
-                  cardShareTimer.current = setTimeout(() => setCardShare('idle'), 1400)
-                }
-              }}
-              style={{
-                width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                background: 'rgba(120,130,150,0.12)', border: 'none',
-                borderTop: '1px solid rgba(120,130,150,0.25)', cursor: 'pointer',
-                fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em',
-                textTransform: 'uppercase', color: '#2a2e36', WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <ShareIcon size={14} color="#2a2e36" />
-              {cardShare === 'copied' ? 'Link copied' : 'Share this build'}
-            </button>
-            {isAnon && (
-              <button
-                onClick={() => navigate('/signup?ref=profile')}
-                style={{
-                  width: '100%', minHeight: 40, background: 'none', border: 'none',
-                  borderTop: '1px solid rgba(120,130,150,0.25)', cursor: 'pointer',
-                  fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: '#6c7280',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                Start your own build journal →
-              </button>
-            )}
-          </div>
+            )
+          })()}
         </>
       )}
 

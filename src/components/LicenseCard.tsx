@@ -8,7 +8,7 @@
 // provisional permit.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import QRCode from 'qrcode'
-import type { Grade, GradeProgress } from '../lib/license'
+import { GRADES, type Grade, type GradeProgress } from '../lib/license'
 import { FONT_UI } from '../tokens'
 
 // Slow "showroom" rotation used by the rank-up celebration (spin mode): one full
@@ -150,13 +150,19 @@ function CheckerField({ m, seed }: { m: Material; seed: number }) {
 }
 
 // Grade rail with a live specular sheen — the "laminated card catching light".
-function GradeRail({ grade, m }: { grade: Grade; m: Material }) {
+// `still` drops the travelling sheen band (PermitMini uses it: that card lives
+// in a dropdown that opens and closes constantly, where a looping highlight
+// reads as noise rather than gloss). Passing it explicitly matters — the
+// @keyframes are declared by the full card, so a `still={false}` rail rendered
+// on its own would silently freeze mid-animation instead of holding a
+// deliberate highlight.
+function GradeRail({ grade, m, still }: { grade: Grade; m: Material; still?: boolean }) {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 52, background: m.rail, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {/* static top-edge highlight */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)', pointerEvents: 'none' }} />
       {/* moving sheen band */}
-      <div style={{ position: 'absolute', left: '-60%', top: '-30%', width: '80%', height: '160%', background: 'linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.06) 65%, transparent 100%)', transform: 'skewX(-16deg)', animation: 'permitSheen 5s ease-in-out 1.5s infinite', pointerEvents: 'none' }} />
+      {!still && <div style={{ position: 'absolute', left: '-60%', top: '-30%', width: '80%', height: '160%', background: 'linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.06) 65%, transparent 100%)', transform: 'skewX(-16deg)', animation: 'permitSheen 5s ease-in-out 1.5s infinite', pointerEvents: 'none' }} />}
       <span style={{ position: 'relative', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 900, fontSize: grade.id === 'P' ? 11 : 14, letterSpacing: '0.32em', color: m.railInk, textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
         {grade.id === 'P' ? 'PROVISIONAL' : <>GRADE&nbsp;&nbsp;{grade.id}</>}
       </span>
@@ -292,6 +298,103 @@ function seedFrom(s: string): number {
   let h = 0
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
   return h >>> 0
+}
+
+// ── PermitMini ──────────────────────────────────────────────────────────────
+// The permit as an IDENTITY CHIP, for the visitor-facing driver card on
+// /builds/:username. Same material system, grade rail and checker field as the
+// full card, but static: no flip, no QR, no sheen animation (it lives inside a
+// dropdown that can be opened and closed constantly — a looping sheen there
+// would be noise, and the QR is redundant when you are already on the page it
+// points to).
+//
+// A driver with no grade yet renders on the provisional laminate rather than
+// falling back to a neutral panel, so the card is always a permit.
+export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, footer }: {
+  grade: Grade | null
+  driver: string
+  handle: string
+  location?: string | null
+  bio?: string | null
+  avatarUrl?: string | null
+  footer?: React.ReactNode
+}) {
+  const g = grade ?? GRADES[0]
+  const m = MATERIALS[g.material]
+  const seed = useMemo(() => seedFrom(handle || driver || 'g'), [handle, driver])
+  // Dark materials (crimson/carbon) need light hairlines; light ones need dark.
+  const hair = m.grid === '#fff' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)'
+
+  return (
+    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 44px rgba(0,0,0,0.5)', ...m.bg }}>
+      <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.45 }} seed={seed} />
+      <GradeRail grade={g} m={m} still />
+
+      <div style={{ position: 'relative', marginLeft: 52 }}>
+        <div style={{ padding: '13px 14px 11px' }}>
+          {/* Permit header — the document title, exactly as on the full card. */}
+          <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: m.inkDim, lineHeight: 1 }}>
+            G-Dimension Permit
+          </div>
+          <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 13.5, letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent, marginTop: 3 }}>
+            {g.className} Class
+          </div>
+
+          {/* Photo + name, the way a licence carries them. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 12 }}>
+            <div style={{
+              width: 46, height: 46, flexShrink: 0, overflow: 'hidden',
+              border: `1px solid ${hair}`, background: m.rail,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 19, color: m.railInk }}>
+                    {(driver || handle || '?').charAt(0).toUpperCase()}
+                  </span>}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14.5, color: m.ink, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {driver}
+              </div>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: m.inkDim, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                @{handle}
+              </div>
+            </div>
+          </div>
+
+          {location && (
+            <div style={{ marginTop: 10, fontFamily: FONT_UI, fontSize: 11.5, lineHeight: 1.4 }}>
+              <span style={{ display: 'inline-block', width: 52, fontWeight: 600, color: m.inkDim }}>From:</span>
+              <span style={{ fontWeight: 800, color: m.ink }}>{location}</span>
+            </div>
+          )}
+
+          {bio && (
+            <p style={{
+              margin: '10px 0 0', paddingTop: 9, borderTop: `1px solid ${hair}`,
+              fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, lineHeight: 1.5, color: m.ink, opacity: 0.85,
+              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+            }}>{bio}</p>
+          )}
+        </div>
+
+        {footer && <div style={{ borderTop: `1px solid ${hair}` }}>{footer}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** Ink colors for actions rendered into PermitMini's `footer`, per grade. */
+export function permitInk(grade: Grade | null): { ink: string; dim: string; hair: string; wash: string } {
+  const m = MATERIALS[(grade ?? GRADES[0]).material]
+  const dark = m.grid === '#fff'
+  return {
+    ink: m.ink,
+    dim: m.inkDim,
+    hair: dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)',
+    wash: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+  }
 }
 
 export default function LicenseCard({ grade, next, toNext, driver, handle, licensed, profileUrl, spin = false, spinDelay = '0s' }: {
