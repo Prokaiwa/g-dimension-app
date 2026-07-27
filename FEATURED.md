@@ -6,7 +6,7 @@
 1. **Auto-pulled Story spread is SCRAPPED.** Timeline prose (first-person diary voice) must never be auto-typeset into the magazine — wrong register. Instead `cars.featured_story` (migration 052) holds an optional **user-written magazine-voice article**; the book only gets a Story page when it's written (cover "Story ✎" chip → compose sheet).
 2. **Cover framing shipped as §4.5 layer 1** (reposition + zoom, persisted as `cover_focus_x/y` + `cover_zoom`, NULL = unframed → legacy contain heuristics). Layer 2 (bbox seed) not done — bbox isn't persisted at upload yet. Layer 3 exists as the "No BG" cutout toggle.
 3. **feDisplacementMap gutter warp SKIPPED** — feImage+displacement is unreliable on iOS Safari (the primary device). The binding depth shipped instead: fold-line page turn, spine gutter shading, and the **double-truck centerfold** (hero photos with aspect ≥ 1.9 go full-bleed with a center fold crease + "Full Spread" tag).
-4. **Public Featured (on /builds/:username) DEFERRED** — `/builds/:username` itself is still an unbuilt stub; open product question: is the public profile a page *containing* the magazine, or IS the magazine the public profile? Migration 052 already exposes everything the public cover/story needs via `public_car_profiles`.
+4. ~~**Public Featured (on /builds/:username) DEFERRED**~~ **SHIPPED.** `PublicFeaturedPage.tsx` is live at `/builds/:username/featured`, and the whole public world is built out (profile, garage, timeline, build sheet, mod detail, DIY, sold-car). The resolved product answer: the public profile is a **hub that contains** the magazine, not the magazine itself. `featured_layout` rides through `public_car_profiles` and is nulled when the Featured room is private (migration 055, mirroring 053).
 **Route:** `/featured` (replaced the old `/photos` stub on the Home map).
 **Read this before touching:** `src/pages/FeaturedPage.tsx`, the Home "Featured" node in `HomePage.tsx`, or the car-photo upload pipeline (`carPhoto.ts` / `CarPhotoUpload.tsx`).
 
@@ -47,7 +47,7 @@ A magazine that obeys the minimalist app design system won't *feel* like a magaz
 
 **Cover photo:** defaults to the **Original** uploaded photo (full-bleed) and can toggle to the **No-BG cutout** (top-right "Photo ▸" chip). See §5 for the data behind this.
 
-## 4. The "magazine feel" plan (NOT yet built)
+## 4. The "magazine feel" plan (BUILT — kept for the reasoning)
 
 Key insight: the magazine feel is ~80% **editorial layout + typography**, ~20% paper texture. Build the layout language first.
 
@@ -116,4 +116,5 @@ Go to `/home` and tap **Featured**, or open `/featured` directly. (Dev server au
 - ✅ Interior book (Photo Spreads → Story → Spec), fold-line page turn, editorial engine.
 - ✅ **Editable editorial copy (migration 055 — applied to live DB 2026-06-19).** Owner can rewrite the cover **headline + deck** in place: the "Edit Cover" pencil chip enters an inline edit mode (the headline/deck become dashed-outline fields; empty = the engine line shows as placeholder), "Save Cover" writes `cars.featured_layout` (single JSONB). Real stroked-SVG `PencilIcon` (no emoji). **Quiet "suggestion updated" signal:** the JSONB also snapshots the engine output at save time (`generated_headline`/`generated_deck`); when the live engine later diverges (e.g. the owner adds mods) a small amber dot appears on the pencil, and entering edit shows the fresh engine line with a one-tap "use this". Entirely client-side diff — no extra columns, no server calls. See CLAUDE.md migration table for the full JSONB shape.
 - ✅ **Editable photo-spread captions (055).** Each photo spread has its own "Captions" pencil chip (owner-only, page-at-rest). Tapping it puts the spread into caption-edit mode — every photo (hero + cells) gets an inline dashed field; empty = the default (timeline note title, else the engine caption) shows as placeholder. "Save" writes `featured_layout.captions`, keyed by **stable photo key** (`bsg:<group>` / `tl:<entryId>`, never the URL — re-uploads never orphan a caption). Same freshness mechanism via `generated_captions`: the per-spread pencil shows the quiet amber dot when the engine's caption for a customized photo diverges from the saved snapshot. Caption precedence: user override > timeline note title > engine.
-- ⏭️ **Next:** Public Featured on `/builds/:username` (the JSONB rides through `public_car_profiles`, nulled when Featured is private), and/or the page-binding/3D-turn polish from §4.
+- ✅ **Public Featured shipped** — `PublicFeaturedPage.tsx` at `/builds/:username/featured`; `featured_layout` rides through `public_car_profiles` and is nulled when the room is private.
+- ⏭️ **Next:** the page-binding / 3D-turn polish from §4 (CSS/SVG only; the finger-tracked WebGL cylinder curl stays deferred as a later delight pass).

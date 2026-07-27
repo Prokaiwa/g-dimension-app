@@ -74,8 +74,8 @@ miles**. Marking a recurring reminder complete spawns the next occurrence automa
 (`due_date + N months`, and/or `due_mileage = current odometer + N miles`).
 
 - **DB:** migration `078_reminder_recurrence.sql` adds `car_reminders.recur_months` +
-  `recur_miles` (both int, nullable; NULL/NULL = a plain one-shot reminder). **PENDING —
-  apply in the Supabase SQL editor.**
+  `recur_miles` (both int, nullable; NULL/NULL = a plain one-shot reminder). **Applied to
+  the live DB 2026-07-21** (see the `hotfixes.sql` watermark).
 - **Delivery:** `src/lib/reminderNotifications.ts` schedules an **on-device local
   notification** for each active, future-dated reminder, firing at 9am local on
   (`due_date − remind_days_before`). Local notifications need **no push infrastructure**

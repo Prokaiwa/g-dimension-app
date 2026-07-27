@@ -328,13 +328,12 @@ src/components/AuthGateFallback.tsx — Auth watchdog: branded loading, then a r
 src/components/ErrorBanner.tsx      — On-device global error banner (traps window.onerror + unhandledrejection); for phone testing, renders nothing until an error fires
 src/pages/GarageCarsPage.tsx        — My Cars carousel + read-only Details sheet (morphs the active card) + inline Add Car flow; exports GarageBg + GarageHeader
 src/pages/GarageCarsEditPage.tsx    — Edit Car form (/garage/cars/:carId/edit): full car fields + photo + Remove Car
-src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by 4 other pages)
+src/pages/TuningBuildSheetPage.tsx  — TUNING_CATEGORIES (exported, imported by TuningAddPage + TuningPartEditPage)
 src/pages/TuningAddPage.tsx         — Add mod flow (category → part type → form); optional group name field at bottom creates a named session for batch installs
 src/pages/TuningModGroupPage.tsx    — Group detail page (/tuning/mod-group/:sessionId): shows session title, components list, notes; + Add Component FAB loops back to TuningAddPage with sessionId in router state
 src/pages/TuningModDetailPage.tsx   — Mod detail + carousel/viewer + links display + Remove from Car sheet
 src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + photos + links)
-src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic, In Storage + On Hand)
-src/pages/TuningPartsAddPage.tsx    — Add Part directly to Parts Bin (purchased status)
+src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic; Wishlist + On Hand + In Storage). FAB → /tuning/add?dest=parts-bin (there is NO separate add-part page)
 src/pages/TuningPartDetailPage.tsx  — Part detail (kraft paper, carousel/viewer, links, Install/Sell actions)
 src/pages/TuningPartEditPage.tsx    — Part edit form (kraft paper, fields + specs + photos + links)
 src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diagonal, service history strip)
@@ -414,7 +413,8 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 ## Things to Watch
 
 - **Migrations jump from 027 to 029** — 028 does not exist. Do not create a `028_*.sql` unless intentionally filling that slot.
-- **TUNING_CATEGORIES** is exported from `TuningBuildSheetPage.tsx` and imported by `TuningBlueprintPage`, `TuningPartsPage`, `TuningPartsAddPage`, and `TuningAddPage`. Category `id` values must match `part_categories.name` in Supabase (FK constraint from migration 025).
+- **TUNING_CATEGORIES** is exported from `TuningBuildSheetPage.tsx` and imported by `TuningAddPage` and `TuningPartEditPage`. Category `id` values must match `part_categories.name` in Supabase (FK constraint from migration 025).
+- **Two Tuning pages named in older docs no longer exist** — `TuningBlueprintPage` was deleted (commit `2a01795`, replaced by the **Wishlist** section inside Parts Bin) and `TuningPartsAddPage` was deleted (commit `970fde4`, replaced by the shared Add-mod flow at `/tuning/add?dest=parts-bin`, which `TuningAddPage` branches on via `partsBinMode`). Don't recreate either from a stale doc reference.
 - **`formatDate` in `TuningModDetailPage`** — destructures split as `[y, m, mo]` which is redundant. The month index is `(m ?? mo) - 1`. Leave it as-is unless specifically fixing it.
 - **TypeScript:** `spec_templates` query requires `as unknown as SpecTemplate[]` cast — this is intentional, not a mistake.
 - **TypeScript:** link entry union type in edit pages requires `as unknown as { _idx: number }` double-cast when removing a queued new link — this is intentional, strict mode doesn't accept a single cast from `JobLink & Record<"_isNew", unknown>` to `{ _idx: number }`.

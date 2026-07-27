@@ -8,8 +8,8 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 
 ### Planned next sessions (in priority order)
 1. ~~**Error observability (Sentry)**~~ ✅ DONE (2026-07-17) — `src/lib/errorTracking.ts`: lazy idle init (adds nothing to boot), inlined public DSN, CSP already allows the ingest domain, `?sentry-test` wiring check. Events are tagged with the user id (set on auth changes in `App.tsx`), the deploy SHA/environment (Vercel system env vars), and every `reportActionError()` save failure is mirrored remotely (`handled:action-error` tag). Errors only — no tracing/replay, to keep the free-tier quota lean. Remaining nice-to-have: readable prod stack traces via `@sentry/vite-plugin` source-map upload (needs a `SENTRY_AUTH_TOKEN` in Vercel).
-2. **Empty states** — walk every section as a brand-new user (no car, no mods, no timeline). Each screen should look intentional when empty, not just blank.
-3. **Safe area insets** — audit fixed headers/footers for `env(safe-area-inset-top/bottom)`. Notch + home indicator on newer iPhones clip content that isn't padded.
+2. **Empty states** — walk every section as a brand-new user (no car, no mods, no timeline). Each screen should look intentional when empty, not just blank. **(2026-07-27 audit: coverage is broader than this line implied — every list surface already has an empty branch (Parts Bin has a combined `isEmpty`, Maintenance Service/Detailing, Reminders, Contacts, Documents, Build Sheet, Timeline all have one). The remaining work is quality, not coverage: most are a single plain sentence ("No service records yet") rather than a designed moment in that section's aesthetic.)**
+3. **Safe area insets** — audit fixed headers/footers for `env(safe-area-inset-top/bottom)`. Notch + home indicator on newer iPhones clip content that isn't padded. **(2026-07-27 audit: mostly done — 36 usages across 30 files, and `index.html` sets `viewport-fit=cover`. Confirmed remaining gap: the floating Timeline back-chevron is `position:fixed; top:8` with NO top inset on BOTH `TimelinePage.tsx:577` and `PublicTimelinePage.tsx:475`, so it sits under the status bar/notch. Because `viewport-fit=cover` is set, the webview genuinely extends under the notch in the Capacitor build — this is a real native-app clip, not theoretical.)**
 4. ~~**Account deletion**~~ ✅ DONE — "Delete my account" in Settings (`SettingsPage.tsx` + the `delete-account` Edge Function; skips transferred-car storage folders per migration 072).
 5. **Public profile end-to-end** — test `/builds/:username` as a logged-out visitor on mobile. (2026-07-17: backend errors on the public landing + garage now show a retryable error state instead of reading as "empty" — retest after that.)
 6. ~~**Onboarding walkthrough**~~ ✅ DONE — guided home-map tour (`src/tour/`, migration 062 `users.tutorial_seen`; "Replay App Tour" in Settings).
@@ -20,6 +20,8 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
 
 ### Known lower-priority items
+- **Dev surfaces reachable in production.** Only `/spec-test` is `import.meta.env.DEV`-gated (`App.tsx:423`). `/sound-test`, `/dev/trading-cards` and `/license-preview` ship to any signed-in user, and `PublicProfilePage`'s TUNE console (`TUNE_MODE`, line 191) activates for anyone who puts `?tune` in a **public** profile URL. Owner's call (2026-07-27): leave for now, revisit when PWA access is retired in favour of the app stores.
+- **Unreferenced assets (~700 KB) in `src/assets/`** — the seven `icons/home/*.png` were inlined as base64 into `src/lib/destinationIcons.ts` (a 213 KB source file that DOES ship in the JS bundle) and the originals are now unimported; also unused: `android.png`, `apple.png`, `pwa.png`, `r33tester.png`, `logo/gdimension{-square-icon,Gwhitebg,dark,light}.png`, `icons/tuning-dashboard/tuning_blueprint.png`, `icons/tuning/tuning_intake.png`. Unimported files don't reach the bundle, so this is repo weight only — but `gdimensiondark.png` is the documented source for `public/og-default.png`, so keep an archived copy rather than deleting blind.
 - WASM background-removal bundle is ~24MB — measure first-load on mobile data
 - ~~Signed URL expiry mid-session~~ ✅ FIXED (2026-07-17) — all receipts/car-documents signing now uses the shared `SIGNED_URL_TTL` (1 hour) from `src/lib/signedUrls.ts` (was 300s, which broke images on sheets left open >5 min)
 - Multi-car stress test: 3+ cars in the carousel
@@ -53,13 +55,13 @@ All primary routes are implemented:
 - Build sheet shows section photos as tappable placeholders → inline modal picker
 
 **Parts Bin** (cardboard / kraft paper aesthetic — Caveat + Permanent Marker fonts only):
-- `/tuning/parts-bin` — lists parts in "In Storage" (status=`removed`, still_owned=true) and "On Hand" (status=`purchased`) sections. Items have seeded random Polaroid-style offsets (±3.25° rotation, ±5.5px nudge) — stable per UUID, never re-randomizes.
-- `/tuning/parts-bin/add` — form to add a part directly (inserts as status=`purchased`, still_owned=true). Fields: name, brand, category, cost, date acquired, notes
+- `/tuning/parts-bin` — three sections: **Wishlist** (status=`planned`, absorbed from the deleted Blueprint page), **On hand** (status=`purchased`), **In storage** (status=`removed`, still_owned=true). Renders a single combined empty state when all three are empty (`isEmpty`). Items have seeded random Polaroid-style offsets (±3.25° rotation, ±5.5px nudge) — stable per UUID, never re-randomizes.
+- **Adding a part reuses the Add-mod flow** at `/tuning/add?dest=parts-bin` (there is no `/tuning/parts-bin/add` route and no `TuningPartsAddPage` — that page was replaced in `970fde4`). `TuningAddPage` reads `dest=parts-bin` into `partsBinMode`, themes itself for the kraft world, inserts as status=`purchased`, and returns to `/tuning/parts-bin`.
 - `/tuning/parts-bin/:partId` — Part detail page (kraft paper): photo carousel + fullscreen viewer, specs, notes, links. Actions: Install →, Sell / Scrap.
 - `/tuning/parts-bin/:partId/edit` — Part edit: all fields + specs + photos + links management
 - "Put Back" button on each part → sets status=`installed`, clears `date_removed`, returns to Build Sheet
 - Parts page header: `‹ Tuning` left, `[year model] [Month Day box]` right — same inline pattern as Garage
-- Hand-drawn SVG ellipse FAB navigates to `/tuning/parts-bin/add`
+- Hand-drawn SVG ellipse FAB navigates to `/tuning/add?dest=parts-bin`
 - TUNING_CATEGORIES imported from TuningBuildSheetPage for the category dropdown
 
 **Remove from Car flow** (TuningModDetailPage bottom sheet):

@@ -483,14 +483,18 @@ Modern performance-facing aesthetic. Hanken Grotesk exclusively — no Cormorant
 }
 ```
 
-### Dashboard — 4 Tiles
+### Dashboard — 2 Tiles (AS BUILT)
 
 | Tile | Purpose | Icon |
 |---|---|---|
-| **Add Modification** | Log a new part | Torque wrench |
 | **Build Sheet** | Installed mods — spec view | Partially unfolded catalog page |
-| **Blueprint** | Planned mods — wishlist | Blueprint paper with car profile |
-| **Parts Bin** | Owned, not installed | Worn cardboard box, coilover poking out |
+| **Parts Bin** | Owned/planned, not installed | Worn cardboard box, coilover poking out |
+
+> **AS-BUILT correction.** The original design called for 4 tiles. Two were dropped:
+> **Add Modification** is reached by the FAB on the Build Sheet rather than its own tile,
+> and **Blueprint** was deleted outright (commit `2a01795`) — planned mods now live as the
+> **Wishlist** section inside Parts Bin (`status = 'planned'`). `TuningBlueprintPage` does
+> not exist; do not recreate it. See `TuningPage.tsx` `TILES` for the live list.
 
 Icons: `src/assets/icons/tuning-dashboard/`
 
