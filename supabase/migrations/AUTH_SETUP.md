@@ -66,6 +66,43 @@ volume. Production sends go through **Resend** instead.
   | Minimum interval per user | `60` seconds (default — per-user resend cooldown, not touched) |
   | Hourly send cap | Supabase auto-raises this to 30/hour once custom SMTP is enabled (separate from Resend's own 100/day, 3,000/month free-tier caps). Adjustable later in the same settings page if signup volume ever grows enough to need it. |
 
+### Deliverability — DMARC is MISSING (action required)
+
+**Observed 2026-07-27:** a real signup confirmation to an `@aol.com` address
+landed in spam. The cause is almost certainly that `gdimension.app` publishes
+**SPF and DKIM but no DMARC record**.
+
+Since February 2024, Yahoo (which operates AOL Mail) and Gmail require bulk
+senders to publish a DMARC policy. Without `_dmarc`, a domain that otherwise
+authenticates correctly still gets treated as untrusted and routed to spam.
+SPF + DKIM alone are no longer enough.
+
+**The fix — one DNS record** in Namecheap → Advanced DNS. Start in
+monitor-only mode so nothing can be rejected while you watch the reports:
+
+```
+Type:  TXT
+Host:  _dmarc
+Value: v=DMARC1; p=none; rua=mailto:hi@gdimension.app; fo=1; adkim=r; aspf=r
+```
+
+Then, once reports confirm all legitimate mail passes (give it a couple of
+weeks), tighten the policy: `p=none` → `p=quarantine` → `p=reject`. Do not
+start at `p=reject` — a misconfiguration there silently destroys real signups
+instead of just flagging them.
+
+Two smaller wins while in the DNS panel:
+- Resend can verify a **custom return-path/tracking subdomain**; using it
+  keeps the visible `From:` aligned with the DKIM `d=` domain (strict
+  alignment), which helps reputation.
+- Warm up gradually. A brand-new sending domain going from zero to a burst of
+  signups reads as spam behaviour regardless of authentication.
+
+The signup confirmation screen (`SignupPage.tsx`) also tells users to check
+spam and whitelist `noreply@gdimension.app` — that is a mitigation for the
+users who hit this before DNS propagates, **not** a substitute for the DMARC
+record.
+
 ### Email templates
 
 The Confirm Signup template is branded (dark red header w/ G-mark logo, warm

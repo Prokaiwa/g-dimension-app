@@ -104,6 +104,25 @@ export default function SignupPage() {
           We sent a confirmation link to <strong style={{ color: COLOR_TEXT_PRIMARY }}>{email}</strong>.
           Click it to activate your account.
         </p>
+        {/* Confirmation mail lands in spam often enough to be worth saying out
+            loud, especially on Yahoo/AOL. Deliverability is being fixed at the
+            DNS level too (DMARC), but the hint costs nothing and saves the
+            signup either way. */}
+        <p
+          style={{
+            fontFamily: FONT_UI,
+            fontSize: 12.5,
+            color: COLOR_TEXT_SECONDARY,
+            opacity: 0.75,
+            maxWidth: 280,
+            lineHeight: 1.6,
+            margin: `-${SPACE_SM}px 0 ${SPACE_LG}px`,
+          }}
+        >
+          Don't see it? Check your spam or junk folder, and add
+          {' '}<strong style={{ color: COLOR_TEXT_PRIMARY, fontWeight: 600 }}>noreply@gdimension.app</strong>
+          {' '}to your contacts.
+        </p>
         <button
           onClick={() => navigate('/login')}
           style={{
