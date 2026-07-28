@@ -796,7 +796,7 @@ export default function PublicProfilePage() {
             const flag = flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')
             return (
               <div style={{
-                position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49, width: 274,
+                position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49, width: 236,
                 animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
               }}>
                 <style>{`@keyframes pubCardIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }`}</style>
@@ -823,9 +823,9 @@ export default function PublicProfilePage() {
                           }
                         }}
                         style={{
-                          width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          width: '100%', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                           background: ink.wash, border: 'none', cursor: 'pointer',
-                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, letterSpacing: '0.06em',
+                          fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.05em',
                           textTransform: 'uppercase', color: ink.ink, WebkitTapHighlightColor: 'transparent',
                         }}
                       >
@@ -838,7 +838,7 @@ export default function PublicProfilePage() {
                           style={{
                             width: '100%', minHeight: 40, background: 'none', border: 'none',
                             borderTop: `1px solid ${ink.hair}`, cursor: 'pointer',
-                            fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: ink.dim,
+                            fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: ink.dim,
                             WebkitTapHighlightColor: 'transparent',
                           }}
                         >

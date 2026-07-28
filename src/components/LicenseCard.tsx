@@ -156,14 +156,19 @@ function CheckerField({ m, seed }: { m: Material; seed: number }) {
 // @keyframes are declared by the full card, so a `still={false}` rail rendered
 // on its own would silently freeze mid-animation instead of holding a
 // deliberate highlight.
-function GradeRail({ grade, m, still }: { grade: Grade; m: Material; still?: boolean }) {
+// `w` narrows the rail for the compact PermitMini — the 52px default is scaled
+// for the full 420px-wide card and reads as a slab on a 250px one.
+export const RAIL_W = 52
+export const RAIL_W_MINI = 34
+function GradeRail({ grade, m, still, w = RAIL_W }: { grade: Grade; m: Material; still?: boolean; w?: number }) {
+  const mini = w < RAIL_W
   return (
-    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 52, background: m.rail, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: w, background: m.rail, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {/* static top-edge highlight */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 38%)', pointerEvents: 'none' }} />
       {/* moving sheen band */}
       {!still && <div style={{ position: 'absolute', left: '-60%', top: '-30%', width: '80%', height: '160%', background: 'linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.06) 35%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.06) 65%, transparent 100%)', transform: 'skewX(-16deg)', animation: 'permitSheen 5s ease-in-out 1.5s infinite', pointerEvents: 'none' }} />}
-      <span style={{ position: 'relative', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 900, fontSize: grade.id === 'P' ? 11 : 14, letterSpacing: '0.32em', color: m.railInk, textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+      <span style={{ position: 'relative', transform: 'rotate(-90deg)', whiteSpace: 'nowrap', fontFamily: FONT_UI, fontWeight: 900, fontSize: grade.id === 'P' ? (mini ? 8.5 : 11) : (mini ? 10.5 : 14), letterSpacing: mini ? '0.22em' : '0.32em', color: m.railInk, textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
         {grade.id === 'P' ? 'PROVISIONAL' : <>GRADE&nbsp;&nbsp;{grade.id}</>}
       </span>
     </div>
@@ -328,53 +333,56 @@ export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, fo
   return (
     <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 44px rgba(0,0,0,0.5)', ...m.bg }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.45 }} seed={seed} />
-      <GradeRail grade={g} m={m} still />
+      <GradeRail grade={g} m={m} still w={RAIL_W_MINI} />
 
-      <div style={{ position: 'relative', marginLeft: 52 }}>
-        <div style={{ padding: '13px 14px 11px' }}>
-          {/* Permit header — the document title, exactly as on the full card. */}
-          <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: m.inkDim, lineHeight: 1 }}>
-            G-Dimension Permit
-          </div>
-          <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 13.5, letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent, marginTop: 3 }}>
-            {g.className} Class
+      <div style={{ position: 'relative', marginLeft: RAIL_W_MINI }}>
+        <div style={{ padding: '10px 12px 10px' }}>
+          {/* Permit header — the document title, exactly as on the full card.
+              Kicker and class sit on one baseline to save a whole row. */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 8.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: m.inkDim }}>
+              Permit
+            </span>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 12, letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent }}>
+              {g.className} Class
+            </span>
           </div>
 
           {/* Photo + name, the way a licence carries them. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9 }}>
             <div style={{
-              width: 46, height: 46, flexShrink: 0, overflow: 'hidden',
+              width: 36, height: 36, flexShrink: 0, overflow: 'hidden',
               border: `1px solid ${hair}`, background: m.rail,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               {avatarUrl
                 ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 19, color: m.railInk }}>
+                : <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 15, color: m.railInk }}>
                     {(driver || handle || '?').charAt(0).toUpperCase()}
                   </span>}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 14.5, color: m.ink, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: m.ink, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {driver}
               </div>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: m.inkDim, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 10.5, color: m.inkDim, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 @{handle}
               </div>
             </div>
           </div>
 
           {location && (
-            <div style={{ marginTop: 10, fontFamily: FONT_UI, fontSize: 11.5, lineHeight: 1.4 }}>
-              <span style={{ display: 'inline-block', width: 52, fontWeight: 600, color: m.inkDim }}>From:</span>
-              <span style={{ fontWeight: 800, color: m.ink }}>{location}</span>
-            </div>
+            <div style={{
+              marginTop: 8, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10.5, lineHeight: 1.3, color: m.ink,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{location}</div>
           )}
 
           {bio && (
             <p style={{
-              margin: '10px 0 0', paddingTop: 9, borderTop: `1px solid ${hair}`,
-              fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, lineHeight: 1.5, color: m.ink, opacity: 0.85,
-              display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+              margin: '8px 0 0', paddingTop: 7, borderTop: `1px solid ${hair}`,
+              fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, lineHeight: 1.45, color: m.ink, opacity: 0.85,
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
             }}>{bio}</p>
           )}
         </div>
