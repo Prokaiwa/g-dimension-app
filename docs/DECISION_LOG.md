@@ -465,3 +465,55 @@ the buyer deletes their account, `buyer_id` nulls and the ghost shows without a
 "@handle" / Visit-Build link (snapshot still stands). The public side + shareable
 "sold to @B" link/unfurl are a second phase built on the same table + view.
 Source: migration 074; the 2026-07 feedback round.
+
+## ADR-020 — Column-level anon grants are the boundary, not the query layer (2026-07-28)
+
+**Decision:** Every table reachable by the anon key must carry a **column-level**
+`grant select (...) to anon` listing exactly the columns the public surfaces
+consume. A row-level RLS policy is necessary but never sufficient. Migration
+081 applies this to `public.jobs`, the last table still holding a table-wide
+anon grant.
+
+**Context:** A live-database probe during the 2026-07-28 end-to-end pass found
+that anon could read every column of any job belonging to a public car:
+
+```
+GET /rest/v1/jobs?select=parts_cost&parts_cost=not.is.null
+→ 33 rows, $23,828 of other users' spend
+```
+
+plus `cost`, `labor_cost`, `sale_price`, `sale_date`, `part_number`,
+`condition`, `install_mileage`, and the donor/fabrication fields. The
+`jobs_public_read` policy (076) was doing its job correctly — it restricts
+which ROWS anon sees — but a row policy cannot restrict COLUMNS, and the
+underlying grant was still table-wide.
+
+The intent had been correct everywhere and enforced nowhere: `CLAUDE.md`
+promises "Build Sheet (brand + title + category — no costs)";
+`cars.show_investment_publicly` exists to keep the investment total private,
+which is meaningless if per-job costs can be summed straight off REST; and
+`api/og.js` carries the comment "select just the public columns — brand /
+title / category, NEVER costs". Three statements of the rule, all implemented
+as *what the app happens to ask for*. The anon key ships in the JS bundle by
+design, so anyone can ask for something else.
+
+**Rationale:** This is the same failure ADR-015 fixed for `users` (migration
+071 replaced a blanket grant with the public identity columns) and that 076
+fixed for `sessions`, `job_links` and `cars`. `jobs` was missed in that sweep —
+076 rewrote its *policy* and never revisited its *grant*. Making the grant the
+single source of truth means a future page cannot accidentally widen the
+boundary by selecting a new column: the request fails until someone adds the
+column in a migration, which is a reviewable act.
+
+Note the ordering trap: `grant select (cols)` layered on top of an existing
+table-wide grant narrows nothing. The revoke must come first.
+
+**Consequences:** Adding a public-facing field to `jobs` now requires a
+migration amending the grant — deliberate friction on the privacy boundary. A
+verification sweep of every anon-reachable table (same session) found the rest
+already correct: `job_photos`, `job_links`, `timeline_entry_photos`,
+`timeline_entry_links`, `job_specs`, the `diy_*` tables, `cars`, `sessions` and
+`users` all deny `select=*`. `timeline_entries`, `part_types` and
+`spec_templates` remain table-wide on purpose — every column in them is
+already public by design. That sweep is the check to repeat whenever a table
+gains an anon policy. Source: migration 081.
