@@ -517,3 +517,60 @@ already correct: `job_photos`, `job_links`, `timeline_entry_photos`,
 `spec_templates` remain table-wide on purpose — every column in them is
 already public by design. That sweep is the check to repeat whenever a table
 gains an anon policy. Source: migration 081.
+*(Superseded in part by ADR-021 — that sweep's conclusion was wrong; see there.)*
+
+## ADR-021 — Public-read tables need a grant AND a role-scoped owner policy (2026-07-28)
+
+**Decision:** A table is only genuinely public-readable when **both** hold: anon
+has a `select` grant on it, **and** every other permissive policy on that table
+is scoped to a role (`alter policy … to authenticated`). Migration 082 applies
+this to the seven tables that had a correct `*_select_public` policy and were
+still returning `42501` to anon.
+
+**Corrects ADR-020.** That entry's closing sweep concluded every other
+anon-reachable table was "already correct" because each denied `select=*`.
+That conclusion was wrong, and the reason is the reusable lesson: **a `42501`
+on `select=*` is ambiguous.** It means *either* "correctly column-scoped" *or*
+"anon cannot read this table at all", and I read it as the former for every
+table. Re-testing each table with **the columns its public page actually
+selects** exposed seven that were entirely blocked. The right check is not
+"does `select=*` fail" but "does the real public query succeed **and** does a
+sensitive column fail" — both directions, every time.
+
+**Context:** Loading `/builds/:username` as a real anonymous visitor showed
+public mod photos, public mod specs, public timeline-note media and **the whole
+public DIY guide feature** rendering empty. All seven tables already had correct
+public policies, so nothing about the intent was wrong. Two independent
+mechanical faults:
+
+1. **Missing grant** (`job_photos`, `job_specs`). Both predate the 2026-05-30
+   Supabase grant change and were only ever granted to `authenticated`.
+   PostgREST checks grants *before* RLS, so a perfectly good public policy never
+   executes. Diagnostic signature: the error names the table you asked for.
+2. **Owner policy not role-scoped** (all seven). Each owner policy is `for all`
+   with no role, and permissive policies are OR'd — so anon evaluates the owner
+   policy too. Those policies subquery `cars.user_id`, a column anon's
+   column-level `cars` grant (053/076) deliberately excludes, so evaluation
+   raises **"permission denied for table `cars`"** on a request for a completely
+   different table. That misdirection is why this survived so long.
+
+**Rationale:** Scoping the owner policy to `authenticated` costs nothing — anon
+can never satisfy `cars.user_id = auth.uid()` because `auth.uid()` is null. And
+this was already the established fix: migration 076 applied exactly
+`alter policy … to authenticated` to `sessions` and `job_links`, which is
+precisely why those two worked while the other seven did not. 076 was a partial
+sweep; 082 finishes it.
+
+Grants in 082 are **table-wide**, deliberately unlike 081's column-level grant.
+These tables hold photo URLs, spec keys/values and DIY step text — no financial
+or identifying data — and 047/059 already intended table-wide anon access. The
+tables that do carry sensitive columns (`jobs`, `sessions`, `users`, `cars`)
+stay column-scoped.
+
+**Consequences:** "Has a public policy" is not evidence a table is publicly
+readable. Any new public-facing table needs all three — policy, grant, and
+role-scoped owner policy — and the only trustworthy verification is loading the
+real page as an anonymous visitor. Two opposite bugs (081 too wide, 082 too
+narrow) were found in the same session on the same boundary, which is the
+argument for testing the boundary from the outside rather than reasoning about
+it from the migrations. Source: migration 082.
