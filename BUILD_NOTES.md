@@ -24,7 +24,7 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 
    Fixed regardless (harmless when the inset is 0, since it's a `calc`): the floating Timeline back-chevron on both `TimelinePage.tsx` and `PublicTimelinePage.tsx`. Those two have no header at all, so nothing else was holding them clear.
 4. ~~**Account deletion**~~ ✅ DONE — "Delete my account" in Settings (`SettingsPage.tsx` + the `delete-account` Edge Function; skips transferred-car storage folders per migration 072).
-5. **Public profile end-to-end** — test `/builds/:username` as a logged-out visitor on mobile. (2026-07-17: backend errors on the public landing + garage now show a retryable error state instead of reading as "empty" — retest after that.)
+5. ~~**Public profile end-to-end**~~ ✅ **DONE (2026-07-28)** — driven as a real anonymous visitor against the live database. Found and fixed **two** genuine bugs rather than just confirming it looked right: migration **081** (anon could read `parts_cost`/`cost`/`sale_price`/`part_number`/`condition` off any public car — 33 rows, $23,828 of other users' spend) and migration **082** (seven tables were wrongly *blocked* for anon, leaving public mod photos, specs, note media and the **entire public DIY guide** blank for logged-out visitors). Both applied and re-verified: private tables still sealed, `is_public=false` and the per-section flags still hide content, and every public page renders its images.
 6. ~~**Onboarding walkthrough**~~ ✅ DONE — guided home-map tour (`src/tour/`, migration 062 `users.tutorial_seen`; "Replay App Tour" in Settings).
 7. ~~**UI sounds**~~ ✅ DONE — GT-style synthesized sounds (`src/lib/sound.ts`, account-synced via migrations 068/069, audition board at `/sound-test`).
 8. ~~**Security audit**~~ ✅ DONE — see `docs/SECURITY_AUDIT.md` (2026-07; column-level anon grants in 071, `car_private` split in 061 came out of it).
@@ -196,6 +196,44 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 *Compose/edit page (`TimelineEntryNewPage`):* one component for both create and edit (keys off the `:entryId` param). Edit mode loads the note + existing photos/links, lets you remove existing (× → queued delete) and add new; on save it diffs (deletes removed rows, uploads + appends new, re-syncs the hero `photo_url`). Lives in the parchment aesthetic (not the dark form look). Camera affordance is the shared `CameraIcon` (matches the Garage carousel), **not** an emoji.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
+
+### Odometer sync — verified behaviour (2026-07-28)
+
+Tested against the live DB by driving the real UI, because "does mileage ever
+go backwards" is the kind of question that deserves evidence rather than a
+code read.
+
+**Only two flows ever write `cars.current_mileage` from a logged record:**
+`TuningAddPage` (new mod) and `MaintenanceServiceNewPage` (new service). Both
+use the identical guard — `enteredMi > (currentMileage ?? -1)` — applied twice:
+once to decide whether to *render* the opt-in checkbox, and again before the
+`update`. The checkbox defaults **on** (`useState(true)`).
+
+| Case | Behaviour | Verified |
+|---|---|---|
+| Log a mod/service at a **higher** mileage | Offers *"Update odometer to 90,000 mi (now 82,000)"*, ticked by default → odometer moves | ✅ 82,000 → 90,000 |
+| Log an **older** mod/service at a **lower** mileage | Checkbox is not rendered at all, and the write is guarded independently → **odometer never moves backwards** | ✅ stayed 90,000 after logging at 50,000 |
+| Service flow, same two cases | Identical (shared guard) | ✅ prompt at 120,000, absent at 40,000 |
+
+Mileage is compared in **miles** (base units) on both sides, so a car set to
+`km` can't drift — `unitToMiles()` normalises the entered value first.
+
+**Two deliberate gaps, both by omission rather than design — decide before launch:**
+
+1. **No edit path syncs the odometer.** `MaintenanceServiceEditPage`,
+   `MaintenanceDetailNewPage`/`EditPage` and `TuningModEditPage` contain zero
+   `current_mileage` writes. So correcting a service from 90,000 to 100,000
+   after the fact leaves the odometer at 90,000. Only the *original* save can
+   advance it.
+2. **A backwards entry is accepted silently.** Logging a mod at 50,000 on a car
+   reading 90,000 stores `install_mileage = 50000` with no warning. This is
+   *correct* for the common case (back-filling history on a car you bought
+   already modified), but there is no signal at all — no "this is earlier than
+   your odometer" hint, and nothing distinguishes a deliberate back-fill from a
+   typo (50,000 for 500,000).
+
+Neither corrupts data. Both are UX judgement calls, and (2) is arguably right
+as-is; (1) is the more likely to surprise someone.
 
 ### Car ownership transfer (2026-07-11, migration 072, ADR-017)
 
