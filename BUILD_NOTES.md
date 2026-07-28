@@ -197,6 +197,40 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
 
+### Private buckets — boundary verified (2026-07-28)
+
+Tested against live Storage by writing a real object into each private bucket
+as the owner, then attacking it. **No bugs — this boundary holds.**
+
+| Attempt | `car-documents` | `receipts` |
+|---|---|---|
+| Owner upload | 200 ✓ | 200 ✓ |
+| **Anon** via `/object/public/…` | **400** ✓ | **400** ✓ |
+| **Anon** direct authenticated-path GET | **400** ✓ | **400** ✓ |
+| **Anon** tries to mint a signed URL | **400** ✓ | **400** ✓ |
+| Owner mints a signed URL | works ✓ | works ✓ |
+| Fetch via that signed URL | 200 ✓ | 200 ✓ |
+
+**The cross-user case matters more than the anon case, and it also holds.**
+A *logged-in* attacker is the real threat, and another user's id is trivially
+discoverable — `public_car_profiles` exposes `user_id`, and storage paths are
+the predictable `{userId}/{carId}/…`. So the defence must not rely on path
+secrecy, and it doesn't: signed in as a different account, listing another
+user's `car-documents` and `receipts` folders both return `[]`, as does
+selecting their `car_documents` rows. Knowing the path buys nothing.
+
+Note for future work: because `user_id` is public and paths are predictable,
+**never** add a storage policy that grants on path prefix alone — ownership
+must always be resolved through `cars`/`car_documents` RLS (the same rule
+ADR-017 states for transferred-car folders).
+
+*Not covered:* the Documents **UI** flow (quick-add → type picker → form) was
+not driven to completion — the boundary was tested at the storage API instead,
+which is where the security property actually lives. `GarageDocumentsPage`'s
+own invariant that `file_url` stores a *path* and never a public URL is
+asserted in its header comment and by `createSignedUrl` usage, but was not
+exercised end to end.
+
 ### Adversarial pass (2026-07-28) — one real bug, two clean bills
 
 **FIXED — double-tap created duplicate records.** Firing three synchronous
