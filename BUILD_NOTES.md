@@ -197,6 +197,32 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
 
+### Remaining flows — live-driven (2026-07-28)
+
+Everything below was created through the real UI against the live database and
+verified by reading the rows back.
+
+| Flow | Result |
+|---|---|
+| **Grouped install** | ✅ `sessions.title = "Wringer Built Block"` + job, lands on `/tuning/mod-group/:id`. The named-session mechanism (033/ADR-009) works. |
+| **Detail (car wash) session** | ✅ `sessions.type='detail'` + a "Hand Wash" job, lands on `/maintenance/detail`. 7 service chips render. |
+| **Timeline note** | ✅ `timeline_entries.entry_type='note'` + the hero `photo_url` re-sync PATCH, lands on `/timeline`. |
+| **Reminder** | ✅ `car_reminders` row with all of 078's columns present; the "every N months / every N miles" recurrence inputs render. |
+| **Wheels + Tires combo** | ⚠️ **NOT exercised.** The wheel job saves fine, but the "Add Tires" toggle sits far down the form and automation never got it clicked, so `mounted_on_job_id` stayed NULL. The mount logic (066/ADR-016) is still **unverified** — worth a manual pass on a device. |
+
+**Mods are never hard-deleted through the UI** — "Remove from Car" sets
+`status='removed'` and keeps the job, its session and its timeline entry, by
+design (build history is preserved). Worth knowing before anyone reads a
+"leftover session" as a bug: during this session's testing, direct REST deletes
+of jobs left 10 orphan sessions and their timeline entries behind, but that is
+an artifact of bypassing the app, not something the app itself can produce.
+
+**Possible validation gap (owner's call):** a reminder saves happily with
+**neither** `due_date` nor `due_mileage` — i.e. a reminder that can never fire.
+That may be deliberate (a "someday" note), but nothing signals it, and such a
+row is invisible to `reminderNotifications.ts`, which only schedules
+future-dated ones.
+
 ### Private buckets — boundary verified (2026-07-28)
 
 Tested against live Storage by writing a real object into each private bucket
