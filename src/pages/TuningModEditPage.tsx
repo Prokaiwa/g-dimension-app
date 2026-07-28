@@ -670,7 +670,7 @@ export default function TuningModEditPage() {
               <label style={{ ...LABEL, marginBottom: 4 }}>Add to Timeline</label>
               <p style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.28)', margin: 0, lineHeight: 1.4 }}>
                 {sessionHasTitle
-                  ? 'Part of a group — this controls the whole group’s card in your build story.'
+                  ? 'Part of a group. This controls the whole group’s card in your build story.'
                   : 'Show this mod as a card in your build story.'}
               </p>
             </div>
@@ -701,7 +701,7 @@ export default function TuningModEditPage() {
               <div style={{ paddingTop: 18 }}>
                 <label style={LABEL}>Story</label>
                 <textarea value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
-                  rows={3} placeholder="The story behind this — how it went, why it matters…"
+                  rows={3} placeholder="The story behind this. How it went, why it matters…"
                   style={{ ...INPUT, resize: 'none', lineHeight: 1.5, fontStyle: 'italic', caretColor: '#39ff14' } as React.CSSProperties} />
               </div>
             </>

@@ -188,7 +188,7 @@ export default function ProfilePage() {
       setProfile(updated)
       setCachedProfile(updated)
     } catch {
-      setUploadError('Couldn’t update your photo — please try again.')
+      setUploadError('Couldn’t update your photo. Please try again.')
     } finally {
       setUploading(false)
     }
@@ -244,7 +244,7 @@ export default function ProfilePage() {
       usernameRef.current?.focus(); return
     }
     if (uname.length < USERNAME_MIN_LEN) {
-      setUnameError(`At least ${USERNAME_MIN_LEN} characters — letters, numbers, underscores.`)
+      setUnameError(`At least ${USERNAME_MIN_LEN} characters, using letters, numbers or underscores.`)
       usernameRef.current?.focus(); return
     }
     if (unameStatus === 'reserved') { setUnameError('That handle is reserved.'); usernameRef.current?.focus(); return }
@@ -276,7 +276,7 @@ export default function ProfilePage() {
         setUnameError('That username is already taken.')
         usernameRef.current?.focus()
       } else {
-        setUnameError('Could not save — please try again.')
+        setUnameError('Could not save. Please try again.')
       }
       return
     }

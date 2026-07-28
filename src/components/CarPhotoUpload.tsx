@@ -226,7 +226,7 @@ export default function CarPhotoUpload({ currentUrl, onChange }: Props) {
       {downloadingModel && createPortal(
         <StudioOverlay
           title="Preparing your garage"
-          subtitle="Setting up the background remover. This happens once — it'll be instant every time after."
+          subtitle="Setting up the background remover. This happens once. It'll be instant every time after."
           progress={getModelProgress()}
         />,
         document.body,

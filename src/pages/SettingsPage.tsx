@@ -223,7 +223,7 @@ export default function SettingsPage() {
     const { data, error } = await supabase.functions.invoke('delete-account')
     if (error || (data as { error?: string } | null)?.error) {
       setDeleting(false)
-      setDeleteError('Could not delete your account — please try again, or contact hi@gdimension.app.')
+      setDeleteError('Could not delete your account. Please try again, or contact hi@gdimension.app.')
       return
     }
     await supabase.auth.signOut()
@@ -265,7 +265,7 @@ export default function SettingsPage() {
               Display only — your numbers are always stored in base units and converted on the fly.
             </p>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
-              <UnitRow label="Distance" sub="Default odometer unit for new cars — each car can override on Edit Car" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
+              <UnitRow label="Distance" sub="Default odometer unit for new cars. Each car can override this on Edit Car" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
               <UnitRow label="Power" sub="Horsepower figures across your builds" value={prefs.power_unit} options={POWER_OPTS} onPick={v => update('power_unit', v)} disabled={saving} />
               <UnitRow label="Torque" sub="Torque figures across your builds" value={prefs.torque_unit} options={TORQUE_OPTS} onPick={v => update('torque_unit', v)} disabled={saving} />
             </div>
@@ -275,7 +275,7 @@ export default function SettingsPage() {
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
               <UnitRow
                 label="Menu Sounds"
-                sub="GT-style ticks on the Home map — synthesized on this device, saved to this device"
+                sub="GT-style ticks on the Home map, synthesized on this device and saved to this device"
                 value={sound ? 'on' : 'off'}
                 options={SOUND_OPTS}
                 onPick={pickSound}
@@ -283,7 +283,7 @@ export default function SettingsPage() {
               />
               <UnitRow
                 label="Background Music"
-                sub="A low ambient loop while you browse — saved to this device"
+                sub="A low ambient loop while you browse, saved to this device"
                 value={music ? 'on' : 'off'}
                 options={SOUND_OPTS}
                 onPick={pickMusic}
@@ -316,7 +316,7 @@ export default function SettingsPage() {
               <NavRow
                 label={exportState === 'working' ? 'Preparing your file…' : 'Download My Data'}
                 sub={exportState === 'error'
-                  ? 'Something went wrong — please try again'
+                  ? 'Something went wrong. Please try again'
                   : 'Export all your cars, mods, records, and photo links as a JSON file'}
                 onClick={handleExport}
               />

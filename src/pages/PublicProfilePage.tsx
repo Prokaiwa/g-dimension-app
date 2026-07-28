@@ -532,7 +532,7 @@ export default function PublicProfilePage() {
       window.setTimeout(() => navigate(dest), reduced ? 200 : 380)
       return
     }
-    setToast(`${n.label} — opening soon`)
+    setToast(`${n.label} is opening soon`)
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 1600)
   }

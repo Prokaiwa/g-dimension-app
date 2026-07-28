@@ -1494,7 +1494,7 @@ export default function GarageDocumentsPage() {
             >
               <span style={{ color: COLOR_ACCENT, fontSize: 16 }}>＋</span>
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {draft.file ? draft.file.name : draft.existingFileName ? `Replace — ${draft.existingFileName}` : 'Choose a file…'}
+                {draft.file ? draft.file.name : draft.existingFileName ? `Replace: ${draft.existingFileName}` : 'Choose a file…'}
               </span>
             </button>
 

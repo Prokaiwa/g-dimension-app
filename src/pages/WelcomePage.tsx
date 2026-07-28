@@ -75,8 +75,8 @@ export default function WelcomePage() {
     if (updateErr) {
       setSaving(false)
       setError(updateErr.code === '23505'
-        ? 'That username was just taken — please pick another.'
-        : 'Could not save — please try again.')
+        ? 'That username was just taken. Please pick another.'
+        : 'Could not save. Please try again.')
       return
     }
     markOnboarded(profile.id)

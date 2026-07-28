@@ -16,7 +16,7 @@ export function reportActionError(action: string, error?: unknown): void {
       ? (error as { message: string }).message
       : ''
   window.dispatchEvent(new CustomEvent('gdim-action-error', {
-    detail: detail ? `${action} — ${detail}` : action,
+    detail: detail ? `${action}: ${detail}` : action,
   }))
   // Mirror to Sentry — a failed save on a tester's phone should be visible
   // remotely, not only in their on-device banner.

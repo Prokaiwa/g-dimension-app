@@ -597,7 +597,7 @@ export default function FeaturedPage() {
     const vals = { cover_focus_x: Math.round(fx), cover_focus_y: Math.round(fy), cover_zoom: Math.round(zoom * 100) / 100 }
     const { error } = await supabase.from('cars').update(vals).eq('id', car.id)
     setSavingFrame(false)
-    if (error) { setFrameErr('Couldn’t save framing — run migration 052.'); return }
+    if (error) { setFrameErr('Couldn’t save framing. Run migration 052.'); return }
     setCar(prev => prev ? { ...prev, ...vals } : prev)
     adjustingRef.current = false
     setAdjusting(false)
@@ -612,7 +612,7 @@ export default function FeaturedPage() {
     const text = storyDraft.trim() || null
     const { error } = await supabase.from('cars').update({ featured_story: text }).eq('id', car.id)
     setSavingStory(false)
-    if (error) { setStoryErr('Couldn’t save — run migration 052.'); return }
+    if (error) { setStoryErr('Couldn’t save. Run migration 052.'); return }
     setCar(prev => prev ? { ...prev, featured_story: text } : prev)
     setStoryOpen(false)
   }
@@ -651,7 +651,7 @@ export default function FeaturedPage() {
     const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
     const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
     setSavingLayout(false)
-    if (error) { setLayoutErr('Couldn’t save — run migration 055.'); return }
+    if (error) { setLayoutErr('Couldn’t save. Run migration 055.'); return }
     setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
     editingRef.current = false
     setEditing(false)
@@ -697,7 +697,7 @@ export default function FeaturedPage() {
     const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
     const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
     setSavingCaptions(false)
-    if (error) { setCaptionErr('Couldn’t save — run migration 055.'); return }
+    if (error) { setCaptionErr('Couldn’t save. Run migration 055.'); return }
     setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
     capEditRef.current = false
     setCapEditPage(null)
@@ -855,7 +855,7 @@ export default function FeaturedPage() {
       story_photo_height: Math.round(spHeight),
     })
     setSavingSpFrame(false)
-    if (!ok) { setSpFrameErr("Couldn't save — run migration 055."); return }
+    if (!ok) { setSpFrameErr("Couldn't save. Run migration 055."); return }
     spAdjustingRef.current = false
     setSpAdjusting(false)
   }
@@ -950,7 +950,7 @@ export default function FeaturedPage() {
       if (url) next.story_photo = url; else delete next.story_photo
       const payload: FeaturedLayout | null = Object.keys(next).length ? next : null
       const { error } = await supabase.from('cars').update({ featured_layout: payload }).eq('id', car.id)
-      if (error) { setStoryPhotoErr('Couldn’t save — run migration 055.'); return }
+      if (error) { setStoryPhotoErr('Couldn’t save. Run migration 055.'); return }
       setCar(prev => prev ? { ...prev, featured_layout: payload } : prev)
       setStoryPhotoSheet(false)
     } finally {

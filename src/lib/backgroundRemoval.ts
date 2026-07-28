@@ -227,13 +227,13 @@ async function decodeToCanvas(file: File | Blob): Promise<HTMLCanvasElement> {
       })
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
-      throw new Error(`couldn't read this HEIC photo — ${detail}`)
+      throw new Error(`couldn't read this HEIC photo. ${detail}`)
     }
   }
 
   if (!bitmap) {
     const type = (file as File).type || 'unknown format'
-    throw new Error(`this browser can't decode the image (${type}) — try a JPEG or PNG`)
+    throw new Error(`this browser can't decode the image (${type}). Try a JPEG or PNG`)
   }
 
   const scale = Math.min(1, MAX_INPUT_EDGE / Math.max(bitmap.width, bitmap.height))

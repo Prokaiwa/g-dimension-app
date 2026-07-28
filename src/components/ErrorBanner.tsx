@@ -17,7 +17,7 @@ const BENIGN = /lock:sb-.*-auth-token|Navigator LocksManager|lock .* was release
 
 // Friendly stand-in for raw module-load failures on a struggling connection.
 // Sentinel string — the render attaches a Reload button to rows showing it.
-const CHUNK_MSG = 'Connection hiccup while loading — tap Reload to try again.'
+const CHUNK_MSG = 'Connection hiccup while loading. Tap Reload to try again.'
 
 export default function ErrorBanner() {
   const [errors, setErrors] = useState<string[]>([])

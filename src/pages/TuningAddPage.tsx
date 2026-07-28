@@ -1520,7 +1520,7 @@ export default function TuningAddPage() {
                     value={timelineStory}
                     onChange={e => setTimelineStory(e.target.value)}
                     rows={3}
-                    placeholder="The story behind this — how it went, why it matters…"
+                    placeholder="The story behind this. How it went, why it matters…"
                     style={{ ...inp, resize: 'none', lineHeight: 1.5, fontStyle: 'italic', caretColor: '#39ff14' } as React.CSSProperties}
                   />
                 </div>

@@ -136,11 +136,11 @@ export type UsernameStatus =
 // by the caller (it depends on what the user just typed).
 export function usernameStatusMessage(status: UsernameStatus, value: string): string {
   switch (status) {
-    case 'short':     return `At least ${USERNAME_MIN_LEN} characters — letters, numbers, underscores.`
+    case 'short':     return `At least ${USERNAME_MIN_LEN} characters, using letters, numbers or underscores.`
     case 'reserved':  return 'That handle is reserved.'
     case 'checking':  return 'Checking availability…'
     case 'available': return value ? `@${value} is available.` : ''
-    case 'taken':     return `@${value} is taken — try another.`
+    case 'taken':     return `@${value} is taken. Try another.`
     default:          return ''
   }
 }

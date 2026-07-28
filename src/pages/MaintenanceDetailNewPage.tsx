@@ -442,7 +442,7 @@ export default function MaintenanceDetailNewPage() {
               <div style={{ ...fieldLabel, marginTop: 14 }}>Story</div>
               <textarea
                 value={timelineStory} onChange={e => setTimelineStory(e.target.value)}
-                placeholder="The story behind this — how it came out, why it mattered…"
+                placeholder="The story behind this. How it came out, why it mattered…"
                 rows={3}
                 className="cw-input"
                 style={{ ...fieldInput, resize: 'none', lineHeight: 1.6, fontStyle: 'italic', border: `1px solid ${RULE}`, padding: '8px 10px' } as React.CSSProperties}

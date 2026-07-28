@@ -62,7 +62,7 @@ export function transferErrorMessage(code: string | null, fallback: string): str
       return 'A transfer is already pending for this car.'
     case '42P01':
     case 'PGRST202':
-      return 'Transfers aren’t available yet — try again later.'
+      return 'Transfers aren’t available yet. Try again later.'
     default:
       return fallback
   }

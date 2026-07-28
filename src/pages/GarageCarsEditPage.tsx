@@ -252,7 +252,7 @@ export default function GarageCarsEditPage() {
       try { await supabase.from('cars').update({ original_photo_url: originalUrl }).eq('id', carId) } catch { /* ignore */ }
     }
     if (photoFailed) {
-      setErr('Photo upload failed — your other changes were saved. Tap Save again to retry the photo.')
+      setErr('Photo upload failed. Your other changes were saved. Tap Save again to retry the photo.')
       return
     }
     backToCarousel()
