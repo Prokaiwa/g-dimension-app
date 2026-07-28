@@ -81,6 +81,13 @@ export default function MaintenanceServiceEditPage() {
 
   const [carInfo,       setCarInfo]       = useState('')
   const [carId,         setCarId]         = useState<string | null>(null)
+  // The New form offers "Update odometer to X" (ticked by default); this form
+  // did not, so correcting a mileage typo here left cars.current_mileage on the
+  // old value with nothing to say so. Same guard as the New form: only ever
+  // offered when the entered reading is HIGHER, so editing history can never
+  // wind the odometer backwards.
+  const [currentMileage, setCurrentMileage] = useState<number | null>(null)
+  const [updateOdometer, setUpdateOdometer] = useState(true)
   const [date,          setDate]          = useState('')
   const [mileage,       setMileage]       = useState('')
   const [mileageUnit,   setMileageUnit]   = useState<MileageUnit>('mi')
@@ -131,8 +138,9 @@ export default function MaintenanceServiceEditPage() {
         setPerformedBy(sess.performed_by === 'shop' ? 'shop' : 'self')
         setShopName(sess.shop_name ?? '')
         if (sess.car_id) {
-          const { data: carRow } = await supabase.from('cars').select('mileage_unit').eq('id', sess.car_id).single()
+          const { data: carRow } = await supabase.from('cars').select('mileage_unit, current_mileage').eq('id', sess.car_id).single()
           const unit = asMileageUnit((carRow as { mileage_unit: string | null } | null)?.mileage_unit)
+          setCurrentMileage((carRow as { current_mileage: number | null } | null)?.current_mileage ?? null)
           setMileageUnit(unit)
           setMileage(sess.mileage != null ? String(milesToUnit(sess.mileage, unit)) : '')
         } else {
@@ -217,6 +225,11 @@ export default function MaintenanceServiceEditPage() {
       journal_entry: timelineStory.trim() || null,
     }).eq('id', sessionId)
     if (error) { console.error('Session update error:', error); setSaving(false); return }
+    // Same opt-in, higher-only rule as MaintenanceServiceNewPage.
+    const enteredMi = mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : NaN
+    if (updateOdometer && carId && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
+      await supabase.from('cars').update({ current_mileage: enteredMi }).eq('id', carId)
+    }
 
     // Replace line items: delete existing, re-insert from form
     await supabase.from('jobs').delete().eq('session_id', sessionId)
@@ -355,6 +368,21 @@ export default function MaintenanceServiceEditPage() {
                 placeholder="0" className="xp-input" style={{ ...xpInput, width: 120 }} />
             </div>
           </div>
+
+          {(() => {
+            // Only offered when the reading is higher than the car's current
+            // odometer — mirrors MaintenanceServiceNewPage exactly.
+            const entered = mileage ? parseInt(mileage, 10) : NaN
+            const enteredInMiles = Number.isFinite(entered) ? unitToMiles(entered, mileageUnit) : NaN
+            if (!Number.isFinite(enteredInMiles) || enteredInMiles <= (currentMileage ?? -1)) return null
+            return (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, fontFamily: XP_FONT, fontSize: 12, color: XP_TEXT, cursor: 'pointer' }}>
+                <input type="checkbox" checked={updateOdometer} onChange={e => setUpdateOdometer(e.target.checked)} />
+                Update this car's odometer to {entered.toLocaleString()} {mileageUnit}
+                {currentMileage != null && <span style={{ opacity: 0.6 }}> (now {milesToUnit(currentMileage, mileageUnit).toLocaleString()})</span>}
+              </label>
+            )
+          })()}
 
           <div style={{ marginBottom: performedBy === 'shop' ? 10 : 0 }}>
             <span style={{ ...xpLabel, marginBottom: 5 }}>Performed by:</span>

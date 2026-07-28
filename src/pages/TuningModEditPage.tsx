@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
+import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
@@ -81,6 +82,10 @@ export default function TuningModEditPage() {
   const [partNumber,    setPartNumber]     = useState('')
   const [dateInstalled, setDateInstalled]  = useState('')
   const [installedBy,   setInstalledBy]   = useState<'self' | 'shop' | ''>('')
+  // install_mileage was write-once until 2026-07-28: set by the add-mod flow,
+  // shown only in the build PDF, editable nowhere. A typo was uncorrectable.
+  const [installMileage, setInstallMileage] = useState('')
+  const [mileageUnit,    setMileageUnit]    = useState<MileageUnit>('mi')
   const [partsCost,     setPartsCost]     = useState('')
   const [laborCost,     setLaborCost]     = useState('')
   const [notes,         setNotes]         = useState('')
@@ -134,7 +139,7 @@ export default function TuningModEditPage() {
       const [{ data: job }, { data: existingSpecs }, { data: photoData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('title, brand, condition, part_number, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id, session_id')
+          .select('title, brand, condition, part_number, date_installed, install_mileage, installed_by, parts_cost, labor_cost, notes, part_type_id, car_id, session_id')
           .eq('id', modId)
           .single(),
         supabase.from('job_specs').select('spec_key, spec_value, spec_unit').eq('job_id', modId),
@@ -156,6 +161,18 @@ export default function TuningModEditPage() {
       setCarId(job.car_id ?? null)
       setExistingPhotos((photoData ?? []) as ExistingPhoto[])
       setExistingLinks((linksData ?? []) as JobLink[])
+
+      // install_mileage is stored in miles (base unit); show it in the car's
+      // own odometer unit (migration 063), the same way the add-mod form does.
+      if (job.car_id) {
+        const { data: carRow } = await supabase
+          .from('cars').select('mileage_unit').eq('id', job.car_id).single()
+        const unit = asMileageUnit((carRow as { mileage_unit: string | null } | null)?.mileage_unit)
+        setMileageUnit(unit)
+        setInstallMileage(job.install_mileage != null ? String(milesToUnit(job.install_mileage, unit)) : '')
+      } else {
+        setInstallMileage(job.install_mileage != null ? String(job.install_mileage) : '')
+      }
 
       // Load existing receipts and sign URLs
       const { data: receiptData } = await supabase
@@ -401,6 +418,9 @@ export default function TuningModEditPage() {
         part_number:    partNumber.trim() || null,
         date_installed: dateInstalled     || null,
         installed_by:   installedBy       || null,
+        install_mileage: installMileage.trim()
+          ? unitToMiles(parseInt(installMileage.replace(/[^\d]/g, ''), 10), mileageUnit)
+          : null,
         parts_cost:     partsCost  ? parseFloat(partsCost)  : null,
         labor_cost:     installedBy === 'shop' && laborCost ? parseFloat(laborCost) : null,
         notes:          notes.trim()      || null,
@@ -627,6 +647,14 @@ export default function TuningModEditPage() {
             <label style={LABEL}>Date Installed</label>
             <input type="date" value={dateInstalled} onChange={e => setDateInstalled(e.target.value)}
               style={{ ...INPUT, colorScheme: 'dark' }} />
+          </div>
+
+          {/* Install Mileage — odometer reading when this mod went on */}
+          <div style={{ paddingTop: 18 }}>
+            <label style={LABEL}>Install Mileage ({mileageUnit})</label>
+            <input type="number" inputMode="numeric" value={installMileage}
+              onChange={e => setInstallMileage(e.target.value)}
+              placeholder="e.g. 85000" style={INPUT} />
           </div>
 
           {/* Installed By */}

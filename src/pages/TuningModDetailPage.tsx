@@ -7,6 +7,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import { CATEGORY_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
+import { asMileageUnit, formatMiles, type MileageUnit } from '../lib/mileage'
 import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ type Job = {
   condition: 'new' | 'used' | null
   category: string | null
   date_installed: string | null
+  install_mileage: number | null
   installed_by: 'self' | 'shop' | null
   parts_cost: number | null
   labor_cost: number | null
@@ -69,6 +71,7 @@ export default function TuningModDetailPage() {
 
   const [job,          setJob]          = useState<Job | null>(null)
   const [partTypeName, setPartTypeName] = useState<string | null>(null)
+  const [mileageUnit,  setMileageUnit]  = useState<MileageUnit>('mi')
   const [photos,       setPhotos]       = useState<Photo[]>([])
   const [specRows,     setSpecRows]     = useState<SpecRow[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -131,7 +134,7 @@ export default function TuningModDetailPage() {
       const [{ data: jobData }, { data: photoData }, { data: specsData }, { data: linksData }] = await Promise.all([
         supabase
           .from('jobs')
-          .select('id, title, brand, condition, category, date_installed, installed_by, parts_cost, labor_cost, notes, part_type_id')
+          .select('id, title, brand, condition, category, date_installed, install_mileage, installed_by, parts_cost, labor_cost, notes, part_type_id')
           .eq('id', modId)
           .single(),
         supabase
@@ -151,6 +154,14 @@ export default function TuningModDetailPage() {
       ])
       if (jobData) {
         setJob(jobData as unknown as Job)
+        // Per-car odometer unit (migration 063) so "At Mileage" reads in the
+        // same unit the owner entered it in.
+        getActiveCarId().then(async carId => {
+          if (!carId) return
+          const { data: carRow } = await supabase
+            .from('cars').select('mileage_unit').eq('id', carId).single()
+          setMileageUnit(asMileageUnit((carRow as { mileage_unit: string | null } | null)?.mileage_unit))
+        })
         // Wheels + Tires combo: installed tires mounted on this job (if it's a wheel)
         supabase.from('jobs').select('id, title').eq('mounted_on_job_id', modId).eq('status', 'installed')
           .then(({ data }) => setMountedTires((data ?? []) as { id: string; title: string }[]))
@@ -531,6 +542,12 @@ export default function TuningModDetailPage() {
             <div>
               <p style={LABEL}>Installed</p>
               <p style={VALUE}>{formatDate(job.date_installed)}</p>
+            </div>
+          )}
+          {job.install_mileage != null && (
+            <div>
+              <p style={LABEL}>At Mileage</p>
+              <p style={VALUE}>{formatMiles(job.install_mileage, mileageUnit)}</p>
             </div>
           )}
           {job.installed_by && (

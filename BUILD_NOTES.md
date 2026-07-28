@@ -266,10 +266,28 @@ labels it **"No trigger set"**. It behaves as a plain checklist item — sorts a
 `upcoming`, never fires a notification (`reminderNotifications.ts` filters on
 `r.due_date`). That is a coherent feature, not an oversight.
 
-**Real gap in the same area: `install_mileage` is write-once.** It is written
-by `TuningAddPage` and `TuningPartDetailPage`, read only by `GaragePdfPage`
-(the build PDF), **never displayed on the mod detail page and never editable
-anywhere**. Enter it wrong and there is no way to correct it in the app.
+**~~`install_mileage` is write-once~~ ✅ FIXED 2026-07-28.** It used to be
+written by `TuningAddPage` / `TuningPartDetailPage`, read only by
+`GaragePdfPage` (the build PDF), never shown on the mod detail page and
+editable nowhere — so a typo in a number that reaches a seller-facing document
+was uncorrectable. `TuningModEditPage` now has an **Install Mileage** field
+(loaded and saved in the car's own odometer unit per migration 063) and
+`TuningModDetailPage` shows an **At Mileage** row. Verified live: null →
+88,500 through the form, and the detail page renders "88,500 mi".
+
+**~~Edit paths never synced the odometer~~ ✅ PARTLY FIXED 2026-07-28.**
+`MaintenanceServiceEditPage` now offers the same *"Update this car's odometer
+to X"* checkbox as the New form, under the identical guard — only rendered
+when the entered reading is **higher** than `cars.current_mileage`, and checked
+again before the write, so editing history still can never wind the odometer
+backwards. Verified live: at 85,000 (below the car's 90,000) no checkbox; at
+96,000 it appears reading *"(now 90,000)"*, and saving moved the odometer to
+96,000.
+
+Still not synced, deliberately: `MaintenanceDetailEditPage` (a wash has no
+meaningful odometer semantics) and `TuningModEditPage` (editing a mod's install
+mileage is a historical correction, not a statement about the car's odometer
+*now* — that is exactly the case the higher-only guard exists to reject).
 
 ### Private buckets — boundary verified (2026-07-28)
 
