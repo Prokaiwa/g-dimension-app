@@ -258,11 +258,18 @@ design (build history is preserved). Worth knowing before anyone reads a
 of jobs left 10 orphan sessions and their timeline entries behind, but that is
 an artifact of bypassing the app, not something the app itself can produce.
 
-**Possible validation gap (owner's call):** a reminder saves happily with
-**neither** `due_date` nor `due_mileage` — i.e. a reminder that can never fire.
-That may be deliberate (a "someday" note), but nothing signals it, and such a
-row is invisible to `reminderNotifications.ts`, which only schedules
-future-dated ones.
+**Reminder with no trigger — NOT a gap (corrected 2026-07-28).** A reminder
+saves with neither `due_date` nor `due_mileage`, and I first recorded that as a
+silent validation gap. That was wrong: `GarageRemindersPage` line ~435 renders
+`readout || fmtDate(r.due_date) || 'No trigger set'`, so the list explicitly
+labels it **"No trigger set"**. It behaves as a plain checklist item — sorts as
+`upcoming`, never fires a notification (`reminderNotifications.ts` filters on
+`r.due_date`). That is a coherent feature, not an oversight.
+
+**Real gap in the same area: `install_mileage` is write-once.** It is written
+by `TuningAddPage` and `TuningPartDetailPage`, read only by `GaragePdfPage`
+(the build PDF), **never displayed on the mod detail page and never editable
+anywhere**. Enter it wrong and there is no way to correct it in the app.
 
 ### Private buckets — boundary verified (2026-07-28)
 
