@@ -9,6 +9,7 @@ import {
 import { ENGINE_FAMILIES, SWAP_CAPTIONS } from '../pools/engines'
 import { MAKE_HERITAGE } from '../pools/makes'
 import { CHASSIS_DB } from '../pools/chassis'
+import { KM_PER_MI } from '../../../../utils/unitConversion'
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,9 @@ describe('Test 2 — High-Mileage Accord', () => {
     const result = generateFeature(profile, [], null, KM_UNITS)
     expect(result.headlineTemplate).toBe('T6')
     expect(result.headline).toMatch(/Kilometers/)
-    const kmVal = Math.round(240_000 * 1.60934).toLocaleString('en-US')
+    // Use the shared constant, not a copy of it — a hardcoded 1.60934 here is
+    // how this test ended up asserting a value the app no longer produced.
+    const kmVal = Math.round(240_000 * KM_PER_MI).toLocaleString('en-US')
     expect(result.headline).toContain(kmVal)
   })
 

@@ -98,6 +98,20 @@ section('Single sources of truth')
     `redefinition found in: ${extra.join(', ')} — import from src/lib/buildGroups.ts instead so category→group mapping can never drift`
   )
 
+  // Miles <-> kilometres. This constant lived in two places until 2026-07-28
+  // (unitConversion.ts as *1.60934, mileage.ts as /0.621371) and a THIRD copy
+  // was hiding in engine.test.ts, which only surfaced when they were unified
+  // and the test started asserting a value the app no longer produced. They
+  // agreed to ~5dp, so nothing looked broken — that is precisely the failure
+  // mode worth blocking mechanically.
+  const kmHits = filesMatching(/1\.60934|0\.621371/)
+  const kmCheck = onlyIn(kmHits, ['src/utils/unitConversion.ts'])
+  check(
+    'miles<->km constant defined only in utils/unitConversion.ts',
+    kmCheck.extra.length === 0,
+    `found in: ${kmCheck.extra.join(', ')} — import KM_PER_MI from src/utils/unitConversion.ts so one physical constant can never drift`
+  )
+
   // The active-car localStorage key must never be referenced outside the helper.
   const keyHits = filesMatching(/gdim_chosen_car_id/)
   const keyCheck = onlyIn(keyHits, ['src/lib/activeCar.ts'])

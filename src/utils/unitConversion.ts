@@ -5,8 +5,20 @@ type DistanceUnit = 'mi' | 'km'
 type PowerUnit = 'hp' | 'ps' | 'kw'
 type TorqueUnit = 'lbft' | 'nm'
 
+/**
+ * THE single source of truth for miles ↔ kilometres. 1.609344 is the exact
+ * legal definition of the international mile, not an approximation.
+ *
+ * This lived in two places until 2026-07-28: here as `* 1.60934`, and in
+ * `lib/mileage.ts` as `/ 0.621371` (= `* 1.6093444`). The two agreed to about
+ * five decimal places, so nothing was visibly wrong — which is exactly why it
+ * was worth fixing. Two constants for one physical fact drift the moment
+ * somebody "corrects" one of them. `lib/mileage.ts` now imports this.
+ */
+export const KM_PER_MI = 1.609344
+
 export function convertDistance(miles: number, to: DistanceUnit): number {
-  if (to === 'km') return miles * 1.60934
+  if (to === 'km') return miles * KM_PER_MI
   return miles
 }
 
