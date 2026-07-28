@@ -779,6 +779,12 @@ export default function GarageCarsPage() {
       .select(CAR_COLUMNS)
       .single()
     if (error || !data) { setSaving(false); setSaveErr(error?.message ?? 'Save failed'); return }
+    // First car in the garage → make it the active car right away. Without this
+    // a brand-new user adds their first car and every section still reports
+    // "No active car. Add a car in My Cars first" — advice they have just
+    // followed — until they happen to tap Choose on the carousel. Mirrors the
+    // same guard in acceptOffer; the `if` keeps an existing choice intact.
+    if (!(await getActiveCarId())) { await setActiveCar(data.id); setChosenCarId(data.id) }
     // Sensitive purchase fields live in car_private (migration 061), owner-only.
     await upsertCarPrivate(data.id, user.id, {
       purchase_price:      parseFloat(form.purchasePrice)   || null,
