@@ -5,7 +5,29 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 080_engine_oil_pump.sql (applied 2026-07-25)
+-- Last migration applied : 082_public_media_visibility.sql (applied 2026-07-28)
+--   - 082 (public media/spec/DIY visibility: seven tables that were supposed to
+--     be publicly readable returned 42501 to anon, leaving the public build
+--     pages half-empty for logged-out visitors. Two faults: job_photos +
+--     job_specs never got an anon GRANT (pre-2026-05-30 tables; PostgREST
+--     checks grants before RLS so their correct *_select_public policies never
+--     ran), and all seven owner policies were `for all` with no role, so anon
+--     evaluated them too and hit cars.user_id - a column anon's column-level
+--     cars grant excludes - producing the misleading "permission denied for
+--     table CARS". Fixed with the same `alter policy ... to authenticated`
+--     076 already applied to sessions + job_links. Verified live: all seven
+--     readable by anon, public mod photos/specs and the whole public DIY guide
+--     now render, is_public=false and the section flags still hide everything,
+--     and receipts/car_documents/car_private/user_contacts/car_reminders stay
+--     sealed).
+--   - 081 (security: replaced the table-wide `grant select on jobs to anon`
+--     with a column-level grant. jobs_public_read limits which ROWS anon sees
+--     but a row policy cannot limit COLUMNS, so anon could read parts_cost /
+--     cost / labor_cost / sale_price / part_number / condition /
+--     install_mileage off any public car - verified at 33 rows, $23,828 of
+--     other users' spend. Note the ordering trap: the revoke must precede the
+--     grant. ADR-020).
+-- Previously                : 080_engine_oil_pump.sql (applied 2026-07-25)
 --   - 080 (Oil Pump Engine part type: inserted after Oil Pan at display_order 20,
 --     shifting the rest of the Engine list down one, + a 10-field spec form
 --     (pump/sump type, gear material, volume increase, relief pressure, dry-sump
