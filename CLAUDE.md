@@ -117,7 +117,9 @@ These are enforced decisions. Do not deviate without explicit instruction.
 **Voice / wording:**
 - **No em dashes (—) in user-facing copy** — empty states, error messages, placeholders, labels, marketing text. Use a period, comma, or rewrite the sentence. (Owner's call: they read as AI-generated.) The standalone `—` glyph as an empty-value marker in data cells is fine; this rule is about prose punctuation. Code comments are exempt.
 
-**22.5° cast shadow:** Garage dashboard grid (3×2 icon grid) ONLY. Not on Home map, not anywhere else.
+**25° cast shadow:** the Garage world ONLY — the Garage dashboard grid (3×2 icons), the My Cars carousel, and the public garage. Not on the Home map, not anywhere else. Use `CAST_SHADOW_TRANSFORM` / `CAST_SHADOW_OPACITY` / `CAST_SHADOW_BLUR` from `src/tokens`; don't inline the transform.
+
+> This line read **22.5°** until 2026-07-28, and so did the tokens (as an alternating `CAST_SHADOW_ROTATE_ODD`/`EVEN` pair with a 1.4px blur). Neither matched the app: all five real cast-shadow sites had long since settled on a single **25°** direction, and nothing imported the tokens at all. Code, tokens and this doc now agree. One site (the 126px Garage dashboard tile) blurs 5px where the four smaller card shadows blur 4px — left as-is, since a larger tile taking a softer shadow is plausibly deliberate.
 
 ---
 

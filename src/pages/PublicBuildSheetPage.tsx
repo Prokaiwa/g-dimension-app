@@ -18,7 +18,7 @@ import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import { MOD_GROUPS } from '../lib/buildGroups'
 import { powerUnitOf, torqueUnitOf } from '../lib/unitPrefs'
-import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from '../lib/unitConversion'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
   COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,

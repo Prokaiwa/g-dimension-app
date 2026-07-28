@@ -38,6 +38,7 @@ import {
   SPACE_XL,
   EASING_SETTLE,
   RADIUS_BADGE,
+  CAST_SHADOW_TRANSFORM,
 } from '../tokens'
 
 const _now        = new Date()
@@ -400,7 +401,7 @@ export default function PublicGaragePage() {
                           transition: pressedAction === label ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                         }}>
                         <div style={{ position: 'relative', width: 101, height: 101 }}>
-                          <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: 'translate(-50%,-50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
+                          <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: CAST_SHADOW_TRANSFORM, background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
                           <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain', pointerEvents: 'none' }} />
                         </div>
                         <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1 }}>{label}</span>
@@ -485,7 +486,7 @@ export default function PublicGaragePage() {
                       transition: pressedAction === `gd-${ghost.id}` ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                     }}>
                     <div style={{ position: 'relative', width: 101, height: 101 }}>
-                      <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: 'translate(-50%,-50%) rotate(25deg) skewX(-14deg)', background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
+                      <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: CAST_SHADOW_TRANSFORM, background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
                       <img src={iconDetails} alt="Details" draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain', pointerEvents: 'none' }} />
                     </div>
                     <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1 }}>Details</span>

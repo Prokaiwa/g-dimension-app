@@ -38,6 +38,7 @@ import {
   STAGGER_BASE_MS,
   STAGGER_STEP_MS,
   EASING_SETTLE,
+  CAST_SHADOW_TRANSFORM,
 } from '../tokens'
 
 const GRID_TILES = [
@@ -158,11 +159,16 @@ export default function GaragePage() {
             padding: '4px 8px',
           }}
         >
-          <span style={{ color: COLOR_HEADER_WARM, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>‹</span>
+          <span style={{ color: COLOR_HEADER_WARM, fontSize: 20, fontWeight: 300, lineHeight: 1, flexShrink: 0 }}>‹</span>
+          {/* The car info to the right is absolutely positioned, so this title
+              is not in the same flow and nothing stops a long handle running
+              underneath it. "fancyleprechaun7's Garage" collided with the car
+              name at iPhone width. Cap it and ellipsize instead. */}
           <span style={{
             color: COLOR_HEADER_TITLE, fontFamily: FONT_UI,
             fontWeight: 800, fontSize: 13, letterSpacing: '0.08em',
             textTransform: 'uppercase',
+            maxWidth: '46vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {displayName ? `${displayName}'s Garage` : 'Garage'}
           </span>
@@ -170,7 +176,7 @@ export default function GaragePage() {
 
         <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
           {carInfo && (
-            <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>
+            <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {carInfo}
             </span>
           )}
@@ -266,7 +272,7 @@ export default function GaragePage() {
                     left: 63,
                     width: 66,
                     height: 60,
-                    transform: 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)',
+                    transform: CAST_SHADOW_TRANSFORM,
                     background: 'rgba(0,0,0,1)',
                     opacity: CAST_SHADOW_OPACITY,
                     filter: 'blur(5px)',

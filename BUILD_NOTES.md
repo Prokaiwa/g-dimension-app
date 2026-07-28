@@ -28,7 +28,7 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 6. ~~**Onboarding walkthrough**~~ ✅ DONE — guided home-map tour (`src/tour/`, migration 062 `users.tutorial_seen`; "Replay App Tour" in Settings).
 7. ~~**UI sounds**~~ ✅ DONE — GT-style synthesized sounds (`src/lib/sound.ts`, account-synced via migrations 068/069, audition board at `/sound-test`).
 8. ~~**Security audit**~~ ✅ DONE — see `docs/SECURITY_AUDIT.md` (2026-07; column-level anon grants in 071, `car_private` split in 061 came out of it).
-9. ~~**Inconsistency check**~~ ✅ **DONE (2026-07-28)** — see the audit section below. Navigation, orphaned modules, pure-white text and the category/group single-source all came back clean; 33 em dashes in user-facing copy were fixed; three structural items (duplicate miles→km constant, the one-file `src/utils/`, ~70 unused exports) are recorded as owner's calls.
+9. ~~**Inconsistency check**~~ ✅ **DONE (2026-07-28)** — see the audit section below. Navigation, orphaned modules, pure-white text and the category/group single-source all came back clean; 33 em dashes in user-facing copy were fixed; of the three structural items found, the duplicate miles→km constant and the one-file `src/utils/` are now **fixed**; the unused-export tidy is tracked below.
 10. ~~**Dead code / file cleanup**~~ ✅ **DONE (2026-07-28)** — no orphaned modules, no dead routes, no unused imports (lint is clean). 20 unreferenced assets found (~1.3 MB, none of it bundled); the unambiguous 7 deleted, the rest kept deliberately as design sources. See the audit section.
 11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
 
@@ -226,9 +226,10 @@ ErrorBanner, so the app's most-seen error format carried one.
    `lib/unitPrefs.ts` layered on top. Consolidating is a real refactor with
    real risk and no user-visible benefit; at minimum the two should reference
    each other in comments.
-2. **`src/utils/` holds exactly one file** (`unitConversion.ts`) while every
-   other helper lives in `src/lib/`. Moving it is a one-line-per-importer
-   change across 5 files; leaving it is fine, but the split is arbitrary.
+2. ~~**`src/utils/` holds exactly one file**~~ ✅ **RESOLVED 2026-07-28** —
+   `unitConversion.ts` moved to `src/lib/`, the `src/utils/` folder is gone, and
+   all importers plus the constitution check were repointed. Every helper now
+   lives in `src/lib/`, with no exceptions.
 3. **~70 exported symbols are never imported.** Roughly half are design tokens
    in `tokens/index.ts` — a palette is *allowed* unused entries and they are
    the documented source of truth, so leave them. The rest are mostly Featured

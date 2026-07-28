@@ -1563,7 +1563,7 @@ PWA icons · Favicon · `tuning_hero.jpg` · Manufacturer logos · 7 missing tun
 17. Profile + Settings (including unit preferences, feature flags read)
 18. Public Profile (/builds/:username — uses public_build_sheet and public_car_profiles views)
 19. Error logging — error boundary, try/catch wrappers, upload/auth tracking
-20. Unit conversion layer — /src/utils/unitConversion.ts applied everywhere
+20. Unit conversion layer — /src/lib/unitConversion.ts applied everywhere
 21. Background removal pipeline — Remove.bg on garage + showcase photos
 22. PDF generator — Build Report + Snapshot PDF (Pro)
 23. PWA manifest + service worker

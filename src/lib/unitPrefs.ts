@@ -6,7 +6,7 @@
 // (cars.mileage_unit overrides the global distance pref for odometer display);
 // this module is what makes power/torque honor the user's choice.
 import { supabase } from './supabase'
-import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from './unitConversion'
 
 export type UnitPrefs = {
   distance_unit: 'mi' | 'km'

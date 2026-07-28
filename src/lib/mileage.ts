@@ -3,7 +3,7 @@
 // (cars.mileage_unit) so an imported car kept in km shows km everywhere without
 // touching the user's global distance preference. Convert at display/input only.
 
-import { KM_PER_MI } from '../utils/unitConversion'
+import { KM_PER_MI } from './unitConversion'
 
 export type MileageUnit = 'mi' | 'km'
 

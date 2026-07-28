@@ -16,7 +16,7 @@ import {
 import { ENGINE_FAMILIES, SWAP_CAPTIONS } from './pools/engines'
 import { MAKE_HERITAGE } from './pools/makes'
 import { CHASSIS_DB } from './pools/chassis'
-import { convertDistance, convertPower } from '../../../utils/unitConversion'
+import { convertDistance, convertPower } from '../../../lib/unitConversion'
 
 // ─── No-repeat set ───────────────────────────────────────────────────────────
 // Tracks evocative words used across slots. A word present here is not re-drawn.

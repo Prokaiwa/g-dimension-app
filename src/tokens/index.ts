@@ -126,12 +126,19 @@ export const SHADOW_PHONE         = '0 50px 100px -10px rgba(0, 0, 0, 0.85), 0 0
 // Ground shadow under icon (soft ellipse blur)
 export const SHADOW_GROUND        = 'radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%)';
 
-// Skeuomorphic cast shadow — Garage dashboard grid ONLY (not Home map)
-// 22.5° rotation + skewX + blur + 0.42 opacity = real cast shadow. Values are non-negotiable.
-export const CAST_SHADOW_ROTATE_ODD  = 'translate(-50%, -50%) rotate(22.5deg) skewX(-14deg)';
-export const CAST_SHADOW_ROTATE_EVEN = 'translate(-50%, -50%) rotate(-22.5deg) skewX(14deg)';
+// Skeuomorphic cast shadow — the Garage world ONLY (Garage dashboard grid, the
+// My Cars carousel, and the public garage). Never the Home map.
+//
+// CORRECTED 2026-07-28. These tokens previously described a 22.5° shadow that
+// alternated direction per tile (ROTATE_ODD / ROTATE_EVEN) with a 1.4px blur —
+// a design that has not been shipped for some time and that nothing imported.
+// All five real cast-shadow sites had settled on a single 25° direction. The
+// tokens (and the "22.5°" line in CLAUDE.md) were describing the old design,
+// so three sources disagreed about a rule CLAUDE.md calls non-negotiable.
+// The token now matches what actually ships, and the call sites use it.
+export const CAST_SHADOW_TRANSFORM   = 'translate(-50%, -50%) rotate(25deg) skewX(-14deg)';
 export const CAST_SHADOW_OPACITY     = 0.42;
-export const CAST_SHADOW_BLUR        = '1.4px';
+export const CAST_SHADOW_BLUR        = '4px';
 
 // Header cast shadow gradient (Home map only)
 export const GRADIENT_HEADER_SHADOW =

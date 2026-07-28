@@ -11,7 +11,7 @@
 import type { jsPDF as JsPDFClass } from 'jspdf'
 import QRCode from 'qrcode'
 import { loadUnitPrefs } from './unitPrefs'
-import { convertPower, convertTorque, powerLabel, torqueLabel } from '../utils/unitConversion'
+import { convertPower, convertTorque, powerLabel, torqueLabel } from './unitConversion'
 import { asMileageUnit, milesToUnit } from './mileage'
 
 async function qrDataUrl(text: string): Promise<string | null> {

@@ -105,11 +105,11 @@ section('Single sources of truth')
   // agreed to ~5dp, so nothing looked broken — that is precisely the failure
   // mode worth blocking mechanically.
   const kmHits = filesMatching(/1\.60934|0\.621371/)
-  const kmCheck = onlyIn(kmHits, ['src/utils/unitConversion.ts'])
+  const kmCheck = onlyIn(kmHits, ['src/lib/unitConversion.ts'])
   check(
-    'miles<->km constant defined only in utils/unitConversion.ts',
+    'miles<->km constant defined only in lib/unitConversion.ts',
     kmCheck.extra.length === 0,
-    `found in: ${kmCheck.extra.join(', ')} — import KM_PER_MI from src/utils/unitConversion.ts so one physical constant can never drift`
+    `found in: ${kmCheck.extra.join(', ')} — import KM_PER_MI from src/lib/unitConversion.ts so one physical constant can never drift`
   )
 
   // The active-car localStorage key must never be referenced outside the helper.

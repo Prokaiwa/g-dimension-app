@@ -9,7 +9,7 @@ import {
 import { ENGINE_FAMILIES, SWAP_CAPTIONS } from '../pools/engines'
 import { MAKE_HERITAGE } from '../pools/makes'
 import { CHASSIS_DB } from '../pools/chassis'
-import { KM_PER_MI } from '../../../../utils/unitConversion'
+import { KM_PER_MI } from '../../../../lib/unitConversion'
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
