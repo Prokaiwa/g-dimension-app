@@ -128,11 +128,15 @@ export default function MaintenanceSessionDetailPage() {
     if (deleting || !sessionId) return
     setDeleting(true)
     await supabase.from('sessions').delete().eq('id', sessionId)
-    navigate(session?.type === 'detail' ? '/maintenance/detail' : '/maintenance')
+    navigate(session?.type === 'detail' ? '/maintenance/detail' : '/maintenance/service')
   }
 
   const isDetail  = session?.type === 'detail'
-  const backRoute = isDetail ? '/maintenance/detail' : '/maintenance'
+  // Both types go back to their own LIST, not the Maintenance hub. A service
+  // record used to land on /maintenance, skipping the service list entirely —
+  // so backing out of a service record threw you two screens back while
+  // backing out of a detail record threw you one.
+  const backRoute = isDetail ? '/maintenance/detail' : '/maintenance/service'
   const backLabel = isDetail ? 'Detailing' : 'Service'
 
   if (loading) return (

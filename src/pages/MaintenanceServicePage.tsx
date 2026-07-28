@@ -129,7 +129,11 @@ export default function MaintenanceServicePage() {
       </div>
 
       {/* ── Session list ── */}
-      <div style={{ position: 'relative', zIndex: 5, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)` }}>
+      <div style={{ position: 'relative', zIndex: 5, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)`,
+        // The Add FAB is fixed (44px tall, 28px up) and floats over this list.
+        // With a short history there is empty space under the last row so it
+        // never showed; with a long one it sat on top of the final records.
+        paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
         {loading && (
           <>
             <style>{`@keyframes mSvcSkel{0%,100%{opacity:0.45}50%{opacity:1}}`}</style>

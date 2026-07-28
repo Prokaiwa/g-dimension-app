@@ -391,6 +391,43 @@ silhouette bounding box, and cutout quality all remain untested and need a real
 device or an environment that can reach `huggingface.co`. Everything downstream
 of the cutout (compression, upload, path, DB write, public read) is verified.
 
+### Maintenance lists — back nav + scale (2026-07-28)
+
+**Back navigation now matches between the two types.** `MaintenanceSessionDetailPage`
+is shared by both, and its `backRoute` sent `detail` sessions to
+`/maintenance/detail` (their list) but `maintenance` sessions to `/maintenance`
+(the hub) — so backing out of a service record threw you **two** screens back
+while backing out of a wash threw you one. Both now return to their own list.
+The post-delete `navigate()` had the same split and was fixed with it. Note the
+back LABEL was already right ("Service"), which is part of why this read as
+correct.
+
+**Scale: there is no pagination, and that is fine.** Both list pages fetch
+**every** session for the car (`select(... jobs(title))`, ordered newest-first,
+**no `.limit()` / `.range()`**) and render them all into one `overflowY: 'auto'`
+container. Measured on the live DB with **120 service records** at iPhone
+viewport:
+
+| | |
+|---|---|
+| Rows rendered | 120 / 120 — all present, none virtualised away |
+| Total DOM nodes | **792** (trivial; a row is ~5 nodes) |
+| Scroll content | 5,856px in a 583px viewport, normal vertical scroll |
+| Last record | reachable — `scrollTop` reaches `scrollHeight − clientHeight` exactly |
+| Time to first row | ~2.8s, and that is *through the curl relay*, so real-device is faster |
+
+So 100–200 records scroll fine. The real ceiling is Supabase's PostgREST
+`max-rows` cap (commonly 1,000) — past that the list would silently truncate
+rather than error, which is the thing to watch if this ever needs paging. Not a
+concern at realistic per-car volumes.
+
+**Fixed while measuring:** the "+ Add Service" / "+ Log a Wash" FAB is
+`position: fixed` (44px tall, 28px up) floating over a scroll container that had
+**no bottom padding**. With a short history there is empty space under the last
+row so nothing showed; with a long one the FAB sat on top of the final records.
+Both lists now pad `calc(96px + env(safe-area-inset-bottom))`. This is a good
+example of a bug only a full list reveals.
+
 ### Odometer sync — verified behaviour (2026-07-28)
 
 Tested against the live DB by driving the real UI, because "does mileage ever
