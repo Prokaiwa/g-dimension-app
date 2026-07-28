@@ -197,6 +197,40 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
 
+### Photo upload pipeline — verified behaviour (2026-07-28)
+
+Driven through the real Edit Car form against the live database and live
+Storage.
+
+**The degraded path is solid.** The sandbox blocks `huggingface.co`, so the
+RMBG-1.4 weights could not download — which is exactly what a user on a bad
+network or a restricted device hits. The pipeline handled it correctly and
+without drama: q8 load failed → retried fp32 → failed → fell back to using the
+photo as-is, with the honest user-facing line *"removal is not available on
+this browser, so your photo is used as…"*. No page error, no stuck spinner,
+preview rendered.
+
+**A failed upload does not corrupt the car row.** In an earlier run the storage
+POST failed outright (a fault in the test harness, not the app) and
+`garage_photo_url` / `original_photo_url` were both correctly left **NULL**
+rather than being pointed at a URL that was never written. The "photo upload
+failure is non-fatal — the car is still saved" comment in `saveCar` is accurate.
+
+**The successful path writes exactly what the docs claim:**
+
+| | |
+|---|---|
+| Storage path | `{userId}/{carId}/garage-{ts}.jpg` + `original-{ts}.jpg` — matches the documented layout and migration 049's `original-{ts}.jpg` |
+| Content type | `image/jpeg` both files (correct: the *fallback* has no alpha to preserve, so the WebP/PNG cutout exception doesn't apply) |
+| Writes | Two separate `PATCH /cars` calls — the original photo is persisted as its own best-effort update, exactly as migration 049 specifies, so a pre-049 gap can't break the save |
+| Public read | Both URLs return HTTP 200 to an anonymous client (the `car-photos` bucket is PUBLIC by design) |
+
+**NOT verified here:** the actual RMBG-1.4 cutout — model weights are blocked
+from this environment. The WebP/PNG alpha branch (`encodeCutout()`), the
+silhouette bounding box, and cutout quality all remain untested and need a real
+device or an environment that can reach `huggingface.co`. Everything downstream
+of the cutout (compression, upload, path, DB write, public read) is verified.
+
 ### Odometer sync — verified behaviour (2026-07-28)
 
 Tested against the live DB by driving the real UI, because "does mileage ever
