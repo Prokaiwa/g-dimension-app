@@ -66,42 +66,62 @@ volume. Production sends go through **Resend** instead.
   | Minimum interval per user | `60` seconds (default — per-user resend cooldown, not touched) |
   | Hourly send cap | Supabase auto-raises this to 30/hour once custom SMTP is enabled (separate from Resend's own 100/day, 3,000/month free-tier caps). Adjustable later in the same settings page if signup volume ever grows enough to need it. |
 
-### Deliverability — DMARC is MISSING (action required)
+### Deliverability — DMARC (present but minimal) + the AOL spam incident
 
 **Observed 2026-07-27:** a real signup confirmation to an `@aol.com` address
-landed in spam. The cause is almost certainly that `gdimension.app` publishes
-**SPF and DKIM but no DMARC record**.
+landed in spam.
 
-Since February 2024, Yahoo (which operates AOL Mail) and Gmail require bulk
-senders to publish a DMARC policy. Without `_dmarc`, a domain that otherwise
-authenticates correctly still gets treated as untrusted and routed to spam.
-SPF + DKIM alone are no longer enough.
-
-**The fix — one DNS record** in Namecheap → Advanced DNS. Start in
-monitor-only mode so nothing can be rejected while you watch the reports:
+**A correction worth keeping, because it is an easy trap:** this file
+originally recorded the cause as "no DMARC record." That was wrong. It was
+inferred from this document not mentioning `_dmarc` — *documentation absence
+was mistaken for DNS absence*. The domain **does** publish DMARC:
 
 ```
-Type:  TXT
-Host:  _dmarc
-Value: v=DMARC1; p=none; rua=mailto:hi@gdimension.app; fo=1; adkim=r; aspf=r
+TXT  _dmarc  v=DMARC1; p=none;   (TTL Automatic)
 ```
 
-Then, once reports confirm all legitimate mail passes (give it a couple of
-weeks), tighten the policy: `p=none` → `p=quarantine` → `p=reject`. Do not
-start at `p=reject` — a misconfiguration there silently destroys real signups
-instead of just flagging them.
+Since February 2024 Yahoo (which operates AOL Mail) and Gmail require bulk
+senders to publish a DMARC policy, and that bare record **already satisfies
+the requirement**. So DMARC is almost certainly *not* what sent the AOL mail
+to spam. Verify DNS against the Namecheap panel or a DMARC inspector before
+trusting any claim in here about what is published.
 
-Two smaller wins while in the DNS panel:
-- Resend can verify a **custom return-path/tracking subdomain**; using it
-  keeps the visible `From:` aligned with the DKIM `d=` domain (strict
-  alignment), which helps reputation.
-- Warm up gradually. A brand-new sending domain going from zero to a burst of
-  signups reads as spam behaviour regardless of authentication.
+**⚠️ Never add a second `_dmarc` TXT record.** Per RFC 7489, when a receiver
+finds multiple DMARC records at the same host it treats the domain as having
+**no policy at all** — so "adding" a better record alongside the existing one
+silently destroys DMARC instead of improving it. Always EDIT the existing
+record's value.
 
-The signup confirmation screen (`SignupPage.tsx`) also tells users to check
-spam and whitelist `noreply@gdimension.app` — that is a mitigation for the
-users who hit this before DNS propagates, **not** a substitute for the DMARC
-record.
+**The one real gap: `rua=` is absent, so no aggregate reports are being
+delivered anywhere** — meaning there is currently zero visibility into
+whether SPF and DKIM actually align on Resend sends. Fix by editing the
+existing record's value to:
+
+```
+v=DMARC1; p=none; rua=mailto:hi@gdimension.app; fo=1; adkim=r; aspf=r
+```
+
+Policy is unchanged (`p=none` before and after), so this cannot affect
+delivery — it only turns reporting on. Once reports confirm legitimate mail
+passes (give it a couple of weeks), tighten `p=none` → `p=quarantine` →
+`p=reject`. Do not start at `p=reject`: a misconfiguration there silently
+destroys real signups instead of just flagging them.
+
+**More likely cause of the AOL placement: sending reputation.**
+`gdimension.app` is a new sending domain with almost no volume, and
+Yahoo/AOL are aggressive toward unknown senders even when authentication is
+perfect. That improves with consistent sending; there is no switch for it.
+
+**To actually diagnose rather than guess:** send a signup confirmation to a
+fresh address at **mail-tester.com**. It reports the SPF result, the DKIM
+result, and critically whether the DKIM `d=` domain *aligns* with the visible
+`From:` — if Resend signs with its own domain rather than `gdimension.app`,
+DMARC is passing on SPF alone, which is exactly the fragile setup that gets
+filtered. Resend can verify a custom return-path subdomain to fix alignment.
+
+The signup confirmation screen (`SignupPage.tsx`) tells users to check spam
+and whitelist `noreply@gdimension.app`. That is a user-facing mitigation, not
+a fix for any of the above.
 
 ### Email templates
 
