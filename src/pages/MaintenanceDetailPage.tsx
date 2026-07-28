@@ -3,7 +3,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -28,6 +28,28 @@ export default function MaintenanceDetailPage() {
   const [bgLoaded, setBgLoaded] = useState(false)
   const [carInfo,  setCarInfo]  = useState('')
   const [noCar,    setNoCar]    = useState(false)
+
+  // Running totals for the summary strip under the list. total_cost is
+  // nullable, so count only the sessions that actually carry a figure —
+  // otherwise a half-filled log reads as though it cost less than it did.
+  const sessionCount = sessions.length
+  const costedCount  = sessions.filter(x => x.total_cost != null).length
+  const totalSpent   = sessions.reduce((sum, x) => sum + (x.total_cost != null ? Number(x.total_cost) : 0), 0)
+
+  // Only cap the height and fade the bottom edge when the list actually
+  // overflows. With a short log the container shrinks to its content, so the
+  // totals sit right under the last row instead of after a tall empty box,
+  // and nothing gets faded when there is nothing more to scroll to.
+  const listRef = useRef<HTMLDivElement>(null)
+  const [overflows, setOverflows] = useState(false)
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 4)
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [sessions, loading])
 
   useEffect(() => {
     getActiveCarId().then(carId => {
@@ -128,11 +150,24 @@ export default function MaintenanceDetailPage() {
       </div>
 
       {/* ── Session list ── */}
-      <div style={{ position: 'relative', zIndex: 5, flex: 1, overflowY: 'auto', height: `calc(100dvh - ${HEADER_HEIGHT}px - 37px)`,
-        // The Add FAB is fixed (44px tall, 28px up) and floats over this list.
-        // With a short history there is empty space under the last row so it
-        // never showed; with a long one it sat on top of the final records.
-        paddingBottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
+      <div ref={listRef} style={{
+        position: 'relative', zIndex: 5, overflowY: 'auto',
+        // Stop the list about two thirds down so the running totals below it
+        // are always on screen, however long the log gets. maxHeight (not
+        // height) so a short log collapses to its own size.
+        maxHeight: '64dvh',
+        // Fade the rows out at the bottom edge rather than cutting them off, so
+        // it reads as "there is more below". A MASK (not a gradient overlay) is
+        // deliberate: the backdrop here is a photo, so an opaque overlay would
+        // show as a grey band. The mask dissolves the rows and lets the photo
+        // through, and it tracks the container's visible box so the fade stays
+        // pinned to the bottom edge wherever you are in the scroll.
+        ...(overflows ? {
+          maskImage: 'linear-gradient(to bottom, #000 calc(100% - 64px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 64px), transparent 100%)',
+        } : {}),
+        paddingBottom: overflows ? 24 : 0,
+      }}>
         {loading && (
           <>
             <style>{`@keyframes mDetSkel{0%,100%{opacity:0.45}50%{opacity:1}}`}</style>
@@ -180,6 +215,38 @@ export default function MaintenanceDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Running totals — always visible under the faded list ── */}
+      {!loading && !noCar && sessionCount > 0 && (
+        <div style={{
+          position: 'relative', zIndex: 6,
+          margin: '0 16px', paddingTop: 14,
+          borderTop: '1px dashed rgba(138,176,200,0.30)',
+          display: 'flex', alignItems: 'flex-start', gap: 28,
+        }}>
+          <div>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_DETAIL, opacity: 0.6 }}>
+              Sessions
+            </div>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 22, color: 'rgba(245,245,245,0.88)', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+              {sessionCount.toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_TIMELINE_DETAIL, opacity: 0.6 }}>
+              Total Spent
+            </div>
+            <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 22, color: COLOR_TIMELINE_DETAIL, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+              ${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            {costedCount < sessionCount && (
+              <div style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 9.5, color: 'rgba(245,245,245,0.30)', marginTop: 2 }}>
+                from {costedCount} with a cost
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── FAB ── */}
       <button
