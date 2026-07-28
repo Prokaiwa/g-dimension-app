@@ -28,13 +28,16 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 6. ~~**Onboarding walkthrough**~~ ✅ DONE — guided home-map tour (`src/tour/`, migration 062 `users.tutorial_seen`; "Replay App Tour" in Settings).
 7. ~~**UI sounds**~~ ✅ DONE — GT-style synthesized sounds (`src/lib/sound.ts`, account-synced via migrations 068/069, audition board at `/sound-test`).
 8. ~~**Security audit**~~ ✅ DONE — see `docs/SECURITY_AUDIT.md` (2026-07; column-level anon grants in 071, `car_private` split in 061 came out of it).
-9. **Inconsistency check** — cross-file audit: token usage, shared component props, route links, category/group mapping sync (`CATEGORY_TO_GROUP` in two files).
-10. **Dead code / file cleanup** — unused imports, unreferenced assets, stale routes.
+9. ~~**Inconsistency check**~~ ✅ **DONE (2026-07-28)** — see the audit section below. Navigation, orphaned modules, pure-white text and the category/group single-source all came back clean; 33 em dashes in user-facing copy were fixed; three structural items (duplicate miles→km constant, the one-file `src/utils/`, ~70 unused exports) are recorded as owner's calls.
+10. ~~**Dead code / file cleanup**~~ ✅ **DONE (2026-07-28)** — no orphaned modules, no dead routes, no unused imports (lint is clean). 20 unreferenced assets found (~1.3 MB, none of it bundled); the unambiguous 7 deleted, the rest kept deliberately as design sources. See the audit section.
 11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
 
 ### Known lower-priority items
 - **Dev surfaces reachable in production.** Only `/spec-test` is `import.meta.env.DEV`-gated (`App.tsx:423`). `/sound-test`, `/dev/trading-cards` and `/license-preview` ship to any signed-in user, and `PublicProfilePage`'s TUNE console (`TUNE_MODE`, line 191) activates for anyone who puts `?tune` in a **public** profile URL. Owner's call (2026-07-27): leave for now, revisit when PWA access is retired in favour of the app stores.
-- **Unreferenced assets (~700 KB) in `src/assets/`** — the seven `icons/home/*.png` were inlined as base64 into `src/lib/destinationIcons.ts` (a 213 KB source file that DOES ship in the JS bundle) and the originals are now unimported; also unused: `android.png`, `apple.png`, `pwa.png`, `r33tester.png`, `logo/gdimension{-square-icon,Gwhitebg,dark,light}.png`, `icons/tuning-dashboard/tuning_blueprint.png`, `icons/tuning/tuning_intake.png`. Unimported files don't reach the bundle, so this is repo weight only — but `gdimensiondark.png` is the documented source for `public/og-default.png`, so keep an archived copy rather than deleting blind.
+- **Unreferenced assets — audited and part-cleaned 2026-07-28.** A careful scan (matching basenames against all of `src/`, `index.html`, `public/`, `vercel.json` and `api/`) found 20 unreferenced files totalling ~1.3 MB. **None of them ship** — Vite only bundles what is imported — so this was repo weight, never payload.
+  - **Deleted** (unambiguous): `pwa.png`, `android.png`, `apple.png`, `r33tester.png` (mockups/screenshots), `icons/tuning-dashboard/tuning_blueprint.png` (the Blueprint page was deleted in `2a01795`), and `icons/home/home_photos.png` + `home_settings.png` (map nodes that no longer exist). Recoverable from git history if ever wanted.
+  - **Kept deliberately** (~840 KB): the five `icons/home/*.png` that remain (`garage`, `tuning`, `timeline`, `maintenance`, `featured`) are the **editable design source** for the base64 blobs inlined into `src/lib/destinationIcons.ts` — deleting them would leave the shipped icons unmaintainable. Same reasoning for the `logo/*` files (`gdimensiondark.png` is the documented source for `public/og-default.png`) and `icons/tuning/tuning_intake.png`.
+  - Worth knowing: `src/lib/destinationIcons.ts` is a **213 KB source file of inlined base64** and it DOES ship in the JS bundle. That is a deliberate trade (no separate requests, no flash on the home map), not an accident.
 - WASM background-removal bundle is ~24MB — measure first-load on mobile data
 - ~~Signed URL expiry mid-session~~ ✅ FIXED (2026-07-17) — all receipts/car-documents signing now uses the shared `SIGNED_URL_TTL` (1 hour) from `src/lib/signedUrls.ts` (was 300s, which broke images on sheets left open >5 min)
 - Multi-car stress test: 3+ cars in the carousel
@@ -196,6 +199,43 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 *Compose/edit page (`TimelineEntryNewPage`):* one component for both create and edit (keys off the `:entryId` param). Edit mode loads the note + existing photos/links, lets you remove existing (× → queued delete) and add new; on save it diffs (deletes removed rows, uploads + appends new, re-syncs the hero `photo_url`). Lives in the parchment aesthetic (not the dark form look). Camera affordance is the shared `CameraIcon` (matches the Garage carousel), **not** an emoji.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
+
+### Inconsistency + dead-code audit (2026-07-28)
+
+**Checked and clean:**
+- **Navigation.** Every `navigate()` target in the codebase resolves to one of the 57 declared routes. No dead links.
+- **Orphaned modules.** No unreferenced source file in `src/` (the one apparent hit, `tokens/index.ts`, is imported as `'../tokens'`).
+- **Pure-white text.** 80 uses of `#fff`/`#ffffff`, but every one sampled is button/chip/title-bar text on a coloured background. The rule ("never pure white for **body text**") is not being broken.
+- **`CATEGORY_TO_GROUP` / `MOD_GROUPS`.** Single-sourced in `lib/buildGroups.ts`, mechanically enforced by `npm run constitution`.
+
+**Fixed:** 33 em dashes in user-facing copy (see the commit). The one worth
+remembering: `appError.ts` composed every reported failure as
+`${action} — ${detail}` and that string goes straight to the on-device
+ErrorBanner, so the app's most-seen error format carried one.
+
+**Left as owner's calls — recorded, not changed:**
+
+1. **Unit conversion lives in three places, and miles→km is implemented twice.**
+   `utils/unitConversion.ts` uses `miles * 1.60934`; `lib/mileage.ts` uses
+   `Math.round(miles / 0.621371)` (= `× 1.6093444`). Numerically equivalent
+   today, but they are two sources of truth for one physical constant, so a
+   future "fix" to one will silently drift from the other. They do serve
+   different jobs — `mileage.ts` is the per-car odometer (whole numbers,
+   null-safe formatting), `unitConversion.ts` is generic display conversion
+   used by the Featured engine, the PDF and both Build Sheets, with
+   `lib/unitPrefs.ts` layered on top. Consolidating is a real refactor with
+   real risk and no user-visible benefit; at minimum the two should reference
+   each other in comments.
+2. **`src/utils/` holds exactly one file** (`unitConversion.ts`) while every
+   other helper lives in `src/lib/`. Moving it is a one-line-per-importer
+   change across 5 files; leaving it is fine, but the split is arbitrary.
+3. **~70 exported symbols are never imported.** Roughly half are design tokens
+   in `tokens/index.ts` — a palette is *allowed* unused entries and they are
+   the documented source of truth, so leave them. The rest are mostly Featured
+   engine constants and a few genuinely dead helpers (`distanceLabel`,
+   `avatarThumbUrl`, `stopMusic`, `rankOf`, `hasSeenTutorial`,
+   `buildAccountExport`). None cost anything at runtime (tree-shaken); worth a
+   look only if the file gets confusing.
 
 ### Remaining flows — live-driven (2026-07-28)
 
