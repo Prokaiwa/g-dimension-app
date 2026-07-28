@@ -197,6 +197,40 @@ All static routes are declared **above** the dynamic `/:sessionId` route in App.
 
 *Entry Detail (`EntryDetailPage`):* hero + full Cormorant story + photo gallery + clickable links (YouTube thumbnails). Notes get inline Edit + Delete (confirm sheet); session entries get "View in Tuning/Maintenance ›". Origin can't be deleted.
 
+### Adversarial pass (2026-07-28) — one real bug, two clean bills
+
+**FIXED — double-tap created duplicate records.** Firing three synchronous
+clicks at "Log It" produced **3 jobs + 3 sessions + 3 timeline entries** from
+one fumbled tap (reproduced against the live DB; rows landed 46ms and 424ms
+apart). Every save handler guarded on the `saving` **React state**, which
+updates asynchronously — two taps in the same tick both read `false` before
+the re-render lands, so both proceed. `disabled={saving}` has the same hole:
+the attribute is only applied on re-render.
+
+Fixed with a synchronous `useRef` guard (`submitting.current`) paired with an
+`endSubmit()` helper that clears both the ref and the state, so no early
+return can wedge a button permanently. Applied to all six create/save paths:
+`TuningAddPage`, `MaintenanceServiceNewPage`, `MaintenanceDetailNewPage`,
+`TimelineEntryNewPage`, `TuningDiyEditPage` and `GarageCarsPage.saveCar`
+(that last one would have added the same **car** twice).
+
+Verified after the fix: 3 synchronous clicks → 1 job, and an ordinary single
+save still works and navigates. **Use the ref pattern for any new save
+handler — the state guard is not sufficient.**
+
+**No XSS.** A title of `Ｔｅｓｔ 🏎️💨 <script>alert(1)</script> ; DROP TABLE
+jobs;-- «»` stores verbatim and renders as plain **text** on the Build Sheet.
+No script node enters the DOM, no dialog fires — React's escaping holds, and
+Supabase parameterises. Fullwidth characters and emoji round-trip fine.
+
+**Overlong input — cosmetic only, not fixed.** A 5,000-character title is
+accepted with no validation, truncation or error. It does *not* break layout
+(`document.scrollWidth` stays at the 390px viewport, so no horizontal scroll);
+the unbroken string simply clips at the container edge with no ellipsis,
+because a single 5,000-character word cannot wrap. Realistic trigger is a
+pasted URL rather than genuine prose. Left as an owner call — the fix would be
+`overflow-wrap: anywhere` plus a sane `maxLength` on the title inputs.
+
 ### Photo upload pipeline — verified behaviour (2026-07-28)
 
 Driven through the real Edit Car form against the live database and live

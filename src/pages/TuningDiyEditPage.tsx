@@ -195,6 +195,10 @@ export default function TuningDiyEditPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Double-tap guard — see TuningAddPage: `saving` is React state, so two taps
+  // in the same tick both read false before the re-render. A ref is synchronous.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
   const [saveMsg, setSaveMsg] = useState('Saving…')
   const [error, setError] = useState<string | null>(null)
   const [modTitle, setModTitle] = useState('')
@@ -527,7 +531,7 @@ export default function TuningDiyEditPage() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Save failed')
     } finally {
-      setSaving(false)
+      endSubmit()
     }
   }
 

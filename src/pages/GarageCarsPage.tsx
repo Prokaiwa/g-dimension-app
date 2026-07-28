@@ -527,6 +527,11 @@ export default function GarageCarsPage() {
   const [step, setStep]                       = useState(1)
   const [form, setForm]                       = useState<FormData>(EMPTY_FORM)
   const [saving, setSaving]                   = useState(false)
+  // Double-tap guard — see TuningAddPage: `saving` is React state, so two taps
+  // in the same tick both read false before the re-render. Without this, a
+  // fumbled tap on Place in Garage adds the same car twice.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
   const [saveErr, setSaveErr]                 = useState<string | null>(null)
   const [allMakes, setAllMakes]               = useState<MakeItem[]>([])
   const [makesLoading, setMakesLoading]       = useState(false)
@@ -752,9 +757,11 @@ export default function GarageCarsPage() {
     form.model.trim() !== '' && form.mileage.trim() !== ''
 
   async function saveCar() {
+    if (submitting.current) return
+    submitting.current = true
     setSaving(true); setSaveErr(null)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); setSaveErr('Not signed in.'); return }
+    if (!user) { endSubmit(); setSaveErr('Not signed in.'); return }
     const nickname = form.nickname.trim() || null
     const rawMileage = parseInt(form.mileage) || null
     // DB always stores miles — convert from the car's unit
@@ -778,7 +785,7 @@ export default function GarageCarsPage() {
       })
       .select(CAR_COLUMNS)
       .single()
-    if (error || !data) { setSaving(false); setSaveErr(error?.message ?? 'Save failed'); return }
+    if (error || !data) { endSubmit(); setSaveErr(error?.message ?? 'Save failed'); return }
     // First car in the garage → make it the active car right away. Without this
     // a brand-new user adds their first car and every section still reports
     // "No active car. Add a car in My Cars first" — advice they have just
@@ -806,7 +813,7 @@ export default function GarageCarsPage() {
         await supabase.from('cars').update({ original_photo_url: originalUrl }).eq('id', data.id)
       } catch { /* original-photo persistence is best-effort — never blocks the save */ }
     }
-    setSaving(false)
+    endSubmit()
     const updated = [...cars, savedCar]
     setCars(updated); setShowAdd(false)
     requestAnimationFrame(() => {

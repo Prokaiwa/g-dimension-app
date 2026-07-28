@@ -4,7 +4,7 @@ const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 const TODAY       = _now.toISOString().split('T')[0]
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -162,6 +162,10 @@ export default function MaintenanceDetailNewPage() {
   const [timelineStory, setTimelineStory] = useState('')
   const [pendingReceipts, setPendingReceipts] = useState<{ file: File; preview: string | null; name: string }[]>([])
   const [saving, setSaving]           = useState(false)
+  // Double-tap guard — see TuningAddPage: `saving` is React state, so two taps
+  // in the same tick both read false before the re-render. A ref is synchronous.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
 
   const [exteriorSel, setExteriorSel]     = useState<string[]>([])
   const [exteriorInput, setExteriorInput] = useState('')
@@ -199,7 +203,8 @@ export default function MaintenanceDetailNewPage() {
   }
 
   async function handleSave() {
-    if (saving) return
+    if (submitting.current) return
+    submitting.current = true
     if (!carId) { reportActionError('No active car. Add a car in My Cars first, then save this detail session'); return }
     setSaving(true)
 
@@ -218,7 +223,7 @@ export default function MaintenanceDetailNewPage() {
       journal_entry: timelineStory.trim() || null,
     }).select('id').single()
 
-    if (error || !session) { reportActionError("Couldn't save the detail session", error); setSaving(false); return }
+    if (error || !session) { reportActionError("Couldn't save the detail session", error); endSubmit(); return }
 
     const sid = (session as { id: string }).id
     const jobRows = [

@@ -1,6 +1,6 @@
 const TODAY = new Date().toISOString().split('T')[0]
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { reportActionError } from '../lib/appError'
@@ -89,6 +89,10 @@ export default function MaintenanceServiceNewPage() {
   const [timelineStory,    setTimelineStory]    = useState('')
   const [pendingReceipts,  setPendingReceipts]  = useState<PendingReceipt[]>([])
   const [saving,           setSaving]           = useState(false)
+  // Double-tap guard — see TuningAddPage: `saving` is React state, so two taps
+  // in the same tick both read false before the re-render. A ref is synchronous.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
 
   useEffect(() => {
     getActiveCarId().then(id => {
@@ -126,7 +130,8 @@ export default function MaintenanceServiceNewPage() {
   }
 
   async function handleSave() {
-    if (saving) return
+    if (submitting.current) return
+    submitting.current = true
     if (!carId) { reportActionError('No active car. Add a car in My Cars first, then save this service'); return }
     setSaving(true)
     const { data: session, error } = await supabase.from('sessions').insert({
@@ -142,7 +147,7 @@ export default function MaintenanceServiceNewPage() {
       timeline_title: timelineTitle.trim() || null,
       journal_entry: timelineStory.trim() || null,
     }).select('id').single()
-    if (error || !session) { reportActionError("Couldn't save the service session", error); setSaving(false); return }
+    if (error || !session) { reportActionError("Couldn't save the service session", error); endSubmit(); return }
     // Keep the odometer fresh from the logged mileage (opt-in, only if higher).
     const enteredMi = mileage ? unitToMiles(parseInt(mileage, 10), mileageUnit) : NaN
     if (updateOdometer && Number.isFinite(enteredMi) && enteredMi > (currentMileage ?? -1)) {
@@ -157,7 +162,7 @@ export default function MaintenanceServiceNewPage() {
         cost: j.cost ? parseFloat(j.cost) : null,
         status: 'installed',
       })))
-      if (jobsError) { reportActionError("Couldn't save the service items", jobsError); setSaving(false); return }
+      if (jobsError) { reportActionError("Couldn't save the service items", jobsError); endSubmit(); return }
     }
     if (pendingReceipts.length > 0) {
       const { data: authData } = await supabase.auth.getUser()

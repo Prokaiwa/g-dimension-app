@@ -1,6 +1,6 @@
 // Route: /tuning/add — 3-step animated Add Modification flow
 // Step 1: Category picker → Step 2: Part type picker → Step 3: Form + Specs
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
@@ -138,6 +138,13 @@ export default function TuningAddPage() {
   const [timelineTitle, setTimelineTitle]  = useState('')
   const [timelineStory, setTimelineStory]  = useState('')
   const [saving, setSaving]               = useState(false)
+  // Double-tap guard. `saving` is React state, so two taps in the SAME tick
+  // both read false before the re-render lands — a real triple-submit was
+  // reproduced this way (3 jobs + 3 sessions + 3 timeline entries from one
+  // fumbled tap). A ref updates synchronously, so it actually holds. Always
+  // clear it through endSubmit() so no early return can wedge the button.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
   const [saveErr, setSaveErr]             = useState<string | null>(null)
 
   // Wheels + Tires combo — when adding Wheels (part_type 1), optionally add a
@@ -521,14 +528,15 @@ export default function TuningAddPage() {
   // ── Save ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!form.title.trim() || !selectedCategory || !selectedPartType || saving) return
+    if (!form.title.trim() || !selectedCategory || !selectedPartType || submitting.current) return
+    submitting.current = true
     setSaving(true)
     setSaveErr(null)
     const carId = await getActiveCarId()
-    if (!carId) { setSaveErr('No active car. Add a car in My Cars first, then save this mod.'); setSaving(false); return }
+    if (!carId) { setSaveErr('No active car. Add a car in My Cars first, then save this mod.'); endSubmit(); return }
     const { data: { session } } = await supabase.auth.getSession()
     const userId = session?.user?.id
-    if (!userId) { setSaveErr("You're signed out. Sign in again, then save this mod."); setSaving(false); return }
+    if (!userId) { setSaveErr("You're signed out. Sign in again, then save this mod."); endSubmit(); return }
 
     const today = new Date().toISOString().split('T')[0]
 
@@ -598,7 +606,7 @@ export default function TuningAddPage() {
 
     if (jobErr || !jobData) {
       setSaveErr(jobErr?.message ?? 'Failed to save')
-      setSaving(false)
+      endSubmit()
       return
     }
 
@@ -766,7 +774,7 @@ export default function TuningAddPage() {
       }
     }
 
-    setSaving(false)
+    endSubmit()
     if (!partsBinMode && sessionId && (groupName.trim() || existingSessionId)) {
       navigate(`/tuning/mod-group/${sessionId}`)
     } else {

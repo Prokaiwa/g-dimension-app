@@ -75,6 +75,10 @@ export default function TimelineEntryNewPage() {
   const [removedLinkIds, setRemovedLinkIds] = useState<string[]>([])
 
   const [saving, setSaving] = useState(false)
+  // Double-tap guard — see TuningAddPage: `saving` is React state, so two taps
+  // in the same tick both read false before the re-render. A ref is synchronous.
+  const submitting = useRef(false)
+  const endSubmit = () => { submitting.current = false; setSaving(false) }
   const [err, setErr] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -149,7 +153,8 @@ export default function TimelineEntryNewPage() {
   const canSave = !!title.trim() && !saving
 
   const handleSave = async () => {
-    if (!canSave) return
+    if (!canSave || submitting.current) return
+    submitting.current = true
     if (!carId) { setErr('No car selected.'); return }
     setErr(null)
     setSaving(true)
@@ -212,7 +217,7 @@ export default function TimelineEntryNewPage() {
       navigate(isEdit ? `/timeline/entry/${id}` : '/timeline')
     } catch (e) {
       setErr((e as { message?: string })?.message ?? 'Couldn’t save the entry. Try again.')
-      setSaving(false)
+      endSubmit()
     }
   }
 
