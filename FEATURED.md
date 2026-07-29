@@ -30,6 +30,17 @@ A magazine that obeys the minimalist app design system won't *feel* like a magaz
   - `FONT_DECK` = **Oswald** — cover-lines, decks, kickers, spec labels.
   - Body reuses existing Hanken (tech/spec) + Cormorant (story prose). Permanent Marker / Caveat available for occasional script flourishes.
   - Paid upgrade path if ever wanted: Druk / Tungsten.
+- **Copy: the em-dash rule does not apply to the editorial pools.** The global
+  rule (CLAUDE.md) bans em dashes inside user-facing *sentences* — the owner
+  clarified on 2026-07-29 that a dash used as a label separator is fine, but
+  one inside prose is not. The ~30 curated deck lines in
+  `src/features/featured/engine/pools/*.ts` (*"The S14 — overlooked then,
+  hunted now."*, *"The FD2 — the Type R that took itself most seriously."*)
+  are an explicit, owner-approved **exception**: an em dash is a magazine
+  convention, and it is doing real editorial work in a deck. **Do not bulk-fix
+  these in a copy sweep** — rewriting them changes the product's voice rather
+  than correcting a defect. Ordinary Featured *UI* copy (buttons, hints, empty
+  states) still follows the global rule and has been cleaned.
 - **Color:** bolder magazine palette allowed here (the brand burgundy `COLOR_BRAND = #780E12`, accent `#c8661a`, plus near-white/black for covers). Don't propagate this freedom outside `/featured`.
 
 ## 3. Cover templates (built)
