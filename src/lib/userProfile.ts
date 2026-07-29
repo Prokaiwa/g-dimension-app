@@ -140,7 +140,7 @@ export function hasInvalidUsernameChars(raw: string): boolean {
 // Live status of a candidate handle. Shared by the signup claim screen and the
 // Edit Profile sheet so both behave identically.
 export type UsernameStatus =
-  | 'idle' | 'short' | 'reserved' | 'checking' | 'available' | 'taken'
+  | 'idle' | 'short' | 'reserved' | 'checking' | 'available' | 'taken' | 'blocked'
 
 // Human-readable line for a given status. Idle/invalid-char messaging is handled
 // by the caller (it depends on what the user just typed).
@@ -148,6 +148,10 @@ export function usernameStatusMessage(status: UsernameStatus, value: string): st
   switch (status) {
     case 'short':     return `At least ${USERNAME_MIN_LEN} characters, using letters, numbers or underscores.`
     case 'reserved':  return 'That handle is reserved.'
+    // The server-side blocklist (migration 084) covers profanity, slurs and
+    // brand impersonation. Deliberately vague: naming the matched term just
+    // teaches someone how to spell around it.
+    case 'blocked':   return 'That handle isn’t allowed. Try another.'
     case 'checking':  return 'Checking availability…'
     case 'available': return value ? `@${value} is available.` : ''
     case 'taken':     return `@${value} is taken. Try another.`

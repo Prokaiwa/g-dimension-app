@@ -5,6 +5,7 @@ import {
   USERNAME_MIN_LEN,
   type UsernameStatus,
 } from '../lib/userProfile'
+import { checkUsernameTerms } from '../lib/moderation'
 
 // Debounced validity + availability for an (already normalized) handle.
 // `current` is the user's existing username — leaving it unchanged counts as
@@ -30,8 +31,16 @@ export function useUsernameStatus(
     setStatus('checking')
     const reqId = ++reqIdRef.current
     const t = setTimeout(async () => {
-      const free = await isUsernameAvailable(value, selfId)
+      // Blocklist and availability in one debounced round trip. The blocklist
+      // lives in the database (migration 084) rather than a bundled JSON file,
+      // because the signup trigger mints handles from email addresses without
+      // going through this form at all.
+      const [rejection, free] = await Promise.all([
+        checkUsernameTerms(value),
+        isUsernameAvailable(value, selfId),
+      ])
       if (reqId !== reqIdRef.current) return // superseded by a newer keystroke
+      if (rejection) { setStatus('blocked'); return }
       setStatus(free ? 'available' : 'taken')
     }, 400)
     return () => clearTimeout(t)

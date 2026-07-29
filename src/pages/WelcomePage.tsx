@@ -84,13 +84,13 @@ export default function WelcomePage() {
   }
 
   const showOk    = !invalidChar && status === 'available'
-  const showError = invalidChar || status === 'taken' || status === 'reserved'
+  const showError = invalidChar || status === 'taken' || status === 'reserved' || status === 'blocked'
 
   const hint = (() => {
     if (invalidChar) return { text: 'Only lowercase letters, numbers and underscores.', color: COLOR_ACCENT }
     if (status === 'idle') return { text: 'This becomes your public link: gdimension.app/builds/…', color: COLOR_TEXT_SECONDARY }
     if (status === 'available') return { text: usernameStatusMessage(status, username), color: OK_GREEN }
-    const color = (status === 'taken' || status === 'reserved') ? COLOR_ACCENT : COLOR_TEXT_SECONDARY
+    const color = (status === 'taken' || status === 'reserved' || status === 'blocked') ? COLOR_ACCENT : COLOR_TEXT_SECONDARY
     return { text: usernameStatusMessage(status, username), color }
   })()
 

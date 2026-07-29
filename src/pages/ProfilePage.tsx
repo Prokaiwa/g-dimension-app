@@ -253,6 +253,7 @@ export default function ProfilePage() {
     }
     if (unameStatus === 'reserved') { setUnameError('That handle is reserved.'); usernameRef.current?.focus(); return }
     if (unameStatus === 'taken')    { setUnameError('That username is already taken.'); usernameRef.current?.focus(); return }
+    if (unameStatus === 'blocked')  { setUnameError('That handle isn’t allowed. Try another.'); usernameRef.current?.focus(); return }
     if (unameStatus === 'checking') { setUnameError('Still checking that handle…'); return }
     setSaving(true)
     setUnameError(null)
@@ -302,7 +303,7 @@ export default function ProfilePage() {
   // your own current username as "available".
   const DEFAULT_UNAME_HINT = 'Lowercase letters, numbers and underscores. This is your public /builds link.'
   const unameShowOk    = !!draft && usernameDirty && !draftInvalidChar && !unameError && unameStatus === 'available'
-  const unameShowError = !!draft && (draftInvalidChar || !!unameError || (usernameDirty && (unameStatus === 'taken' || unameStatus === 'reserved')))
+  const unameShowError = !!draft && (draftInvalidChar || !!unameError || (usernameDirty && (unameStatus === 'taken' || unameStatus === 'reserved' || unameStatus === 'blocked')))
   const unameHint = (() => {
     if (!draft) return { text: '', color: FAINT }
     if (unameError) return { text: unameError, color: COLOR_ERROR }
@@ -310,7 +311,7 @@ export default function ProfilePage() {
     if (!usernameDirty) return { text: DEFAULT_UNAME_HINT, color: FAINT }
     if (unameStatus === 'available') return { text: usernameStatusMessage('available', draft.username), color: OK_GREEN }
     if (unameStatus === 'idle') return { text: DEFAULT_UNAME_HINT, color: FAINT }
-    const color = (unameStatus === 'taken' || unameStatus === 'reserved') ? COLOR_ERROR : FAINT
+    const color = (unameStatus === 'taken' || unameStatus === 'reserved' || unameStatus === 'blocked') ? COLOR_ERROR : FAINT
     return { text: usernameStatusMessage(unameStatus, draft.username), color }
   })()
   const legacyCountry = draft && draft.country && !COUNTRIES.some(c => c.name === draft.country) ? draft.country : null
