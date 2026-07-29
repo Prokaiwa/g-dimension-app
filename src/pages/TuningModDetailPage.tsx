@@ -889,7 +889,7 @@ export default function TuningModDetailPage() {
                 </p>
                 {mountedTires.length > 0 && (
                   <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: 'rgba(200,102,26,0.75)', marginBottom: 22, lineHeight: 1.5 }}>
-                    Its mounted {mountedTires.length === 1 ? 'tire' : 'tires'} ({mountedTires.map(t => t.title).join(', ')}) will go the same way — they came off together.
+                    Its mounted {mountedTires.length === 1 ? 'tire' : 'tires'} ({mountedTires.map(t => t.title).join(', ')}) will go the same way. They came off together.
                   </p>
                 )}
                 {removeError && (
@@ -900,14 +900,14 @@ export default function TuningModDetailPage() {
                   style={{ width: '100%', padding: '16px 20px', marginBottom: 10, background: 'rgba(200,102,26,0.08)', border: '1px solid rgba(200,102,26,0.3)', cursor: removing ? 'default' : 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}
                 >
                   <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.75)', display: 'block' }}>Move to Storage</span>
-                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>Keeps part in Parts Bin — install it again anytime</span>
+                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.35)' }}>Keeps part in Parts Bin, install it again anytime</span>
                 </button>
                 <button
                   onClick={() => setSellScrapStep(true)} disabled={removing}
                   style={{ width: '100%', padding: '16px 20px', background: 'transparent', border: '1px solid rgba(245,240,228,0.1)', cursor: 'pointer', textAlign: 'left', WebkitTapHighlightColor: 'transparent' }}
                 >
                   <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: 'rgba(245,240,228,0.55)', display: 'block' }}>Sell / Scrap</span>
-                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)' }}>Part is leaving — stays in history</span>
+                  <span style={{ fontFamily: FONT_UI, fontSize: 11, color: 'rgba(245,240,228,0.25)' }}>Part is leaving, stays in history</span>
                 </button>
                 <button onClick={closeRemoveSheet} style={{ width: '100%', padding: '14px', marginTop: 16, background: 'none', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.25)' }}>
                   Cancel

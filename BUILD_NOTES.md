@@ -6,6 +6,28 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 
 ## Beta Readiness Checklist (pre-friends test, no payment yet)
 
+### Where to pick up (as of 2026-07-29)
+
+**Both "needs a real device" unknowns are now closed** — a dedicated test
+account (`fancyleprechaun7`) made it possible to drive the live app in a real
+browser instead of the curl relay, and both open verification items were
+exercised end to end. See **Wheels + Tires — verified** and **Multi-car
+carousel — verified** below. Two bugs came out of it, one of them a live PII
+leak (migration **083**, ADR-022).
+
+**⚠️ ONE THING NEEDS THE OWNER: run migration `083` in the Supabase SQL
+Editor.** Until it runs, any signed-in user can read every other user's email
+address off `/rest/v1/users`. The frontend change already shipped and is safe
+both before and after, so this is a single SQL paste with no deploy coupling.
+
+What is left after that:
+
+1. **Safe-area insets (item 3) — still needs the owner, not an agent.** The
+   audit is finished and written up below; what is missing is thirty seconds of
+   looking at the iOS build on a notched device. Do not "fix" it speculatively.
+2. **Polish review (item 11)** — partially picked up this session (the last
+   em dashes in shipping prose, listed below). Still unscoped by design.
+
 ### Where to pick up (as of 2026-07-28)
 
 Nine of the eleven checklist items below are done. **Two remain, and only one of
@@ -22,9 +44,8 @@ them can be done from a chat session:**
 
 Everything else is either done, deliberately parked (dev routes in production,
 the social layer), or in the **What's Next** backlog at the bottom of this file.
-Two known unverified areas, both needing a real device rather than the relay
-harness: **Wheels + Tires mounting** (migration 066, ADR-016) and the
-**multi-car carousel at 3+ cars**.
+~~Two known unverified areas~~ — **both were verified on 2026-07-29**; see the
+sections at the end of this file.
 
 Live-DB caveat for anyone reading counts: the owner's own car
 (`dscantee007@yahoo.com`, the 2006 LS 430) is **deliberately loaded with 120
@@ -275,7 +296,7 @@ verified by reading the rows back.
 | **Detail (car wash) session** | ✅ `sessions.type='detail'` + a "Hand Wash" job, lands on `/maintenance/detail`. 7 service chips render. |
 | **Timeline note** | ✅ `timeline_entries.entry_type='note'` + the hero `photo_url` re-sync PATCH, lands on `/timeline`. |
 | **Reminder** | ✅ `car_reminders` row with all of 078's columns present; the "every N months / every N miles" recurrence inputs render. |
-| **Wheels + Tires combo** | ⚠️ **NOT exercised.** The wheel job saves fine, but the "Add Tires" toggle sits far down the form and automation never got it clicked, so `mounted_on_job_id` stayed NULL. The mount logic (066/ADR-016) is still **unverified** — worth a manual pass on a device. |
+| **Wheels + Tires combo** | ✅ **Verified 2026-07-29** (was "not exercised" — the "Add Tires" toggle sits far down the form and earlier automation never reached it). Every branch of 066/ADR-016 driven end to end, and one real bug found and fixed. See **Wheels + Tires — verified live** below. |
 
 **Mods are never hard-deleted through the UI** — "Remove from Car" sets
 `status='removed'` and keeps the job, its session and its timeline entry, by
@@ -538,6 +559,108 @@ Selling a car you loved shouldn't erase it. After a transfer, a car persists in 
 *Helpers:* `src/lib/carTransfers.ts` — `getSoldCars`/`getArchivedSoldCars`/`archiveSoldCar`/`unarchiveSoldCar`, pure `soldCarName` (unit-tested). All guarded (empty/no-op pre-074).
 
 **Phase 2 (2026-07-14) — public side + sharing, shipped.** Locked SOLD tiles now render on the *public* garage carousel (`PublicGaragePage`, reads the `public_sold_cars` definer view via `getPublicSoldCars`) — dimmed car + SOLD stamp, actions are **Details** (snapshot card) + **Visit Build** only; Featured/Build Sheet/Timeline are never reachable for a ghost. A dedicated shareable surface `PublicSoldCarPage` (route `/builds/:username/sold/:ghostId`, `getPublicSoldCar`) shows "‹Year Model› was sold by @A to @B — visit their build" + Share; the seller reaches it via a **Share** button on their private ghost card (`shareGhost` resolves the seller handle then `shareLink`). `api/og.js` gained a `/sold/:ghostId` branch so the link unfurls "‹Year Model› — sold to @B on G-Dimension" with the snapshot photo (the existing `^/builds/(.*)` rewrite already routes it). Guarded end-to-end — pre-074 the view read returns empty and nothing renders.
+
+### Wheels + Tires — verified live, one bug fixed (2026-07-29)
+
+Migration 066 / ADR-016 had been shipped but never exercised — the 2026-07-28
+pass recorded it as "⚠️ NOT exercised" because automation never reached the
+"Add Tires" toggle far down the form. Driven properly this time from a real
+account in a real browser. **The feature works. Every branch below was checked
+against the database, not just the screen.**
+
+| Branch | Result |
+|---|---|
+| Wheels + "Add Tires" in one save | ✅ Tire job inserted with `mounted_on_job_id` → the wheel job, inheriting its install date |
+| Build Sheet combined card | ✅ Renders `Volk TE37 18x9.5 +22` with `+ Michelin Pilot Sport 4S 255/40R18` beneath it; the tire has no solo row |
+| Standalone tire → wheel-set picker | ✅ Lists owned sets labelled **ON CAR** / **STORED**, defaults to the first |
+| Old-tire retirement prompt | ✅ Names the tires currently on the set, PARTS BIN / SCRAP both write correctly |
+| Mounting on a **stored** set | ✅ Tire inherits `status='removed', still_owned=true` → lands in the Parts Bin with its wheels, not on the Build Sheet |
+| Removal cascade | ✅ "Move to Storage" on the wheels took the mounted tire with it; the sheet warned by name first |
+
+**BUG FOUND AND FIXED — retired tires stayed mounted forever.** Retiring the old
+tires set their status but left `mounted_on_job_id` pointing at the wheel set.
+Since a tire retired to the Parts Bin and a tire sitting in storage *with* its
+wheels have **identical status** (`removed` + `still_owned`), the link is the
+only thing that can tell them apart — and it was never cleared. Observed live:
+after two tire changes the prompt read *"Those wheels already have tires
+(Michelin…, Falken…)"*, listing two tires that were already in the Parts Bin,
+and saving would have re-stamped their `date_removed` to today, overwriting the
+real removal date of a part retired weeks earlier.
+
+Fixed in `TuningAddPage` by clearing `mounted_on_job_id` as part of the retire
+update — unmounting is what physically happened. Re-verified: the prompt now
+names only the tire actually on the set, and the count stops growing.
+
+Worth keeping in mind for any future work here: **status alone cannot express
+"is this part still on that part"** — the mount link is the source of truth, so
+anything that takes a part off another part has to clear it.
+
+*Note (not changed):* the part-type names `Tires — Performance / Street` and
+`Tires — Truck / Off-Road` live in the `part_types` table and carry em dashes,
+which the copy rule forbids. They are DB data, not code, so fixing them means a
+migration — left for the owner to decide.
+
+### Multi-car carousel — verified at 4 cars (2026-07-29)
+
+The other long-standing "needs a real device" item. Four cars were added
+through the real Add Car flow (Silvia S14, Supra, RX-7, Impreza).
+
+| | |
+|---|---|
+| Strip geometry | 1,950px across a 390px viewport = **5 slides** (4 cars + the Add Car slide), scroll-snap correct |
+| Counter | `01 / 04` … `04 / 04`, correct per card |
+| Dot indicators | 5 dots, active dot tracks the slide |
+| Per-card identity | Make logo, model name and info strip all follow the active card (Mazda/RX-7 on slide 3, Subaru/Impreza on slide 4) |
+| Details sheet | Opens on the correct car from **any** slide — Supra→trim, Impreza→nickname "Blobeye", Silvia→variant "S14 Kouki". No cross-contamination, so the `detailsCarId` stale-fetch guard holds |
+| Card morph | Correct on the 4th card: the car lifts/shrinks and the chrome fades, sheet shows that car's spec list |
+| CHOOSE on the 4th car | Sets it active, header updates, and it persists to `/home` **and** to `users.active_car_id` on the server |
+
+No defects found. The carousel is fine at 4 cars; nothing suggests a ceiling
+below that.
+
+### Users table — email was readable by any signed-in user (2026-07-29, migration 083, ADR-022)
+
+Found while verifying the active-car sync above: a routine
+`select username, active_car_id` came back with **all 28 user rows** instead of
+one. Widening it returned **every real email address in the beta**.
+
+`anon` is correctly blocked (071/ADR-015 closed that). The gap was
+`authenticated`: `users_select_public` (015) has **no role clause**, so a
+signed-in user matches every non-deleted row, and 027's table-wide grant then
+exposes every column. 071's header states the reasoning that let it survive —
+*"authenticated role: untouched … own profile reads PROFILE_COLS incl. email,
+which stays fine"* — which is true of the app's queries and false of the
+database.
+
+Fixed the same way as 071 and 081: a column-level grant for `authenticated`
+covering everything **except `email`**. `email` could be dropped rather than
+relocated because `public.users.email` only ever mirrored `auth.users.email`
+and had exactly one consumer (the owner's own Profile row), which now reads
+`getSessionEmail()` straight from the session. Verified the Profile screen still
+shows the right address — and it does so **pre-migration**, so the deploy is
+safe in either order.
+
+**The migration still has to be run by the owner in the Supabase SQL Editor.**
+
+The generalisable lesson, and the reason this one hid behind two prior audits:
+**`authenticated` is not a trusted role.** Anyone can sign up, so the distance
+between anon and authenticated is one email address. Any table with an unscoped
+public-read policy leaks to signed-in users exactly as it would to anonymous
+ones — and reading the migrations would not have found it, because 071 reads
+like it closed the door. One query from a second real account did.
+
+### Em dashes — the last of them in shipping prose (2026-07-29)
+
+The 2026-07-28 sweep fixed 33 and left a few behind because they sit inside JSX
+expressions rather than plain strings. Fixed now: the mod-removal sheet's three
+lines (*"…will go the same way. They came off together."*, *"Keeps part in Parts
+Bin, install it again anytime"*, *"Part is leaving, stays in history"*) and five
+in the privacy policy (the on-device background-removal note, the cookies line,
+and the Supabase / Vercel / Google service list, which now use colons).
+
+Deliberately left: the standalone `—` empty-value markers in data cells (allowed
+by the rule), the decorative `— select —` placeholder and `— Advanced Specs`
+divider, and the dev-only `/sound-test` and `/dev/trading-cards` copy.
 
 ---
 

@@ -574,3 +574,69 @@ real page as an anonymous visitor. Two opposite bugs (081 too wide, 082 too
 narrow) were found in the same session on the same boundary, which is the
 argument for testing the boundary from the outside rather than reasoning about
 it from the migrations. Source: migration 082.
+
+---
+
+## ADR-022 — The `authenticated` role is a public role too (2026-07-29)
+
+**Decision:** `public.users` now carries a **column-level** `grant select (...)`
+for `authenticated`, not just for `anon`, and `email` is excluded from it. The
+owner's own email is read from the auth session (`supabase.auth.getUser()`),
+which is where it actually lives. Migration 083.
+
+**Context:** Driving the live app from a throwaway account created for testing,
+a routine `select username, active_car_id` against `/rest/v1/users` came back
+with **all 28 rows** rather than one. Widening the select confirmed the rest:
+
+```
+GET /rest/v1/users?select=username,email
+→ 28 rows, every real address in the beta
+```
+
+`anon` is correctly blocked (`42501`) — migration 071 closed that in ADR-015.
+But 071's own header records the reasoning that let this survive: *"authenticated
+role: untouched (keeps 027's full select + update — own profile reads
+PROFILE_COLS incl. email, which stays fine)."* That is true of what the **app**
+asks for and false of what the **database** allows. `users` has two permissive
+select policies, and `users_select_public` (015) carries no role clause:
+
+```sql
+users_all_owner      for all    using (auth.uid() = id)
+users_select_public  for select using (deleted_at is null and username is not null)
+```
+
+Permissive policies are OR'd, so a signed-in user matches every non-deleted row,
+and 027's table-wide grant then hands over every column. 015's own comment
+concedes the column filtering is *"enforced at the app query layer"*.
+
+**Rationale:** This is the third instance of one failure — ADR-015 (`users`,
+anon), ADR-020 (`jobs`, anon), and now `users` again for `authenticated`. The
+lesson the first two encoded was "a row policy cannot restrict columns." The
+lesson this one adds is narrower and easier to miss: **`authenticated` is not a
+trusted role.** Anyone can sign up, so the gap between anon and authenticated is
+one email address, and any table with an unscoped public-read policy leaks to
+signed-in users exactly as it would to anonymous ones. A grant reasoned about
+via "our queries only ever ask for the owner's row" is not a boundary.
+
+`email` could be dropped outright rather than moved because `public.users.email`
+was only ever a mirror of `auth.users.email`, with a single consumer (the
+owner's own Profile row). The session already holds the canonical value, so the
+fix removed a query rather than adding a view.
+
+**Deliberately still readable** by `authenticated`: `subscription_status` (the
+free/pro badge is shown on profiles anyway) and the display/preference columns
+(needed by the owner on every load, and not PII). Cross-user reads that
+legitimately need identity columns keep working unchanged — the car-transfer
+@handle lookup, the transfer/ghost sender-recipient embeds, DIY authorship
+credit, and the username-availability check all use `username` / `display_name`.
+
+**Consequence — the maintenance cost is real and worth stating:** like 071 for
+anon, this grant is now the single source of truth for what a signed-in user can
+read off `users`, *including its own owner*. A column added to the table is
+invisible until it is added here. That is the intended trade: widening the
+boundary becomes a reviewable act instead of a side effect of a new `select`.
+
+**Note on how it was found:** not by reading migrations — 071 reads as though it
+closed this — but by running one query from a real second account. The ADR-021
+conclusion applies unchanged: the only trustworthy verification of a data
+boundary is crossing it from the outside. Source: migration 083.

@@ -7,7 +7,6 @@ import { supabase } from './supabase'
 export type UserProfile = {
   id: string
   username: string
-  email: string
   display_name: string | null
   avatar_url: string | null
   city: string | null
@@ -18,8 +17,19 @@ export type UserProfile = {
   created_at: string
 }
 
+// Deliberately no `email`: migration 083 revoked it from the `authenticated`
+// column grant, because a row policy could not stop one signed-in user reading
+// every other user's address off this table. The owner's own email comes from
+// the session instead — see getSessionEmail() below.
 export const PROFILE_COLS =
-  'id, username, email, display_name, avatar_url, city, country, country_code, bio, subscription_status, created_at'
+  'id, username, display_name, avatar_url, city, country, country_code, bio, subscription_status, created_at'
+
+// The signed-in user's email, straight from the auth session (the canonical
+// source `public.users.email` only ever mirrored). Null when signed out.
+export async function getSessionEmail(): Promise<string | null> {
+  const { data } = await supabase.auth.getUser()
+  return data?.user?.email ?? null
+}
 
 // Cache the current user's profile in-memory so the Home header and Profile
 // screen render instantly on every navigation instead of blipping through a

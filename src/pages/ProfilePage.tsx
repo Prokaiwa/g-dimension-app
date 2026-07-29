@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   getCurrentUserProfile,
+  getSessionEmail,
   getCachedProfile,
   setCachedProfile,
   getProfileStats,
@@ -147,6 +148,8 @@ export default function ProfilePage() {
   // Seed from the in-memory profile cache so returning to this screen doesn't
   // flash "Loading…" every time; the effect below revalidates in the background.
   const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile())
+  // Not part of the profile row any more (migration 083) — read from the session.
+  const [email, setEmail]     = useState<string | null>(null)
   const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [license, setLicense] = useState<LicenseState | null>(null)
   const [loading, setLoading] = useState(() => !getCachedProfile())
@@ -195,6 +198,7 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
+    getSessionEmail().then(setEmail)
     getCurrentUserProfile().then(p => {
       setProfile(p)
       setLoading(false)
@@ -493,7 +497,7 @@ export default function ProfilePage() {
             {/* Account */}
             <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, margin: `${SPACE_XL}px 0 ${SPACE_XS}px` }}>Account</p>
             <div>
-              <InfoRow label="Email" value={profile.email} />
+              <InfoRow label="Email" value={email ?? '—'} />
               <InfoRow label="Member since" value={memberSince(profile.created_at)} />
             </div>
 

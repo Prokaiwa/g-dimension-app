@@ -694,9 +694,12 @@ export default function TuningAddPage() {
       if (selectedWheel.status !== 'installed') { mount.status = 'removed'; mount.still_owned = true }
       await supabase.from('jobs').update(mount).eq('id', jobId)
       if (oldTires.length > 0) {
+        // Retiring them is physically unmounting them, so clear the link too.
+        // Without this they stay attached to the wheel set forever and get
+        // re-offered (and re-dated) on every future tire change.
         const updates = oldTireDisposition === 'scrap'
-          ? { status: 'scrapped', still_owned: false, date_removed: today }
-          : { status: 'removed',   still_owned: true,  date_removed: today }
+          ? { status: 'scrapped', still_owned: false, date_removed: today, mounted_on_job_id: null }
+          : { status: 'removed',   still_owned: true,  date_removed: today, mounted_on_job_id: null }
         await supabase.from('jobs').update(updates).in('id', oldTires.map(t => t.id))
       }
     }

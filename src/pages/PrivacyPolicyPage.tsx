@@ -21,14 +21,14 @@ export default function PrivacyPolicyPage() {
           <><strong>Profile.</strong> Your chosen username, display name, optional avatar, optional city/country, and your unit preferences.</>,
           <><strong>Your build data.</strong> Everything you choose to record: vehicles, modifications, maintenance and detailing logs, timeline entries, photos, install guides, reminders, and notes.</>,
           <><strong>Sensitive vehicle records.</strong> If you enter them, items like VIN, license plate, purchase price, receipts, documents, and contacts. These are stored privately and are never shown on your public profile.</>,
-          <><strong>Files you upload.</strong> Photos and documents you add. Note: car-photo background removal runs entirely on your own device — that image is processed locally and is not sent to any third-party service for processing.</>,
+          <><strong>Files you upload.</strong> Photos and documents you add. Note: car-photo background removal runs entirely on your own device, so that image is processed locally and is not sent to any third-party service for processing.</>,
         ]} />
       </LegalSection>
 
       <LegalSection heading="2. Information collected automatically">
         <LegalList items={[
           <><strong>Usage &amp; device data.</strong> Basic technical information such as browser type, device, approximate region, pages viewed, and actions taken, collected through analytics and standard server logs.</>,
-          <><strong>Cookies &amp; local storage.</strong> We use your browser’s storage to keep you signed in and to remember preferences (such as your active car and sound setting). Analytics may set cookies to measure usage — see Section 6.</>,
+          <><strong>Cookies &amp; local storage.</strong> We use your browser’s storage to keep you signed in and to remember preferences (such as your active car and sound setting). Analytics may set cookies to measure usage. See Section 6.</>,
         ]} />
       </LegalSection>
 
@@ -62,9 +62,9 @@ export default function PrivacyPolicyPage() {
           app work, who process it on our behalf under their own privacy terms:
         </LegalP>
         <LegalList items={[
-          <><strong>Supabase</strong> — authentication, database, and file storage.</>,
-          <><strong>Vercel</strong> — application hosting and delivery.</>,
-          <><strong>Google</strong> — “Sign in with Google” (optional), analytics, and web fonts.</>,
+          <><strong>Supabase</strong>: authentication, database, and file storage.</>,
+          <><strong>Vercel</strong>: application hosting and delivery.</>,
+          <><strong>Google</strong>: “Sign in with Google” (optional), analytics, and web fonts.</>,
         ]} />
         <LegalP>
           We may also disclose information if required by law, to enforce our Terms, or to protect the rights,

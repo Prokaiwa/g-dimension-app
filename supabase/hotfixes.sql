@@ -6,6 +6,15 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 082_public_media_visibility.sql (applied 2026-07-28)
+--
+-- ⚠️ PENDING — NOT YET APPLIED:
+--   083_users_authenticated_column_grants.sql (ADR-022) — SECURITY. Any
+--   signed-in user can currently read every other user's `users.email` via
+--   REST (verified live 2026-07-29: 28 rows). 071 fixed this for anon only;
+--   015's users_select_public policy has no role clause, so `authenticated`
+--   matches every row, and 027's table-wide grant exposes every column.
+--   Run this one in the SQL Editor, then bump the watermark above to 083.
+--   The shipped frontend already works both before and after it runs.
 --   - 082 (public media/spec/DIY visibility: seven tables that were supposed to
 --     be publicly readable returned 42501 to anon, leaving the public build
 --     pages half-empty for logged-out visitors. Two faults: job_photos +
