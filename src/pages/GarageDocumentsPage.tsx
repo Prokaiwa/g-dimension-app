@@ -730,7 +730,7 @@ export default function GarageDocumentsPage() {
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, letterSpacing: '0.04em', color: DIM }}>
-                Private — stored encrypted, opened only with a short-lived link.
+                Private. Stored encrypted, opened only with a short-lived link.
               </span>
             </div>
 
@@ -870,7 +870,7 @@ export default function GarageDocumentsPage() {
                       </div>
                       <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '0 0 6px' }}>Receipts</p>
                       <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 13, color: DIM, margin: 0, lineHeight: 1.5 }}>
-                        Insurance, registration, fees — title each one. Service &amp; part receipts from your build show up here automatically.
+                        Insurance, registration, fees: title each one. Service &amp; part receipts from your build show up here automatically.
                       </p>
                     </div>
                     <button onClick={openNewReceipt} style={{
@@ -1052,7 +1052,7 @@ export default function GarageDocumentsPage() {
 
                 {(serviceGroups.length > 0 || buildGroups.length > 0) && (
                   <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 10.5, color: DIM, margin: `${SPACE_MD}px 0 0`, lineHeight: 1.5, textAlign: 'center' }}>
-                    Build receipts are added with each service &amp; part — edit them there.
+                    Build receipts are added with each service &amp; part. Edit them there.
                   </p>
                 )}
               </>

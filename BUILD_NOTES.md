@@ -15,12 +15,12 @@ exercised end to end. See **Wheels + Tires — verified** and **Multi-car
 carousel — verified** below. Two bugs came out of it, one of them a live PII
 leak (migration **083**, ADR-022).
 
-**⚠️ ONE THING NEEDS THE OWNER: run migration `083` in the Supabase SQL
-Editor.** Until it runs, any signed-in user can read every other user's email
-address off `/rest/v1/users`. The frontend change already shipped and is safe
-both before and after, so this is a single SQL paste with no deploy coupling.
+**Migration `083` was applied by the owner on 2026-07-29 and re-verified from a
+second account**: `email` now returns `42501` to `authenticated` (including on
+the owner's own row — the app reads it from the auth session), `select=*` is
+refused, and every legitimate read still works.
 
-What is left after that:
+What is left:
 
 1. **Safe-area insets (item 3) — still needs the owner, not an agent.** The
    audit is finished and written up below; what is missing is thirty seconds of
@@ -626,10 +626,11 @@ Worth keeping in mind for any future work here: **status alone cannot express
 "is this part still on that part"** — the mount link is the source of truth, so
 anything that takes a part off another part has to clear it.
 
-*Note (not changed):* the part-type names `Tires — Performance / Street` and
-`Tires — Truck / Off-Road` live in the `part_types` table and carry em dashes,
-which the copy rule forbids. They are DB data, not code, so fixing them means a
-migration — left for the owner to decide.
+*Note (deliberately NOT changed):* the part-type names `Tires — Performance /
+Street` and `Tires — Truck / Off-Road` carry em dashes, but the owner clarified
+on 2026-07-29 that the rule targets **em dashes inside sentences** — a dash used
+as a separator in a label is fine. These are labels, so they stay. No migration
+needed; don't "fix" them from a stale reading of the rule.
 
 ### Multi-car carousel — verified at 4 cars (2026-07-29)
 
@@ -671,7 +672,13 @@ and had exactly one consumer (the owner's own Profile row), which now reads
 shows the right address — and it does so **pre-migration**, so the deploy is
 safe in either order.
 
-**The migration still has to be run by the owner in the Supabase SQL Editor.**
+**Applied 2026-07-29**, then re-verified by crossing the boundary again from a
+second account: `select=username,email` → `42501`, `select=*` → `42501`, and
+`select=email` on the owner's *own* row → `42501` too (expected — a column
+grant is role-wide, which is exactly why the Profile screen now reads the
+session). Confirmed still working: `PROFILE_COLS`, the car-transfer @handle
+lookup, the transfer/ghost `username`+`display_name` embeds, and the owner's
+prefs / `active_car_id`.
 
 The generalisable lesson, and the reason this one hid behind two prior audits:
 **`authenticated` is not a trusted role.** Anyone can sign up, so the distance
@@ -689,9 +696,28 @@ Bin, install it again anytime"*, *"Part is leaving, stays in history"*) and five
 in the privacy policy (the on-device background-removal note, the cookies line,
 and the Supabase / Vercel / Google service list, which now use colons).
 
-Deliberately left: the standalone `—` empty-value markers in data cells (allowed
-by the rule), the decorative `— select —` placeholder and `— Advanced Specs`
-divider, and the dev-only `/sound-test` and `/dev/trading-cards` copy.
+**Second pass, same day, after the owner clarified the rule:** *"as long as
+they're not in sentences it's okay."* So the target is narrower than the earlier
+sweeps assumed — a dash separating a label from its value is fine; a dash inside
+prose is not. Re-swept on that basis and fixed 14 more, all of them real
+sentences: the auth-recovery screen, both Settings blocks (units note + the
+delete-account warning), three on Documents, the Build PDF blurb, the Snapshot
+"Not set" prompt, both Maintenance "no line items" hints, the Timeline note
+placeholder, two on Featured, and the Terms content-ownership clause.
+
+Deliberately left, and correct under the clarified rule: the standalone `—`
+empty-value markers in data cells, the decorative `— select —` placeholder and
+`— Advanced Specs` divider, the `Tires — Performance / Street` part-type labels,
+and the dev-only `/sound-test` + `/dev/trading-cards` copy (dev surfaces, per
+the owner's standing "leave for now" call).
+
+**Open question, deliberately not touched:** the Featured editorial pools
+(`src/features/featured/engine/pools/*.ts`) contain ~30 curated magazine deck
+lines that use em dashes inside sentences — *"The S14 — overlooked then, hunted
+now."*, *"The FD2 — the Type R that took itself most seriously."* These are
+hand-written editorial voice on a documented aesthetic island, and the em dash
+is a magazine convention rather than an accident, so rewriting them in bulk is a
+tone change rather than a copy fix. Ask before touching them.
 
 ---
 

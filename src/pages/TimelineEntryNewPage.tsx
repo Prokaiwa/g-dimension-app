@@ -253,7 +253,7 @@ export default function TimelineEntryNewPage() {
           {isEdit ? 'Edit entry' : 'New entry'}
         </h1>
         <p style={{ margin: '0 0 26px', fontFamily: FONT_UI, fontSize: 12, color: COLOR_TIMELINE_MUTED, lineHeight: 1.5 }}>
-          A moment in the story — a track day, a show, a drive worth remembering.
+          A moment in the story: a track day, a show, a drive worth remembering.
         </p>
 
         {/* Title */}

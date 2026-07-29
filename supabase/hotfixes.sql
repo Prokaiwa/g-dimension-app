@@ -5,16 +5,20 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 082_public_media_visibility.sql (applied 2026-07-28)
---
--- ⚠️ PENDING — NOT YET APPLIED:
---   083_users_authenticated_column_grants.sql (ADR-022) — SECURITY. Any
---   signed-in user can currently read every other user's `users.email` via
---   REST (verified live 2026-07-29: 28 rows). 071 fixed this for anon only;
---   015's users_select_public policy has no role clause, so `authenticated`
---   matches every row, and 027's table-wide grant exposes every column.
---   Run this one in the SQL Editor, then bump the watermark above to 083.
---   The shipped frontend already works both before and after it runs.
+-- Last migration applied : 083_users_authenticated_column_grants.sql (applied 2026-07-29)
+--   - 083 (ADR-022, SECURITY: any signed-in user could read every other user's
+--     users.email via REST — verified live at 28 rows. 071 fixed this for anon
+--     only; 015's users_select_public policy carries no role clause, so
+--     `authenticated` matched every row and 027's table-wide grant exposed
+--     every column. Replaced with a column-level grant excluding `email`.
+--     Re-verified after running: email now 42501 for authenticated (including
+--     on the owner's own row — the app reads it from the auth session
+--     instead), select=* correctly refused, and every legitimate read still
+--     works: PROFILE_COLS, the transfer @handle lookup, the transfer/ghost
+--     username+display_name embeds, and the owner's prefs/active_car_id.
+--     MAINTENANCE: this grant is now the single source of truth for what a
+--     signed-in user can read off `users` — a new column is invisible, even to
+--     its own owner, until it is added to the grant.)
 --   - 082 (public media/spec/DIY visibility: seven tables that were supposed to
 --     be publicly readable returned 42501 to anon, leaving the public build
 --     pages half-empty for logged-out visitors. Two faults: job_photos +

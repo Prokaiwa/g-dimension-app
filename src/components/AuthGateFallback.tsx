@@ -52,7 +52,7 @@ export default function AuthGateFallback() {
             Still loading…
           </p>
           <p style={{ fontWeight: 500, fontSize: 13.5, color: 'rgba(245,245,245,0.55)', lineHeight: 1.6, margin: `0 0 ${SPACE_LG}px`, maxWidth: 300 }}>
-            This is taking longer than it should — your session may have expired while the tab was asleep. Reload to retry, or sign in again.
+            This is taking longer than it should. Your session may have expired while the tab was asleep. Reload to retry, or sign in again.
           </p>
           <div style={{ display: 'flex', gap: SPACE_MD }}>
             <button onClick={() => window.location.reload()} style={{ minHeight: 44, padding: '0 22px', background: COLOR_ACCENT, border: 'none', borderRadius: RADIUS_BUTTON, color: COLOR_ACCENT_TEXT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>

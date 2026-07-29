@@ -137,7 +137,7 @@ function StubCell({ label, route, wide }: { label: string; route: string; wide?:
     <div style={{ display: 'flex', flexDirection: 'column', padding: '10px 12px', background: CARD_BG, border: `1px solid ${BORDER}`, gridColumn: wide ? '1 / -1' : undefined }}>
       <span style={LABEL_S}>{label}</span>
       <button onClick={() => navigate(route)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: TEXT_EMPTY, textAlign: 'left' }}>
-        Not set — tap to add →
+        Not set. Tap to add →
       </button>
     </div>
   )

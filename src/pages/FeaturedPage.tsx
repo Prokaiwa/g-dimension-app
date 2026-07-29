@@ -1884,7 +1884,7 @@ export default function FeaturedPage() {
           <div style={{ background:'#15151a', padding:'20px 18px calc(18px + env(safe-area-inset-bottom))', maxHeight:'86dvh', display:'flex', flexDirection:'column' }}>
             <div style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', color:'#f0ede8', fontSize:20, textTransform:'uppercase', letterSpacing:'0.01em', marginBottom:4 }}>The Feature Story</div>
             <p style={{ fontFamily:FONT_DECK, fontWeight:500, fontSize:11, color:'rgba(240,237,232,0.55)', lineHeight:1.5, margin:'0 0 12px' }}>
-              Written like a magazine would write about the car — third person, present tense.
+              Written like a magazine would write about the car: third person, present tense.
               Your first-person story lives on the Timeline; this is the editorial version.
             </p>
             <textarea
@@ -2050,7 +2050,7 @@ export default function FeaturedPage() {
             </button>
             {storySaved && (
               <div style={{ fontFamily:FONT_DECK, color:'rgba(245,245,245,0.55)', fontSize:10.5, lineHeight:1.5, marginTop:8 }}>
-                Image saved — add it to your Story from your camera roll.
+                Image saved. Add it to your Story from your camera roll.
               </div>
             )}
             {storyFailed && storyFailDetail && (

@@ -33,7 +33,7 @@ export default function TermsPage() {
 
       <LegalSection heading="3. Your content">
         <LegalP>
-          You own the content you create — your vehicles, photos, logs, stories, and other build data (“Your
+          You own the content you create: your vehicles, photos, logs, stories, and other build data (“Your
           Content”). You keep all ownership rights.
         </LegalP>
         <LegalP>

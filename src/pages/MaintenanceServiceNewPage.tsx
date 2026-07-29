@@ -321,7 +321,7 @@ export default function MaintenanceServiceNewPage() {
         <XPGroupBox label="Services Performed">
           {jobs.length === 0 && (
             <div style={{ fontFamily: XP_FONT, fontSize: 11, color: '#999', textAlign: 'center', padding: '6px 0 2px', fontStyle: 'italic' }}>
-              No line items — tap + Add Line to itemise services
+              No line items. Tap + Add Line to itemise services
             </div>
           )}
           {jobs.map((job, idx) => (

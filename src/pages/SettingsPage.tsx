@@ -262,7 +262,7 @@ export default function SettingsPage() {
             {/* Units */}
             <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, margin: `0 0 ${SPACE_XS}px` }}>Units</p>
             <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 12, color: MUTED, margin: `0 0 ${SPACE_SM}px`, lineHeight: 1.5 }}>
-              Display only — your numbers are always stored in base units and converted on the fly.
+              Display only. Your numbers are always stored in base units and converted on the fly.
             </p>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
               <UnitRow label="Distance" sub="Default odometer unit for new cars. Each car can override this on Edit Car" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
@@ -356,7 +356,7 @@ export default function SettingsPage() {
         busy={deleting}
       >
         <p style={{ fontFamily: FONT_UI, fontSize: 14, color: 'rgba(240,228,200,0.75)', lineHeight: 1.6, margin: `0 0 ${SPACE_MD}px` }}>
-          This permanently deletes your account — every car, mod, service record, timeline entry, photo, and receipt. There is no undo.
+          This permanently deletes your account: every car, mod, service record, timeline entry, photo, and receipt. There is no undo.
         </p>
         <FieldLabel>Type DELETE to confirm</FieldLabel>
         <input
