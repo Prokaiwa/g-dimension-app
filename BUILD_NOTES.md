@@ -6,6 +6,32 @@ Detailed built-state notes and per-section design decisions. **Read the relevant
 
 ## Beta Readiness Checklist (pre-friends test, no payment yet)
 
+### Where to pick up (as of 2026-07-28)
+
+Nine of the eleven checklist items below are done. **Two remain, and only one of
+them can be done from a chat session:**
+
+1. **Safe-area insets (item 3) — needs the owner, not an agent.** The audit is
+   finished and written up below; what is missing is thirty seconds of looking at
+   the iOS build on a notched device. Do not "fix" it speculatively: padding a
+   header that isn't clipped pushes every screen down for nothing. If the title
+   does sit under the status bar, the fix is one top inset on the shared
+   `HEADER_HEIGHT` bar, since nearly every page uses it.
+2. **Polish review (item 11)** — the open work an agent can pick up. Spacing, tap
+   targets, transition consistency. Unscoped by design; no known defects feed it.
+
+Everything else is either done, deliberately parked (dev routes in production,
+the social layer), or in the **What's Next** backlog at the bottom of this file.
+Two known unverified areas, both needing a real device rather than the relay
+harness: **Wheels + Tires mounting** (migration 066, ADR-016) and the
+**multi-car carousel at 3+ cars**.
+
+Live-DB caveat for anyone reading counts: the owner's own car
+(`dscantee007@yahoo.com`, the 2006 LS 430) is **deliberately loaded with 120
+demo service records** marked `shop_name = 'ZZ_LOAD_TEST'`, kept for
+demonstrations. They are not real history and not a bug. Delete with
+`delete from sessions where car_id = '<car>' and shop_name = 'ZZ_LOAD_TEST';`
+
 ### Planned next sessions (in priority order)
 1. ~~**Error observability (Sentry)**~~ ✅ DONE (2026-07-17) — `src/lib/errorTracking.ts`: lazy idle init (adds nothing to boot), inlined public DSN, CSP already allows the ingest domain, `?sentry-test` wiring check. Events are tagged with the user id (set on auth changes in `App.tsx`), the deploy SHA/environment (Vercel system env vars), and every `reportActionError()` save failure is mirrored remotely (`handled:action-error` tag). Errors only — no tracing/replay, to keep the free-tier quota lean. Remaining nice-to-have: readable prod stack traces via `@sentry/vite-plugin` source-map upload (needs a `SENTRY_AUTH_TOKEN` in Vercel).
 2. ~~**Empty states**~~ ✅ **DONE — verified 2026-07-27 by rendering all 18 app routes as a brand-new account with zero cars** (Playwright at iPhone viewport, Supabase stubbed to empty result sets). Every section already has a designed, in-aesthetic empty state with a working CTA, not a blank screen: Build Sheet *"Bone stock, for now. / Log your first mod with + MODS below."* (Cormorant, over the dimmed placeholder car); Parts Bin *"Empty / Parts you want, have on hand, or pulled from the car will show up here"* on the kraft page; Timeline *"The story hasn't started yet."* on parchment with a **My Cars** button; Featured *"EVERY COVER NEEDS A CAR / Add yours in the Garage and the magazine shoots itself."* in Anton; Contacts an illustrated *"Your address book"* with six quick-add category tiles; Documents/Snapshot/Reminders a consistent *"No car in the garage"* + **MY CARS**. Nothing to build here. (Harness: `test-results/walk.mjs`, gitignored — recreate rather than hunt for it.)
@@ -425,8 +451,31 @@ concern at realistic per-car volumes.
 `position: fixed` (44px tall, 28px up) floating over a scroll container that had
 **no bottom padding**. With a short history there is empty space under the last
 row so nothing showed; with a long one the FAB sat on top of the final records.
-Both lists now pad `calc(96px + env(safe-area-inset-bottom))`. This is a good
-example of a bug only a full list reveals.
+Both lists padded `calc(96px + env(safe-area-inset-bottom))` — since superseded
+by the height cap below, which keeps the FAB clear on its own.
+
+**Capped height + fade + running totals (2026-07-28, owner-requested).** Both
+lists now stop at `maxHeight: 64dvh` (about two thirds down), dissolve their
+bottom edge, and carry a summary strip underneath: **Services / Total Spent** on
+`MaintenanceServicePage`, **Sessions / Total Spent** on `MaintenanceDetailPage`.
+Three things worth not re-deciding:
+
+- **The fade is a CSS `maskImage`, not a gradient overlay.** Both pages sit on a
+  hero photo, so an opaque overlay reads as a grey band. The mask dissolves the
+  rows themselves and lets the photo through, and it tracks the container's
+  visible box so the fade stays pinned to the bottom edge through the scroll.
+- **Cap and fade are conditional on real overflow**, measured with a ref in a
+  `useEffect` (+ a `resize` listener). `maxHeight`, not `height`: a short history
+  collapses to its own size, so the totals sit right under the last row instead
+  of after a tall empty box, and nothing is faded when there is nothing below.
+- **`total_cost` is nullable**, so the strip sums only sessions that carry a
+  figure and prints "from N with a cost" when N is short of the total, rather
+  than implying the build cost less than it did. This fired for real on the
+  detail log (61 sessions, 60 costed).
+
+The two strips differ deliberately: detail keeps cents (`$8,895.00`) and service
+rounds (`$32,572`), each matching the per-row cost formatting directly above it.
+The detail label is "Sessions", not "Details", which would read as a field count.
 
 ### Odometer sync — verified behaviour (2026-07-28)
 
