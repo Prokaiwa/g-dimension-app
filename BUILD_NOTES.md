@@ -560,6 +560,37 @@ Selling a car you loved shouldn't erase it. After a transfer, a car persists in 
 
 **Phase 2 (2026-07-14) — public side + sharing, shipped.** Locked SOLD tiles now render on the *public* garage carousel (`PublicGaragePage`, reads the `public_sold_cars` definer view via `getPublicSoldCars`) — dimmed car + SOLD stamp, actions are **Details** (snapshot card) + **Visit Build** only; Featured/Build Sheet/Timeline are never reachable for a ghost. A dedicated shareable surface `PublicSoldCarPage` (route `/builds/:username/sold/:ghostId`, `getPublicSoldCar`) shows "‹Year Model› was sold by @A to @B — visit their build" + Share; the seller reaches it via a **Share** button on their private ghost card (`shareGhost` resolves the seller handle then `shareLink`). `api/og.js` gained a `/sold/:ghostId` branch so the link unfurls "‹Year Model› — sold to @B on G-Dimension" with the snapshot photo (the existing `^/builds/(.*)` rewrite already routes it). Guarded end-to-end — pre-074 the view read returns empty and nothing renders.
 
+### Driving the live app from a container session (2026-07-29)
+
+Worth writing down, because it took a while to find and every future session
+would otherwise re-derive it. With a test account you can drive the **real app
+against the live database** in a real browser, which is how the two items below
+were finally verified after months of "needs a real device".
+
+Two obstacles, both solved:
+
+1. **Chromium cannot reach the network through the sandbox proxy.** Every
+   HTTPS request dies with `ERR_TUNNEL_CONNECTION_FAILED` or
+   `ERR_CONNECTION_RESET`, with or without `--proxy-server`,
+   `--ignore-certificate-errors`, `--disable-quic` or HTTP/1-only. Node's fetch
+   *can* get through, with `NODE_USE_ENV_PROXY=1` and
+   `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`. So: intercept in Playwright
+   (`ctx.route('**://*.supabase.co/**', …)`) and relay each request through
+   Node's fetch, fulfilling with the response. Strip `content-encoding` and
+   `content-length` (fetch already decoded the body) or the browser fails to
+   parse it.
+2. **The cold-launch START splash blocks everything.** Seed the flag it checks
+   before the app boots: `ctx.addInitScript(() => sessionStorage.setItem('gdim_splash_seen', '1'))`.
+
+Two smaller traps: the pulsing Add Car button never satisfies Playwright's
+"element is stable" check (`animation: addPhotoBeat`), so use
+`dispatchEvent('click')` rather than `click()`; and most labels are uppercased
+in **CSS**, so match `getByText(/^details$/i)`, never `'DETAILS'`.
+
+The Vite dev server must be started on a fixed port (`npm run dev -- --port
+5199`) and the browser pointed at it. The harness lives in `test-results/`
+(gitignored) — recreate it from this description rather than hunting for it.
+
 ### Wheels + Tires — verified live, one bug fixed (2026-07-29)
 
 Migration 066 / ADR-016 had been shipped but never exercised — the 2026-07-28
