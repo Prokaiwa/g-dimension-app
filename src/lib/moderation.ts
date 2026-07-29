@@ -63,7 +63,7 @@ export async function reportContent(
         reason,
         details:     details?.trim() || null,
       })
-      .select('auto_hidden')
+      .select('id, auto_hidden')
       .single()
 
     if (error) {
@@ -73,7 +73,18 @@ export async function reportContent(
       if (error.code === '42P01') return { ok: false, error: 'Reporting isn’t available yet.' }
       return { ok: false, error: 'Could not send that report. Please try again.' }
     }
-    return { ok: true, autoHidden: (data as { auto_hidden: boolean } | null)?.auto_hidden ?? false }
+    const row = data as { id: string; auto_hidden: boolean } | null
+
+    // Notify the operator. Deliberately fire-and-forget AFTER the insert: the
+    // row is the evidence, the email is a convenience. A Resend outage or a
+    // cold function must never cost us the report itself, and the reporter
+    // should never see an error for a delivery problem they can't act on.
+    if (row?.id) {
+      supabase.functions.invoke('report-notify', { body: { reportId: row.id } })
+        .then(() => {}, () => {})
+    }
+
+    return { ok: true, autoHidden: row?.auto_hidden ?? false }
   } catch {
     return { ok: false, error: 'Could not send that report. Please try again.' }
   }
@@ -158,6 +169,7 @@ export type AdminReport = {
   auto_hidden: boolean
   target_type: ReportTargetType
   target_id: string
+  target_owner_id: string | null
   reporter_username: string | null
   owner_username: string | null
   owner_suspended: boolean

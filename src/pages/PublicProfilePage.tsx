@@ -23,6 +23,7 @@ import { shareLink } from '../lib/share'
 import { gradeById } from '../lib/license'
 import { PermitMini, permitInk } from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
+import ReportSheet from '../components/ReportSheet'
 import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_FEATURED,
@@ -206,6 +207,9 @@ const PREVIEW_NODES: NodeDef[] = [
 
 interface CarRow {
   id: string
+  // The owner, exposed by the view since 023. Used to hide the report action on
+  // your own profile and to target a block at the right account.
+  user_id: string
   username: string
   display_name: string | null
   avatar_url: string | null
@@ -251,6 +255,9 @@ export default function PublicProfilePage() {
   // Anonymous visitor? Gates the "start your own" signup CTAs (a logged-in
   // visitor already has an account — don't pitch them one).
   const [isAnon, setIsAnon] = useState(false)
+  // Viewer identity, so the report action can be hidden on your own profile.
+  const [viewerId, setViewerId] = useState<string | null>(null)
+  const [reportOpen, setReportOpen] = useState(false)
   // Identity card (driver card) open/closed + share feedback
   const [cardOpen, setCardOpen] = useState(false)
   const [cardShare, setCardShare] = useState<'idle' | 'copied'>('idle')
@@ -286,6 +293,7 @@ export default function PublicProfilePage() {
       // Anon check up front (also used by `leave`) — gates the signup CTAs.
       const { data: { session: authSession } } = await supabase.auth.getSession()
       if (!cancelled) setIsAnon(!authSession)
+      if (!cancelled) setViewerId(authSession?.user?.id ?? null)
       const { data, error } = await supabase
         .from('public_car_profiles')
         .select('*')
@@ -832,6 +840,19 @@ export default function PublicProfilePage() {
                         <ShareIcon size={14} color={ink.ink} />
                         {cardShare === 'copied' ? 'Link copied' : 'Share this build'}
                       </button>
+                      {!isAnon && viewerId !== car.user_id && (
+                        <button
+                          onClick={() => { setCardOpen(false); setReportOpen(true) }}
+                          style={{
+                            width: '100%', minHeight: 40, background: 'none', border: 'none',
+                            borderTop: `1px solid ${ink.hair}`, cursor: 'pointer',
+                            fontFamily: FONT_UI, fontWeight: 600, fontSize: 11, color: ink.dim,
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          Report this build
+                        </button>
+                      )}
                       {isAnon && (
                         <button
                           onClick={() => navigate('/signup?ref=profile')}
@@ -1320,6 +1341,19 @@ export default function PublicProfilePage() {
           animation: 'introFadeUp 600ms 260ms ease both',
         }}>@{username}</div>
       </div>
+    )}
+
+    {/* Report → block (App Store Guideline 1.2). Targets the CAR being viewed,
+        and offers to block its owner afterwards. */}
+    {car && (
+      <ReportSheet
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="car"
+        targetId={car.id}
+        targetUserId={car.user_id}
+        targetLabel={`@${username}`}
+      />
     )}
 
     {/* Exit fade — cut to black while the camera dives into the destination */}

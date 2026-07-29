@@ -301,6 +301,7 @@ export default function SettingsPage() {
             <SectionLabel>Cars</SectionLabel>
             <div style={{ borderTop: '1px solid rgba(240,228,200,0.07)' }}>
               <NavRow label="Archived Cars" sub="Restore within 7 days of archiving" onClick={() => navigate('/settings/archived')} />
+              <NavRow label="Blocked Accounts" sub="People you've blocked" onClick={() => navigate('/settings/blocked')} />
             </div>
 
             {/* Legal */}

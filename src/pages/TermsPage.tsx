@@ -58,7 +58,19 @@ export default function TermsPage() {
           'Attempt to disrupt, overload, reverse-engineer, or gain unauthorized access to the Service or its data.',
           'Scrape, harvest, or bulk-collect data from the Service, including from public profiles.',
           'Use the Service to build a competing product from our data, or resell access to it.',
+          'Impersonate another person, brand, or ' + LEGAL.appName + ' itself.',
         ]} />
+        <LegalP>
+          <strong>Zero tolerance for objectionable content and abusive behavior.</strong> We do not allow content
+          that is sexually explicit, hateful, violent, or that harasses or threatens anyone. There is a Report
+          option on public builds, and you can block any account from your side. We review every report and
+          typically act within 24 hours. Content reported for a serious reason is hidden automatically while we
+          look at it. We may remove content, hide a build, or suspend or terminate an account that breaks these
+          rules, with or without notice.
+        </LegalP>
+        <LegalP>
+          To report something you cannot reach in the app, or to appeal a decision, email us at {LEGAL.contactEmail}.
+        </LegalP>
       </LegalSection>
 
       <LegalSection heading="5. Our intellectual property">

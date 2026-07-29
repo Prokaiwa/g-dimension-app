@@ -453,7 +453,7 @@ $$;
 create or replace function public.admin_report_queue()
 returns table (
   id uuid, created_at timestamptz, reason text, details text, status text,
-  auto_hidden boolean, target_type text, target_id uuid,
+  auto_hidden boolean, target_type text, target_id uuid, target_owner_id uuid,
   reporter_username text, owner_username text, owner_suspended boolean,
   target_car_hidden boolean, report_count bigint
 )
@@ -468,7 +468,7 @@ begin
   end if;
   return query
     select r.id, r.created_at, r.reason, r.details, r.status,
-           r.auto_hidden, r.target_type, r.target_id,
+           r.auto_hidden, r.target_type, r.target_id, r.target_owner_id,
            ru.username, ou.username,
            ou.suspended_at is not null,
            coalesce((select c.moderation_hidden_at is not null
