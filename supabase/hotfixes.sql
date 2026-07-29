@@ -6,6 +6,16 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 083_users_authenticated_column_grants.sql (applied 2026-07-29)
+--
+-- PENDING — NOT YET APPLIED:
+--   084_moderation_foundation.sql (ADR-023) — App Store Guideline 1.2:
+--   report, block, suspend/hide, username blocklist, admin RPCs. Needed
+--   before store submission; 1.2 already applies because /builds publishes
+--   user content today. After running, ALSO grant yourself admin:
+--     insert into user_flags (user_id, flag)
+--     values ('<your-users.id>', 'admin');
+--   and set RESEND_API_KEY on the report-notify Edge Function.
+--   Then bump the watermark above to 084.
 --   - 083 (ADR-022, SECURITY: any signed-in user could read every other user's
 --     users.email via REST — verified live at 28 rows. 071 fixed this for anon
 --     only; 015's users_select_public policy carries no role clause, so

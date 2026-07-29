@@ -640,3 +640,83 @@ boundary becomes a reviewable act instead of a side effect of a new `select`.
 closed this — but by running one query from a real second account. The ADR-021
 conclusion applies unchanged: the only trustworthy verification of a data
 boundary is crossing it from the outside. Source: migration 083.
+
+---
+
+## ADR-023 — Moderation reuses `is_public` instead of a thirteenth visibility rule (2026-07-29)
+
+**Decision:** Ship the App Store Guideline 1.2 foundation — report, block,
+account-level consequences, username blocklist — as migration 084. Moderation
+hiding is implemented by flipping `cars.is_public` and remembering the owner's
+original value, guarded by a trigger, rather than by adding a
+`moderation_hidden_at is null` condition to every public RLS policy.
+
+**Context:** 1.2 requires four things of any app with user-generated content: a
+filtering method, a report mechanism with timely response, the ability to block
+abusive users, and published contact info. The trigger for this work was the
+social layer, but the finding that mattered is that **1.2 already applies**:
+`/builds/:username` publishes photos, bios, handles, nicknames and stories to
+anyone, so the requirement lands at the first submission and is not gated on
+follows existing.
+
+Twelve RLS policies gate the public surface, and every one of them already tests
+`cars.is_public = true`. The obvious implementation — add a second condition to
+all twelve — means restating twelve policies correctly. That is precisely what
+went wrong twice in one week on this exact boundary: 081 (grant too wide, leaking
+other users' spend) and 082 (policies too narrow, blanking the public DIY
+feature). ADR-021's conclusion was that this boundary is verified by crossing it,
+not by reasoning about it.
+
+**Rationale:** Reusing `is_public` inherits a code path that was already driven
+end to end as an anonymous visitor on 2026-07-28. No new reasoning, no twelve-way
+consistency to maintain, and a future public table added to the app is covered
+the moment it respects `is_public` like everything else does.
+
+The approach has one obvious hole — the owner simply re-ticks "Public" on the
+Edit Car screen — and `cars_moderation_guard` closes it: while
+`moderation_hidden_at` is set, `is_public` is forced back to false and the flags
+themselves cannot be changed by the owner. One trigger instead of twelve
+rewrites. RLS could not express this, because the rule is "you may update this
+row, but not these columns to that value", which is a column-and-value
+constraint, not a row predicate.
+
+The guard needed one subtlety worth recording: moderation's own writes run as
+the **reporter**, who is correctly not an admin, so a naive guard reverts the
+very hide it exists to protect. Moderation writes therefore announce themselves
+with a transaction-local `gdim.moderation` setting.
+
+**Auto-hide is the compliance mechanism, not the email.** Severe reports
+(nudity/hate/violence/illegal) hide the build immediately, before any human
+looks. A solo operator cannot promise a takedown SLA that depends on being
+awake, and App Review itself may be the reader. Judgement-call categories
+(harassment, spam, impersonation) queue instead, because an instant takedown is
+the wrong default when the question is contested. The lever is the **car**, not
+the individual photo: per-photo hiding would mean new columns and new conditions
+on several more public policies, which is the sprawl this ADR exists to avoid. A
+wrongly-hidden build is one tap from restored; objectionable content live during
+review is a rejection.
+
+**The username blocklist lives in the database, not a JSON file in the repo.**
+This was the owner's initial instinct and it had a hole: `handle_new_user()`
+(038/042) mints a public handle from the local part of the signup email, so a
+profane address becomes a profane handle without ever touching a form. A
+client-side list cannot see that path. The list is calibrated for car culture —
+`shit` and `bitch` are exact-match rather than substring, because "shitbox" is
+affectionate and "Bitchin' Rides" is a real show. Over-blocking handles in a
+build journal is a worse failure than the mild profanity it would catch.
+
+**Rejected: client-side NSFW image screening (NSFWJS/TensorFlow.js).** Proposed
+and argued down on four grounds. It compounds an unmeasured ~24MB WASM payload
+(BUILD_NOTES already flags the background-removal bundle). It is bypassable by
+construction, since the Storage write is a separate authenticated call from the
+check. Its `sexy` class fires on car-show photography, which is genuinely part of
+the culture. And it is nudity-only, missing gore and hate symbols — the higher
+rejection and liability risk. If automated screening is ever wanted it belongs
+server-side on upload, and only in response to real abuse.
+
+**Consequence:** admin actions are RPCs that re-derive `is_admin` from
+`user_flags` server-side, so `/admin/reports` holds no privilege of its own and
+the service-role key stays out of the moderation path entirely. And with
+moderation in place, the Phase 7 blocker is lifted: public follows with counts no
+longer need to be deferred (see MASTER_ARCHITECTURE Part 29). Source: migration
+084.

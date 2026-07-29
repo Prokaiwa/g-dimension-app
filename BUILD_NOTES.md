@@ -719,6 +719,92 @@ hand-written editorial voice on a documented aesthetic island, and the em dash
 is a magazine convention rather than an accident, so rewriting them in bulk is a
 tone change rather than a copy fix. Ask before touching them.
 
+### Moderation / App Store Guideline 1.2 (2026-07-29, migration 084, ADR-023)
+
+Built as the prerequisite for the social layer, but it stands on its own: 1.2
+applies to this app **today**, because `/builds/:username` already publishes
+photos, bios, handles, nicknames and stories to anyone. Missing report/block is
+the single most common rejection reason for apps like this.
+
+**What shipped**
+
+| Piece | Where |
+|---|---|
+| Report → block flow | `src/components/ReportSheet.tsx`, mounted on the public profile driver card |
+| Block list (undo) | `/settings/blocked` (`SettingsBlockedPage`) |
+| Admin queue | `/admin/reports` (`AdminReportsPage`), gated on the `admin` user_flag |
+| Email notification | `supabase/functions/report-notify` via Resend |
+| Username blocklist | `moderation_blocked_terms` + `users_username_guard` trigger, surfaced by `useUsernameStatus` |
+| Terms | zero-tolerance clause, 24-hour commitment, auto-hide disclosure, appeal address |
+
+**Four things not to re-litigate later:**
+
+1. **Hiding flips `cars.is_public`; it is not a separate condition.** Twelve
+   public RLS policies already test `is_public`, and restating all twelve is
+   exactly where 081 and 082 went wrong in the same week. `cars_moderation_guard`
+   stops the owner turning it back on, which is the only hole that approach has.
+   The guard recognises moderation's own writes via a transaction-local
+   `gdim.moderation` setting — necessary because those writes run as the
+   *reporter*, who is correctly not an admin, so a naive guard reverts the very
+   hide it protects.
+2. **Auto-hide is the compliance mechanism, not the email.** Severe reasons hide
+   the build before any human looks. A solo operator cannot promise a takedown
+   SLA that depends on being awake, and App Review itself may be the reader. The
+   lever is the CAR, not the individual photo — per-photo hiding would need new
+   conditions on several more public policies.
+3. **The username blocklist is in the database, not a JSON file.**
+   `handle_new_user()` mints a handle from the signup email without ever touching
+   a form, so a client-side list cannot see that path. Calibrated for car
+   culture: `shit` and `bitch` are **exact-match, not substring**, because
+   "shitbox" is affectionate and "Bitchin' Rides" is a real show.
+4. **NSFWJS was considered and rejected** (see ADR-023 for the full argument):
+   compounds the unmeasured ~24MB WASM payload, bypassable since the Storage
+   write is a separate call, false-positives on car-show photography, and
+   nudity-only so it misses gore and hate symbols anyway.
+
+**Blocking's honest scope:** `/builds` is anon-readable, so a blocked user can
+sign out and still view a public page. Blocking governs *interaction* (follows,
+and later feeds/comments), not the public web. Don't let UI copy promise more.
+
+**⚠️ Owner steps after running 084:**
+1. Grant yourself admin:
+   `insert into user_flags (user_id, flag) values ('<your-users.id>', 'admin');`
+2. Set `RESEND_API_KEY` as a secret on the `report-notify` Edge Function and
+   deploy it (Dashboard → Edge Functions).
+3. Bump the `hotfixes.sql` watermark to 084.
+
+**Verified pre-migration** (the deploy lands first): `/settings/blocked` shows
+its empty state, `/admin/reports` shows "Not available.", Profile/Settings/Terms
+render, and nothing crashes — the guarded helpers swallow the missing tables.
+Post-migration verification is still outstanding.
+
+### Social layer — unblocked, and the recommended order (2026-07-29)
+
+`MASTER_ARCHITECTURE` Part 29 parked Phase 7 on the grounds that "a social layer
+without moderation is a liability, not a feature." **084 removes that blocker**,
+which inverts the advice given earlier the same day: private-follow-first was
+proposed *only* to dodge the moderation dependency, so with moderation built,
+public follows with counts are safe to ship directly.
+
+Recommended order, agreed with the owner:
+
+1. ~~Moderation foundation~~ ✅ **DONE** (084).
+2. **Follows** — `follows(follower_id, followee_id, created_at)`, PK on the pair,
+   `on delete cascade` both sides, `check (follower_id <> followee_id)`. Button
+   on the public profile driver card; list in Profile.
+3. **`@username` search** — there is currently **no discovery at all**: no
+   search, no browse, and `/builds/:username` is reachable only via a link
+   someone hands you. Follow keeps people you found; it does not help you find
+   anyone. The columns needed (`username`, `display_name`, `avatar_url`) are all
+   still granted post-083.
+4. **Feed** — last, and note there is **no push infrastructure** (078's reminders
+   are on-device local notifications only), so a feed is in-app only.
+
+One detail not to lose: the Follow button must work signed-out by routing to
+signup and then **returning to that profile and completing the follow**. A
+logged-out visitor who finds a build they love is exactly the user this feature
+exists for, and dumping them on Home after signup loses them.
+
 ---
 
 ## What's Next (not yet built)

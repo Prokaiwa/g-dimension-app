@@ -1815,10 +1815,18 @@ Groups, meets/events, and follows — "forums beautified, Instagram for cars, GT
 vibe." Requested by early users; deliberately parked until it gets its own
 dedicated design session. Do NOT start building slices of this ad hoc.
 
+**UPDATE (2026-07-29): the moderation prerequisite is now BUILT** — migration
+084 / ADR-023 ships reporting, blocking, auto-hide, account suspension, a
+username blocklist and an admin queue at `/admin/reports`. It was built for App
+Store Guideline 1.2, which applies to the public build pages already, but it
+also removes the reason this phase was parked. **Follows with public counts are
+no longer blocked.** What still needs designing before code: groups, meets and
+events (the location-privacy constraint below is untouched by 084).
+
 **Must be designed before any code:**
-- Data model (groups, memberships, events, RSVPs, follows) + moderation story
+- Data model (groups, memberships, events, RSVPs, follows) + ~~moderation story
   (reporting, blocking, admin tooling — a social layer without moderation is a
-  liability, not a feature).
+  liability, not a feature)~~ **moderation: DONE, see ADR-023.**
 - **Location privacy:** meets/events imply location data. Default to
   coarse/opt-in location only; never store precise home coordinates. This is a
   hard constraint, not a preference.
