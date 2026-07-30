@@ -720,3 +720,73 @@ the service-role key stays out of the moderation path entirely. And with
 moderation in place, the Phase 7 blocker is lifted: public follows with counts no
 longer need to be deferred (see MASTER_ARCHITECTURE Part 29). Source: migration
 084.
+
+---
+
+## ADR-024 — Follows are public because moderation exists (2026-07-30)
+
+**Decision:** Ship following as a **public** relationship with visible counts
+(migration 086), not the private bookmark recommended earlier the same day.
+Blocking is enforced in the RLS insert policy, in both directions.
+
+**Context:** The user's problem, in their words: *"if you see someone's profile
+it's very easy to lose and then you can never follow them again."*
+
+The first recommendation was a follow visible only to the follower — functionally
+a bookmark. That was not a product judgement; it was a way to **avoid depending
+on moderation**, because a follow the followee can see creates a status metric, a
+notification surface and a harassment vector, and `MASTER_ARCHITECTURE` Part 29
+had parked the whole social layer on exactly that basis: *"a social layer without
+moderation is a liability, not a feature."*
+
+Then 084 (ADR-023) built moderation — report, block, auto-hide, suspension,
+admin queue — because App Store Guideline 1.2 required it independently of
+anything social. That removed the constraint, and the private version would now
+have been a worse product for no remaining benefit. So the recommendation was
+**inverted deliberately**, not abandoned: the reasoning that produced it no
+longer held.
+
+**Rationale for the specifics:**
+
+- **Read is public.** Counts cannot work otherwise, and a follow is a public act
+  in every app that has one. The consequence is stated in the migration header
+  rather than left to be discovered: the graph is enumerable with the anon key,
+  as it is on Instagram and Twitter. Making lists private later is a policy
+  change, not a schema change.
+- **The pair is the primary key.** Following is idempotent for free — a
+  double-tap raises `23505` instead of creating a second edge or inflating a
+  count. An edge has no identity of its own, so there is no surrogate id.
+- **Blocking lives in the RLS insert policy, checked both ways.** This is the
+  payoff for having built 084 first. A block that only hides a button is not a
+  block; enforcing it in the UI would have meant the database still permitted the
+  follow. Verified live: block → follow refused with `42501`, unblock → follow
+  succeeds.
+- **Counts and the list go through definer functions.** They stay correct
+  regardless of the 071/083 column grants on `users`, they filter suspended and
+  deleted accounts next to the query rather than in the page, and they keep
+  working if follows ever stops being publicly readable.
+- **085's lesson applied up front rather than rediscovered.** This database
+  grants `authenticated` full DML on new public tables, so 086 does `revoke all`
+  before granting exactly select/insert/delete. An edge is created or destroyed,
+  never edited.
+
+**The anon path is the feature, not a nicety.** A logged-out visitor is the
+person most at risk of losing a build they just found — the exact complaint. So
+tapping Follow while signed out parks the handle, routes to signup, and the app
+carries them **back to that profile and completes the follow**. Three details
+that matter:
+
+1. `localStorage`, not `sessionStorage` — email confirmation can complete in a
+   different tab, which would drop a session-scoped intent and lose precisely the
+   user this exists to keep.
+2. **Single-use**, so a completed follow cannot loop, and the `?follow=1` param
+   is stripped after completing so a refresh cannot re-run it.
+3. **A 24-hour TTL.** Generous enough for email confirmation, but an intent that
+   fired days later would yank someone to a profile they had forgotten about —
+   worse than quietly dropping it.
+
+**Known gap, deliberately not solved here:** there is still **no discovery
+anywhere in the app** — no search, no browse; `/builds/:username` is reachable
+only via a link someone hands you. Follow keeps people you already reached; it
+does not help you find anyone. That is the next piece, and it is why follow alone
+should not be mistaken for "the social layer". Source: migration 086.

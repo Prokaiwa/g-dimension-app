@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
+import { takePendingFollow } from './lib/follows'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded, clearProfileCache } from './lib/userProfile'
@@ -200,6 +201,7 @@ export default function App() {
   // stay silent for anonymous visitors (they have no toggle), but a logged-in
   // viewer — usually the owner showing off their build — gets the full sound.
   const location = useLocation()
+  const navigate = useNavigate()
   const [hasSession, setHasSession] = useState(false)
 
   // Cold-launch START splash. Shows the first time this session the user lands on
@@ -232,6 +234,17 @@ export default function App() {
       || p.startsWith('/welcome') || p.startsWith('/auth') || p.startsWith('/builds')
     setMusicAllowed(!isPublic || (p.startsWith('/builds') && hasSession))
   }, [location.pathname, hasSession])
+
+  // Anon tapped Follow on a public build, then signed up. Bring them back to
+  // that profile and let it complete the follow (see lib/follows.ts). Waits
+  // until they're actually INSIDE the app, so it never fires mid-signup or over
+  // the /welcome handle claim.
+  useEffect(() => {
+    if (!hasSession) return
+    if (!/^\/(home|garage|tuning|maintenance|timeline|featured|profile|settings)(\/|$)/.test(location.pathname)) return
+    const handle = takePendingFollow()
+    if (handle) navigate(`/builds/${encodeURIComponent(handle)}?follow=1`, { replace: true })
+  }, [hasSession, location.pathname, navigate])
 
   useEffect(() => {
     // Seed localStorage from server on every sign-in and on page load

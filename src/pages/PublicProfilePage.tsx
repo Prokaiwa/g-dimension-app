@@ -887,7 +887,7 @@ export default function PublicProfilePage() {
                         borderTop: `1px solid ${ink.hair}`, padding: '8px 0 2px',
                         fontFamily: FONT_UI, fontSize: 11, color: ink.dim,
                       }}>
-                        <span><strong style={{ color: ink.ink, fontWeight: 800 }}>{formatCount(counts.followers)}</strong> followers</span>
+                        <span><strong style={{ color: ink.ink, fontWeight: 800 }}>{formatCount(counts.followers)}</strong> {counts.followers === 1 ? 'follower' : 'followers'}</span>
                         <span><strong style={{ color: ink.ink, fontWeight: 800 }}>{formatCount(counts.following)}</strong> following</span>
                       </div>
 

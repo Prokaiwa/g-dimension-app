@@ -100,22 +100,35 @@ export async function getFollowing(userId: string): Promise<FollowedUser[]> {
 // session-scoped intent — losing exactly the user this exists to keep.
 const KEY = 'gdim_pending_follow'
 
+// Expire the intent. Email confirmation can take a while, so this is generous —
+// but an intent that fires days later would yank someone to a profile they've
+// forgotten about, which is worse than quietly dropping it.
+const TTL_MS = 24 * 60 * 60 * 1000
+
+function read(): string | null {
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { u?: string; ts?: number }
+    if (!parsed?.u || typeof parsed.ts !== 'number') return null
+    if (Date.now() - parsed.ts > TTL_MS) { localStorage.removeItem(KEY); return null }
+    return parsed.u
+  } catch { return null }
+}
+
 export function setPendingFollow(username: string): void {
-  try { localStorage.setItem(KEY, username) } catch { /* private mode: skip */ }
+  try { localStorage.setItem(KEY, JSON.stringify({ u: username, ts: Date.now() })) }
+  catch { /* private mode: skip */ }
 }
 
 /** Reads and clears the parked intent. Single-use so it can't loop. */
 export function takePendingFollow(): string | null {
-  try {
-    const v = localStorage.getItem(KEY)
-    if (v) localStorage.removeItem(KEY)
-    return v || null
-  } catch { return null }
+  const v = read()
+  if (v) { try { localStorage.removeItem(KEY) } catch { /* ignore */ } }
+  return v
 }
 
-export function peekPendingFollow(): string | null {
-  try { return localStorage.getItem(KEY) || null } catch { return null }
-}
+export function peekPendingFollow(): string | null { return read() }
 
 export function clearPendingFollow(): void {
   try { localStorage.removeItem(KEY) } catch { /* ignore */ }

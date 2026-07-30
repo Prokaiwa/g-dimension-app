@@ -806,15 +806,22 @@ nothing. Safe today; fragile the day someone adds a `for all` policy — which
 this codebase has done twice (081/082). 085 makes reports append-only at the
 grant level and takes the blocklist off REST entirely.
 
-**Still outstanding** (owner steps, not code):
-1. `insert into user_flags (user_id, flag) select id, 'admin' from users where username = '<your-handle>';`
-2. Set `RESEND_API_KEY` and deploy the `report-notify` Edge Function.
-3. Run 085.
+**FULL LIFECYCLE CLOSED (2026-07-30).** Admin was granted to `@scantee`, who
+dismissed the test report from `/admin/reports`. The restore is exact: `is_public`
+came back as `true` read from `moderation_prev_public` rather than assumed,
+`moderation_hidden_at` and `moderation_prev_public` cleared, the car **and its
+mods** readable by anon again, and `resolved_by` recorded. So report → auto-hide →
+admin dismiss → restore is verified end to end.
 
-Until (1), the admin queue and the dismiss/restore path are **unverified** — and
-the test account's Silvia is currently auto-hidden with no way to restore it,
-which is correct behaviour (only an admin can lift a hide) but does mean
-dismissal has not been exercised yet.
+**085 applied and verified**: a reporter's `PATCH`/`DELETE` of their own report
+now returns `42501` instead of a silent `204`/0-rows, `moderation_blocked_terms`
+is off the REST surface entirely, and `username_rejection_reason()` still works
+(a definer function needs no table grant).
+
+**Still outstanding** (one owner step): set `RESEND_API_KEY` and deploy the
+`report-notify` Edge Function. Until then reports save correctly but no email is
+sent — verified harmless, because the notify is fire-and-forget after the insert.
+There is also one `spam` test report left open in the queue; dismiss it whenever.
 
 ### Social layer — unblocked, and the recommended order (2026-07-29)
 
@@ -826,22 +833,56 @@ public follows with counts are safe to ship directly.
 
 Recommended order, agreed with the owner:
 
-1. ~~Moderation foundation~~ ✅ **DONE** (084).
-2. **Follows** — `follows(follower_id, followee_id, created_at)`, PK on the pair,
-   `on delete cascade` both sides, `check (follower_id <> followee_id)`. Button
-   on the public profile driver card; list in Profile.
-3. **`@username` search** — there is currently **no discovery at all**: no
-   search, no browse, and `/builds/:username` is reachable only via a link
-   someone hands you. Follow keeps people you found; it does not help you find
-   anyone. The columns needed (`username`, `display_name`, `avatar_url`) are all
-   still granted post-083.
+1. ~~Moderation foundation~~ ✅ **DONE** (084 + 085).
+2. ~~**Follows**~~ ✅ **DONE (086, ADR-024)** — see below.
+3. **`@username` search** — **next, and the bigger gap.** There is still **no
+   discovery at all**: no search, no browse, and `/builds/:username` is reachable
+   only via a link someone hands you. Follow keeps people you found; it does not
+   help you find anyone. The columns needed (`username`, `display_name`,
+   `avatar_url`) are all still granted post-083.
 4. **Feed** — last, and note there is **no push infrastructure** (078's reminders
    are on-device local notifications only), so a feed is in-app only.
 
-One detail not to lose: the Follow button must work signed-out by routing to
-signup and then **returning to that profile and completing the follow**. A
-logged-out visitor who finds a build they love is exactly the user this feature
-exists for, and dumping them on Home after signup loses them.
+### Follows (2026-07-30, migration 086, ADR-024)
+
+**Public follows with counts, not the private bookmark first recommended.** That
+recommendation existed only to avoid depending on moderation; 084 removed the
+dependency, so the private version would have been a worse product for no
+remaining benefit. The reversal was deliberate — see ADR-024.
+
+| Piece | Where |
+|---|---|
+| Follow button + follower/following counts | public profile driver card (`PublicProfilePage`) |
+| Following list, with Unfollow and a tap through to each build | `/following` (`FollowingPage`) |
+| "Following · N builds you keep an eye on" | Profile, above Settings |
+| Anon intent park/consume | `src/lib/follows.ts` + the effect in `App.tsx` |
+
+**Three things not to re-decide:**
+
+1. **The pair is the primary key.** Following is idempotent for free — a
+   double-tap raises `23505` rather than creating a second edge. Don't add a
+   surrogate id; an edge has no identity of its own.
+2. **Blocking is enforced in the RLS insert policy, in both directions**, not in
+   the UI. This is the payoff for building 084 first. Verified live: block →
+   follow refused `42501` → unblock → follow succeeds.
+3. **Read is public**, so the graph is enumerable with the anon key (as on
+   Instagram/Twitter). Counts cannot work otherwise. Making lists private later
+   is a policy change, not a schema change.
+
+**The anon path is the feature, not a nicety** — a logged-out visitor is the
+person most likely to lose a build they just found, which was the original
+complaint. Tapping Follow signed-out parks the handle, routes to signup, then the
+app carries them back to that profile and completes the follow. `localStorage`
+not `sessionStorage` (email confirmation can land in a different tab); single-use
+and the `?follow=1` param is stripped after completing, so it can't loop; and a
+**24-hour TTL**, because an intent firing days later would yank someone to a
+profile they'd forgotten about.
+
+**Verified live 2026-07-30:** follow/unfollow, counts as owner *and* anon,
+`following_list`, duplicate/self/impersonated follows all refused, `UPDATE` on an
+edge refused, the block interaction, and the full anon loop (parked handle →
+login → redirect → follow completed → param stripped). Fixed while testing:
+the counts read "1 followers".
 
 ---
 

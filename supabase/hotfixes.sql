@@ -5,48 +5,32 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 084_moderation_foundation.sql (applied 2026-07-30)
+-- Last migration applied : 086_follows.sql (applied 2026-07-30)
+--   - 086 (ADR-024, following: public follows + counts; blocking enforced in the
+--     RLS insert policy both ways). Verified live: follow/unfollow, counts as
+--     owner AND anon, following_list, duplicate + self + impersonated follows
+--     all refused, UPDATE on an edge refused (086 revokes it), and the block
+--     interaction — block → follow refused 42501 → unblock → follow succeeds.
+--     Anon intent verified end to end: parked handle → login → redirected to
+--     the profile → follow COMPLETED automatically → ?follow=1 stripped.
+--   - 085 (moderation grant hardening). Verified: a reporter's PATCH/DELETE of
+--     their own report now returns 42501 instead of a silent 204/0-rows;
+--     moderation_blocked_terms is off REST entirely while
+--     username_rejection_reason() still works (definer, no table grant needed).
 --   - 084 (ADR-023, App Store Guideline 1.2: report/block, suspend + hide,
---     username blocklist, admin RPCs). Verified live the same day from a real
---     account, reporting the TEST account's own car so no real user's build was
---     hidden: severe report → auto_hidden=true and the build left ALL FIVE
---     public surfaces at once (public_car_profiles, jobs, sessions,
---     job_photos, timeline_entries) from the single is_public flip, with zero
---     policy edits — the design bet in the 084 header paid off. Owner kept
---     private access throughout. cars_moderation_guard held: re-ticking Public
---     and clearing moderation_hidden_at both silently reverted, while ordinary
---     edits (nickname) still worked. target_owner_id was overwritten from a
---     deliberately falsified value to the real owner. Non-severe (spam) queued
---     without hiding. Username blocklist correct incl. leetspeak
---     (gdim3ns10n → brand, nigg3r → slur, f_u_c_k → profanity) and the
---     car-culture calibration (shitbox / bitchinrides / assetto all ALLOWED).
---     users_username_guard rejected blocked handles even via raw REST. All
---     four admin RPCs refused a non-admin (42501) and anon cannot execute them.
---     Reports are unreadable to anon and scoped to their author.
+--     username blocklist, admin RPCs). Verified live from a real account,
+--     reporting the TEST account's own car so no real user's build was hidden:
+--     severe report → auto_hidden=true and the build left ALL FIVE public
+--     surfaces at once from the single is_public flip, with zero policy edits.
+--     Owner kept private access. cars_moderation_guard held against both
+--     evasions. target_owner_id overwritten from a falsified value. Non-severe
+--     queued without hiding. Blocklist correct incl. leetspeak and the
+--     car-culture calibration (shitbox/bitchinrides/assetto ALLOWED). All four
+--     admin RPCs refused a non-admin. FULL LIFECYCLE CLOSED 2026-07-30: the
+--     owner dismissed the report from /admin/reports and is_public was restored
+--     to true from moderation_prev_public (not assumed), flags cleared, the car
+--     and its mods readable by anon again, resolved_by recorded.
 --
--- PENDING — NOT YET APPLIED:
---   085_moderation_grant_hardening.sql — defence in depth found during that
---   verification: this DB's default privileges give `authenticated` full DML on
---   new public tables, so 084's narrow `grant select, insert` narrowed nothing.
---   A reporter's UPDATE/DELETE of their own report currently returns 204 with
---   0 rows (RLS refuses it) rather than 42501 (the grant would). Safe today,
---   fragile the day someone adds a `for all` policy — which this codebase has
---   done twice (081/082). 085 makes reports append-only at the grant level and
---   takes the blocklist off the REST surface entirely. Does NOT affect the
---   admin RPCs (security definer). Then bump this watermark to 085.
---   - 083 (ADR-022, SECURITY: any signed-in user could read every other user's
---     users.email via REST — verified live at 28 rows. 071 fixed this for anon
---     only; 015's users_select_public policy carries no role clause, so
---     `authenticated` matched every row and 027's table-wide grant exposed
---     every column. Replaced with a column-level grant excluding `email`.
---     Re-verified after running: email now 42501 for authenticated (including
---     on the owner's own row — the app reads it from the auth session
---     instead), select=* correctly refused, and every legitimate read still
---     works: PROFILE_COLS, the transfer @handle lookup, the transfer/ghost
---     username+display_name embeds, and the owner's prefs/active_car_id.
---     MAINTENANCE: this grant is now the single source of truth for what a
---     signed-in user can read off `users` — a new column is invisible, even to
---     its own owner, until it is added to the grant.)
 --   - 082 (public media/spec/DIY visibility: seven tables that were supposed to
 --     be publicly readable returned 42501 to anon, leaving the public build
 --     pages half-empty for logged-out visitors. Two faults: job_photos +

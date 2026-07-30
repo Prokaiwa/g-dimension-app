@@ -64,6 +64,27 @@ describe('pending follow intent', () => {
     expect(peekPendingFollow()).toBeNull()
   })
 
+  it('expires a stale intent rather than firing days later', () => {
+    // A parked intent that fires long after the fact would yank someone to a
+    // profile they've forgotten about. 24h TTL, written as a raw record so the
+    // clock isn't mocked.
+    localStorage.setItem('gdim_pending_follow',
+      JSON.stringify({ u: 'stale', ts: Date.now() - 25 * 60 * 60 * 1000 }))
+    expect(peekPendingFollow()).toBeNull()
+    expect(takePendingFollow()).toBeNull()
+  })
+
+  it('honours an intent parked just inside the window', () => {
+    localStorage.setItem('gdim_pending_follow',
+      JSON.stringify({ u: 'fresh', ts: Date.now() - 23 * 60 * 60 * 1000 }))
+    expect(takePendingFollow()).toBe('fresh')
+  })
+
+  it('ignores a corrupt record instead of throwing', () => {
+    localStorage.setItem('gdim_pending_follow', 'not json')
+    expect(takePendingFollow()).toBeNull()
+  })
+
   it('survives being cleared twice', () => {
     setPendingFollow('x')
     clearPendingFollow()
