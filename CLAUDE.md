@@ -375,7 +375,7 @@ src/lib/attention.ts                — ONE attention count for the whole app: u
 src/lib/follows.ts                  — Following (086, ADR-024): follow/unfollow, counts + list via definer RPCs, and the anon follow intent (localStorage, single-use, 24h TTL) that survives signup
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–089
+supabase/migrations/                — Numbered SQL files; see the Database section above for the current range + per-migration notes (deliberately NOT repeated here, it drifted twice)
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
