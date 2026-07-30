@@ -1060,9 +1060,16 @@ sentence. 088 retitles it *"Your build has been restored"*, which is true whethe
 the car returns to public or to private and needs no branch. The body was already
 accurate. Function-only change; everything else is byte-identical to 087.
 
+**088 verified 2026-07-30**, re-running the same private-car case after it was
+applied: the notice now reads **"Your build has been restored"** (no "public
+again" anywhere in title or body), and the behaviour is unchanged — the car came
+back `is_public = false`, invisible to anon, flags cleared.
+
 > Worth generalising: a verification where the "right" and "wrong" behaviours
 > produce the same observable output is not a verification. Set up the case where
-> they differ, or say plainly that the property is unproven.
+> they differ, or say plainly that the property is unproven. This bit twice in one
+> session — first hiding whether the restore honoured privacy at all, then hiding
+> that the wording was wrong even though the behaviour was right.
 
 **Worth knowing:** the suspended-account banner works only because 084 added
 `suspended_at` to the 083 column grant. That grant is load-bearing — without it
