@@ -5,20 +5,22 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 088_restore_notice_wording.sql (applied 2026-07-30)
+-- Last migration applied : 089_notice_copy.sql (applied 2026-07-30)
+--   - 089 (copy-only): rewrites the string literals in the four notice-writing
+--     functions. Drops "restored to exactly the visibility you had set" — the
+--     property is real (restores read moderation_prev_public, see 088) but the
+--     owner never asked, and saying it out loud plants the doubt "why wouldn't
+--     it come back the way I had it?" Also removes the two em dashes that were
+--     sitting inside sentences, against the project's own copy rule. Function
+--     bodies otherwise byte-identical to 087/088.
+--
+-- No migrations pending.
 --   - 088 (function-only copy fix, found while verifying 087): the dismissal
 --     notice was titled "Your build is public again", which is false when the
 --     car was PRIVATE before being auto-hidden. The restore itself was already
 --     correct (verified live: a private car came back is_public=false and
 --     invisible to anon) — only the title lied. Now "Your build has been
 --     restored", true either way. Everything else byte-identical to 087.
---
--- PENDING: 089_notice_copy.sql — copy-only. Rewrites the string literals in the
---   four notice-writing functions. Drops "restored to exactly the visibility you
---   had set" (engineering reasoning leaking into user copy: it answers a question
---   nobody asked and, by raising it, plants the doubt) and removes the two em
---   dashes that were sitting inside sentences, against the project's own rule.
---   Function bodies otherwise byte-identical to 087/088. Idempotent.
 --
 --   - 087 (ADR-025, user_notices + unsuspend): moderation now tells the person
 --     it happened to, and admin_suspend_user finally has an inverse. Notices are
