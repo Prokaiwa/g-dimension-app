@@ -1,5 +1,21 @@
 // Supabase Edge Function: report-notify
 //
+// ⚠️ NOT DEPLOYED, BY DECISION (2026-07-30). Written, reviewed and kept, but
+// switched off: the report QUEUE at /admin/reports is the system of record, and
+// auto-hide (084) takes severe content down without anyone being notified at
+// all. Email only changes how fast the admin notices the judgement-call
+// reports, and is NOT required for App Store Guideline 1.2. The client no
+// longer calls it — see the note in src/lib/moderation.ts — because invoking an
+// undeployed function just fires a guaranteed 404 on every report.
+//
+// TO ENABLE: set RESEND_API_KEY as an Edge Function secret, deploy this file,
+// and restore the fire-and-forget call in reportContent():
+//
+//   if (row?.id) {
+//     supabase.functions.invoke('report-notify', { body: { reportId: row.id } })
+//       .then(() => {}, () => {})
+//   }
+//
 // Emails the operator when a content report is filed (migration 084, ADR-023).
 // Deploy via the Supabase Dashboard (Edge Functions → Deploy a new function →
 // paste this file) or `supabase functions deploy report-notify`.

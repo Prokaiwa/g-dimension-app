@@ -75,14 +75,16 @@ export async function reportContent(
     }
     const row = data as { id: string; auto_hidden: boolean } | null
 
-    // Notify the operator. Deliberately fire-and-forget AFTER the insert: the
-    // row is the evidence, the email is a convenience. A Resend outage or a
-    // cold function must never cost us the report itself, and the reporter
-    // should never see an error for a delivery problem they can't act on.
-    if (row?.id) {
-      supabase.functions.invoke('report-notify', { body: { reportId: row.id } })
-        .then(() => {}, () => {})
-    }
+    // NO EMAIL NOTIFICATION, by decision (2026-07-30). `supabase/functions/
+    // report-notify` is written and ready but deliberately NOT deployed: the
+    // queue at /admin/reports is the system of record, and auto-hide means
+    // severe content comes down without anyone being notified at all, so email
+    // only changes how fast the admin notices the judgement-call reports. It is
+    // not needed for App Store Guideline 1.2.
+    //
+    // To turn it on later: set RESEND_API_KEY, deploy the function, and restore
+    // the one fire-and-forget line documented in that file's header. Calling it
+    // while undeployed would just fire a guaranteed 404 on every report.
 
     return { ok: true, autoHidden: row?.auto_hidden ?? false }
   } catch {

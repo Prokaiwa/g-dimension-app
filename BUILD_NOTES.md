@@ -818,10 +818,18 @@ now returns `42501` instead of a silent `204`/0-rows, `moderation_blocked_terms`
 is off the REST surface entirely, and `username_rejection_reason()` still works
 (a definer function needs no table grant).
 
-**Still outstanding** (one owner step): set `RESEND_API_KEY` and deploy the
-`report-notify` Edge Function. Until then reports save correctly but no email is
-sent — verified harmless, because the notify is fire-and-forget after the insert.
-There is also one `spam` test report left open in the queue; dismiss it whenever.
+**Email notification: DROPPED, by decision (2026-07-30).** `report-notify` is
+written, reviewed and kept in the repo, but deliberately **not deployed**, and the
+client no longer calls it. The reasoning, so it isn't re-litigated as an unfinished
+TODO: the queue at `/admin/reports` is the system of record, and **auto-hide** is
+what satisfies the takedown expectation — severe content comes down with nobody
+notified at all. Email only changes how fast the admin notices the
+*judgement-call* reports, and is **not required for Guideline 1.2**. Invoking an
+undeployed function would fire a guaranteed 404 on every report, which is why the
+call was removed rather than left dangling.
+
+To turn it on later: set `RESEND_API_KEY`, deploy the function, and restore the
+single fire-and-forget line documented in that file's header.
 
 ### Social layer — unblocked, and the recommended order (2026-07-29)
 
