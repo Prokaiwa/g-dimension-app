@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { getPublicSoldCars, soldCarName, type PublicSoldCar } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import { preloadImagesOnIdle } from '../lib/preloadImages'
+import { useReportLongPress, NO_CALLOUT, type PressHandlers } from '../hooks/useReportLongPress'
 import ArrivalFade from '../components/ArrivalFade'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
 import { formatPowerIn, formatTorqueIn } from '../lib/unitPrefs'
@@ -107,10 +108,10 @@ function SpecGroup({ title, rows }: { title: string; rows: [string, string][] })
 }
 
 // ── Car stage (read-only — no add-photo affordance) ──
-function CarStage({ src, placeholder, priority }: { src: string; placeholder?: boolean; priority?: boolean }) {
+function CarStage({ src, placeholder, priority, press }: { src: string; placeholder?: boolean; priority?: boolean; press?: PressHandlers }) {
   const [loaded, setLoaded] = useState(false)
   return (
-    <div style={{ position: 'relative', width: '88%' }}>
+    <div style={{ position: 'relative', width: '88%', ...NO_CALLOUT }} {...press}>
       <img
         src={src}
         alt=""
@@ -153,6 +154,9 @@ export default function PublicGaragePage() {
   const carParam = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('car') ?? undefined
     : undefined
+
+  // Hold a car photo to report the build it belongs to.
+  const report = useReportLongPress(username)
 
   const [cars, setCars]               = useState<Car[]>([])
   const [soldCars, setSoldCars]       = useState<PublicSoldCar[]>([])
@@ -351,7 +355,14 @@ export default function PublicGaragePage() {
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
                   <GarageStageBackdrop />
                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '27%', zIndex: 2, transform: `translateY(${-20 * t}vh) scale(${1 - 0.2 * t})`, transformOrigin: 'center', transition: sheetDragging ? 'none' : `transform 460ms ${EASING_SETTLE}` }}>
-                    <CarStage src={car.garage_photo_url || garagePlaceholder} placeholder={!car.garage_photo_url} priority={i === activeIdx} />
+                    <CarStage
+                      src={car.garage_photo_url || garagePlaceholder}
+                      placeholder={!car.garage_photo_url}
+                      priority={i === activeIdx}
+                      // Only a real photo is reportable. Holding the silhouette
+                      // placeholder would be reporting nothing.
+                      press={car.garage_photo_url ? report.bind('car', car.id, 'this photo') : undefined}
+                    />
                   </div>
                   <div style={{ position: 'absolute', top: SPACE_XS, right: SPACE_MD, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', color: 'rgba(245,245,245,0.25)', textTransform: 'uppercase', zIndex: 5, opacity: 1 - t, transition: sheetDragging ? 'none' : 'opacity 300ms ease' }}>
                     {String(i + 1).padStart(2, '0')} / {String(cars.length).padStart(2, '0')}
@@ -646,6 +657,8 @@ export default function PublicGaragePage() {
           </div>
         )
       })()}
+
+      {report.sheet}
     </div>
   )
 }

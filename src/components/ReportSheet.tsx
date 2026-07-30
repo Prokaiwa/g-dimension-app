@@ -31,6 +31,7 @@ export default function ReportSheet({
   targetId,
   targetUserId,
   targetLabel,
+  blockLabel,
 }: {
   open: boolean
   onClose: () => void
@@ -40,7 +41,14 @@ export default function ReportSheet({
   targetUserId?: string | null
   /** What the user is reporting, e.g. "@dscan007" or "this photo". */
   targetLabel: string
+  /**
+   * Who blocking would apply to, when that isn't the thing being reported.
+   * You block a person, never a photo — without this the block step reads
+   * "Block this photo".
+   */
+  blockLabel?: string
 }) {
+  const whom = blockLabel ?? targetLabel
   const [reason, setReason]   = useState<ReportReason | null>(null)
   const [details, setDetails] = useState('')
   const [step, setStep]       = useState<'pick' | 'done'>('pick')
@@ -167,7 +175,7 @@ export default function ReportSheet({
           {targetUserId && !blocked && (
             <>
               <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: MUTED, margin: `0 0 ${SPACE_SM}px`, lineHeight: 1.5 }}>
-                Do you also want to block {targetLabel}? They won't be told, and you can undo this in Settings.
+                Do you also want to block {whom}? They won't be told, and you can undo this in Settings.
               </p>
               {error && (
                 <p style={{ fontFamily: FONT_UI, fontSize: 12, color: COLOR_ERROR, margin: `0 0 ${SPACE_SM}px` }}>{error}</p>
@@ -183,7 +191,7 @@ export default function ReportSheet({
                   letterSpacing: '0.10em', textTransform: 'uppercase',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
-                {busy ? 'Blocking…' : `Block ${targetLabel}`}
+                {busy ? 'Blocking…' : `Block ${whom}`}
               </button>
             </>
           )}

@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import { MOD_GROUPS } from '../lib/buildGroups'
+import { useReportLongPress, NO_CALLOUT, type PressHandlers } from '../hooks/useReportLongPress'
 import { powerUnitOf, torqueUnitOf } from '../lib/unitPrefs'
 import { convertPower, convertTorque, powerLabel, torqueLabel } from '../lib/unitConversion'
 import {
@@ -85,7 +86,7 @@ function CountUp({ value, delay = 0 }: { value: number; delay?: number }) {
 // Instagram-style pinch-to-zoom: image stays in the page, two fingers zoom it
 // in place (up to 3×, centred on the pinch midpoint). Releasing snaps back.
 // No tap-to-lightbox — the image is decorative, not interactive on single touch.
-function SectionHeroPhoto({ url }: { url: string }) {
+function SectionHeroPhoto({ url, press }: { url: string; press?: PressHandlers }) {
   const imgRef = useRef<HTMLImageElement>(null)
   const pinch  = useRef({ active: false, d0: 0, ox: 50, oy: 50, scale: 1 })
 
@@ -136,11 +137,13 @@ function SectionHeroPhoto({ url }: { url: string }) {
         position: 'relative', overflow: 'hidden',
         flexShrink: 0, marginBottom: 16,
         touchAction: 'pan-x pan-y',   // allow page scroll; pinch handled manually
+        ...NO_CALLOUT,
       }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
+      {...press}
     >
       <img
         ref={imgRef}
@@ -276,6 +279,11 @@ export default function PublicBuildSheetPage() {
 
   const [car,       setCar]       = useState<Car | null>(null)
   const [carId,     setCarId]     = useState<string | null>(null)
+
+  // Section photos live in cars.build_sheet_*_photo — columns, not rows, so
+  // there's no photo id for 084's trigger to resolve. The car IS the target
+  // here, which is also the thing moderation acts on either way.
+  const report = useReportLongPress(username)
   const [mods,      setMods]      = useState<Mod[]>([])
   const [modGroups, setModGroups] = useState<ModGroup[]>([])
   const [loading,   setLoading]   = useState(true)
@@ -491,7 +499,10 @@ export default function PublicBuildSheetPage() {
                 backgroundRepeat: 'no-repeat, no-repeat',
                 // No-photo placeholder always reads as a dark/dimmed silhouette
                 filter: car?.garage_photo_url ? undefined : 'brightness(0.12)',
-              }} />
+                ...NO_CALLOUT,
+              }}
+              {...(car?.garage_photo_url ? report.bind('car', carId ?? '', 'this photo') : {})}
+              />
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', paddingTop: 4 }}>
                 <p style={{
                   fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
@@ -612,7 +623,7 @@ export default function PublicBuildSheetPage() {
 
                   {/* Section photo — pinch to zoom (Instagram-style), no tap-to-lightbox */}
                   {photoUrl ? (
-                    <SectionHeroPhoto url={photoUrl} />
+                    <SectionHeroPhoto url={photoUrl} press={report.bind('car', carId ?? '', 'this photo')} />
                   ) : null}
 
                   {/* Group cards (titled sessions) — read-only, no nav */}
@@ -656,7 +667,7 @@ export default function PublicBuildSheetPage() {
           </div>
         )}
 
-
+        {report.sheet}
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
+import { useReportLongPress, NO_CALLOUT } from '../hooks/useReportLongPress'
 import { FONT_UI, COLOR_ACCENT, COLOR_BRAND } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 
@@ -85,6 +86,11 @@ export default function PublicDiyPage() {
   const [retryTick, setRetryTick] = useState(0)
   const [notFound,  setNotFound]  = useState(false)
   const [lightbox,  setLightbox]  = useState<{ src: string; caption: string | null } | null>(null)
+  const [guideCarId, setGuideCarId] = useState<string | null>(null)
+
+  // Step photos are diy_step_photos rows, which 084's trigger has no path from,
+  // so the car is the target here (same reasoning as the Build Sheet sections).
+  const report = useReportLongPress(username)
 
   useEffect(() => {
     if (!username || !modId) return
@@ -114,6 +120,7 @@ export default function PublicDiyPage() {
 
       // Car identity — resolve from the guide's car_id (user may have many cars)
       const carId = (g as { car_id?: string }).car_id
+      setGuideCarId(carId ?? null)
       if (carId) {
         const { data: car } = await supabase
           .from('public_car_profiles')
@@ -317,7 +324,8 @@ export default function PublicDiyPage() {
                             loading="lazy"
                             decoding="async"
                             onClick={() => setLightbox({ src: ph.photo_url, caption: ph.caption })}
-                            style={{ width: '100%', display: 'block', cursor: 'zoom-in' }}
+                            style={{ width: '100%', display: 'block', cursor: 'zoom-in', ...NO_CALLOUT }}
+                            {...report.bind('car', guideCarId ?? '', 'this photo')}
                           />
                           {ph.caption && (
                             <div style={{ marginTop: 6, fontSize: 12, color: MID, lineHeight: 1.5 }}>{ph.caption}</div>
@@ -363,6 +371,8 @@ export default function PublicDiyPage() {
       {lightbox && (
         <ImageLightbox src={lightbox.src} caption={lightbox.caption} onClose={() => setLightbox(null)} />
       )}
+
+      {report.sheet}
     </div>
   )
 }

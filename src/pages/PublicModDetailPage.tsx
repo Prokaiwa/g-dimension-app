@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
+import { useReportLongPress } from '../hooks/useReportLongPress'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
@@ -55,6 +56,10 @@ export default function PublicModDetailPage() {
   const [retryTick, setRetryTick] = useState(0)
   const [loadedUrls,   setLoadedUrls]   = useState<Set<string>>(new Set())
   const [hasDiyGuide,  setHasDiyGuide]  = useState(false)
+
+  // Hold any photo to report it. These are the one public surface with a real
+  // job_photos.id, so this is the most precise report the DB can resolve.
+  const report = useReportLongPress(username)
 
   // Carousel
   const [photoIndex, setPhotoIndex] = useState(0)
@@ -276,12 +281,13 @@ export default function PublicModDetailPage() {
           {photos.length > 0 && (
             <div>
               <div
-                style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
+                style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in', ...report.pressStyle }}
                 onTouchStart={onCarouselTouchStart}
                 onTouchMove={onCarouselTouchMove}
                 onTouchEnd={commitCarouselSwipe}
                 onTouchCancel={commitCarouselSwipe}
                 onClick={() => openViewer(photoIndex)}
+                {...report.bind('photo', photos[photoIndex]?.id ?? '', 'this photo')}
               >
                 <div style={{ display: 'flex', height: '100%', transform: `translateX(-${photoIndex * 100}%)`, transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)' }}>
                   {photos.map(photo => (
@@ -441,11 +447,12 @@ export default function PublicModDetailPage() {
             {/* Vertical-dismiss layer (owns the gesture) */}
             <div
               ref={vertRef}
-              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform' }}
+              style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform', ...report.pressStyle }}
               onTouchStart={onViewerTouchStart}
               onTouchMove={onViewerTouchMove}
               onTouchEnd={onViewerTouchEnd}
               onClick={e => e.stopPropagation()}
+              {...report.bind('photo', photos[viewerIdx]?.id ?? '', 'this photo')}
             >
               {/* Horizontal strip — each slide is full width */}
               <div ref={stripRef} style={{ display: 'flex', width: '100%', willChange: 'transform' }}>
@@ -466,12 +473,19 @@ export default function PublicModDetailPage() {
                 <span style={{ color: 'rgba(245,240,228,0.85)', fontSize: 20, lineHeight: 1 }}>×</span>
               </button>
               <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.35)', margin: 0 }}>
-                {photos.length > 1 ? `${viewerIdx + 1} / ${photos.length}  ·  swipe down to close` : 'swipe down to close'}
+                {[
+                  photos.length > 1 ? `${viewerIdx + 1} / ${photos.length}` : null,
+                  'swipe down to close',
+                  // A hold is invisible unless it's named. Say so here rather
+                  // than trusting anyone to discover it.
+                  report.enabled ? 'hold to report' : null,
+                ].filter(Boolean).join('  ·  ')}
               </p>
             </div>
           </div>
         )}
 
+        {report.sheet}
       </div>
     </div>
   )

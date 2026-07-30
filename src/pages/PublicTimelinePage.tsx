@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import TimelineOverture from '../components/TimelineOverture'
 import { playThreadTick } from '../lib/sound'
+import { useReportLongPress } from '../hooks/useReportLongPress'
 import { milesToUnit, asMileageUnit } from '../lib/mileage'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT,
@@ -192,6 +193,10 @@ export default function PublicTimelinePage() {
   const [entries, setEntries] = useState<TLEntry[]>([])
   const [meta, setMeta] = useState<Record<string, SessionMeta>>({})
   const [carName, setCarName] = useState('This Build')
+
+  // Hold an entry card to report it. Tapping opens it, so the hold has to
+  // swallow the click it would otherwise also fire (the hook does that).
+  const report = useReportLongPress(username)
 
   // Cinematic Overture on a fresh dive from the public map (flag consumed once).
   const [arrival, setArrival] = useState<'overture' | 'fade' | 'none'>(() => {
@@ -534,6 +539,7 @@ export default function PublicTimelinePage() {
       `}</style>
       {chevron}
       {children}
+      {report.sheet}
     </div>
   )
 
@@ -663,6 +669,10 @@ export default function PublicTimelinePage() {
         const m = e.session_id ? meta[e.session_id] : undefined
         const img = e.photo_url || m?.photo || null
         const ct = cardText(e, m, carMileageUnit)
+        // Composed by hand rather than spread-and-forget: the card already owns
+        // these pointer handlers for its press-dim, and a plain spread would
+        // silently drop one of the two behaviours.
+        const rb = report.bind('timeline_entry', e.id, 'this entry')
 
         return (
           <div key={e.id}>
@@ -685,11 +695,13 @@ export default function PublicTimelinePage() {
                 <article
                   data-sfx="tick"
                   onClick={() => { saveScroll(); navigate(`/builds/${username}/timeline/entry/${e.id}${carParam ? `?car=${carParam}` : ''}`) }}
-                  onPointerDown={() => setPressedId(e.id)}
-                  onPointerUp={() => setPressedId(null)}
-                  onPointerLeave={() => setPressedId(null)}
-                  onPointerCancel={() => setPressedId(null)}
+                  {...rb}
+                  onPointerDown={ev => { rb.onPointerDown?.(ev); setPressedId(e.id) }}
+                  onPointerUp={ev => { rb.onPointerUp?.(ev); setPressedId(null) }}
+                  onPointerLeave={ev => { rb.onPointerLeave?.(ev); setPressedId(null) }}
+                  onPointerCancel={ev => { rb.onPointerCancel?.(ev); setPressedId(null) }}
                   style={{
+                    ...report.pressStyle,
                     background: COLOR_TIMELINE_CARD, borderRadius: RADIUS_TIMELINE_CARD,
                     borderLeft: `3px solid ${accent}`,
                     boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06)',

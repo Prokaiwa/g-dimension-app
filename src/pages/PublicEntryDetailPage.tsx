@@ -15,6 +15,7 @@ import ArrivalFade from '../components/ArrivalFade'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
 import { milesToUnit, asMileageUnit } from '../lib/mileage'
 import LinkOutIcon from '../components/LinkOutIcon'
+import { useReportLongPress } from '../hooks/useReportLongPress'
 import {
   COLOR_TIMELINE_BG, COLOR_TIMELINE_CARD, COLOR_TIMELINE_TEXT, COLOR_TIMELINE_MUTED,
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_YEAR,
@@ -69,6 +70,12 @@ export default function PublicEntryDetailPage() {
   const [links, setLinks]     = useState<LinkRow[]>([])
   const [jobsList, setJobsList] = useState<{ brand: string | null; title: string | null; category: string | null }[]>([])
   const [sessionInfo, setSessionInfo] = useState<{ shop: string | null; mileage: number | null; mileageUnit: string } | null>(null)
+
+  // Hold a photo to report. The target is the ENTRY, not the image: a note's
+  // photos live in timeline_entry_photos, which 084's trigger has no path back
+  // to a car from. The entry is the nearest thing it can resolve, and it's what
+  // the owner would recognise anyway.
+  const report = useReportLongPress(username)
 
   // In-page carousel
   const [photoIndex, setPhotoIndex] = useState(0)
@@ -307,12 +314,13 @@ export default function PublicEntryDetailPage() {
       {photos.length > 0 && (
         <div style={{ marginBottom: 0, position: 'relative' }}>
           <div
-            style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in' }}
+            style={{ width: '100%', aspectRatio: '16/9', overflow: 'hidden', touchAction: 'pan-y', cursor: 'zoom-in', ...report.pressStyle }}
             onTouchStart={onCarouselTouchStart}
             onTouchMove={onCarouselTouchMove}
             onTouchEnd={commitCarouselSwipe}
             onTouchCancel={commitCarouselSwipe}
             onClick={() => openViewer(photoIndex)}
+            {...report.bind('timeline_entry', entry.id, 'this photo')}
           >
             <div style={{ display: 'flex', height: '100%', transform: `translateX(-${photoIndex * 100}%)`, transition: 'transform 280ms cubic-bezier(0.22,1,0.36,1)' }}>
               {photos.map((src, i) => (
@@ -460,11 +468,12 @@ export default function PublicEntryDetailPage() {
         >
           <div
             ref={vertRef}
-            style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform' }}
+            style={{ width: '100%', height: '100dvh', display: 'flex', alignItems: 'center', willChange: 'transform', ...report.pressStyle }}
             onTouchStart={onViewerTouchStart}
             onTouchMove={onViewerTouchMove}
             onTouchEnd={onViewerTouchEnd}
             onClick={e => e.stopPropagation()}
+            {...report.bind('timeline_entry', entry.id, 'this photo')}
           >
             <div ref={stripRef} style={{ display: 'flex', width: '100%', willChange: 'transform' }}>
               {photos.map((src, i) => (
@@ -483,11 +492,17 @@ export default function PublicEntryDetailPage() {
               <span style={{ color: COLOR_ACCENT, fontSize: 20, lineHeight: 1 }}>×</span>
             </button>
             <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.35)', margin: 0 }}>
-              {photos.length > 1 ? `${viewerIdx + 1} / ${photos.length}  ·  swipe down to close` : 'swipe down to close'}
+              {[
+                photos.length > 1 ? `${viewerIdx + 1} / ${photos.length}` : null,
+                'swipe down to close',
+                report.enabled ? 'hold to report' : null,
+              ].filter(Boolean).join('  ·  ')}
             </p>
           </div>
         </div>
       )}
+
+      {report.sheet}
     </div>,
   )
 }

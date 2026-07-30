@@ -839,3 +839,62 @@ grant is load-bearing in a way worth remembering — without it an account canno
 see its own status, and the suspension is indistinguishable from a bug.
 
 Source: migration 087.
+
+---
+
+## ADR-026 — Reporting reaches the photo, but the lever is still the car (2026-07-30)
+
+**Decision:** A long press on a photo or a Timeline card on any `/builds/*` page
+opens the same report sheet ADR-023 shipped. The **target** is the most specific
+row the database can resolve on its own: `photo` for a `job_photos` row,
+`timeline_entry` for a Timeline entry, and `car` everywhere else. Frontend only.
+No migration.
+
+**Context:** 084 built four target types and the UI only ever sent one. Every
+report in the system said `car`, filed from a single button behind the avatar
+chip on the profile. That is a defensible mechanism and a bad discovery path:
+the first thing anyone does with objectionable content — a reviewer included —
+is press the image itself, and pressing it did nothing at all.
+
+**Rationale:**
+
+- **A hook, not a shared viewer.** The public pages have no common photo
+  component: `PublicModDetailPage` and `PublicEntryDetailPage` each hand-built a
+  pager, the Build Sheet has a pinch-to-zoom hero, the timeline has cards, and
+  the private `ImageCarouselLightbox` is not used out here at all. Unifying them
+  would have meant rewriting four gesture implementations to add a menu.
+  `useReportLongPress` hands back press handlers and leaves every viewer exactly
+  as it was.
+- **Only target types the trigger can resolve.** `content_reports_autohide`
+  walks `photo` → `job_photos.car_id` and `timeline_entry` →
+  `timeline_entries.car_id`. A `timeline_entry_photos` row or a
+  `diy_step_photos` row has no such path, and a Build Sheet section photo is a
+  *column on `cars`*, not a row at all. Sending those as `photo` would file a
+  report with a null `target_owner_id` — an orphan in the queue pointing at
+  nothing. Those surfaces report the car, which is what moderation acts on
+  anyway (ADR-023: the lever is the car, not the photo). Verified live: a photo
+  report and a timeline-entry report both resolved `target_owner_id` correctly.
+- **Signed in only, matching the button next to it.** `PublicProfilePage` has
+  always hidden "Report this build" from anonymous visitors. Letting a hold open
+  the sheet for anon produced a genuine dead end — reason picked, details typed,
+  then "Sign in to report." at the very end (observed, then closed). The hold is
+  now inert when signed out, exactly like the button. The cost is real and worth
+  naming: a logged-out visitor cannot report anything. Reversing that means
+  giving the sheet a sign-in path, not just re-enabling the press.
+- **The hold announces itself where there's room.** Both fullscreen viewers
+  already print "swipe down to close"; they now print "hold to report" beside
+  it. An affordance nobody can see is not a mechanism, and this is the one place
+  on these pages with a caption line to borrow.
+- **Blocking is offered on the person, not the thing.** `ReportSheet` grew a
+  `blockLabel` prop for exactly this: without it the block step read "Block this
+  photo".
+
+**Consequence:** the report sheet is now reachable from six pages instead of
+one, and `content_reports` will start carrying a mix of target types. The admin
+queue already renders all four (084) and resolves each back to its car, so
+nothing downstream changes. `PublicFeaturedPage` is deliberately **not** wired:
+its page-turn owns the gesture layer, and every photo it shows is reachable and
+reportable at its source (section photos on the Build Sheet, entry photos on the
+Timeline, the cover on the Garage).
+
+Source: `src/hooks/useReportLongPress.tsx`.

@@ -1157,6 +1157,69 @@ the counts read "1 followers".
 
 ---
 
+### Long-press to report a photo or an entry (2026-07-30, ADR-026)
+
+084 built four report target types and the UI only ever sent one. Every report
+in the system said `car`, filed from one button behind the avatar chip on the
+public profile. Defensible as a mechanism, poor as a discovery path: the first
+thing anyone does with an objectionable image, an App Store reviewer included,
+is press the image, and pressing it did nothing.
+
+**Hold any photo, or any Timeline card, on a `/builds/*` page.**
+
+| Surface | Target sent | Why |
+|---|---|---|
+| Public mod detail (carousel + fullscreen viewer) | `photo` | the only public surface with a real `job_photos.id` |
+| Public entry detail (carousel + viewer) | `timeline_entry` | note photos are `timeline_entry_photos`, which the trigger has no path from |
+| Public timeline cards | `timeline_entry` | |
+| Build Sheet section photos + hero | `car` | section photos are *columns* on `cars`, not rows |
+| Public garage car photo | `car` | |
+| Public DIY step photos | `car` | `diy_step_photos` has no path back through the trigger |
+
+The rule is: send the most specific row `content_reports_autohide` can resolve
+on its own, and the car otherwise. Sending an unresolvable id as `photo` would
+file a report with a **null `target_owner_id`** — an orphan in the admin queue
+pointing at nothing.
+
+**`useReportLongPress` is a hook, not a component,** because the public pages
+share no photo viewer: `PublicModDetailPage` and `PublicEntryDetailPage` each
+hand-rolled a pager, the Build Sheet has a pinch-to-zoom hero, the timeline has
+cards, and the private `ImageCarouselLightbox` is never used out here. Wrapping
+them in a common component meant rewriting four gesture implementations; handing
+back press handlers meant touching none of them.
+
+Details worth keeping in mind:
+
+- **It swallows the click.** A hold on a timeline card must not also navigate
+  into the entry, so the hook returns an `onClickCapture` that eats the click the
+  browser fires on lift. Verified both ways: a hold opens the sheet and stays
+  put, a tap still navigates.
+- **Signed out, the hold is inert** — matching the "Report this build" button on
+  the profile, which has always been hidden from anon. The first build let anon
+  open the sheet, and the flow ran all the way to the end before failing with
+  "Sign in to report." Real cost, worth naming: a logged-out visitor cannot
+  report anything. Undoing that means giving the sheet a sign-in path, not just
+  re-enabling the press.
+- **On your own build it is inert too**, gated behind `ready` so the owner can't
+  beat the lookup and be offered a report on themself.
+- **`playConfirm`, not `playTick`** — the global `uiSfx` listener already ticks
+  on pointerdown for anything button-ish, and two identical ticks read as one
+  thing happening twice rather than as a hold completing.
+- **The fullscreen viewers say "hold to report"** next to "swipe down to close".
+  An affordance nobody can see isn't a mechanism.
+- **`ReportSheet` grew `blockLabel`** so the block step says "Block @handle"
+  rather than "Block this photo".
+
+**`PublicFeaturedPage` is deliberately not wired.** Its page-turn owns the
+gesture layer, and every photo the magazine shows is reportable at its source —
+section photos on the Build Sheet, entry photos on the Timeline, the cover on
+the Garage.
+
+Verified live against @scantee's build from the test account: both new target
+types filed and resolved `target_owner_id` correctly (two non-severe `spam`
+reports, so nothing auto-hid), the sheet opened on all six surfaces, and it
+stayed shut when signed out and on the tester's own garage.
+
 ## What's Next (not yet built)
 
 - **Timeline note multi-photo display** — notes store multiple photos (`timeline_entry_photos`) and they render on Entry Detail, but the explicit "choose *the* hero shot" picker for **session entries** isn't built — those still use the `timeline_photo_url` → first-`job_photo` fallback. (`sessions.timeline_photo_url` has no upload UI yet.)
