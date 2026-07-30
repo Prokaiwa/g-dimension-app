@@ -24,12 +24,17 @@ import { gradeById } from '../lib/license'
 import { PermitMini, permitInk } from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import ReportSheet from '../components/ReportSheet'
+import {
+  getFollowCounts, isFollowing, followUser, unfollowUser,
+  setPendingFollow, formatCount, type FollowCounts,
+} from '../lib/follows'
 import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_FEATURED,
 } from '../lib/destinationIcons'
 import {
   COLOR_BRAND,
+  COLOR_ACCENT,
   FONT_UI,
   HEADER_HEIGHT,
   HEADER_WEDGE_LEFT,
@@ -258,6 +263,11 @@ export default function PublicProfilePage() {
   // Viewer identity, so the report action can be hidden on your own profile.
   const [viewerId, setViewerId] = useState<string | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
+  // Follow state (migration 086). Counts are public; the button needs a session.
+  const [counts, setCounts]       = useState<FollowCounts>({ followers: 0, following: 0 })
+  const [following, setFollowing] = useState(false)
+  const [followBusy, setFollowBusy] = useState(false)
+  const [followErr, setFollowErr] = useState<string | null>(null)
   // Identity card (driver card) open/closed + share feedback
   const [cardOpen, setCardOpen] = useState(false)
   const [cardShare, setCardShare] = useState<'idle' | 'copied'>('idle')
@@ -284,6 +294,60 @@ export default function PublicProfilePage() {
   // click-after-drag using the same 34px tap slop as the pointerup handler.
   const clickDownRef  = useRef<{ x: number; y: number } | null>(null)
   const exitingRef    = useRef(false)
+
+  // ── Follow (migration 086) ──
+  // Counts are public so they load for anon visitors too; the "Following" state
+  // needs a session. Also completes a follow that was parked before signup —
+  // see setPendingFollow in lib/follows.ts.
+  const ownerId = car?.user_id ?? null
+  useEffect(() => {
+    if (!ownerId) return
+    let cancelled = false
+    ;(async () => {
+      const [c, f] = await Promise.all([getFollowCounts(ownerId), isFollowing(ownerId)])
+      if (cancelled) return
+      setCounts(c)
+      setFollowing(f)
+
+      // Returning from signup with a parked intent for THIS profile: complete it.
+      const pending = new URLSearchParams(window.location.search).get('follow')
+      if (pending === '1' && !f && viewerId && viewerId !== ownerId) {
+        const res = await followUser(ownerId)
+        if (cancelled) return
+        if (res.ok) {
+          setFollowing(true)
+          setCounts(await getFollowCounts(ownerId))
+        }
+        // Strip the param so a refresh doesn't re-run this.
+        const url = new URL(window.location.href)
+        url.searchParams.delete('follow')
+        window.history.replaceState({}, '', url.toString())
+      }
+    })()
+    return () => { cancelled = true }
+  }, [ownerId, viewerId])
+
+  async function toggleFollow() {
+    if (!ownerId) return
+    // Anon: park the intent and send them to signup. Coming back and completing
+    // the follow is handled by the effect above.
+    if (isAnon) {
+      if (username) setPendingFollow(username)
+      navigate('/signup?ref=follow')
+      return
+    }
+    if (followBusy) return
+    setFollowBusy(true); setFollowErr(null)
+    if (following) {
+      const ok = await unfollowUser(ownerId)
+      if (ok) { setFollowing(false); setCounts(await getFollowCounts(ownerId)) }
+    } else {
+      const res = await followUser(ownerId)
+      if (res.ok) { setFollowing(true); setCounts(await getFollowCounts(ownerId)) }
+      else setFollowErr(res.error)
+    }
+    setFollowBusy(false)
+  }
 
   // ── Fetch ──
   useEffect(() => {
@@ -817,6 +881,43 @@ export default function PublicProfilePage() {
                   avatarUrl={car.avatar_url}
                   footer={
                     <>
+                      {/* Follower / following counts — public, so anon sees them too. */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
+                        borderTop: `1px solid ${ink.hair}`, padding: '8px 0 2px',
+                        fontFamily: FONT_UI, fontSize: 11, color: ink.dim,
+                      }}>
+                        <span><strong style={{ color: ink.ink, fontWeight: 800 }}>{formatCount(counts.followers)}</strong> followers</span>
+                        <span><strong style={{ color: ink.ink, fontWeight: 800 }}>{formatCount(counts.following)}</strong> following</span>
+                      </div>
+
+                      {/* Follow. Hidden on your own profile; for an anon visitor it
+                          parks the intent and routes to signup (the strongest
+                          signup moment there is — they just found a build). */}
+                      {viewerId !== car.user_id && (
+                        <button
+                          onClick={toggleFollow}
+                          disabled={followBusy}
+                          style={{
+                            width: '100%', minHeight: 44, cursor: 'pointer',
+                            background: following ? 'transparent' : COLOR_ACCENT,
+                            color: following ? ink.ink : '#fff5dc',
+                            border: 'none', borderTop: `1px solid ${ink.hair}`,
+                            fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
+                            letterSpacing: '0.08em', textTransform: 'uppercase',
+                            opacity: followBusy ? 0.6 : 1,
+                            WebkitTapHighlightColor: 'transparent',
+                          }}
+                        >
+                          {following ? 'Following' : 'Follow'}
+                        </button>
+                      )}
+                      {followErr && (
+                        <p style={{ fontFamily: FONT_UI, fontSize: 10.5, color: '#e05050', margin: 0, padding: '6px 10px', textAlign: 'center' }}>
+                          {followErr}
+                        </p>
+                      )}
+
                       <button
                         onClick={async () => {
                           const outcome = await shareLink({

@@ -100,6 +100,7 @@ const SettingsPage = lazyWithRetry(() => import('./pages/SettingsPage'))
 const SettingsArchivedPage = lazyWithRetry(() => import('./pages/SettingsArchivedPage'))
 const SettingsBlockedPage  = lazyWithRetry(() => import('./pages/SettingsBlockedPage'))
 const AdminReportsPage     = lazyWithRetry(() => import('./pages/AdminReportsPage'))
+const FollowingPage        = lazyWithRetry(() => import('./pages/FollowingPage'))
 
 // Legal (public)
 const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
@@ -408,6 +409,7 @@ export default function App() {
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
       <Route path="/settings/blocked" element={<ProtectedRoute><SettingsBlockedPage /></ProtectedRoute>} />
+      <Route path="/following" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
       {/* Moderation queue. Route is not secret — the page and every RPC behind
           it re-check the `admin` user_flag server-side (ADR-023). */}
       <Route path="/admin/reports" element={<ProtectedRoute><AdminReportsPage /></ProtectedRoute>} />

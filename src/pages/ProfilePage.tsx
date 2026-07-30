@@ -26,6 +26,7 @@ import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
 import { getLicenseStats, resolveLicense, type LicenseState } from '../lib/license'
+import { getFollowCounts } from '../lib/follows'
 import { GRADE_RING } from '../lib/permit'
 import LicenseCard from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
@@ -150,6 +151,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(() => getCachedProfile())
   // Not part of the profile row any more (migration 083) — read from the session.
   const [email, setEmail]     = useState<string | null>(null)
+  const [followingCount, setFollowingCount] = useState<number | null>(null)
   const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [license, setLicense] = useState<LicenseState | null>(null)
   const [loading, setLoading] = useState(() => !getCachedProfile())
@@ -203,6 +205,7 @@ export default function ProfilePage() {
       setProfile(p)
       setLoading(false)
       if (p) {
+        getFollowCounts(p.id).then(c => setFollowingCount(c.following))
         getProfileStats(p.id).then(setStats)
         getLicenseStats(p.id).then(async s => {
           // Ratchet: read the last-persisted grade so the permit never demotes
@@ -492,6 +495,7 @@ export default function ProfilePage() {
                   </button>
                 }
               />
+              <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>
 
