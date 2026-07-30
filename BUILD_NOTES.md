@@ -1029,9 +1029,32 @@ and opening it marked everything read — after which the row reverted to its
 default subtitle and the ring went out. So the glow's whole lifecycle works, not
 just its appearance.
 
-**Still unverified, because it needs an admin:** `admin_suspend_user` →
-banner + notice → `admin_unsuspend_user` → restore. The test account can't grant
-itself the flag, which is the point of the flag.
+**Suspend → restore, verified 2026-07-30** (owner drove the admin half). All four
+of the test account's cars went dark and came back with **no moderation flags left
+behind**, `suspended_at` set then cleared, the driving report marked `actioned`,
+and all four notice kinds fired in order: hidden → restored → suspended →
+restored.
+
+**The privacy property needed its own test, and nearly got overclaimed.** In that
+run every car was public beforehand, so "restores what the owner chose" and
+"publishes everything" produce identical output — the run proves nothing about
+which one happened. Re-tested deliberately: one car set **private** by its owner,
+then auto-hidden (capturing `moderation_prev_public = false`), then dismissed. It
+came back `is_public = false`, invisible to anon, flags cleared, the other three
+untouched. So the restore genuinely reads the owner's setting.
+
+**That test found a real copy bug → migration 088.** The behaviour was right but
+the notice was titled *"Your build is public again"*, which is false for exactly
+the private case — the owner is told their private build was published when it
+wasn't. On the one screen whose whole purpose is telling people the truth about
+what moderation did to them, that is the worst possible place for a wrong
+sentence. 088 retitles it *"Your build has been restored"*, which is true whether
+the car returns to public or to private and needs no branch. The body was already
+accurate. Function-only change; everything else is byte-identical to 087.
+
+> Worth generalising: a verification where the "right" and "wrong" behaviours
+> produce the same observable output is not a verification. Set up the case where
+> they differ, or say plainly that the property is unproven.
 
 **Worth knowing:** the suspended-account banner works only because 084 added
 `suspended_at` to the 083 column grant. That grant is load-bearing — without it

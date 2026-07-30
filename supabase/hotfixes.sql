@@ -6,6 +6,12 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 087_user_notices.sql (applied 2026-07-30)
+--
+-- PENDING — NOT YET APPLIED:
+--   088_restore_notice_wording.sql — function-only. The dismissal notice says
+--   "Your build is public again", which is false when the car was PRIVATE
+--   before being auto-hidden (the restore is correct; only the title lies).
+--   Retitled "Your build has been restored". Then bump this watermark to 088.
 --   - 087 (ADR-025, user_notices + unsuspend): moderation now tells the person
 --     it happened to, and admin_suspend_user finally has an inverse. Notices are
 --     unforgeable by construction — no INSERT policy at all, the sole writer is
