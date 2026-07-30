@@ -83,10 +83,15 @@ Deno.serve(async (req) => {
 
     // How many reports this target already has — the number that tells you at a
     // glance whether this is noise or a pattern, without opening the app.
+    // Read the count from the Content-Range header rather than the row array:
+    // PostgREST caps returned rows (max-rows), so `.length` would quietly
+    // under-report a target with a lot of reports — which is exactly the case
+    // where the number matters.
     const countRes = await fetch(
       `${SUPABASE_URL}/rest/v1/content_reports?select=id&target_type=eq.${encodeURIComponent(r.target_type)}` +
       `&target_id=eq.${encodeURIComponent(r.target_id)}`,
       {
+        method: 'HEAD',
         headers: {
           apikey: SUPABASE_SERVICE_ROLE,
           Authorization: `Bearer ${SUPABASE_SERVICE_ROLE}`,
@@ -94,7 +99,8 @@ Deno.serve(async (req) => {
         },
       },
     )
-    const total = (await countRes.json())?.length ?? 1
+    // Content-Range looks like "0-24/137"; the part after the slash is the total.
+    const total = Number(countRes.headers.get('content-range')?.split('/')[1]) || 1
 
     if (!RESEND_API_KEY) {
       // No key configured: the report is already safely recorded, so this is a
