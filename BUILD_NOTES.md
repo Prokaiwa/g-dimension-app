@@ -843,6 +843,73 @@ Recommended order, agreed with the owner:
 4. **Feed** — last, and note there is **no push infrastructure** (078's reminders
    are on-device local notifications only), so a feed is in-app only.
 
+### Profile fixes + the in-app admin alert (2026-07-30)
+
+Four things, all from owner observation.
+
+**1. The Mods stat was counting service records.** Maintenance line items live in
+the same `jobs` table (a service session inserts one row per line) and default to
+`status='installed'` because they have no install lifecycle — so `getProfileStats`
+counted them as mods. Measured on the owner's LS 430: **174 "installed" jobs, of
+which 6 were mods and 168 were service lines.** Fixed by adding
+`.eq('type','modification')`, which is exactly what `TuningBuildSheetPage`
+already filters on — so the Profile number now agrees with the Build Sheet, which
+is the number being compared against. The photo count got the same filter: it
+changes nothing today (maintenance uses `receipts`, never `job_photos`) but stops
+a future maintenance-photo feature silently inflating a build stat.
+
+> ⚠️ **Measurement trap worth remembering.** The first attempt at quantifying
+> this counted **220 mods across 40 cars** — because `cars` is publicly readable
+> (`is_public` default true), so an authenticated REST query without
+> `user_id=eq.<me>` returns every public car in the beta, not your own. Always
+> scope by `user_id` when measuring "my" anything from a REST probe.
+
+**2. The permit blipped in, causing mis-taps.** It needed three sequential round
+trips (profile → `getLicenseStats` → stored grade), and when the card finally
+appeared it pushed the rows below it down — so a tap aimed at "View public
+profile" could land on the permit. Two fixes: the resolved permit is now cached
+in-memory (`getCachedLicense`/`setCachedLicense` in `lib/license.ts`, same pattern
+and sign-out handling as the profile cache), and the block **always occupies the
+card's box** via an empty `aspectRatio: '420 / 264'` placeholder, so nothing below
+it ever moves. Verified: "View public profile" stays at the same y through load,
+and on a return visit the permit is present within 350ms.
+
+> Note when testing this: a hard `page.goto` wipes the in-memory cache, so it only
+> looks instant on **client-side** navigation — which is the real flow (tapping
+> the avatar). The first check measured the wrong thing.
+
+**3. The permit flip blipped its text.** Flip mode cross-faded the two content
+layers with delayed `opacity` transitions (`110ms ease 210ms` out, `130ms ease
+330ms` in). On a second tap — or any re-tap mid-flight — those transitions
+restarted and the text visibly blipped. Fixed by applying the lesson the rank-up
+celebration already learned (documented at the top of `LicenseCard.tsx`): **never
+animate opacity on these faces.** A `showBack` state now lags `flipped` by half
+the rotation (`FLIP_MS / 2`), swapping the content layers with `display` while the
+card is edge-on and therefore invisible. A re-tap just restarts that timer, so a
+fast double-tap can't catch a half-swapped face. Verified: front → back → front,
+and a fast double-tap lands on FRONT rather than sticking.
+
+**4. In-app admin alert (no sound, no push).** When something is waiting in
+`/admin`, the ring around the Home-header avatar pulses amber and the **Admin**
+row in Profile grows a glowing dot plus an "N waiting for you" subtitle.
+
+- One number, one source: `lib/adminAlert.ts` → `getAdminAlertCount()`, memoized
+  60s and de-duplicated so two surfaces mounting together share one request.
+  Always 0 for non-admins. When there are more kinds of attention later (flagged
+  accounts, failed jobs) they add into this same total rather than growing a
+  second badge system.
+- It **reuses the `permitPending` halo's visual language** and *yields* to it when
+  both would show — an unclaimed permit is the more interesting event, and two
+  stacked rings read as a rendering bug.
+- Actioning a report calls `invalidateAdminAlert()`, so the glow clears
+  immediately instead of lingering for the TTL. Opening the hub invalidates too,
+  so the badge can't disagree with the glow you just followed.
+- `useAdminAlert()` re-reads on `visibilitychange`, since a report arriving while
+  the app sits backgrounded is exactly when a stale glow would be wrong.
+- This is the placeholder for real notifications. Once the app is native with
+  push, this becomes the local mirror of what was pushed and the surfaces reading
+  it shouldn't need to change.
+
 ### Admin hub (2026-07-30)
 
 `/admin`, reachable from an **Admin** row in Profile that only renders for

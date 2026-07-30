@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCurrentUserProfile, getCachedProfile, profileName } from '../lib/userProfile'
 import { getCachedAvatarThumb, cacheAvatarThumb, clearAvatarThumbCache } from '../lib/avatar'
+import { useAdminAlert } from '../hooks/useAdminAlert'
 import { preloadImagesOnIdle } from '../lib/preloadImages'
 import { playConfirm } from '../lib/sound'
 import { ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_MAINTENANCE, ICON_FEATURED } from '../lib/destinationIcons'
@@ -468,6 +469,7 @@ export default function HomePage() {
   // Permit grade for the header avatar's grade-frame (set once PermitWatcher
   // resolves the live grade; null = no frame yet).
   const [permitGrade, setPermitGrade] = useState<GradeId | null>(null)
+  const adminAlert = useAdminAlert()
   // A rank-up is owed: the avatar glows and its tap claims the permit instead
   // of opening the profile. Nothing takes over the screen until the user asks.
   const [permitPending, setPermitPending] = useState(false)
@@ -495,6 +497,10 @@ export default function HomePage() {
           100% { opacity: 1; transform: translate(-50%, -50%); }
         }
         /* Header avatar halo while a permit is waiting to be claimed. */
+        @keyframes adminWaiting {
+          0%, 100% { opacity: 0.28; transform: scale(1); }
+          50%      { opacity: 0.85; transform: scale(1.06); }
+        }
         @keyframes permitWaiting {
           0%, 100% { opacity: 0.22; transform: scale(0.84); }
           50%      { opacity: 1;    transform: scale(1.04); }
@@ -649,6 +655,18 @@ export default function HomePage() {
               position: 'absolute', inset: -6, borderRadius: '50%',
               border: `1.5px solid ${permitGrade ? GRADE_RING[permitGrade] : COLOR_ACCENT}`,
               animation: 'permitWaiting 2.2s ease-in-out infinite',
+              pointerEvents: 'none',
+            }} />
+          )}
+          {/* Something waiting in /admin. Reuses the permit halo's visual
+              language rather than inventing a second one, and yields to it when
+              both would show — an unclaimed permit is the more interesting
+              event, and two stacked rings just read as a rendering bug. */}
+          {adminAlert > 0 && !permitPending && (
+            <span aria-hidden title={`${adminAlert} waiting in Admin`} style={{
+              position: 'absolute', inset: -6, borderRadius: '50%',
+              border: `1.5px solid ${COLOR_ACCENT}`,
+              animation: 'adminWaiting 2.6s ease-in-out infinite',
               pointerEvents: 'none',
             }} />
           )}

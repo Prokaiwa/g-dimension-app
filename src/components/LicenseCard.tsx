@@ -23,6 +23,9 @@ import { FONT_UI } from '../tokens'
 // mis-repaint and no opacity ever animates.
 const SPIN_MS = 9000
 
+// Profile flip duration. The content swap fires at half this, card edge-on.
+const FLIP_MS = 640
+
 // Parse a CSS-style duration ('8100ms' / '3.6s') to milliseconds.
 function msOf(d: string): number {
   const n = parseFloat(d)
@@ -211,7 +214,13 @@ function GradeFace({ grade, driver, handle, licensed, profileUrl, m, seed, hidde
     // them at edge-on), so content just stays visible — no opacity animation
     // (which is what iOS failed to repaint).
     ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
-    : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
+    // Flip mode now does the same thing: the caller flips `hidden` at the
+    // rotation's midpoint (edge-on, zero apparent width), so the swap is
+    // invisible and NO opacity is animated. It used to cross-fade with delays,
+    // which read as the text blipping out and in — especially on a second tap,
+    // where a re-tap restarted both transitions mid-flight. Same lesson as the
+    // celebration spin: don't animate opacity on these faces.
+    : { position: 'absolute', inset: 0, display: hidden ? 'none' : undefined, pointerEvents: hidden ? 'none' : undefined }
   return (
     // The material BACKGROUND stays visible the whole flip (backface-visibility
     // handles solid backgrounds fine — so the card is seen turning). Only the
@@ -251,7 +260,8 @@ function ProgressFace({ next, toNext, m, seed, hidden, spin, flat }: { next: Gra
     // Spin mode: the turntable presents this face head-on only while it's the
     // visible one, so content just stays put — no opacity animation.
     ? { position: 'absolute', inset: 0, pointerEvents: 'none' }
-    : { position: 'absolute', inset: 0, opacity: hidden ? 0 : 1, transition: hidden ? 'opacity 110ms ease 210ms' : 'opacity 130ms ease 330ms', pointerEvents: hidden ? 'none' : undefined }
+    // Flip mode: swapped at the rotation midpoint by the caller. See GradeFace.
+    : { position: 'absolute', inset: 0, display: hidden ? 'none' : undefined, pointerEvents: hidden ? 'none' : undefined }
   return (
     // flat: presented face-on by the spin turntable, so the flip-mode 180°
     // pre-rotation (which the flipped container normally cancels out) is dropped.
@@ -417,6 +427,15 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   spinDelay?: string   // hold still (front-facing) this long before the spin starts
 }) {
   const [flipped, setFlipped] = useState(false)
+  // Which face's CONTENT is mounted. Lags `flipped` by half the rotation so the
+  // swap lands while the card is edge-on and therefore invisible. Re-tapping
+  // mid-flip just restarts this timer, so a fast double-tap can never catch a
+  // half-swapped face — which is exactly what the old cross-fade did.
+  const [showBack, setShowBack] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setShowBack(flipped), FLIP_MS / 2)
+    return () => clearTimeout(t)
+  }, [flipped])
   const seed = useMemo(() => seedFrom(handle), [handle])
 
   // Spin turntable (see the SPIN_MS comment): rAF drives the rotation directly
@@ -494,15 +513,15 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
       <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
-      {/* ease-in-out so the card is edge-on predictably at the 50% mark (~320ms)
-          — the content fades are timed to that so the swap is masked. */}
+      {/* ease-in-out so the card is edge-on predictably at the 50% mark, which is
+          exactly when `showBack` swaps the content layers below. */}
       <div style={{
         position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
         boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
-        transition: 'transform 640ms ease-in-out', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        transition: `transform ${FLIP_MS}ms ease-in-out`, transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
       }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={flipped} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!flipped} />
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={showBack} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!showBack} />
       </div>
     </div>
   )

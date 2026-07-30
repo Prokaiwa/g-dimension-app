@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getReportQueue } from '../lib/moderation'
+import { invalidateAdminAlert } from '../lib/adminAlert'
 import { getCurrentUserProfile } from '../lib/userProfile'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
@@ -84,6 +85,9 @@ export default function AdminHubPage() {
   const [handle, setHandle] = useState<string | null>(null)
 
   useEffect(() => {
+    // Opening the hub is a good moment to re-check, so the glow can't be stale
+    // by the time you're looking at the thing it points to.
+    invalidateAdminAlert()
     getReportQueue().then(rs => setOpenReports(rs.filter(r => r.status === 'open').length))
     getCurrentUserProfile().then(p => setHandle(p?.username ?? null))
   }, [])

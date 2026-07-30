@@ -11,6 +11,7 @@ import {
   getReportQueue, dismissReport, hideReported, suspendUser,
   type AdminReport,
 } from '../lib/moderation'
+import { invalidateAdminAlert } from '../lib/adminAlert'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
   COLOR_ERROR, COLOR_SUCCESS, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
@@ -64,7 +65,9 @@ export default function AdminReportsPage() {
     const res = await fn()
     setBusyId(null)
     setNote(res.ok ? okNote : (res.error ?? 'Action failed.'))
-    if (res.ok) await load()
+    // Drop the memoized alert count so the avatar ring and the Admin dot clear
+    // as soon as the queue is empty, instead of lingering for the TTL.
+    if (res.ok) { invalidateAdminAlert(); await load() }
   }
 
   const open = rows.filter(r => r.status === 'open')

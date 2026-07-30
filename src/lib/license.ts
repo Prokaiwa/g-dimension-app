@@ -228,6 +228,16 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
  * what was stored → a genuine new achievement worth celebrating) and `persistId`
  * (the grade to write back — always >= stored, never lower).
  */
+// Cache the resolved permit in-memory so returning to Profile renders it
+// instantly instead of blipping in after three round trips (profile → stats →
+// stored grade). The blip wasn't just ugly: the card appearing pushed the rows
+// below it down, so a tap aimed at "View public profile" could land on the
+// permit instead. Same lifetime and sign-out handling as the profile cache.
+let cachedLicense: LicenseState | null = null
+export function getCachedLicense(): LicenseState | null { return cachedLicense }
+export function setCachedLicense(l: LicenseState | null): void { cachedLicense = l }
+export function clearLicenseCache(): void { cachedLicense = null }
+
 export function resolveLicense(
   stats: LicenseStats,
   storedGradeId: string | null | undefined,

@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { takePendingFollow } from './lib/follows'
+import { clearLicenseCache } from './lib/license'
 import AdminOnly from './components/AdminOnly'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
@@ -278,7 +279,7 @@ export default function App() {
       // browser can't inherit it (localStorage is not namespaced per user).
       // Sound/music don't need the same treatment — the next sign-in's sync
       // always overwrites them (the DB columns are NOT NULL, never ambiguous).
-      if (event === 'SIGNED_OUT') { clearActiveCar(); clearProfileCache(); clearUnitPrefs() }
+      if (event === 'SIGNED_OUT') { clearActiveCar(); clearProfileCache(); clearUnitPrefs(); clearLicenseCache() }
     })
     return () => subscription.unsubscribe()
   }, [])

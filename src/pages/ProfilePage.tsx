@@ -23,10 +23,14 @@ import {
 } from '../lib/userProfile'
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useAdminAlert } from '../hooks/useAdminAlert'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
-import { getLicenseStats, resolveLicense, type LicenseState } from '../lib/license'
+import {
+  getLicenseStats, resolveLicense, getCachedLicense, setCachedLicense,
+  type LicenseState,
+} from '../lib/license'
 import { getFollowCounts } from '../lib/follows'
 import { GRADE_RING } from '../lib/permit'
 import LicenseCard from '../components/LicenseCard'
@@ -155,8 +159,9 @@ export default function ProfilePage() {
   const [followingCount, setFollowingCount] = useState<number | null>(null)
   // Owner-only entry point to /admin. Hides the row; grants nothing by itself.
   const isAdminUser = useIsAdmin() === true
+  const adminAlert  = useAdminAlert()
   const [stats, setStats]     = useState<ProfileStats | null>(null)
-  const [license, setLicense] = useState<LicenseState | null>(null)
+  const [license, setLicense] = useState<LicenseState | null>(() => getCachedLicense())
   const [loading, setLoading] = useState(() => !getCachedProfile())
   // 'copied' flashes a small label on the share icon after a clipboard fallback
   // (native-sheet shares need no feedback — the sheet itself is the feedback).
@@ -220,6 +225,7 @@ export default function ProfilePage() {
           const stored = (row as { license_grade: string | null } | null)?.license_grade ?? null
           const lic = resolveLicense(s, stored)
           setLicense(lic)
+          setCachedLicense(lic)
           // Persist ONLY upward (persistId is always >= stored) so the public
           // /builds badge stays current without ever revoking a grade.
           // Best-effort; a pre-077 gap or failure just leaves it unchanged.
@@ -437,6 +443,13 @@ export default function ProfilePage() {
 
             {/* ── G-Dimension Permit (licence) — tap to flip to the next-grade
                 checklist. The progression hook. ── */}
+            {/* Always occupy the permit's box, even before it resolves. An
+                empty div of the right aspect ratio means the rows below never
+                shift when the card arrives, so a tap can't land on the permit
+                by accident. */}
+            {!license && (
+              <div style={{ marginTop: SPACE_XL, width: '100%', maxWidth: 420, margin: `${SPACE_XL}px auto 0`, aspectRatio: '420 / 264' }} aria-hidden />
+            )}
             {license && (
               <div style={{ marginTop: SPACE_XL }}>
                 <LicenseCard
@@ -499,7 +512,24 @@ export default function ProfilePage() {
                 }
               />
               {isAdminUser && (
-                <NavRow label="Admin" sub="Reports, design tools, map console" onClick={() => navigate('/admin')} />
+                <NavRow
+                  label="Admin"
+                  sub={adminAlert > 0
+                    ? `${adminAlert} waiting for you`
+                    : 'Reports, design tools, map console'}
+                  onClick={() => navigate('/admin')}
+                  trailing={adminAlert > 0 ? (
+                    <>
+                      <style>{'@keyframes adminDot { 0%,100% { opacity:0.45; transform:scale(1) } 50% { opacity:1; transform:scale(1.25) } }'}</style>
+                      <span aria-hidden style={{
+                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                        background: COLOR_ACCENT,
+                        boxShadow: `0 0 7px ${COLOR_ACCENT}`,
+                        animation: 'adminDot 2.6s ease-in-out infinite',
+                      }} />
+                    </>
+                  ) : undefined}
+                />
               )}
               <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />

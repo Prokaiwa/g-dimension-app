@@ -97,17 +97,31 @@ export async function getProfileStats(uid: string): Promise<ProfileStats> {
   const carIds = cars.map(c => c.id)
 
   // Installed mods across all of the user's cars.
+  //
+  // `type = 'modification'` is NOT optional. Maintenance line items live in the
+  // same `jobs` table (a service session inserts one row per line) and default
+  // to status='installed' because they have no install lifecycle — so without
+  // this filter every oil change counted as a mod. Measured on the owner's
+  // LS 430: 174 "installed" jobs, of which only 6 were mods and 168 were
+  // service line items. This now matches what the Build Sheet counts
+  // (TuningBuildSheetPage filters on the same two columns), which is the number
+  // the user compares it against.
   const { count: modCount } = await supabase
     .from('jobs')
     .select('id', { count: 'exact', head: true })
     .in('car_id', carIds)
     .eq('status', 'installed')
+    .eq('type', 'modification')
 
-  // Build photos: job_photos hanging off those cars' jobs.
+  // Build photos: job_photos hanging off those cars' MOD jobs. Same filter, for
+  // the same reason — maintenance never attaches job_photos today (it uses
+  // `receipts`), so this changes no count now, but it stops a future maintenance
+  // photo feature silently inflating a build-photo stat.
   const { data: jobRows } = await supabase
     .from('jobs')
     .select('id')
     .in('car_id', carIds)
+    .eq('type', 'modification')
   const jobIds = (jobRows ?? []).map(j => j.id as string)
 
   let photoCount = 0
