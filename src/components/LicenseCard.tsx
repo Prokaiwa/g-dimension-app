@@ -427,14 +427,27 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   spinDelay?: string   // hold still (front-facing) this long before the spin starts
 }) {
   const [flipped, setFlipped] = useState(false)
-  // Which face's CONTENT is mounted. Lags `flipped` by half the rotation so the
-  // swap lands while the card is edge-on and therefore invisible. Re-tapping
-  // mid-flip just restarts this timer, so a fast double-tap can never catch a
-  // half-swapped face — which is exactly what the old cross-fade did.
-  const [showBack, setShowBack] = useState(false)
+  // Which face's CONTENT is mounted: the outgoing one is removed BEFORE the card
+  // reaches edge-on, and the incoming one appears AFTER — leaving a brief window
+  // where only the material/checker background is turning.
+  //
+  // The gap is the whole point, and swapping at the exact midpoint instead is a
+  // bug I shipped once: `backface-visibility` does not apply to this content
+  // layer (WebKit ignores it for image/SVG children — see the note at the top of
+  // this file), so if the front content is still mounted even a few frames after
+  // the card passes 90°, it leaks through and you see the FRONT briefly printed
+  // on the BACK before the real back settles. Timing jitter alone is enough.
+  // Hiding early is invisible by comparison: at 34% the card is already steeply
+  // foreshortened, so the content is a thin sliver when it goes.
+  const [contentFace, setContentFace] = useState<'front' | 'blank' | 'back'>('front')
+  const firstRun = useRef(true)
   useEffect(() => {
-    const t = setTimeout(() => setShowBack(flipped), FLIP_MS / 2)
-    return () => clearTimeout(t)
+    if (firstRun.current) { firstRun.current = false; return }
+    const hide = setTimeout(() => setContentFace('blank'), FLIP_MS * 0.34)
+    const show = setTimeout(() => setContentFace(flipped ? 'back' : 'front'), FLIP_MS * 0.62)
+    // Re-tapping mid-flip restarts both, so a fast double-tap just stays blank a
+    // little longer rather than catching a half-swapped face.
+    return () => { clearTimeout(hide); clearTimeout(show) }
   }, [flipped])
   const seed = useMemo(() => seedFrom(handle), [handle])
 
@@ -514,14 +527,14 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
       <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
       {/* ease-in-out so the card is edge-on predictably at the 50% mark, which is
-          exactly when `showBack` swaps the content layers below. */}
+          the window in which neither content layer is mounted (see contentFace). */}
       <div style={{
         position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
         boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
         transition: `transform ${FLIP_MS}ms ease-in-out`, transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
       }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={showBack} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={!showBack} />
+        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={contentFace !== 'front'} />
+        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={contentFace !== 'back'} />
       </div>
     </div>
   )

@@ -878,6 +878,40 @@ and on a return visit the permit is present within 350ms.
 > looks instant on **client-side** navigation — which is the real flow (tapping
 > the avatar). The first check measured the wrong thing.
 
+**2a. Follow-up: the COLD open needed device caches, not just in-memory ones.** The
+in-memory cache only helps within a session, so a fresh launch still waited on
+queries. Both the permit grade (`gdim_permit_grade`) and the profile identity
+(`gdim_profile`) are now persisted to localStorage, mirroring the existing avatar-
+thumbnail precedent. The profile one matters because the permit **prints** the name,
+handle and `created_at` — it cannot draw before the identity does, which was the
+real remaining cause of the delay. Measured cold-open time to permit: **2836ms →
+1152ms**, and the name now appears in the same paint, so what's left is app boot
+and chunk load rather than data waiting.
+
+Two deliberate limits: only the grade **ids** are persisted, never `toNext` — a
+stale checklist would be a wrong statement about the user's build, so a cold open
+draws the right card with an empty checklist and fills it in when the query lands.
+And both caches clear on sign-out, so the next account on a shared browser can't
+inherit an identity or a grade it hasn't earned. Persisting the profile row is only
+safe because 083 removed `email` from it.
+
+**3a. Follow-up (same day): swapping at the exact midpoint was wrong.** The first
+fix below swapped the content layers at 50% of the rotation, on the reasoning that
+the card is edge-on and therefore invisible there. It isn't good enough:
+`backface-visibility` does **not** apply to the content layer (WebKit ignores it
+for image/SVG children — the note at the top of `LicenseCard.tsx` says so), so if
+the front content is still mounted even a few frames past 90° it leaks through and
+you briefly see the FRONT printed on the BACK before the real back settles. Timing
+jitter alone is enough to cause it, and the owner saw it on the first flip.
+
+Fixed with a **blank window** instead of an instant swap: `contentFace` goes
+`front → blank → back`, hiding the outgoing layer at **34%** of the flip and
+showing the incoming one at **62%**, so neither is mounted while the card passes
+edge-on and only the material/checker turns. Hiding early is invisible by
+comparison — at 34% the card is already steeply foreshortened, so the content is a
+thin sliver when it goes. Verified: front and back are never mounted together, and
+a fast double-tap still lands on FRONT.
+
 **3. The permit flip blipped its text.** Flip mode cross-faded the two content
 layers with delayed `opacity` transitions (`110ms ease 210ms` out, `130ms ease
 330ms` in). On a second tap — or any re-tap mid-flight — those transitions

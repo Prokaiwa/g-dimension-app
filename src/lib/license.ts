@@ -234,9 +234,46 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
 // below it down, so a tap aimed at "View public profile" could land on the
 // permit instead. Same lifetime and sign-out handling as the profile cache.
 let cachedLicense: LicenseState | null = null
-export function getCachedLicense(): LicenseState | null { return cachedLicense }
-export function setCachedLicense(l: LicenseState | null): void { cachedLicense = l }
-export function clearLicenseCache(): void { cachedLicense = null }
+
+// Device cache, for the COLD open. The in-memory cache above only helps within a
+// session — a fresh launch still had to wait three round trips before the card
+// appeared. Same precedent as the avatar thumbnail (getCachedAvatarThumb), and
+// for the same reason: the grade is already known and it changes rarely, so
+// re-deriving it before showing anything is a delay with no payoff.
+//
+// Only the grade IDS are persisted, never the checklist: `toNext` is live progress
+// and a stale checklist would be a wrong statement about the user's build. So a
+// cold open renders the correct card face immediately with an empty checklist,
+// and the real counts fill in when the query lands.
+const DEVICE_KEY = 'gdim_permit_grade'
+
+export function getCachedLicense(): LicenseState | null {
+  if (cachedLicense) return cachedLicense
+  try {
+    const raw = localStorage.getItem(DEVICE_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw) as { current?: string; next?: string }
+    const current = c.current ? GRADES.find(g => g.id === c.current) ?? null : null
+    if (!current) return null
+    const next = c.next ? GRADES.find(g => g.id === c.next) ?? null : null
+    return { current, next, toNext: [] }
+  } catch { return null }
+}
+
+export function setCachedLicense(l: LicenseState | null): void {
+  cachedLicense = l
+  try {
+    if (!l?.current) localStorage.removeItem(DEVICE_KEY)
+    else localStorage.setItem(DEVICE_KEY, JSON.stringify({ current: l.current.id, next: l.next?.id ?? null }))
+  } catch { /* private mode: in-memory only */ }
+}
+
+export function clearLicenseCache(): void {
+  cachedLicense = null
+  // Cleared on sign-out: the next account on this browser must not inherit a
+  // permit grade it hasn't earned.
+  try { localStorage.removeItem(DEVICE_KEY) } catch { /* ignore */ }
+}
 
 export function resolveLicense(
   stats: LicenseStats,

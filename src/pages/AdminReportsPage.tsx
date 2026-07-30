@@ -12,6 +12,7 @@ import {
   type AdminReport,
 } from '../lib/moderation'
 import { invalidateAdminAlert } from '../lib/adminAlert'
+import LinkOutIcon from '../components/LinkOutIcon'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
   COLOR_ERROR, COLOR_SUCCESS, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
@@ -144,11 +145,13 @@ export default function AdminReportsPage() {
                 <button
                   onClick={() => window.open(`/builds/${r.owner_username}`, '_blank')}
                   style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                     fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: COLOR_ACCENT,
                     marginBottom: SPACE_XS, WebkitTapHighlightColor: 'transparent',
                   }}>
-                  Open the build ↗
+                  Open the build
+                  <LinkOutIcon size={12} />
                 </button>
               )}
 

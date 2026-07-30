@@ -38,9 +38,41 @@ export async function getSessionEmail(): Promise<string | null> {
 // so the next account on this browser can't inherit it. Cleared naturally on
 // reload (same lifetime as onboardedCache below).
 let cachedProfile: UserProfile | null = null
-export function getCachedProfile(): UserProfile | null { return cachedProfile }
-export function setCachedProfile(p: UserProfile | null): void { cachedProfile = p }
-export function clearProfileCache(): void { cachedProfile = null }
+
+// Device cache, for the COLD open. The in-memory cache only helps within a
+// session, so a fresh launch still had to wait for this query before Profile
+// could render anything — including the permit, which needs the name, handle and
+// created_at from here. That was the remaining cause of the permit's delay: the
+// permit's own grade is cached (lib/license.ts), but it can't draw before the
+// identity it prints does. Same precedent as the avatar thumbnail.
+//
+// Safe to persist since 083 removed `email` from this row — there is nothing
+// sensitive left in it. Cleared on sign-out so the next account on this browser
+// can't inherit an identity.
+const DEVICE_KEY = 'gdim_profile'
+
+export function getCachedProfile(): UserProfile | null {
+  if (cachedProfile) return cachedProfile
+  try {
+    const raw = localStorage.getItem(DEVICE_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw) as UserProfile
+    return p?.id && p?.username ? p : null
+  } catch { return null }
+}
+
+export function setCachedProfile(p: UserProfile | null): void {
+  cachedProfile = p
+  try {
+    if (!p) localStorage.removeItem(DEVICE_KEY)
+    else localStorage.setItem(DEVICE_KEY, JSON.stringify(p))
+  } catch { /* private mode: in-memory only */ }
+}
+
+export function clearProfileCache(): void {
+  cachedProfile = null
+  try { localStorage.removeItem(DEVICE_KEY) } catch { /* ignore */ }
+}
 
 export async function getCurrentUserProfile(): Promise<UserProfile | null> {
   const { data: auth } = await supabase.auth.getUser()
@@ -52,7 +84,7 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
     .eq('id', uid)
     .single()
   const p = (data as UserProfile) ?? null
-  if (p) cachedProfile = p
+  if (p) setCachedProfile(p)
   return p
 }
 
