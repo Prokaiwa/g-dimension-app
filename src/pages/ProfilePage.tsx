@@ -23,7 +23,8 @@ import {
 } from '../lib/userProfile'
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
 import { useIsAdmin } from '../hooks/useIsAdmin'
-import { useAdminAlert } from '../hooks/useAdminAlert'
+import { useAttention } from '../hooks/useAttention'
+import { getMySuspension } from '../lib/moderation'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
@@ -140,6 +141,21 @@ function NavRow({ label, sub, onClick, trailing }: { label: string; sub?: string
   )
 }
 
+// Pulsing dot used by any row with something waiting. Same amber and rhythm as
+// the avatar ring in the Home header, so the two read as one system.
+function AlertDot() {
+  return (
+    <>
+      <style>{'@keyframes attnDot { 0%,100% { opacity:0.45; transform:scale(1) } 50% { opacity:1; transform:scale(1.25) } }'}</style>
+      <span aria-hidden style={{
+        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+        background: COLOR_ACCENT, boxShadow: `0 0 7px ${COLOR_ACCENT}`,
+        animation: 'attnDot 2.6s ease-in-out infinite',
+      }} />
+    </>
+  )
+}
+
 function CameraIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff5dc" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
@@ -159,7 +175,8 @@ export default function ProfilePage() {
   const [followingCount, setFollowingCount] = useState<number | null>(null)
   // Owner-only entry point to /admin. Hides the row; grants nothing by itself.
   const isAdminUser = useIsAdmin() === true
-  const adminAlert  = useAdminAlert()
+  const attention   = useAttention()
+  const [suspension, setSuspension] = useState<{ at: string; reason: string | null } | null>(null)
   const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [license, setLicense] = useState<LicenseState | null>(() => getCachedLicense())
   const [loading, setLoading] = useState(() => !getCachedProfile())
@@ -209,6 +226,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     getSessionEmail().then(setEmail)
+    getMySuspension().then(setSuspension)
     getCurrentUserProfile().then(p => {
       setProfile(p)
       setLoading(false)
@@ -443,6 +461,25 @@ export default function ProfilePage() {
 
             {/* ── G-Dimension Permit (licence) — tap to flip to the next-grade
                 checklist. The progression hook. ── */}
+            {/* A suspended account has to be TOLD. Without this their public
+                pages simply return nothing and it reads as the app being broken
+                — which is both unkind and something App Review would flag. */}
+            {suspension && (
+              <div style={{
+                border: `1px solid ${COLOR_ERROR}`, borderLeft: `3px solid ${COLOR_ERROR}`,
+                padding: SPACE_SM, marginTop: SPACE_MD,
+              }}>
+                <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: COLOR_ERROR, margin: 0 }}>
+                  Account suspended
+                </p>
+                <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: 'rgba(240,228,200,0.72)', margin: `${SPACE_XS}px 0 0`, lineHeight: 1.55 }}>
+                  Your profile and builds are hidden from the public. Nothing has been
+                  deleted, and everything here is still yours. See Notifications for
+                  the details, or reply to the address in our Terms to appeal.
+                </p>
+              </div>
+            )}
+
             {/* Always occupy the permit's box, even before it resolves. An
                 empty div of the right aspect ratio means the rows below never
                 shift when the card arrives, so a tap can't land on the permit
@@ -511,24 +548,22 @@ export default function ProfilePage() {
                   </button>
                 }
               />
+              <NavRow
+                label="Notifications"
+                sub={attention.notices > 0
+                  ? `${attention.notices} unread`
+                  : 'Updates about your account and builds'}
+                onClick={() => navigate('/notifications')}
+                trailing={attention.notices > 0 ? <AlertDot /> : undefined}
+              />
               {isAdminUser && (
                 <NavRow
                   label="Admin"
-                  sub={adminAlert > 0
-                    ? `${adminAlert} waiting for you`
+                  sub={attention.reports > 0
+                    ? `${attention.reports} report${attention.reports === 1 ? '' : 's'} waiting`
                     : 'Reports, design tools, map console'}
                   onClick={() => navigate('/admin')}
-                  trailing={adminAlert > 0 ? (
-                    <>
-                      <style>{'@keyframes adminDot { 0%,100% { opacity:0.45; transform:scale(1) } 50% { opacity:1; transform:scale(1.25) } }'}</style>
-                      <span aria-hidden style={{
-                        width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                        background: COLOR_ACCENT,
-                        boxShadow: `0 0 7px ${COLOR_ACCENT}`,
-                        animation: 'adminDot 2.6s ease-in-out infinite',
-                      }} />
-                    </>
-                  ) : undefined}
+                  trailing={attention.reports > 0 ? <AlertDot /> : undefined}
                 />
               )}
               <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />

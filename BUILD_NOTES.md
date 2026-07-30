@@ -944,6 +944,54 @@ row in Profile grows a glowing dot plus an "N waiting for you" subtitle.
   push, this becomes the local mirror of what was pushed and the surfaces reading
   it shouldn't need to change.
 
+### Notifications + unsuspend (2026-07-30, migration 087, ADR-025) — PENDING
+
+Answers "what happens next?" after a moderation action. 084 gave moderation teeth
+but no voice: an action landed and the person it landed on was never told, and
+`admin_suspend_user` had **no inverse at all**.
+
+| Piece | Where |
+|---|---|
+| Per-user inbox | `user_notices` → `/notifications` (`NotificationsPage`) |
+| Profile entry + dot | Notifications row, above Admin |
+| Suspended banner | Profile, top — an account must be able to see its own status |
+| Lift a suspension | `/admin/suspended` (`AdminSuspendedPage`), linked from the hub |
+| One attention count | `lib/attention.ts` (renamed from `adminAlert.ts`) |
+
+**Decisions not to re-litigate:**
+
+- **The reporter is never notified.** Owner's call, matching Instagram: telling a
+  reporter their target was actioned turns reporting into a scoreboard, and
+  telling them it was dismissed invites argument. They can still read their own
+  report's `status` (084) — it just isn't pushed.
+- **Notices can't be forged.** There is **no INSERT policy** on `user_notices`;
+  the only writer is the definer `notify_user()`, with EXECUTE revoked from every
+  client role. `update` is column-scoped to `read_at`, so a user can mark one read
+  but not reword it.
+- **Body text is stored, not derived.** A notice records what someone was told on
+  a date; regenerating it later from current state would rewrite history once a
+  car is renamed or deleted — which is the property that makes it useful in an
+  appeal.
+- **Restoring reads `moderation_prev_public`, never assumes public.** Both dismiss
+  and unsuspend put each car back to the visibility its owner chose. A car that
+  was private before an auto-hide must not be published by clearing a bad report.
+- **One count, not per-feature badges.** `getAttention()` returns
+  `{ notices, reports, total }` from a single memoized query, so the avatar ring
+  (total), the Notifications row (notices) and the Admin row (reports) can't
+  disagree. Follows and transfers should add in here rather than growing a
+  parallel system. This is the in-app stand-in for push — when the app is native,
+  it becomes the local mirror of what was pushed and these surfaces don't change.
+
+**Worth knowing:** the suspended-account banner works only because 084 added
+`suspended_at` to the 083 column grant. That grant is load-bearing — without it
+an account can't see its own status and a suspension is indistinguishable from a
+bug.
+
+**Verified pre-migration** (the deploy lands first): `/notifications` shows its
+empty state, `/admin/suspended` shows "Not available." to a non-admin, Profile
+renders with the Notifications row, and nothing errors — the guarded helpers
+swallow the missing table.
+
 ### Admin hub (2026-07-30)
 
 `/admin`, reachable from an **Admin** row in Profile that only renders for

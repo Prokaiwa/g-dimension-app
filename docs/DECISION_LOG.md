@@ -790,3 +790,52 @@ anywhere in the app** — no search, no browse; `/builds/:username` is reachable
 only via a link someone hands you. Follow keeps people you already reached; it
 does not help you find anyone. That is the next piece, and it is why follow alone
 should not be mistaken for "the social layer". Source: migration 086.
+
+---
+
+## ADR-025 — Moderation gets a voice, and suspension gets an inverse (2026-07-30)
+
+**Decision:** Every moderation action files a `user_notices` row for the affected
+owner, surfaced at `/notifications` and through the existing attention glow. The
+**reporter is deliberately never notified.** `admin_unsuspend_user` and
+`/admin/suspended` give suspension the inverse it shipped without. Migration 087.
+
+**Context:** 084 gave moderation teeth but no voice. An action landed and the
+person it landed on was never told — a hidden build simply went quiet, and a
+suspended account looked indistinguishable from the app being broken. Worse,
+`admin_suspend_user` had no inverse at all: a one-way destructive action sitting
+between two safe ones, reversible only by hand-written SQL.
+
+**Rationale:**
+
+- **Notices are stored text, not derived at read time.** A notice is a record of
+  what someone was told on a date. Regenerating the wording later from current
+  state would quietly rewrite history once a car is renamed or deleted — which is
+  exactly the property that makes it useful in an appeal.
+- **There is no INSERT policy on `user_notices` at all.** The only writer is the
+  definer function `notify_user`, whose EXECUTE is revoked from every client
+  role. A user cannot forge having been told something, and `update` is
+  column-scoped to `read_at` so they cannot rewrite what it says.
+- **The reporter is told nothing after "report sent."** This matches Instagram
+  and is the safer default: telling a reporter their target was actioned turns
+  reporting into a scoreboard, and telling them it was dismissed invites
+  argument. Nothing is concealed — 084 already lets an author read their own
+  report's `status` — it simply isn't pushed at them.
+- **Restoring always reads `moderation_prev_public`, never assumes public.** Both
+  dismiss and unsuspend put each car back to the visibility its owner had chosen.
+  A car that was private before an auto-hide must not be published by the act of
+  clearing a bad report.
+- **One attention count, not per-feature badges.** `lib/attention.ts` sums unread
+  notices (everyone) and open reports (admins) and returns the breakdown, so the
+  avatar ring, the Notifications row and the Admin row can never disagree.
+  Anything added later — follows, transfers — adds in here rather than growing a
+  parallel system. This is the in-app stand-in for push: when the app is native,
+  it becomes the local mirror of what was pushed and the surfaces reading it
+  don't change.
+
+**Consequence:** the suspended user now sees a banner on their own Profile,
+readable only because 084 added `suspended_at` to the 083 column grant. That
+grant is load-bearing in a way worth remembering — without it an account cannot
+see its own status, and the suspension is indistinguishable from a bug.
+
+Source: migration 087.

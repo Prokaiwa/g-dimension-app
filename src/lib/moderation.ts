@@ -212,10 +212,47 @@ async function adminCall(fn: string, args: Record<string, unknown>): Promise<{ o
   } catch { return { ok: false, error: 'Action failed.' } }
 }
 
+export type SuspendedUser = {
+  id: string
+  username: string | null
+  display_name: string | null
+  suspended_at: string
+  suspension_reason: string | null
+}
+
+/** Who is currently suspended, so it can be undone. Empty pre-087. */
+export async function getSuspendedUsers(): Promise<SuspendedUser[]> {
+  try {
+    const { data, error } = await supabase.rpc('admin_suspended_users')
+    if (error || !data) return []
+    return data as SuspendedUser[]
+  } catch { return [] }
+}
+
 export const dismissReport = (reportId: string) => adminCall('admin_dismiss_report', { report_id: reportId })
 export const hideReported  = (reportId: string) => adminCall('admin_hide_content',   { report_id: reportId })
 export const suspendUser   = (userId: string, reason: string) =>
   adminCall('admin_suspend_user', { target_user: userId, reason })
+export const unsuspendUser = (userId: string) =>
+  adminCall('admin_unsuspend_user', { target_user: userId })
+
+/**
+ * Is the signed-in user suspended? Readable because 084 added suspended_at to
+ * the 083 column grant — an account must be able to see its own status, or the
+ * suspension is indistinguishable from the app being broken.
+ */
+export async function getMySuspension(): Promise<{ at: string; reason: string | null } | null> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    if (!uid) return null
+    const { data, error } = await supabase
+      .from('users').select('suspended_at, suspension_reason').eq('id', uid).maybeSingle()
+    if (error || !data) return null
+    const row = data as { suspended_at: string | null; suspension_reason: string | null }
+    return row.suspended_at ? { at: row.suspended_at, reason: row.suspension_reason } : null
+  } catch { return null }
+}
 
 // ── Username blocklist ───────────────────────────────────────────────────────
 

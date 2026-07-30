@@ -6,8 +6,8 @@
 // AdminOnly like the tools it links to.
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getReportQueue } from '../lib/moderation'
-import { invalidateAdminAlert } from '../lib/adminAlert'
+import { getReportQueue, getSuspendedUsers } from '../lib/moderation'
+import { invalidateAttention } from '../lib/attention'
 import { getCurrentUserProfile } from '../lib/userProfile'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
@@ -83,13 +83,15 @@ export default function AdminHubPage() {
   const navigate = useNavigate()
   const [openReports, setOpenReports] = useState<number | null>(null)
   const [handle, setHandle] = useState<string | null>(null)
+  const [suspended, setSuspended] = useState<number | null>(null)
 
   useEffect(() => {
     // Opening the hub is a good moment to re-check, so the glow can't be stale
     // by the time you're looking at the thing it points to.
-    invalidateAdminAlert()
+    invalidateAttention()
     getReportQueue().then(rs => setOpenReports(rs.filter(r => r.status === 'open').length))
     getCurrentUserProfile().then(p => setHandle(p?.username ?? null))
+    getSuspendedUsers().then(rs => setSuspended(rs.length))
   }, [])
 
   const go = (t: Tool) => {
@@ -127,6 +129,11 @@ export default function AdminHubPage() {
             sub: 'Review, dismiss, hide, or suspend',
             to: '/admin/reports',
             badge: openReports ? `${openReports} open` : null,
+          }, {
+            label: 'Suspended accounts',
+            sub: 'Review and lift suspensions',
+            to: '/admin/suspended',
+            badge: suspended ? `${suspended}` : null,
           }]}
           onGo={go}
         />

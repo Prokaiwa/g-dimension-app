@@ -6,6 +6,14 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 086_follows.sql (applied 2026-07-30)
+--
+-- PENDING — NOT YET APPLIED:
+--   087_user_notices.sql (ADR-025) — tells people what moderation did to them,
+--   and gives suspension the inverse 084 shipped without. Until it runs,
+--   /notifications is empty, the Profile suspension banner never shows, and a
+--   suspended account can only be restored with hand-written SQL. The frontend
+--   is guarded and behaves exactly as today before it runs.
+--   Then bump this watermark to 087.
 --   - 086 (ADR-024, following: public follows + counts; blocking enforced in the
 --     RLS insert policy both ways). Verified live: follow/unfollow, counts as
 --     owner AND anon, following_list, duplicate + self + impersonated follows
