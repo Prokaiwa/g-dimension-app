@@ -5,17 +5,35 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 083_users_authenticated_column_grants.sql (applied 2026-07-29)
+-- Last migration applied : 084_moderation_foundation.sql (applied 2026-07-30)
+--   - 084 (ADR-023, App Store Guideline 1.2: report/block, suspend + hide,
+--     username blocklist, admin RPCs). Verified live the same day from a real
+--     account, reporting the TEST account's own car so no real user's build was
+--     hidden: severe report → auto_hidden=true and the build left ALL FIVE
+--     public surfaces at once (public_car_profiles, jobs, sessions,
+--     job_photos, timeline_entries) from the single is_public flip, with zero
+--     policy edits — the design bet in the 084 header paid off. Owner kept
+--     private access throughout. cars_moderation_guard held: re-ticking Public
+--     and clearing moderation_hidden_at both silently reverted, while ordinary
+--     edits (nickname) still worked. target_owner_id was overwritten from a
+--     deliberately falsified value to the real owner. Non-severe (spam) queued
+--     without hiding. Username blocklist correct incl. leetspeak
+--     (gdim3ns10n → brand, nigg3r → slur, f_u_c_k → profanity) and the
+--     car-culture calibration (shitbox / bitchinrides / assetto all ALLOWED).
+--     users_username_guard rejected blocked handles even via raw REST. All
+--     four admin RPCs refused a non-admin (42501) and anon cannot execute them.
+--     Reports are unreadable to anon and scoped to their author.
 --
 -- PENDING — NOT YET APPLIED:
---   084_moderation_foundation.sql (ADR-023) — App Store Guideline 1.2:
---   report, block, suspend/hide, username blocklist, admin RPCs. Needed
---   before store submission; 1.2 already applies because /builds publishes
---   user content today. After running, ALSO grant yourself admin:
---     insert into user_flags (user_id, flag)
---     values ('<your-users.id>', 'admin');
---   and set RESEND_API_KEY on the report-notify Edge Function.
---   Then bump the watermark above to 084.
+--   085_moderation_grant_hardening.sql — defence in depth found during that
+--   verification: this DB's default privileges give `authenticated` full DML on
+--   new public tables, so 084's narrow `grant select, insert` narrowed nothing.
+--   A reporter's UPDATE/DELETE of their own report currently returns 204 with
+--   0 rows (RLS refuses it) rather than 42501 (the grant would). Safe today,
+--   fragile the day someone adds a `for all` policy — which this codebase has
+--   done twice (081/082). 085 makes reports append-only at the grant level and
+--   takes the blocklist off the REST surface entirely. Does NOT affect the
+--   admin RPCs (security definer). Then bump this watermark to 085.
 --   - 083 (ADR-022, SECURITY: any signed-in user could read every other user's
 --     users.email via REST — verified live at 28 rows. 071 fixed this for anon
 --     only; 015's users_select_public policy carries no role clause, so

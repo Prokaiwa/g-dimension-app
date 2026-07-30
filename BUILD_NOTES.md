@@ -773,10 +773,48 @@ and later feeds/comments), not the public web. Don't let UI copy promise more.
    deploy it (Dashboard → Edge Functions).
 3. Bump the `hotfixes.sql` watermark to 084.
 
-**Verified pre-migration** (the deploy lands first): `/settings/blocked` shows
-its empty state, `/admin/reports` shows "Not available.", Profile/Settings/Terms
-render, and nothing crashes — the guarded helpers swallow the missing tables.
-Post-migration verification is still outstanding.
+**Verified live, 2026-07-30** (084 applied). Driven from the test account, and
+deliberately **reporting its OWN car** rather than a real user's, so no genuine
+build was hidden to prove a point.
+
+| Check | Result |
+|---|---|
+| Severe report (`nudity`) on own car | ✅ `auto_hidden = true` on the returned row |
+| Did the content actually leave the public surface? | ✅ **All five at once** — `public_car_profiles`, `jobs`, `sessions`, `job_photos`, `timeline_entries` all empty to anon, from the single `is_public` flip. Zero policy edits. The design bet in the 084 header paid off |
+| Owner keeps their data | ✅ still reads their own car; only the public surface changed |
+| `cars_moderation_guard` vs. owner evasion | ✅ re-ticking Public reverted silently; clearing `moderation_hidden_at`/`prev_public` reverted; ordinary edits (nickname) still saved |
+| Falsified `target_owner_id` | ✅ overwritten server-side from a deliberately wrong `00000000-…` to the real owner |
+| Non-severe (`spam`) | ✅ queued, `auto_hidden = false`, car stayed public |
+| Duplicate report | ✅ `23505` from the partial unique index (client treats it as success) |
+| Reporting as someone else | ✅ refused, RLS `with_check` |
+| Reporter editing/deleting their own report | ✅ no effect — audit trail intact (**but see 085**) |
+| Username blocklist | ✅ `admin`→reserved, `official`/`gdimension`→brand, `nigg3r`→slur, `f_u_c_k`→profanity, and leetspeak normalization caught `gdim3ns10n`→brand |
+| Car-culture calibration | ✅ `shitbox`, `bitchinrides`, `assetto`, `turbodave`, `s14kouki` all **allowed** |
+| `users_username_guard` via raw REST | ✅ `23514 username_blocked:profanity` / `:reserved` — the form is not the boundary |
+| Admin RPCs from a non-admin | ✅ all four `42501 not_admin`; anon cannot even execute them |
+| Reports readable by anon / other users | ✅ `42501` for anon; scoped to their author for authenticated |
+| Report sheet UI | ✅ eight reasons, worst-first, and the severe warning appears/clears with the selection |
+| `report-notify` not yet deployed | ✅ report still saved — the fire-and-forget ordering behaved as designed |
+
+**One finding came out of the verification → migration 085 (pending).** A
+reporter's attempt to rewrite or delete their own report returned `204` with zero
+rows rather than `42501`. That difference matters: a missing grant errors, so a
+clean 204 means the **grant permits the write** and only the absence of an RLS
+policy refuses it. This database's default privileges hand `authenticated` full
+DML on new public tables, so 084's narrow `grant select, insert` narrowed
+nothing. Safe today; fragile the day someone adds a `for all` policy — which
+this codebase has done twice (081/082). 085 makes reports append-only at the
+grant level and takes the blocklist off REST entirely.
+
+**Still outstanding** (owner steps, not code):
+1. `insert into user_flags (user_id, flag) select id, 'admin' from users where username = '<your-handle>';`
+2. Set `RESEND_API_KEY` and deploy the `report-notify` Edge Function.
+3. Run 085.
+
+Until (1), the admin queue and the dismiss/restore path are **unverified** — and
+the test account's Silvia is currently auto-hidden with no way to restore it,
+which is correct behaviour (only an admin can lift a hide) but does mean
+dismissal has not been exercised yet.
 
 ### Social layer — unblocked, and the recommended order (2026-07-29)
 
