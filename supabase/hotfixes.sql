@@ -5,15 +5,14 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 086_follows.sql (applied 2026-07-30)
---
--- PENDING — NOT YET APPLIED:
---   087_user_notices.sql (ADR-025) — tells people what moderation did to them,
---   and gives suspension the inverse 084 shipped without. Until it runs,
---   /notifications is empty, the Profile suspension banner never shows, and a
---   suspended account can only be restored with hand-written SQL. The frontend
---   is guarded and behaves exactly as today before it runs.
---   Then bump this watermark to 087.
+-- Last migration applied : 087_user_notices.sql (applied 2026-07-30)
+--   - 087 (ADR-025, user_notices + unsuspend): moderation now tells the person
+--     it happened to, and admin_suspend_user finally has an inverse. Notices are
+--     unforgeable by construction — no INSERT policy at all, the sole writer is
+--     the definer notify_user() with EXECUTE revoked from every client role, and
+--     UPDATE is column-scoped to read_at. The reporter is deliberately never
+--     notified (Instagram-like). Restores read moderation_prev_public rather
+--     than assuming public.
 --   - 086 (ADR-024, following: public follows + counts; blocking enforced in the
 --     RLS insert policy both ways). Verified live: follow/unfollow, counts as
 --     owner AND anon, following_list, duplicate + self + impersonated follows

@@ -970,7 +970,7 @@ live and stored grade, so nobody can be demoted by this. The visible effect is
 only that the remaining checklist becomes honest (verified live: "Log 5 mods" went
 4/5 → 3/5 once a wash stopped counting).
 
-### Notifications + unsuspend (2026-07-30, migration 087, ADR-025) — PENDING
+### Notifications + unsuspend (2026-07-30, migration 087, ADR-025)
 
 Answers "what happens next?" after a moderation action. 084 gave moderation teeth
 but no voice: an action landed and the person it landed on was never told, and
@@ -1007,6 +1007,31 @@ but no voice: an action landed and the person it landed on was never told, and
   disagree. Follows and transfers should add in here rather than growing a
   parallel system. This is the in-app stand-in for push — when the app is native,
   it becomes the local mirror of what was pushed and these surfaces don't change.
+
+**Verified live 2026-07-30 (087 applied).** Security properties first, since the
+whole value of a notice is that it can't be faked:
+
+| Attempt | Result |
+|---|---|
+| Insert a notice for myself | **42501** ✓ (no INSERT policy exists at all) |
+| Insert a notice for someone else | **42501** ✓ |
+| Call `notify_user()` directly | **42501** ✓ (EXECUTE revoked from every client role) |
+| `admin_unsuspend_user` as a non-admin | **42501 not_admin** ✓ |
+| `admin_suspended_users` as a non-admin | **42501 not_admin** ✓ |
+| anon reading `user_notices` | **42501** ✓ |
+
+Then the functional loop, by reporting the test account's OWN car so no real build
+was touched: severe report → `auto_hidden = true` → a notice appeared for the
+owner reading *"1998 Nissan Silvia was reported and is hidden from public view…"*
+with the car linked. The avatar ring lit, Profile showed **"Notifications ·
+1 unread"**, `/notifications` rendered the notice with its "Go to the car" link,
+and opening it marked everything read — after which the row reverted to its
+default subtitle and the ring went out. So the glow's whole lifecycle works, not
+just its appearance.
+
+**Still unverified, because it needs an admin:** `admin_suspend_user` →
+banner + notice → `admin_unsuspend_user` → restore. The test account can't grant
+itself the flag, which is the point of the flag.
 
 **Worth knowing:** the suspended-account banner works only because 084 added
 `suspended_at` to the 083 column grant. That grant is load-bearing — without it
