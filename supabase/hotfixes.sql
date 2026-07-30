@@ -5,13 +5,15 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 087_user_notices.sql (applied 2026-07-30)
+-- Last migration applied : 088_restore_notice_wording.sql (applied 2026-07-30)
+--   - 088 (function-only copy fix, found while verifying 087): the dismissal
+--     notice was titled "Your build is public again", which is false when the
+--     car was PRIVATE before being auto-hidden. The restore itself was already
+--     correct (verified live: a private car came back is_public=false and
+--     invisible to anon) — only the title lied. Now "Your build has been
+--     restored", true either way. Everything else byte-identical to 087.
 --
--- PENDING — NOT YET APPLIED:
---   088_restore_notice_wording.sql — function-only. The dismissal notice says
---   "Your build is public again", which is false when the car was PRIVATE
---   before being auto-hidden (the restore is correct; only the title lies).
---   Retitled "Your build has been restored". Then bump this watermark to 088.
+-- No migrations pending.
 --   - 087 (ADR-025, user_notices + unsuspend): moderation now tells the person
 --     it happened to, and admin_suspend_user finally has an inverse. Notices are
 --     unforgeable by construction — no INSERT policy at all, the sole writer is
