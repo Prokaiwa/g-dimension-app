@@ -1220,6 +1220,31 @@ types filed and resolved `target_owner_id` correctly (two non-severe `spam`
 reports, so nothing auto-hid), the sheet opened on all six surfaces, and it
 stayed shut when signed out and on the tester's own garage.
 
+**The admin queue had to learn what a target is (migration 090).** The queue was
+written when every report said `car`, and two things broke the moment real
+`photo` / `timeline_entry` rows arrived:
+
+- **A silent bug.** `target_car_hidden` read `cars where id = r.target_id`, true
+  only for a car report. A photo report looked up a car by the *photo's* id,
+  found nothing, and returned `false` — so a build that HAD been hidden showed no
+  "hidden" marker, on the one screen whose job is stating the current state.
+- **Nothing to link to.** The RPC never returned the car a report resolves to,
+  so the only offer was "open the build" — which drops you on the owner's profile
+  to go hunting for the image someone complained about.
+
+090 resolves target → car (and, for a photo, → job) through the same three cases
+`content_reports_autohide` already walks, and returns `target_car_id` +
+`target_job_id`. The queue now says **Photo / Timeline entry / Build / Account**
+instead of raw snake_case, and the link opens the reported thing:
+`reportTargetHref` in `src/lib/moderation.ts`, unit-tested including the
+pre-090 fallback.
+
+**Known limitation, surfaced rather than hidden:** `public_car_profiles` filters
+on `is_public`, so an auto-hidden build is invisible to the *admin* too. You
+cannot look at what you are judging without first dismissing the report. The
+queue now says so under the link instead of letting it look broken. The real fix
+is an admin-visible read path, which is a bigger change than a label.
+
 ## What's Next (not yet built)
 
 - **Timeline note multi-photo display** — notes store multiple photos (`timeline_entry_photos`) and they render on Entry Detail, but the explicit "choose *the* hero shot" picker for **session entries** isn't built — those still use the `timeline_photo_url` → first-`job_photo` fallback. (`sessions.timeline_photo_url` has no upload UI yet.)

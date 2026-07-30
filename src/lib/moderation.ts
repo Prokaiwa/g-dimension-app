@@ -177,6 +177,44 @@ export type AdminReport = {
   owner_suspended: boolean
   target_car_hidden: boolean
   report_count: number
+  /**
+   * The car and job the report resolves to (migration 090), so the queue can
+   * link to the reported thing rather than the owner's front page. Optional:
+   * pre-090 the RPC doesn't return them and the UI falls back to the build.
+   */
+  target_car_id?: string | null
+  target_job_id?: string | null
+}
+
+/** Human labels for the four target types. The raw column is snake_case. */
+export const REPORT_TARGET_LABEL: Record<ReportTargetType, string> = {
+  user:           'Account',
+  car:            'Build',
+  photo:          'Photo',
+  timeline_entry: 'Timeline entry',
+}
+
+/**
+ * Where to send an admin who wants to look at what was reported.
+ *
+ * Falls back to the owner's profile whenever the specific target can't be
+ * addressed — a 'user' report (no car), or any row read before 090 ran.
+ */
+export function reportTargetHref(r: AdminReport): string | null {
+  if (!r.owner_username) return null
+  const base = `/builds/${r.owner_username}`
+  const car  = r.target_car_id ?? (r.target_type === 'car' ? r.target_id : null)
+  const q    = car ? `?car=${car}` : ''
+  if (r.target_type === 'photo' && r.target_job_id) return `${base}/mods/${r.target_job_id}${q}`
+  if (r.target_type === 'timeline_entry')           return `${base}/timeline/entry/${r.target_id}${q}`
+  return `${base}${q}`
+}
+
+/** The link's label, so it names what it opens. */
+export function reportTargetLinkLabel(r: AdminReport): string {
+  if (r.target_type === 'photo' && r.target_job_id) return 'Open the photo'
+  if (r.target_type === 'timeline_entry')           return 'Open the entry'
+  return 'Open the build'
 }
 
 /**

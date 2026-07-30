@@ -14,7 +14,13 @@
 --     sitting inside sentences, against the project's own copy rule. Function
 --     bodies otherwise byte-identical to 087/088.
 --
--- No migrations pending.
+-- PENDING: 090_report_queue_targets.sql — function-only. Rewrites
+--   admin_report_queue now that ADR-026 files real photo/timeline_entry
+--   reports. Fixes target_car_hidden (it resolved a car by the PHOTO's id, so a
+--   hidden build showed no marker) and adds target_car_id + target_job_id so
+--   the queue links to the reported thing rather than the owner's profile.
+--   DROP then CREATE, since the OUT columns change. Frontend is safe either way.
+--
 --   - 088 (function-only copy fix, found while verifying 087): the dismissal
 --     notice was titled "Your build is public again", which is false when the
 --     car was PRIVATE before being auto-hidden. The restore itself was already

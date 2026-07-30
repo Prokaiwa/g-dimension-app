@@ -3,6 +3,8 @@ import {
   isSevereReason,
   usernameRejectionMessage,
   REPORT_REASONS,
+  reportTargetHref,
+  reportTargetLinkLabel,
   type ReportReason,
 } from './moderation'
 
@@ -66,5 +68,75 @@ describe('usernameRejectionMessage', () => {
       expect(msg.toLowerCase()).not.toContain('profan')
       expect(msg.toLowerCase()).not.toContain('slur')
     }
+  })
+})
+
+describe('reportTargetHref', () => {
+  const base = {
+    id: 'r1', created_at: '', reason: 'spam' as ReportReason, details: null,
+    status: 'open' as const, auto_hidden: false, target_owner_id: 'u1',
+    reporter_username: 'someone', owner_username: 'scantee',
+    owner_suspended: false, target_car_hidden: false, report_count: 1,
+  }
+
+  it('sends a photo report to the mod it hangs off, not the profile', () => {
+    expect(reportTargetHref({
+      ...base, target_type: 'photo', target_id: 'ph1',
+      target_car_id: 'car1', target_job_id: 'job1',
+    })).toBe('/builds/scantee/mods/job1?car=car1')
+  })
+
+  it('sends a timeline_entry report straight to the entry', () => {
+    expect(reportTargetHref({
+      ...base, target_type: 'timeline_entry', target_id: 'e1', target_car_id: 'car1',
+    })).toBe('/builds/scantee/timeline/entry/e1?car=car1')
+  })
+
+  it('sends a car report to that car, not whichever one is active', () => {
+    expect(reportTargetHref({ ...base, target_type: 'car', target_id: 'car1' }))
+      .toBe('/builds/scantee?car=car1')
+  })
+
+  // An account-level report is not about any one build, so there is nothing
+  // more specific to open than the profile.
+  it('falls back to the profile for a user report', () => {
+    expect(reportTargetHref({ ...base, target_type: 'user', target_id: 'u1' }))
+      .toBe('/builds/scantee')
+  })
+
+  // Pre-090 the RPC returns neither resolved column. The link must degrade to
+  // the build rather than build a broken URL out of a photo id.
+  it('degrades to the build when the row predates migration 090', () => {
+    expect(reportTargetHref({ ...base, target_type: 'photo', target_id: 'ph1' }))
+      .toBe('/builds/scantee')
+  })
+
+  it('gives up when the owner handle is unknown', () => {
+    expect(reportTargetHref({ ...base, owner_username: null, target_type: 'car', target_id: 'c' }))
+      .toBeNull()
+  })
+})
+
+describe('reportTargetLinkLabel', () => {
+  const base = {
+    id: 'r1', created_at: '', reason: 'spam' as ReportReason, details: null,
+    status: 'open' as const, auto_hidden: false, target_owner_id: 'u1',
+    reporter_username: 's', owner_username: 'scantee',
+    owner_suspended: false, target_car_hidden: false, report_count: 1,
+  }
+
+  it('names what it opens', () => {
+    expect(reportTargetLinkLabel({ ...base, target_type: 'photo', target_id: 'p', target_job_id: 'j' }))
+      .toBe('Open the photo')
+    expect(reportTargetLinkLabel({ ...base, target_type: 'timeline_entry', target_id: 'e' }))
+      .toBe('Open the entry')
+    expect(reportTargetLinkLabel({ ...base, target_type: 'car', target_id: 'c' }))
+      .toBe('Open the build')
+  })
+
+  // No job id means the link points at the build, so it must not promise a photo.
+  it('does not promise a photo it cannot open', () => {
+    expect(reportTargetLinkLabel({ ...base, target_type: 'photo', target_id: 'p' }))
+      .toBe('Open the build')
   })
 })
