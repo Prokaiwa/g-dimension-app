@@ -426,29 +426,59 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   spin?: boolean       // slow continuous Y-axis rotation (rank-up celebration)
   spinDelay?: string   // hold still (front-facing) this long before the spin starts
 }) {
-  const [flipped, setFlipped] = useState(false)
-  // Which face's CONTENT is mounted: the outgoing one is removed BEFORE the card
-  // reaches edge-on, and the incoming one appears AFTER — leaving a brief window
-  // where only the material/checker background is turning.
+  // Tap-flip turntable — the SAME mechanism as the celebration spin above, just
+  // driven by a tap instead of a clock. This is the third attempt and the
+  // reasoning is worth keeping:
   //
-  // The gap is the whole point, and swapping at the exact midpoint instead is a
-  // bug I shipped once: `backface-visibility` does not apply to this content
-  // layer (WebKit ignores it for image/SVG children — see the note at the top of
-  // this file), so if the front content is still mounted even a few frames after
-  // the card passes 90°, it leaks through and you see the FRONT briefly printed
-  // on the BACK before the real back settles. Timing jitter alone is enough.
-  // Hiding early is invisible by comparison: at 34% the card is already steeply
-  // foreshortened, so the content is a thin sliver when it goes.
-  const [contentFace, setContentFace] = useState<'front' | 'blank' | 'back'>('front')
-  const firstRun = useRef(true)
-  useEffect(() => {
-    if (firstRun.current) { firstRun.current = false; return }
-    const hide = setTimeout(() => setContentFace('blank'), FLIP_MS * 0.34)
-    const show = setTimeout(() => setContentFace(flipped ? 'back' : 'front'), FLIP_MS * 0.62)
-    // Re-tapping mid-flip restarts both, so a fast double-tap just stays blank a
-    // little longer rather than catching a half-swapped face.
-    return () => { clearTimeout(hide); clearTimeout(show) }
-  }, [flipped])
+  //   1. Cross-fading the two content layers blipped, because a re-tap restarted
+  //      the delayed opacity transitions mid-flight.
+  //   2. Swapping them at the exact midpoint leaked: `backface-visibility` does
+  //      not apply to the content layer (WebKit ignores it for image/SVG
+  //      children — see the note at the top of this file), so the front briefly
+  //      printed on the back.
+  //   3. Hiding early to dodge the leak left the card visibly BLANK mid-turn.
+  //
+  // All three fought the same root cause: a face was allowed to turn away from
+  // the viewer. The celebration never has this problem because it doesn't allow
+  // that — the rendered angle is clamped within ±90° and the visible face is
+  // swapped at the edge-on instant, so there is no backface to leak and no gap
+  // to fill. Same thing here: absolute angle animates 0↔180, but what's rendered
+  // is always within ±90°, and both faces stay mounted with only the
+  // toward-the-viewer one displayed.
+  const flipBoxRef = useRef<HTMLDivElement>(null)
+  const [flipFace, setFlipFace] = useState<'front' | 'back'>('front')
+  const angleRef = useRef(0)        // absolute 0…180, survives interruptions
+  const flipRafRef = useRef(0)
+  const flipTargetRef = useRef(0)
+
+  const runFlip = () => {
+    const to = flipTargetRef.current === 0 ? 180 : 0
+    flipTargetRef.current = to
+    cancelAnimationFrame(flipRafRef.current)
+    const from = angleRef.current
+    // Scale the duration by the distance left, so interrupting a flip half-way
+    // doesn't crawl through the remainder at full length.
+    const dur = Math.max(120, FLIP_MS * (Math.abs(to - from) / 180))
+    const t0 = performance.now()
+    // ease-in-out quad — matches the feel of the CSS ease-in-out it replaces.
+    const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - ((-2 * x + 2) ** 2) / 2)
+    const tick = (now: number) => {
+      const prog = Math.min(1, (now - t0) / dur)
+      const a = from + (to - from) * ease(prog)
+      angleRef.current = a
+      const isBack = a > 90
+      const render = isBack ? a - 180 : a
+      if (flipBoxRef.current) flipBoxRef.current.style.transform = `rotateY(${render.toFixed(2)}deg)`
+      setFlipFace(f => {
+        const want = isBack ? 'back' : 'front'
+        return f === want ? f : want
+      })
+      if (prog < 1) flipRafRef.current = requestAnimationFrame(tick)
+    }
+    flipRafRef.current = requestAnimationFrame(tick)
+  }
+
+  useEffect(() => () => cancelAnimationFrame(flipRafRef.current), [])
   const seed = useMemo(() => seedFrom(handle), [handle])
 
   // Spin turntable (see the SPIN_MS comment): rAF drives the rotation directly
@@ -523,18 +553,23 @@ export default function LicenseCard({ grade, next, toNext, driver, handle, licen
   }
 
   // ── Flip mode (profile): tap to flip to the next-grade checklist ──
+  // Structurally identical to spin mode above — no preserve-3d, no backface, both
+  // faces mounted (so the QR's decoded image survives), only the one facing the
+  // viewer displayed. rAF writes the transform straight to the element.
   return (
-    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={() => setFlipped(f => !f)}>
+    <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', perspective: '1400px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }} onClick={runFlip}>
       <style>{'@keyframes permitSheen { 0% { transform: translateX(0) skewX(-16deg); } 55%,100% { transform: translateX(560%) skewX(-16deg); } }'}</style>
-      {/* ease-in-out so the card is edge-on predictably at the 50% mark, which is
-          the window in which neither content layer is mounted (see contentFace). */}
-      <div style={{
-        position: 'relative', width: '100%', aspectRatio: '420 / 264', transformStyle: 'preserve-3d',
+      <div ref={flipBoxRef} style={{
+        position: 'relative', width: '100%', aspectRatio: '420 / 264',
         boxShadow: '0 16px 34px rgba(0,0,0,0.45)', borderRadius: 12,
-        transition: `transform ${FLIP_MS}ms ease-in-out`, transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+        willChange: 'transform',
       }}>
-        <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={contentFace !== 'front'} />
-        <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={contentFace !== 'back'} />
+        <div style={{ position: 'absolute', inset: 0, display: flipFace === 'front' ? 'block' : 'none' }}>
+          <GradeFace grade={grade} driver={driver} handle={handle} licensed={licensed} profileUrl={profileUrl} m={m} seed={seed} hidden={false} spin />
+        </div>
+        <div style={{ position: 'absolute', inset: 0, display: flipFace === 'back' ? 'block' : 'none' }}>
+          <ProgressFace next={next} toNext={toNext} m={m} seed={seed} hidden={false} spin flat />
+        </div>
       </div>
     </div>
   )
