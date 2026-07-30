@@ -191,7 +191,14 @@ export async function getLicenseStats(uid: string): Promise<LicenseStats> {
       + (c.build_sheet_exterior_photo ? 1 : 0) + (c.build_sheet_interior_photo ? 1 : 0), 0)
 
   const [mods, timeline, services, details, diyGuides] = await Promise.all([
-    supabase.from('jobs').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('status', 'installed'),
+    // type='modification' matters here for the same reason it does in
+    // getProfileStats: maintenance line items live in `jobs` and default to
+    // status='installed', so without it every oil change counted toward "Log N
+    // mods" — and `records` below then double-counted services, once through
+    // mods and once through services. The permit is a ratchet (resolveLicense
+    // never demotes), so tightening this can't take a grade away from anyone;
+    // it only makes the remaining checklist honest.
+    supabase.from('jobs').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('status', 'installed').eq('type', 'modification'),
     supabase.from('timeline_entries').select('id', { count: 'exact', head: true }).in('car_id', carIds),
     supabase.from('sessions').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('type', 'maintenance'),
     supabase.from('sessions').select('id', { count: 'exact', head: true }).in('car_id', carIds).eq('type', 'detail'),

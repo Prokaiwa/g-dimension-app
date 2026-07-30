@@ -277,6 +277,18 @@ function ProgressFace({ next, toNext, m, seed, hidden, spin, flat }: { next: Gra
             <div style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 16, letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent, marginBottom: 9 }}>
               {next.id} · {next.className}
             </div>
+            {/* A real non-top grade ALWAYS has at least one requirement, so an
+                empty checklist next to a known next-grade means the live counts
+                haven't landed yet — the device cache (lib/license.ts) restores
+                the grade ids but deliberately not the progress, since stale
+                progress would be a wrong statement about someone's build. Say
+                that, rather than rendering an empty gap that reads as "no goals".
+                Only visible during the first load on a big garage. */}
+            {toNext.length === 0 ? (
+              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: m.inkDim }}>
+                Checking your progress…
+              </div>
+            ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4.5 }}>
               {toNext.map(p => (
                 <div key={p.key + p.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -292,6 +304,7 @@ function ProgressFace({ next, toNext, m, seed, hidden, spin, flat }: { next: Gra
                 </div>
               ))}
             </div>
+            )}
           </>
         ) : (
           <div style={{ margin: 'auto', textAlign: 'center' }}>

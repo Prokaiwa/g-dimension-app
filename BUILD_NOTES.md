@@ -944,6 +944,32 @@ row in Profile grows a glowing dot plus an "N waiting for you" subtitle.
   push, this becomes the local mirror of what was pushed and the surfaces reading
   it shouldn't need to change.
 
+### Permit checklist — two bugs from the caching work (2026-07-30)
+
+**1. The next-grade goals vanished — a regression from the device cache.** The
+cache (`gdim_permit_grade`) stores only the grade **ids**, never `toNext`, because
+stale progress would be a wrong statement about someone's build. That's still
+right, but it meant the card could render the "NEXT GRADE B · BUILDER" header with
+an **empty checklist** during the window between the cached grade painting and the
+live counts landing. On a small garage that window is invisible; on the owner's
+(174 jobs to count) it was plainly visible and read as "there are no goals".
+
+Fixed in `ProgressFace`: a real non-top grade always has at least one requirement,
+so `next != null && toNext.length === 0` can only mean "not loaded yet" — it now
+renders **"Checking your progress…"** rather than an empty gap. No new flag
+needed; the invariant carries it.
+
+**2. "Log N mods" was counting service records** — the exact twin of the Profile
+Mods bug, found while chasing the first one. `getLicenseStats` counted
+`status='installed'` with no `type` filter, so maintenance line items counted as
+mods. Worse, `records` then **double-counted services**, once via `mods` and again
+via `services`. Both fixed with `.eq('type','modification')`.
+
+Safe to tighten because `resolveLicense` is a ratchet — it takes the higher of the
+live and stored grade, so nobody can be demoted by this. The visible effect is
+only that the remaining checklist becomes honest (verified live: "Log 5 mods" went
+4/5 → 3/5 once a wash stopped counting).
+
 ### Notifications + unsuspend (2026-07-30, migration 087, ADR-025) — PENDING
 
 Answers "what happens next?" after a moderation action. 084 gave moderation teeth
