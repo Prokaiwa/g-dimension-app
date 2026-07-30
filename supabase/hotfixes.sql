@@ -5,7 +5,20 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 089_notice_copy.sql (applied 2026-07-30)
+-- Last migration applied : 090_report_queue_targets.sql (applied 2026-07-30)
+--   - 090 (function-only, ADR-026 follow-up): admin_report_queue now resolves a
+--     report's target. Fixed a silent bug — target_car_hidden read
+--     `cars where id = r.target_id`, true only for a 'car' report, so a photo
+--     report looked up a car by the PHOTO's id, found nothing, and returned
+--     false: a build that HAD been hidden showed no marker on the one screen
+--     whose job is stating the current state. Now resolves target → car through
+--     the same three cases as content_reports_autohide, and returns
+--     target_car_id + target_job_id so the queue links to the reported thing.
+--     Verified after running: the RPC returns 42501 not_admin to a non-admin
+--     (not 42883), so the DROP/CREATE did not lose the EXECUTE grant, and the
+--     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
+--     @handle" with links landing on the mod page and the entry.
+--
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
 --     property is real (restores read moderation_prev_public, see 088) but the
@@ -14,12 +27,7 @@
 --     sitting inside sentences, against the project's own copy rule. Function
 --     bodies otherwise byte-identical to 087/088.
 --
--- PENDING: 090_report_queue_targets.sql — function-only. Rewrites
---   admin_report_queue now that ADR-026 files real photo/timeline_entry
---   reports. Fixes target_car_hidden (it resolved a car by the PHOTO's id, so a
---   hidden build showed no marker) and adds target_car_id + target_job_id so
---   the queue links to the reported thing rather than the owner's profile.
---   DROP then CREATE, since the OUT columns change. Frontend is safe either way.
+-- No migrations pending.
 --
 --   - 088 (function-only copy fix, found while verifying 087): the dismissal
 --     notice was titled "Your build is public again", which is false when the
