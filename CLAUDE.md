@@ -332,7 +332,7 @@ All user tables have Row-Level Security enabled. Reference tables (`vehicle_make
 src/tokens/index.ts                 — ALL design tokens (colors, fonts, spacing, animation)
 src/lib/supabase.ts                 — Supabase client (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
 src/lib/activeCar.ts                — Active car get/set/sync helpers
-src/lib/carTransfers.ts             — Car ownership transfer helpers (migration 072, ADR-017): offer/cancel/decline via RLS-gated table writes, accept via the accept_car_transfer RPC (the app's ONLY supabase.rpc() call). Guarded carPrivate-style — pre-072 everything degrades to "no offers". Also getTransferSource() for the "Transferred from @handle" provenance line, and the SOLD-ghost helpers (migration 074, ADR-019): getSoldCars/getArchivedSoldCars/archiveSoldCar/unarchiveSoldCar/soldCarName over the car_ghosts table
+src/lib/carTransfers.ts             — Car ownership transfer helpers (migration 072, ADR-017): offer/cancel/decline via RLS-gated table writes, accept via the accept_car_transfer RPC (the app's FIRST supabase.rpc() call; follows.ts, moderation.ts and notices.ts have since added more). Guarded carPrivate-style — pre-072 everything degrades to "no offers". Also getTransferSource() for the "Transferred from @handle" provenance line, and the SOLD-ghost helpers (migration 074, ADR-019): getSoldCars/getArchivedSoldCars/archiveSoldCar/unarchiveSoldCar/soldCarName over the car_ghosts table
 src/lib/diyAuthor.ts                — DIY guide authorship credit (migration 073, ADR-018): getDiyAuthorHandle() returns the original author's @handle only when it differs from the car's current owner (post-transfer). Guarded — null pre-migration
 src/lib/links.ts                    — getYouTubeId, getYouTubeThumbnail, JobLink type
 src/App.tsx                         — Route tree + ProtectedRoute (renders AuthGateFallback while loading) + ErrorBanner + auth sync on sign-in
@@ -363,8 +363,8 @@ src/components/CameraIcon.tsx       — Shared stroked camera glyph (matches the
 src/lib/sound.ts                    — GT-style UI sounds (playTick/playConfirm/playBack), synthesized on-device via Web Audio — no audio assets, no network. Account-synced on/off in Settings (users.sound_enabled, migration 068; localStorage 'gdim_sound_enabled' is the instant-load cache), default ON (migration 069). Audition board at /sound-test (dev route, bypasses the toggle)
 src/components/ArrivalFade.tsx      — 280ms fade-from-dark used by the five Home-map destinations (/garage /tuning /maintenance /timeline /featured) to complete the Home zoom-exit transition
 src/pages/SoundTestPage.tsx         — Dev tool at /sound-test — audition board for candidate UI sounds
-src/assets/icons/maintenance/service.png       — Service tile icon
-src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
+src/assets/icons/maintenance/service.webp      — Service tile icon
+src/assets/icons/maintenance/maintenance_detail.webp — Detailing tile icon (transparent WebP)
 src/pages/AdminHubPage.tsx          — /admin — the owner's hub: reports queue, design tools (sound board / permit ladder / trading cards), map console. Reached from an Admin row in Profile that renders only for admins
 src/components/AdminOnly.tsx        — Route wrapper for owner-only pages. Renders nothing while admin resolves, then the page or a bland "Not available." Hides UI ONLY — every privileged action re-checks is_admin server-side (084). Wraps /admin, /admin/reports, /sound-test, /license-preview, /dev/trading-cards, /spec-test
 src/hooks/useIsAdmin.ts             — Admin status for gating UI. Takes an `enabled` flag so a caller can skip the lookup (the public profile needs it only when ?tune is in the URL) while still calling the hook unconditionally
@@ -375,7 +375,7 @@ src/lib/attention.ts                — ONE attention count for the whole app: u
 src/lib/follows.ts                  — Following (086, ADR-024): follow/unfollow, counts + list via definer RPCs, and the anon follow intent (localStorage, single-use, 24h TTL) that survives signup
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
-supabase/migrations/                — Numbered SQL files 001–080
+supabase/migrations/                — Numbered SQL files 001–089
 supabase/hotfixes.sql               — Ad-hoc fixes applied to live DB
 scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 ```
@@ -422,7 +422,7 @@ User preferences live on the `users` table (`distance_unit`, `power_unit`, `torq
 
 ## Public Profile Boundary
 
-`/builds/:username` is the only non-authenticated route.
+`/builds/*` is the only non-authenticated route family that publishes **user data**. (Auth and legal routes — `/`, `/login`, `/signup`, `/auth/*`, `/terms`, `/privacy` — are also unauthenticated, but carry no user content.)
 
 Public: car identity, specs, timeline, photos, Build Sheet (brand + title + category — **no costs**)
 Always private: receipts, contacts, documents, session details, VIN, license plate, purchase price
@@ -439,7 +439,7 @@ Private by default: Build Investment total (toggleable via `cars.show_investment
 - **TypeScript:** `spec_templates` query requires `as unknown as SpecTemplate[]` cast — this is intentional, not a mistake.
 - **TypeScript:** link entry union type in edit pages requires `as unknown as { _idx: number }` double-cast when removing a queued new link — this is intentional, strict mode doesn't accept a single cast from `JobLink & Record<"_isNew", unknown>` to `{ _idx: number }`.
 - **No 028 migration** — skip that number.
-- **TuningModDetailPage title:** `fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 28` — Hanken Grotesk bold italic, NOT Cormorant. Tuning never uses Cormorant.
+- **TuningModDetailPage title:** `fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 700, fontSize: 34` — Hanken Grotesk bold italic, NOT Cormorant. Tuning never uses Cormorant.
 - **Parts Bin aesthetic is intentionally different** from the rest of the app — kraft paper, corrugation lines, grain overlay, Caveat + Permanent Marker fonts. Do not apply this aesthetic outside `/tuning/parts-bin*` routes.
 - **Magazine sheen overlay** on TuningModDetailPage and TuningModEditPage: two `position: fixed` divs (radial gradients) + SVG fractal noise grain at `opacity: 0.028, mixBlendMode: 'screen'`. This is intentional and should stay.
 - **hotfixes.sql** — `durometer` spec_template has `unit='A'` and `placeholder=null` (changed from 'Shore' and '75' respectively). Applied directly to live DB.
