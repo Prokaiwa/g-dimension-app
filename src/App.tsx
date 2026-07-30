@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core'
 import { supabase } from './lib/supabase'
 import { syncActiveCarFromServer, clearActiveCar } from './lib/activeCar'
 import { takePendingFollow } from './lib/follows'
+import AdminOnly from './components/AdminOnly'
 import { TourProvider } from './tour/TourContext'
 import TourOverlay from './tour/TourOverlay'
 import { isOnboarded, clearProfileCache } from './lib/userProfile'
@@ -102,6 +103,7 @@ const SettingsArchivedPage = lazyWithRetry(() => import('./pages/SettingsArchive
 const SettingsBlockedPage  = lazyWithRetry(() => import('./pages/SettingsBlockedPage'))
 const AdminReportsPage     = lazyWithRetry(() => import('./pages/AdminReportsPage'))
 const FollowingPage        = lazyWithRetry(() => import('./pages/FollowingPage'))
+const AdminHubPage         = lazyWithRetry(() => import('./pages/AdminHubPage'))
 
 // Legal (public)
 const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
@@ -423,9 +425,9 @@ export default function App() {
       <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
       <Route path="/settings/blocked" element={<ProtectedRoute><SettingsBlockedPage /></ProtectedRoute>} />
       <Route path="/following" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
-      {/* Moderation queue. Route is not secret — the page and every RPC behind
-          it re-check the `admin` user_flag server-side (ADR-023). */}
-      <Route path="/admin/reports" element={<ProtectedRoute><AdminReportsPage /></ProtectedRoute>} />
+      {/* Moderation queue. AdminOnly hides it; every RPC behind it re-checks
+          the `admin` user_flag server-side regardless (ADR-023). */}
+      <Route path="/admin/reports" element={<ProtectedRoute><AdminOnly><AdminReportsPage /></AdminOnly></ProtectedRoute>} />
 
       {/* Non-authenticated public routes — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />
@@ -438,13 +440,16 @@ export default function App() {
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
       <Route path="/builds/:username/sold/:ghostId" element={<PublicSoldCarPage />} />
 
-      {/* Dev tools. /spec-test WRITES test jobs/specs to a real car, so it's
-          dev-only (stripped from production builds). /sound-test and
-          /dev/trading-cards are read-only. All unlinked from any nav. */}
-      {import.meta.env.DEV && <Route path="/spec-test" element={<ProtectedRoute><SpecTestPage /></ProtectedRoute>} />}
-      <Route path="/sound-test" element={<ProtectedRoute><SoundTestPage /></ProtectedRoute>} />
-      <Route path="/dev/trading-cards" element={<ProtectedRoute><DevTradingCardsPage /></ProtectedRoute>} />
-      <Route path="/license-preview" element={<ProtectedRoute><LicensePreviewPage /></ProtectedRoute>} />
+      {/* Owner-only tools, all reachable from the /admin hub rather than by
+          remembering URLs. Previously these shipped to ANY signed-in user
+          (recorded as a known item in BUILD_NOTES); AdminOnly closes that.
+          /spec-test WRITES real jobs/specs, so it stays dev-build-only on top
+          of the admin gate. */}
+      <Route path="/admin" element={<ProtectedRoute><AdminOnly><AdminHubPage /></AdminOnly></ProtectedRoute>} />
+      {import.meta.env.DEV && <Route path="/spec-test" element={<ProtectedRoute><AdminOnly><SpecTestPage /></AdminOnly></ProtectedRoute>} />}
+      <Route path="/sound-test" element={<ProtectedRoute><AdminOnly><SoundTestPage /></AdminOnly></ProtectedRoute>} />
+      <Route path="/dev/trading-cards" element={<ProtectedRoute><AdminOnly><DevTradingCardsPage /></AdminOnly></ProtectedRoute>} />
+      <Route path="/license-preview" element={<ProtectedRoute><AdminOnly><LicensePreviewPage /></AdminOnly></ProtectedRoute>} />
       </Routes>
       </Suspense>
     </TourProvider>

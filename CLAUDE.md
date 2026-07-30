@@ -361,6 +361,11 @@ src/components/ArrivalFade.tsx      — 280ms fade-from-dark used by the five Ho
 src/pages/SoundTestPage.tsx         — Dev tool at /sound-test — audition board for candidate UI sounds
 src/assets/icons/maintenance/service.png       — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.png — Detailing tile icon (transparent PNG, RGBA)
+src/pages/AdminHubPage.tsx          — /admin — the owner's hub: reports queue, design tools (sound board / permit ladder / trading cards), map console. Reached from an Admin row in Profile that renders only for admins
+src/components/AdminOnly.tsx        — Route wrapper for owner-only pages. Renders nothing while admin resolves, then the page or a bland "Not available." Hides UI ONLY — every privileged action re-checks is_admin server-side (084). Wraps /admin, /admin/reports, /sound-test, /license-preview, /dev/trading-cards, /spec-test
+src/hooks/useIsAdmin.ts             — Admin status for gating UI. Takes an `enabled` flag so a caller can skip the lookup (the public profile needs it only when ?tune is in the URL) while still calling the hook unconditionally
+src/lib/moderation.ts               — Report → block + the admin queue (084, ADR-023). Guarded; pre-084 everything degrades to empty / friendly failure
+src/lib/follows.ts                  — Following (086, ADR-024): follow/unfollow, counts + list via definer RPCs, and the anon follow intent (localStorage, single-use, 24h TTL) that survives signup
 src/pages/SpecTestPage.tsx          — Dev tool at /spec-test — runs all part type spec inserts
 MASTER_ARCHITECTURE.md              — Product spec, design system, data model, decisions log
 supabase/migrations/                — Numbered SQL files 001–080

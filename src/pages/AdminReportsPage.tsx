@@ -1,13 +1,14 @@
 // Route: /admin/reports — the moderation queue (migration 084, ADR-023).
 //
-// Gated on the `admin` user_flag, but the gate here is COSMETIC: every action
-// is an RPC that re-derives is_admin server-side and raises otherwise. Flipping
-// the flag in a debugger gets you an empty list and four failing calls. That
-// separation is deliberate (ADR-020/022 — the check belongs where the data is).
+// Route-gated by <AdminOnly> in App.tsx, so this page assumes an admin. That
+// gate is COSMETIC: every action here is an RPC that re-derives is_admin
+// server-side and raises otherwise. Flipping the flag in a debugger gets you an
+// empty list and four failing calls — the check belongs where the data is
+// (ADR-020/022).
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  isAdmin, getReportQueue, dismissReport, hideReported, suspendUser,
+  getReportQueue, dismissReport, hideReported, suspendUser,
   type AdminReport,
 } from '../lib/moderation'
 import {
@@ -48,7 +49,6 @@ function Btn({ label, tone, onClick, busy }: {
 
 export default function AdminReportsPage() {
   const navigate = useNavigate()
-  const [allowed, setAllowed] = useState<boolean | null>(null)
   const [rows, setRows]       = useState<AdminReport[]>([])
   const [busyId, setBusyId]   = useState<string | null>(null)
   const [note, setNote]       = useState<string | null>(null)
@@ -57,13 +57,7 @@ export default function AdminReportsPage() {
     setRows(await getReportQueue())
   }, [])
 
-  useEffect(() => {
-    ;(async () => {
-      const ok = await isAdmin()
-      setAllowed(ok)
-      if (ok) await load()
-    })()
-  }, [load])
+  useEffect(() => { load() }, [load])
 
   async function act(id: string, fn: () => Promise<{ ok: boolean; error?: string }>, okNote: string) {
     setBusyId(id); setNote(null)
@@ -71,18 +65,6 @@ export default function AdminReportsPage() {
     setBusyId(null)
     setNote(res.ok ? okNote : (res.error ?? 'Action failed.'))
     if (res.ok) await load()
-  }
-
-  if (allowed === null) return <div style={{ minHeight: '100dvh', background: GRADIENT_APP_BG }} />
-
-  if (!allowed) {
-    return (
-      <div style={{ minHeight: '100dvh', background: GRADIENT_APP_BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: SPACE_LG }}>
-        <p style={{ fontFamily: FONT_UI, fontSize: 13, color: MUTED, textAlign: 'center' }}>
-          Not available.
-        </p>
-      </div>
-    )
   }
 
   const open = rows.filter(r => r.status === 'open')
@@ -93,7 +75,7 @@ export default function AdminReportsPage() {
         height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
         padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button onClick={() => navigate('/profile')} style={{
+        <button onClick={() => navigate('/admin')} style={{
           background: 'none', border: 'none', cursor: 'pointer', color: COLOR_HEADER_TITLE,
           fontSize: 22, lineHeight: 1, padding: 0, WebkitTapHighlightColor: 'transparent',
         }}>‹</button>

@@ -80,7 +80,7 @@ demonstrations. They are not real history and not a bug. Delete with
 11. **Polish review** — spacing, tap targets, transition consistency, anything that feels rough.
 
 ### Known lower-priority items
-- **Dev surfaces reachable in production.** Only `/spec-test` is `import.meta.env.DEV`-gated (`App.tsx:423`). `/sound-test`, `/dev/trading-cards` and `/license-preview` ship to any signed-in user, and `PublicProfilePage`'s TUNE console (`TUNE_MODE`, line 191) activates for anyone who puts `?tune` in a **public** profile URL. Owner's call (2026-07-27): leave for now, revisit when PWA access is retired in favour of the app stores.
+- ~~**Dev surfaces reachable in production.**~~ ✅ **RESOLVED 2026-07-30.** Fixed as a side effect of the admin hub: `/sound-test`, `/license-preview`, `/dev/trading-cards`, `/admin` and `/admin/reports` are all wrapped in `<AdminOnly>` (`src/components/AdminOnly.tsx`), and the `?tune` console on `PublicProfilePage` now needs the admin flag as well as the URL param. `/spec-test` keeps its `import.meta.env.DEV` gate **on top of** the admin gate, because it writes real rows. Verified live from a non-admin account: all five routes return "Not available." and the Profile row is hidden. Note `AdminOnly` hides UI — it is not a data boundary; these pages are read-only tools, and everything that touches data re-checks `is_admin` server-side (084).
 - **Unreferenced assets — audited and part-cleaned 2026-07-28.** A careful scan (matching basenames against all of `src/`, `index.html`, `public/`, `vercel.json` and `api/`) found 20 unreferenced files totalling ~1.3 MB. **None of them ship** — Vite only bundles what is imported — so this was repo weight, never payload.
   - **Deleted** (unambiguous): `pwa.png`, `android.png`, `apple.png`, `r33tester.png` (mockups/screenshots), `icons/tuning-dashboard/tuning_blueprint.png` (the Blueprint page was deleted in `2a01795`), and `icons/home/home_photos.png` + `home_settings.png` (map nodes that no longer exist). Recoverable from git history if ever wanted.
   - **Kept deliberately** (~840 KB): the five `icons/home/*.png` that remain (`garage`, `tuning`, `timeline`, `maintenance`, `featured`) are the **editable design source** for the base64 blobs inlined into `src/lib/destinationIcons.ts` — deleting them would leave the shipped icons unmaintainable. Same reasoning for the `logo/*` files (`gdimensiondark.png` is the documented source for `public/og-default.png`) and `icons/tuning/tuning_intake.png`.
@@ -842,6 +842,39 @@ Recommended order, agreed with the owner:
    `avatar_url`) are all still granted post-083.
 4. **Feed** — last, and note there is **no push infrastructure** (078's reminders
    are on-device local notifications only), so a feed is in-app only.
+
+### Admin hub (2026-07-30)
+
+`/admin`, reachable from an **Admin** row in Profile that only renders for
+admins. One place for every surface that exists for the operator rather than for
+drivers, instead of a set of URLs you have to remember:
+
+| Section | Contents |
+|---|---|
+| Moderation | Reports queue, with an "N open" badge |
+| Design tools | Sound board, Permit ladder, Trading cards |
+| Map console | Opens your own public profile with `?tune` |
+
+Four things worth knowing:
+
+- **`AdminOnly` gates the routes, and this closed a standing item** — those dev
+  tools previously shipped to any signed-in user (see the resolved entry above).
+- **The gate hides UI; it is not a boundary.** Every privileged *action* is an
+  RPC that re-derives `is_admin` server-side (084). Verified by forcing the
+  client-side check to `true` in the browser: the menu renders and the report
+  queue still returns **403** — the menu grants nothing.
+- **`/spec-test` is deliberately absent** from the hub. It writes real rows to a
+  real car and only exists in a dev build; listing it would mean a dead row in
+  production.
+- **The Reports row never says "nothing waiting".** `getReportQueue()` returns an
+  empty list on failure as well as on success, so that phrasing would be a false
+  reassurance on the one screen where it matters. The badge's absence claims
+  nothing.
+
+`useIsAdmin(enabled)` takes a flag so a caller can skip the lookup entirely while
+still calling the hook unconditionally — the public profile only needs it when
+`?tune` is present, and paying a round trip on every public profile view for
+every signed-in visitor would be wasteful.
 
 ### Follows (2026-07-30, migration 086, ADR-024)
 

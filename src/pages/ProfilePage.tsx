@@ -22,6 +22,7 @@ import {
   type ProfileStats,
 } from '../lib/userProfile'
 import { useUsernameStatus } from '../hooks/useUsernameStatus'
+import { useIsAdmin } from '../hooks/useIsAdmin'
 import { COUNTRIES, codeForCountry, flagEmoji } from '../lib/countries'
 import { uploadAvatar } from '../lib/avatar'
 import { shareLink } from '../lib/share'
@@ -152,6 +153,8 @@ export default function ProfilePage() {
   // Not part of the profile row any more (migration 083) — read from the session.
   const [email, setEmail]     = useState<string | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
+  // Owner-only entry point to /admin. Hides the row; grants nothing by itself.
+  const isAdminUser = useIsAdmin() === true
   const [stats, setStats]     = useState<ProfileStats | null>(null)
   const [license, setLicense] = useState<LicenseState | null>(null)
   const [loading, setLoading] = useState(() => !getCachedProfile())
@@ -495,6 +498,9 @@ export default function ProfilePage() {
                   </button>
                 }
               />
+              {isAdminUser && (
+                <NavRow label="Admin" sub="Reports, design tools, map console" onClick={() => navigate('/admin')} />
+              )}
               <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>

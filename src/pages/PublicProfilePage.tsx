@@ -24,6 +24,7 @@ import { gradeById } from '../lib/license'
 import { PermitMini, permitInk } from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import ReportSheet from '../components/ReportSheet'
+import { useIsAdmin } from '../hooks/useIsAdmin'
 import {
   getFollowCounts, isFollowing, followUser, unfollowUser,
   setPendingFollow, formatCount, type FollowCounts,
@@ -193,9 +194,12 @@ const GLINT_ANIMS = [
 const GRAIN_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.12  0 0 0 0 0.16  0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/></svg>`
 const GRAIN_URL = `url("data:image/svg+xml,${encodeURIComponent(GRAIN_SVG)}")`
 
-// Dev tuning console — active when ?tune is in the URL.
-// Use alongside ?preview=N to live-edit node positions and road paths.
-const TUNE_MODE = typeof window !== 'undefined' && window.location.search.includes('tune')
+// Dev tuning console — needs ?tune in the URL AND the admin flag. The URL alone
+// used to be enough, which meant any visitor who guessed the param got a
+// half-finished editor over someone else's profile (a known item in
+// BUILD_NOTES). The console is read-only, so this is polish rather than a
+// security boundary — but it is the owner's tool, not a public one.
+const TUNE_PARAM = typeof window !== 'undefined' && window.location.search.includes('tune')
 
 interface TuneState { nodes: Pt[]; paths: string[] }
 
@@ -263,6 +267,8 @@ export default function PublicProfilePage() {
   // Viewer identity, so the report action can be hidden on your own profile.
   const [viewerId, setViewerId] = useState<string | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
+  // Only costs a query when someone actually put ?tune in the URL.
+  const tuneOn = useIsAdmin(TUNE_PARAM) === true
   // Follow state (migration 086). Counts are public; the button needs a session.
   const [counts, setCounts]       = useState<FollowCounts>({ followers: 0, following: 0 })
   const [following, setFollowing] = useState(false)
@@ -435,14 +441,14 @@ export default function PublicProfilePage() {
 
   // Seed the tune console once roads are ready (resets when node count changes)
   useEffect(() => {
-    if (!TUNE_MODE || state !== 'ready') return
+    if (!tuneOn || state !== 'ready') return
     setTune({ nodes: template.nodes.map(n => ({ ...n })), paths: [...roadPaths] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, nodes.length])
 
   // Effective values — tune overrides static template when console is active
-  const effNodes = (TUNE_MODE && tune) ? tune.nodes : template.nodes
-  const effPaths = (TUNE_MODE && tune) ? tune.paths : roadPaths
+  const effNodes = (tuneOn && tune) ? tune.nodes : template.nodes
+  const effPaths = (tuneOn && tune) ? tune.paths : roadPaths
 
   // ── Parallax + driver dot ──
   useEffect(() => {
@@ -1276,7 +1282,7 @@ export default function PublicProfilePage() {
       )}
 
       {/* ── Tune console (?tune in URL) ── */}
-      {TUNE_MODE && tune != null && (
+      {tuneOn && tune != null && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
           background: 'rgba(10,12,18,0.97)', color: '#c8d0e0',
