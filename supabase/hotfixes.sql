@@ -13,7 +13,13 @@
 --     invisible to anon) — only the title lied. Now "Your build has been
 --     restored", true either way. Everything else byte-identical to 087.
 --
--- No migrations pending.
+-- PENDING: 089_notice_copy.sql — copy-only. Rewrites the string literals in the
+--   four notice-writing functions. Drops "restored to exactly the visibility you
+--   had set" (engineering reasoning leaking into user copy: it answers a question
+--   nobody asked and, by raising it, plants the doubt) and removes the two em
+--   dashes that were sitting inside sentences, against the project's own rule.
+--   Function bodies otherwise byte-identical to 087/088. Idempotent.
+--
 --   - 087 (ADR-025, user_notices + unsuspend): moderation now tells the person
 --     it happened to, and admin_suspend_user finally has an inverse. Notices are
 --     unforgeable by construction — no INSERT policy at all, the sole writer is
