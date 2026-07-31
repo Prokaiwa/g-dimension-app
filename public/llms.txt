@@ -33,6 +33,7 @@ People look for this kind of tool under several names. G-Dimension is all of the
 ## Pages
 
 - [Home / product overview](https://gdimension.app/): what G-Dimension is, features, FAQ, and signup
+- [Car build sheet guide](https://gdimension.app/build-sheet): what a car build sheet is, what belongs on one, a worked example, and how to generate one
 - [Sign up](https://gdimension.app/signup): create a free account
 - [Terms of Service](https://gdimension.app/terms): the terms governing use of the service
 - [Privacy Policy](https://gdimension.app/privacy): what data is collected and how it is used

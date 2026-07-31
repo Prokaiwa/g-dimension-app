@@ -16,6 +16,7 @@
     },
     { "src": "^/$", "dest": "/marketing.html" },
     { "handle": "filesystem" },
+    { "src": "^/build-sheet/?$", "dest": "/build-sheet.html" },
     { "src": "^/sitemap\\.xml$", "dest": "/api/sitemap" },
     { "src": "^/builds/(.*)", "dest": "/api/og?p=$1" },
     { "src": "^/api/(.*)", "dest": "/api/$1" },

@@ -40,8 +40,9 @@ const SUPABASE_ANON_KEY =
 const SITE = 'https://gdimension.app'
 
 // Fixed pages that always exist. /login and /signup are intentionally excluded
-// (thin auth screens, no crawl value).
-const STATIC_PATHS = ['/', '/terms', '/privacy']
+// (thin auth screens, no crawl value). /build-sheet is a standalone static guide
+// served from public/build-sheet.html via a rewrite, not a SPA route.
+const STATIC_PATHS = ['/', '/build-sheet', '/terms', '/privacy']
 
 // XML-escape a loc value. Usernames are URL-encoded first (encodeURIComponent),
 // which already removes < > & " ', so this is belt-and-suspenders.

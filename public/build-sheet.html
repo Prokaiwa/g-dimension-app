@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ═══ PRIMARY SEO ═══ -->
+<!-- Targets "car build sheet template" and its neighbours. That query currently
+     returns paid Word/PDF templates on Etsy, a PDF-filler site, and forum
+     threads trading spreadsheets: high intent, weak supply. This page is the
+     free, better answer, and the product is the natural close rather than the
+     pitch. -->
+<title>Car Build Sheet: What It Is and How to Make One (Free Template)</title>
+<meta name="description" content="A car build sheet lists everything done to a build: the mods, the parts, the specs, and the service history. Here is what belongs on one, a full example you can copy, and a free way to generate yours automatically.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://gdimension.app/build-sheet">
+<meta name="theme-color" content="#050507">
+<meta name="author" content="G-Dimension">
+
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://gdimension.app/build-sheet">
+<meta property="og:site_name" content="G-Dimension">
+<meta property="og:title" content="Car Build Sheet: What It Is and How to Make One">
+<meta property="og:description" content="What belongs on a car build sheet, a full example you can copy, and a free way to generate yours automatically.">
+<meta property="og:image" content="https://gdimension.app/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="600">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@gdimensionapp">
+<meta name="twitter:title" content="Car Build Sheet: What It Is and How to Make One">
+<meta name="twitter:description" content="What belongs on a car build sheet, a full example you can copy, and a free way to generate yours automatically.">
+<meta name="twitter:image" content="https://gdimension.app/og-default.png">
+
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<!-- Self-hosted fonts, same two faces and same reasoning as marketing.html:
+     keeps the Google Fonts round-trip off the critical path. -->
+<link rel="preload" href="/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{
+  font-family:'Hanken Grotesk';
+  font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(/fonts/hanken-grotesk-latin.woff2) format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:italic;font-weight:500 600;font-display:swap;
+  src:url(/fonts/cormorant-garamond-italic-latin.woff2) format('woff2');
+}
+
+:root{
+  --brand:#780E12;
+  --accent:#c8661a;
+  --accent-dim:#8a4810;
+  --accent-text:#fff5dc;
+  --cavity:#050507;
+  --text-primary:#f5f5f5;
+  --text-secondary:#8a8a8c;
+  --rule:#26262b;
+  --panel:#0e0e12;
+  --font-ui:'Hanken Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --font-title:'Cormorant Garamond','Garamond',serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+html,body{overflow-x:hidden;}
+body{
+  font-family:var(--font-ui);
+  color:var(--text-primary);
+  background:var(--cavity);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.7;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.header{
+  position:sticky;top:0;z-index:50;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;
+  background:rgba(5,5,7,0.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--rule);
+}
+.h-logo{
+  font-weight:800;font-size:15px;letter-spacing:0.08em;
+  color:var(--text-primary);text-decoration:none;text-transform:uppercase;
+}
+.h-nav{display:flex;align-items:center;gap:18px;}
+.h-link{
+  font-size:13px;font-weight:600;color:var(--text-secondary);text-decoration:none;
+}
+.h-link:hover{color:var(--accent);}
+.h-cta{
+  font-size:13px;font-weight:700;
+  background:var(--accent);color:var(--cavity);
+  padding:7px 14px;border-radius:10px;text-decoration:none;
+}
+.h-cta:hover{background:var(--accent-dim);color:var(--accent-text);}
+
+/* ── Layout ─────────────────────────────────────────── */
+.wrap{max-width:720px;margin:0 auto;padding:0 20px;}
+article{padding:56px 0 40px;}
+
+.eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px;
+}
+h1{
+  font-size:38px;line-height:1.18;font-weight:800;letter-spacing:-0.02em;
+  margin-bottom:18px;
+}
+.standfirst{
+  font-size:18px;color:#c9c9cc;margin-bottom:14px;
+}
+.byline{
+  font-size:13px;color:var(--text-secondary);
+  padding-bottom:26px;border-bottom:1px solid var(--rule);margin-bottom:34px;
+}
+h2{
+  font-size:25px;line-height:1.25;font-weight:800;letter-spacing:-0.015em;
+  margin:44px 0 14px;
+}
+h3{font-size:17px;font-weight:700;margin:28px 0 8px;}
+p{margin-bottom:16px;color:#dcdcdf;}
+p strong{color:var(--text-primary);font-weight:700;}
+a{color:var(--accent);}
+ul,ol{margin:0 0 18px 22px;}
+li{margin-bottom:9px;color:#dcdcdf;}
+
+/* ── Table of contents ──────────────────────────────── */
+.toc{
+  background:var(--panel);border:1px solid var(--rule);
+  padding:20px 22px;margin-bottom:34px;
+}
+.toc-h{
+  font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:10px;
+}
+.toc ol{margin:0 0 0 18px;}
+.toc li{margin-bottom:5px;font-size:14.5px;}
+.toc a{text-decoration:none;}
+.toc a:hover{text-decoration:underline;}
+
+/* ── The example sheet ──────────────────────────────── */
+.sheet{
+  background:var(--panel);border:1px solid var(--rule);
+  padding:26px 24px;margin:24px 0 10px;
+  font-size:14.5px;
+}
+.sheet-title{
+  font-family:var(--font-title);font-style:italic;font-weight:600;
+  font-size:27px;line-height:1.2;margin-bottom:2px;color:var(--text-primary);
+}
+.sheet-sub{
+  font-size:12px;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:20px;
+}
+.sheet-group{
+  font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--accent);
+  margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule);
+}
+.sheet-group:first-of-type{margin-top:0;}
+.sheet-row{
+  display:flex;justify-content:space-between;gap:16px;
+  padding:5px 0;color:#dcdcdf;
+}
+.sheet-row span:last-child{color:var(--text-secondary);text-align:right;flex-shrink:0;}
+.caption{font-size:13px;color:var(--text-secondary);margin-bottom:26px;}
+
+/* ── Callout ────────────────────────────────────────── */
+.callout{
+  border-left:3px solid var(--accent);
+  background:var(--panel);
+  padding:18px 20px;margin:26px 0;
+}
+.callout p:last-child{margin-bottom:0;}
+
+/* ── FAQ ────────────────────────────────────────────── */
+.faq-item{border-top:1px solid var(--rule);padding:20px 0;}
+.faq-item h3{margin:0 0 7px;font-size:16.5px;}
+.faq-item p{margin:0;font-size:15px;}
+
+/* ── CTA ────────────────────────────────────────────── */
+.cta{
+  border:1px solid var(--rule);background:var(--panel);
+  padding:34px 26px;margin:48px 0 10px;text-align:center;
+}
+.cta h2{margin:0 0 10px;font-size:24px;}
+.cta p{margin-bottom:20px;color:var(--text-secondary);}
+.cta-btn{
+  display:inline-block;background:var(--accent);color:var(--cavity);
+  font-weight:800;font-size:15px;padding:13px 26px;border-radius:10px;
+  text-decoration:none;
+}
+.cta-btn:hover{background:var(--accent-dim);color:var(--accent-text);}
+
+/* ── Footer ─────────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--rule);margin-top:50px;padding:26px 0 40px;
+  font-size:13px;color:var(--text-secondary);
+}
+footer a{color:var(--text-secondary);text-decoration:none;}
+footer a:hover{color:var(--accent);}
+.f-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;}
+
+@media (max-width:600px){
+  h1{font-size:29px;}
+  h2{font-size:21px;}
+  .standfirst{font-size:16.5px;}
+  article{padding:36px 0 30px;}
+  .sheet-row{flex-direction:column;gap:0;}
+  .sheet-row span:last-child{text-align:left;}
+  .h-nav .h-link{display:none;}
+}
+</style>
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body>
+
+<header class="header">
+  <a class="h-logo" href="/">G-Dimension</a>
+  <nav class="h-nav">
+    <a class="h-link" href="/">What it is</a>
+    <a class="h-cta" href="/signup">Sign Up</a>
+  </nav>
+</header>
+
+<div class="wrap">
+<article>
+
+  <p class="eyebrow">Guide</p>
+  <h1>Car Build Sheet: What It Is and How to Make One</h1>
+  <p class="standfirst">A build sheet is the one-page answer to "what have you done to it?" Here is what belongs on one, a complete example you can copy, and a way to stop maintaining it by hand.</p>
+  <p class="byline">By G-Dimension &middot; Updated July 2026</p>
+
+  <nav class="toc" aria-label="Contents">
+    <p class="toc-h">Contents</p>
+    <ol>
+      <li><a href="#what">What a build sheet actually is</a></li>
+      <li><a href="#whats-on-it">What goes on a build sheet</a></li>
+      <li><a href="#example">A complete example</a></li>
+      <li><a href="#mistakes">Four mistakes that make a build sheet useless</a></li>
+      <li><a href="#how">How to make one</a></li>
+      <li><a href="#faq">Questions</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="what">What a build sheet actually is</h2>
+
+  <p>A build sheet is a single organized document listing everything that has been done to a car: every modification, the brand and part number behind it, the specs that changed as a result, and the service history underneath it all. It is the difference between saying "it's built" and being able to show precisely what that means.</p>
+
+  <p>The term gets used two ways, and it is worth separating them before you go looking:</p>
+
+  <ul>
+    <li><strong>A factory build sheet</strong> is the document the manufacturer produced when the car was assembled, listing the trim, options, and equipment codes it left the plant with. You look this up by VIN. It describes the car you started with.</li>
+    <li><strong>An enthusiast build sheet</strong> is the one you write. It describes what the car became: the mods, the parts, the work, in order. This guide is about that one.</li>
+  </ul>
+
+  <p>Enthusiasts reach for a build sheet at three moments, and each one wants slightly different things from it. <strong>At a car show</strong>, it goes on the windshield or a stand, and it needs to be scannable in ten seconds by someone walking past. <strong>When selling</strong>, it goes to the buyer, and it needs to be complete and backed by receipts, because that is what turns a list of claims into evidence. <strong>For yourself</strong>, it is the running record of what is on the car right now, which matters more than people expect the first time a shop asks what spring rate you are running and you cannot remember.</p>
+
+  <h2 id="whats-on-it">What goes on a build sheet</h2>
+
+  <p>The failure mode of most build sheets is that they are a flat, unsorted list of parts. A reader cannot tell what matters, and the person who wrote it cannot tell what is missing. Grouping fixes both problems. These are the sections worth having.</p>
+
+  <h3>1. Vehicle identity</h3>
+  <p>Year, make, model, and trim, plus the chassis code if the community uses one, because that is how people actually search and talk. Add color, current mileage, and transmission. Leave VIN and license plate off any copy that leaves your hands. They are not useful to a reader and they are worth something to the wrong one.</p>
+
+  <h3>2. Power</h3>
+  <p>Engine and drivetrain work: internals, forced induction, exhaust, intake, fuel system, cooling, tuning, and any engine management. If you have dyno figures, give the number, the wheel or crank basis, and the dyno it was run on. A bare horsepower claim with no context reads as a guess even when it is honest.</p>
+
+  <h3>3. Chassis</h3>
+  <p>Suspension, brakes, wheels, and tires. This is the section people most often under-specify. Coilover brand alone is not much use. Spring rates, ride height, camber, wheel size, offset, tire model, and tire size are what another owner or a buyer actually wants, and they cost you nothing to write down.</p>
+
+  <h3>4. Exterior</h3>
+  <p>Body work, aero, paint or wrap, lighting, and glass. Note what is genuine versus replica if that distinction exists for the part, and note it plainly. Everyone finds out eventually, and being the one who said it first is worth more than the part.</p>
+
+  <h3>5. Interior</h3>
+  <p>Seats, harnesses, steering wheel, gauges, audio, and any safety equipment such as a cage or fire suppression. If a seat or harness is dated, list the date, because it determines whether the car can run certain events.</p>
+
+  <h3>6. Service history</h3>
+  <p>The section that gets skipped and the one that carries the most weight with a buyer. Scheduled maintenance, repairs, fluids, timing components, and the mileage at each. A modified car with a documented service history sells as a cared-for car. The same car without one sells as a risk, no matter what the mod list says.</p>
+
+  <h3>7. Photos and receipts</h3>
+  <p>Not every part, but the meaningful ones: the work in progress, the parts before they went on, and the receipts for anything expensive. Receipts are what move a build sheet from a list of claims to a record, and they are the single strongest thing you can hand a skeptical buyer.</p>
+
+  <h2 id="example">A complete example</h2>
+
+  <p>Here is the shape it takes when it is filled in. Group headings, part on the left, detail on the right, service history at the bottom.</p>
+
+  <div class="sheet">
+    <p class="sheet-title">1994 Mazda RX-7</p>
+    <p class="sheet-sub">FD3S &middot; Touring &middot; 78,400 mi &middot; 5MT</p>
+
+    <p class="sheet-group">Power</p>
+    <div class="sheet-row"><span>Single turbo conversion</span><span>Garrett GTX3076R</span></div>
+    <div class="sheet-row"><span>Downpipe and midpipe</span><span>3.5 in stainless</span></div>
+    <div class="sheet-row"><span>Intercooler</span><span>Front mount, 3 in</span></div>
+    <div class="sheet-row"><span>Engine management</span><span>Haltech Elite 2500</span></div>
+    <div class="sheet-row"><span>Fuel system</span><span>1000cc primaries, Walbro 450</span></div>
+    <div class="sheet-row"><span>Output</span><span>412 whp, Dynojet, 93 oct</span></div>
+
+    <p class="sheet-group">Chassis</p>
+    <div class="sheet-row"><span>Coilovers</span><span>Ohlins DFV, 8k / 6k</span></div>
+    <div class="sheet-row"><span>Sway bars</span><span>Front 25mm, rear 19mm</span></div>
+    <div class="sheet-row"><span>Brakes</span><span>StopTech ST-40, 355mm</span></div>
+    <div class="sheet-row"><span>Wheels</span><span>Volk TE37, 17x9 +35</span></div>
+    <div class="sheet-row"><span>Tires</span><span>Michelin PS4S, 255/40/17</span></div>
+    <div class="sheet-row"><span>Alignment</span><span>-2.5 front, -1.8 rear</span></div>
+
+    <p class="sheet-group">Exterior</p>
+    <div class="sheet-row"><span>Front lip</span><span>Feed Afflux, genuine</span></div>
+    <div class="sheet-row"><span>Paint</span><span>Respray, Montego Blue</span></div>
+    <div class="sheet-row"><span>Lighting</span><span>LED retrofit, projector</span></div>
+
+    <p class="sheet-group">Interior</p>
+    <div class="sheet-row"><span>Seats</span><span>Bride Zeta III, 2024 date</span></div>
+    <div class="sheet-row"><span>Harnesses</span><span>Takata 4-point, 2025 date</span></div>
+    <div class="sheet-row"><span>Gauges</span><span>AEM wideband, oil temp</span></div>
+
+    <p class="sheet-group">Service history</p>
+    <div class="sheet-row"><span>Apex seal rebuild</span><span>61,200 mi &middot; Mar 2023</span></div>
+    <div class="sheet-row"><span>Coolant seals, all</span><span>61,200 mi &middot; Mar 2023</span></div>
+    <div class="sheet-row"><span>Clutch, OS Giken</span><span>68,900 mi &middot; Aug 2024</span></div>
+    <div class="sheet-row"><span>Oil, every 3k</span><span>Last 77,800 mi</span></div>
+    <div class="sheet-row"><span>Receipts on file</span><span>Yes, all of the above</span></div>
+  </div>
+  <p class="caption">An example sheet. Note that every performance claim carries its context, and the service history sits on the same page as the mods rather than in a separate folder.</p>
+
+  <h2 id="mistakes">Four mistakes that make a build sheet useless</h2>
+
+  <ol>
+    <li><strong>Brand with no spec.</strong> "Ohlins coilovers" tells a reader almost nothing. "Ohlins DFV, 8k front, 6k rear" tells them what the car is set up to do.</li>
+    <li><strong>No service history.</strong> A mod list on its own reads as money spent. A mod list with maintenance underneath it reads as a car that was looked after, which is what a buyer is actually trying to establish.</li>
+    <li><strong>No dates.</strong> A part installed last month and a part installed six years and forty thousand miles ago are not the same part. Dates and mileage are what let someone judge wear.</li>
+    <li><strong>It stopped being updated.</strong> This is the one that gets everybody. A build sheet made once in a word processor is accurate on the day you write it and wrong within a month. The half-finished document is worse than none, because now you also have to work out which parts of it are still true.</li>
+  </ol>
+
+  <h2 id="how">How to make one</h2>
+
+  <p>Three approaches, and the honest tradeoffs of each.</p>
+
+  <h3>A document or template</h3>
+  <p>Word, Pages, Google Docs, or one of the paid printable templates sold for car shows. Fine for a one-off, and genuinely good if what you need is something attractive to sit on a stand next to the car. The catch is mistake number four: it is a snapshot, it will not update itself, and receipts live somewhere else entirely.</p>
+
+  <h3>A spreadsheet</h3>
+  <p>The enthusiast default, and better than it gets credit for. It sorts, it totals your spend, and it costs nothing. Where it struggles is everything that is not a number. Photos, receipts, and the story of why a part was chosen do not fit in a cell, so they end up in a folder, a camera roll, and a forum thread, which means the record is complete only as long as you personally remember where all four pieces live.</p>
+
+  <h3>A build journal that generates it</h3>
+  <p>Log each mod and each service once, as it happens, with its receipt and photos attached. The build sheet is then a view of that record rather than a separate document you maintain, so it is current by construction. This is what <a href="/">G-Dimension</a> does: you record the work, and the build sheet, the timeline, and an exportable PDF come out of it. It is free, it runs in a browser, and it installs to your phone.</p>
+
+  <div class="callout">
+    <p><strong>Whichever you choose, keep the receipts attached to the parts.</strong> Almost every argument about a build sheet's credibility ends the moment a receipt appears next to the claim. That is the part people skip and the part that does the work.</p>
+  </div>
+
+  <h2 id="faq">Questions</h2>
+
+  <div class="faq-item">
+    <h3>What is a car build sheet?</h3>
+    <p>A car build sheet is a single organized document listing every modification made to a vehicle, the parts and specs behind each one, and the service history underneath. Enthusiasts use it to display a car at a show, to prove the work to a buyer, and to keep track of what is currently on the car.</p>
+  </div>
+
+  <div class="faq-item">
+    <h3>How is it different from a factory build sheet?</h3>
+    <p>A factory build sheet is the manufacturer's record of how the car was equipped when it was assembled, looked up by VIN. An enthusiast build sheet documents what the owner has done since. They answer opposite questions: one describes the car you started with, the other describes what it became.</p>
+  </div>
+
+  <div class="faq-item">
+    <h3>What should be on a car build sheet?</h3>
+    <p>Vehicle identity (year, make, model, trim, chassis code, mileage), then the modifications grouped into Power, Chassis, Exterior, and Interior with brand and spec for each, then the service history with dates and mileage, then photos and receipts for the significant items. Leave VIN and license plate off any copy you hand out.</p>
+  </div>
+
+  <div class="faq-item">
+    <h3>Do I need a build sheet to sell a modified car?</h3>
+    <p>You do not need one, but a modified car without documentation is priced as an unknown. A build sheet backed by receipts lets a buyer verify what was done rather than take your word for it, which is what supports the asking price. The service history usually does more of that work than the mod list.</p>
+  </div>
+
+  <div class="faq-item">
+    <h3>Is there a free car build sheet template?</h3>
+    <p>Yes. G-Dimension generates one for free from the mods and services you log, and exports it as a PDF you can print for a show or send to a buyer. Because it is generated from the record rather than typed out separately, it stays current instead of going stale the week after you make it.</p>
+  </div>
+
+  <div class="faq-item">
+    <h3>What should a build sheet for a car show look like?</h3>
+    <p>Shorter than one made for a buyer. Someone walking past gives it about ten seconds, so lead with the car's identity and the four or five modifications that define it, keep the type large enough to read standing up, and leave the exhaustive parts list for anyone who asks. A QR code to the full build online is a good way to serve both readers from one sheet.</p>
+  </div>
+
+  <div class="cta">
+    <h2>Generate your build sheet automatically</h2>
+    <p>Log your mods and services once. The build sheet, the timeline, and the PDF come out of it. Free during early access.</p>
+    <a class="cta-btn" href="/signup">Create Your Garage</a>
+  </div>
+
+</article>
+
+<footer>
+  <div>G-Dimension &middot; a car mod tracker, build journal, and service history log</div>
+  <div class="f-links">
+    <a href="/">Home</a>
+    <a href="/signup">Sign up</a>
+    <a href="/login">Log in</a>
+    <a href="/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="https://www.instagram.com/gdimensionapp/" rel="me">Instagram</a>
+  </div>
+</footer>
+</div>
+
+<!-- Structured data. JSON-LD is a data block, not an executable script, so it is
+     not covered by the CSP script-src hash allowlist. The FAQPage entries match
+     the visible FAQ above 1:1, which is what Google requires. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Car Build Sheet: What It Is and How to Make One",
+  "description": "What belongs on a car build sheet, a complete worked example, the four mistakes that make one useless, and how to generate one automatically.",
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://gdimension.app/build-sheet" },
+  "image": "https://gdimension.app/og-default.png",
+  "author": { "@type": "Organization", "name": "G-Dimension", "url": "https://gdimension.app/" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "G-Dimension",
+    "url": "https://gdimension.app/",
+    "logo": { "@type": "ImageObject", "url": "https://gdimension.app/icon-512.png" }
+  },
+  "dateModified": "2026-07-31",
+  "about": [
+    { "@type": "Thing", "name": "Car build sheet" },
+    { "@type": "Thing", "name": "Car modification documentation" },
+    { "@type": "Thing", "name": "Vehicle service history" }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is a car build sheet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A car build sheet is a single organized document listing every modification made to a vehicle, the parts and specs behind each one, and the service history underneath. Enthusiasts use it to display a car at a show, to prove the work to a buyer, and to keep track of what is currently on the car." }
+    },
+    {
+      "@type": "Question",
+      "name": "How is it different from a factory build sheet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A factory build sheet is the manufacturer's record of how the car was equipped when it was assembled, looked up by VIN. An enthusiast build sheet documents what the owner has done since. They answer opposite questions: one describes the car you started with, the other describes what it became." }
+    },
+    {
+      "@type": "Question",
+      "name": "What should be on a car build sheet?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Vehicle identity (year, make, model, trim, chassis code, mileage), then the modifications grouped into Power, Chassis, Exterior, and Interior with brand and spec for each, then the service history with dates and mileage, then photos and receipts for the significant items. Leave VIN and license plate off any copy you hand out." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need a build sheet to sell a modified car?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You do not need one, but a modified car without documentation is priced as an unknown. A build sheet backed by receipts lets a buyer verify what was done rather than take your word for it, which is what supports the asking price. The service history usually does more of that work than the mod list." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a free car build sheet template?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension generates one for free from the mods and services you log, and exports it as a PDF you can print for a show or send to a buyer. Because it is generated from the record rather than typed out separately, it stays current instead of going stale the week after you make it." }
+    },
+    {
+      "@type": "Question",
+      "name": "What should a build sheet for a car show look like?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Shorter than one made for a buyer. Someone walking past gives it about ten seconds, so lead with the car's identity and the four or five modifications that define it, keep the type large enough to read standing up, and leave the exhaustive parts list for anyone who asks. A QR code to the full build online is a good way to serve both readers from one sheet." }
+    }
+  ]
+}
+</script>
+
+</body>
+</html>
