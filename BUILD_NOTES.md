@@ -1302,6 +1302,34 @@ constraint, a bogus `?report=` recording null instead of failing the read,
 `authenticated` and `anon` holding no privilege on the audit table, and the
 whole file re-running cleanly.
 
+### Recent searches (2026-07-31)
+
+Tapping a search result records it; the next visit to `/discover` shows those
+above the model chips, Instagram-style. Three decisions worth keeping:
+
+- **On-device only** (`src/lib/recentSearches.ts`, localStorage). A server-side
+  search history is a log of who someone looked at: it would live in a table, be
+  readable by whatever definer function gets written next, and show up in a data
+  export. It buys cross-device continuity, worth very little here, in exchange
+  for a permanent privacy liability. Nothing outside that file touches the key,
+  same rule as `activeCar`.
+- **Only taps on search RESULTS are recorded**, not taps from "Worked on
+  lately". Recording browsing would make Recent a near-duplicate of the list
+  directly beneath it.
+- **Set semantics, capped at 8.** Re-tapping promotes rather than duplicating,
+  so the list stays "what I looked up, most recent first". Per-row × as well as
+  Clear, so one stray tap doesn't force wiping the lot.
+
+Reads are junk-tolerant: localStorage is user-writable and survives deploys, so
+a malformed payload degrades to "no recents" rather than a broken row. Tested
+including that case; the suite stubs localStorage in the one test file that
+needs it rather than switching the whole vitest env to jsdom.
+
+**Known limit:** a recent entry is a snapshot. If a build goes private after you
+tapped it, the row stays until you remove it and opens to "not available". Live
+-checking every recent on render would cost a query per entry to prevent a rare
+and self-explaining dead end.
+
 ## What's Next (not yet built)
 
 - **Timeline note multi-photo display** — notes store multiple photos (`timeline_entry_photos`) and they render on Entry Detail, but the explicit "choose *the* hero shot" picker for **session entries** isn't built — those still use the `timeline_photo_url` → first-`job_photo` fallback. (`sessions.timeline_photo_url` has no upload UI yet.)
