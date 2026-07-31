@@ -963,3 +963,71 @@ re-derive from the code — which two buckets are private, that `/` serves
 card rather than a replica.
 
 Source: `supabase/migrations/MIGRATIONS.md`; commit `efbd1f1`.
+
+---
+
+## ADR-028 — The public build pages are pre-rendered, and the copy uses the searcher's words (2026-07-31)
+
+**Decision:** Two changes, one problem. (1) `api/og.js` pre-renders the real
+content of **every** public build room into `#root`, not just the build sheet:
+the profile hub, `/garage`, `/timeline` and `/featured`, each with crawlable
+`<a>` links to its siblings and a per-build `WebPage` + `Vehicle` JSON-LD.
+(2) The marketing copy, `llms.txt` and the `SoftwareApplication` blocks now
+carry the category phrases people actually type — "mod tracker", "vehicle
+service history tracker", "project car" — in the title, the description, the
+visible hero line and three new FAQ entries.
+
+**Context:** Searching for the app the way a stranger would returns nothing from
+`gdimension.app`. The one result that surfaces G-Dimension at all is a
+ClubLexus forum post the owner wrote; the entire discoverable footprint is
+third-party user-generated content. The category queries return a crowded and
+recent field (Track My Mods, CarJourney, Garagelog, ModBinder, DynoLog,
+Trackara, RevvLog) with G-Dimension absent.
+
+**Rationale:**
+
+- **An empty `<div id="root">` is not a page.** `/sitemap.xml` lists roughly a
+  hundred build URLs. Before this, four of every five served literally no text:
+  the build-sheet injection shipped alone, and the hub, garage, timeline and
+  featured rooms were bare shells. Google renders JavaScript only on a deferred
+  second pass it is free to skip, and the AI answer engines — GPTBot,
+  PerplexityBot, ClaudeBot, OAI-SearchBot — do not execute JavaScript at all.
+  Those pages hold the only content on the whole domain that is genuinely
+  unique and genuinely growing. They were invisible to exactly the engines this
+  project's `robots.txt` goes out of its way to welcome.
+- **The room links are half the point.** The SPA's own navigation is
+  JS-rendered, so a non-JS crawler that reached a build had no path to the rest
+  of it. Real `<a>` elements between the five rooms are what turn a set of
+  orphan URLs into a crawlable structure.
+- **You cannot rank for a phrase that does not appear on the page.** The site
+  described itself, everywhere, as a "build journal". That is what we call it,
+  and it is better writing than "mod tracker" — but nobody types it. The words
+  a searcher uses have to be *on the page*, in the title and the visible copy,
+  not only in the `keywords` meta tag Google has ignored since 2009. The
+  positioning did not change; the vocabulary did, and the two now coexist.
+- **The title leads with the category, not the brand.** `Car Mod Tracker &
+  Build Journal for Enthusiasts | G-Dimension` inverts the old order. Brand-first
+  titles work for brands people search for. Nobody searches for this one yet,
+  which is the whole problem being solved.
+- **Nothing new is exposed.** Every block reads through the same anon key, views
+  and RLS the public React pages already use, selects only public columns, and
+  respects `show_buildsheet_publicly` / `show_timeline_publicly` /
+  `show_featured_publicly` — a room the owner switched off gets no block at all.
+  Costs, receipts, VIN, plate and purchase price are not in any select here.
+
+**What this does not fix:** ranking is mostly earned off-site. A five-month-old
+domain with no inbound links does not reach page one on a technical change, and
+the remaining work — links from the forums and communities the owners already
+post in, and content pages that answer the questions searchers ask before they
+are looking for an app — is not code.
+
+**Consequences:** `api/og.js` now issues up to two Supabase reads per build
+request (car, then mods or timeline), cached at the edge for five minutes. The
+per-room title and description must stay distinct, because `roomCanonical()`
+makes each room independently indexable and identical text would put five pages
+of one build in competition with each other. Unit conversion factors are
+restated in `api/og.js` because `api/` is plain JS outside the Vite bundle and
+cannot import `src/lib/unitConversion.ts`; both copies carry a note saying so.
+
+Source: `api/og.js`, `public/marketing.html`, `public/llms.txt`, `index.html`;
+commit `435fa1c`.
