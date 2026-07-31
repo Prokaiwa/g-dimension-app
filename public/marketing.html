@@ -14,13 +14,21 @@
 <script>(function(){try{var s=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;if(s){window.location.replace('/home');}}catch(e){}})();</script>
 
 <!-- ═══ PRIMARY SEO ═══ -->
-<title>G-Dimension — The Build Journal for Car Enthusiasts</title>
-<meta name="description" content="G-Dimension is the dedicated build journal for car enthusiasts. Log every modification, every part, every receipt and photo — organized by your car, permanent, and searchable. Free early access — start your build today.">
+<!-- Title/description lead with the CATEGORY words people actually type ("mod
+     tracker", "service history") rather than the brand. Nobody searches
+     "G-Dimension" yet, and the page previously never used those phrases at all,
+     so it could not rank for them however good the copy was. Brand stays in the
+     title after the pipe for SERP recognition. -->
+<title>Car Mod Tracker &amp; Build Journal for Enthusiasts | G-Dimension</title>
+<meta name="description" content="G-Dimension is a car mod tracker, build journal, and vehicle service history log in one app. Record every modification, part, receipt, and service, organized by car and kept in order. Free during early access.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://gdimension.app/">
 <meta name="theme-color" content="#780E12">
 <meta name="author" content="G-Dimension">
-<meta name="keywords" content="car build journal, car modification tracker, build log app, car enthusiast app, JDM build journal, car maintenance log, modification history">
+<!-- Google has ignored this tag since 2009. Kept because some AI crawlers and
+     smaller engines still read it, and it costs nothing. It is NOT doing the
+     ranking work: the phrases here have to appear in the visible copy too. -->
+<meta name="keywords" content="car mod tracker, vehicle mod tracker, car build journal, car modification tracker, vehicle service history tracker, car maintenance log app, project car build tracker, build sheet app, car enthusiast app, JDM build journal, modification history">
 
 <!-- ═══ OPEN GRAPH (Facebook, Instagram DMs, iMessage, Discord) ═══ -->
 <meta property="og:type" content="website">
@@ -94,13 +102,19 @@
   "name": "G-Dimension",
   "url": "https://gdimension.app/",
   "applicationCategory": "AutomotiveApplication",
-  "applicationSubCategory": "Car build journal & maintenance log",
+  "applicationSubCategory": "Car mod tracker, build journal & vehicle service history log",
   "operatingSystem": "Web browser, iOS, Android",
-  "description": "G-Dimension is a digital build journal and maintenance logbook for car enthusiasts. Document every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record, and share a clean public build profile.",
+  "description": "G-Dimension is a car mod tracker, digital build journal, and vehicle service history log for car enthusiasts. Document every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record, and share a clean public build profile.",
+  "alternateName": [
+    "G-Dimension App",
+    "GDimension"
+  ],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
-    "Log modifications with part numbers, specs, costs, and photos",
-    "Maintenance and service history logbook",
+    "Car modification tracker: log mods with part numbers, specs, costs, and photos",
+    "Vehicle service history tracker and maintenance logbook",
+    "Project car and restoration build tracker",
+    "Parts bin and wishlist for parts you own but have not installed",
     "Track multiple cars in one garage",
     "Automatic build timeline in chronological order",
     "Shareable public build profile",
@@ -1059,7 +1073,7 @@ body{
   <div class="headline-area">
     <p class="eyebrow" aria-hidden="true">Now in Early Access</p>
     <h1 class="headline">Your build has a story.<br>Give it somewhere to live.</h1>
-    <p class="hero-sub">G-Dimension is a build journal and maintenance logbook for car enthusiasts who take their cars seriously.</p>
+    <p class="hero-sub">G-Dimension is a mod tracker, build journal, and service history log for car enthusiasts who take their cars seriously.</p>
   </div>
   <p class="map-label" aria-hidden="true">Select a destination</p>
 
@@ -1182,6 +1196,25 @@ body{
       <p class="faq-a">A fully documented build helps justify your asking price. Handing a buyer a complete record — every part, every cost, every photo, with receipts — proves the work was done and builds trust that a pile of unlabeled photos cannot.</p>
     </div>
 
+    <!-- The three questions below exist to answer the category queries in the
+         searcher's own words ("mod tracker", "service history tracker",
+         "project car app"). The page described itself only as a "build journal"
+         before, which is what we call it, not what people search for. -->
+    <div class="faq-item">
+      <h3 class="faq-q">Is G-Dimension a car mod tracker?</h3>
+      <p class="faq-a">Yes. G-Dimension is a modification tracker at its core. Every mod is logged with its brand, part number, category, specs, cost, install date, mileage, photos, and receipt, then grouped into a build sheet across Power, Chassis, Exterior, and Interior. Unlike a generic vehicle mod tracker, it keeps the mods in the order you installed them, so the record reads as the build's actual history.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Can I use it as a vehicle service history tracker?</h3>
+      <p class="faq-a">Yes. Alongside modifications, G-Dimension keeps a full maintenance and service history for each car: oil changes, scheduled service, shop invoices with parts and labor separated, detailing sessions, mileage at the time of service, and the receipt for each one. That gives you a complete service record for a modified car, which a factory history report like Carfax does not cover.</p>
+    </div>
+
+    <div class="faq-item">
+      <h3 class="faq-q">Does it work for a project car or a restoration?</h3>
+      <p class="faq-a">Yes. A project car build is exactly what the timeline is for. You can log parts you have bought but not installed yet in the Parts Bin, keep a wishlist of what is next, write free-form entries as the work happens, and watch the build assemble itself in order from the day you bought the car. Nothing expires and nothing is buried, so a restoration that runs for years stays readable from the first entry to the last.</p>
+    </div>
+
     <div class="faq-item">
       <h3 class="faq-q">Is G-Dimension available yet?</h3>
       <p class="faq-a">Yes — G-Dimension is in early access now. You can sign up and start building today while we continue adding features.</p>
@@ -1242,6 +1275,21 @@ body{
       "@type": "Question",
       "name": "Does documenting a build add value when it's time to sell?",
       "acceptedAnswer": { "@type": "Answer", "text": "A fully documented build helps justify your asking price. Handing a buyer a complete record — every part, every cost, every photo, with receipts — proves the work was done and builds trust that a pile of unlabeled photos cannot." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is G-Dimension a car mod tracker?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension is a modification tracker at its core. Every mod is logged with its brand, part number, category, specs, cost, install date, mileage, photos, and receipt, then grouped into a build sheet across Power, Chassis, Exterior, and Interior. Unlike a generic vehicle mod tracker, it keeps the mods in the order you installed them, so the record reads as the build's actual history." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use it as a vehicle service history tracker?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Alongside modifications, G-Dimension keeps a full maintenance and service history for each car: oil changes, scheduled service, shop invoices with parts and labor separated, detailing sessions, mileage at the time of service, and the receipt for each one. That gives you a complete service record for a modified car, which a factory history report like Carfax does not cover." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it work for a project car or a restoration?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. A project car build is exactly what the timeline is for. You can log parts you have bought but not installed yet in the Parts Bin, keep a wishlist of what is next, write free-form entries as the work happens, and watch the build assemble itself in order from the day you bought the car. Nothing expires and nothing is buried, so a restoration that runs for years stays readable from the first entry to the last." }
     },
     {
       "@type": "Question",

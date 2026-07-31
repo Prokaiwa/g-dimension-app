@@ -1,8 +1,34 @@
 # G-Dimension
 
-> G-Dimension is a digital build journal for car enthusiasts — a place to log every modification, part, service, receipt, and photo for each of your cars in one permanent, searchable record, and share a clean public build profile.
+> G-Dimension is a car mod tracker, build journal, and vehicle service history log for car enthusiasts: one place to record every modification, part, service, receipt, and photo for each of your cars in a permanent, searchable record, and share a clean public build profile.
 
-G-Dimension (gdimension.app) is a free web app (PWA). Owners document their cars privately — modifications with specs and costs, maintenance history, a chronological build timeline — and can optionally publish a public build profile at `https://gdimension.app/builds/{username}` showing the car's identity, build sheet (parts and specs, never costs unless the owner opts in), timeline, and photos. Financial records, documents, VINs, and license plates are always private.
+G-Dimension (gdimension.app) is a free web app (PWA). Owners document their cars privately, including modifications with specs and costs, maintenance and service history, and a chronological build timeline. They can optionally publish a public build profile at `https://gdimension.app/builds/{username}` showing the car's identity, build sheet (parts and specs, never costs unless the owner opts in), timeline, and photos. Financial records, documents, VINs, and license plates are always private.
+
+## What it is called
+
+People look for this kind of tool under several names. G-Dimension is all of them:
+
+- car mod tracker / vehicle mod tracker / car modification tracker
+- car build journal / build log app / build sheet app
+- vehicle service history tracker / car maintenance log app
+- project car app / restoration build tracker
+- car enthusiast garage app
+
+## What you can log
+
+- **Modifications** with brand, part number, category, specs, cost, install date, mileage, photos, and the receipt. Grouped into a build sheet across Power, Chassis, Exterior, and Interior.
+- **Maintenance and service history**: scheduled service, repairs, shop invoices with parts and labor separated, mileage at time of service, and receipts.
+- **Detailing sessions** as their own log.
+- **Parts** you own but have not installed yet (Parts Bin), plus a wishlist of what is next.
+- **Timeline entries**: free-form dated notes with photos and links, so a build reads in the order it actually happened.
+- **Documents**: registration, insurance, and other records (always private).
+- **Export**: a complete build sheet PDF of the car to hand to a buyer.
+
+## How it differs from the alternatives
+
+- **Instagram and forum threads** are reverse-chronological and built for conversation. G-Dimension organizes by car, in the order the work happened, and stays searchable for years.
+- **Carfax and similar history reports** cover factory service records. They know nothing about a build: the mods, the parts, or the work the owner did.
+- **Notes apps and spreadsheets** have no structure for parts, specs, receipts, or a timeline.
 
 ## Pages
 
@@ -13,10 +39,17 @@ G-Dimension (gdimension.app) is a free web app (PWA). Owners document their cars
 
 ## Public build profiles
 
-- Owner-published build pages live at `https://gdimension.app/builds/{username}` — public, no login required
-- [Sitemap of public builds](https://gdimension.app/sitemap-builds.xml): machine-readable list of published build profiles
+Owner-published build pages are public and need no login. Each build has up to five pages:
+
+- `https://gdimension.app/builds/{username}` — the build profile hub
+- `https://gdimension.app/builds/{username}/garage` — the car's identity and specs
+- `https://gdimension.app/builds/{username}/buildsheet` — every installed modification by name
+- `https://gdimension.app/builds/{username}/timeline` — the build history in order
+- `https://gdimension.app/builds/{username}/featured` — the owner's written feature story
+
+These pages are server-rendered for crawlers, so their content is readable without executing JavaScript.
 
 ## Optional
 
 - [robots.txt](https://gdimension.app/robots.txt): crawler policy (AI crawlers welcome)
-- [Sitemap](https://gdimension.app/sitemap.xml): static public URLs
+- [Sitemap](https://gdimension.app/sitemap.xml): every public page, including all public build profiles
