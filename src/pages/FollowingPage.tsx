@@ -44,7 +44,19 @@ export default function FollowingPage() {
     })()
   }, [])
 
+  // Two taps. The button sits beside a row whose whole point is being tapped,
+  // and an accidental unfollow silently loses the thing this page exists to
+  // keep. The confirm state resets on a timer so it can't get stuck armed.
+  const [armed, setArmed] = useState<string | null>(null)
+  useEffect(() => {
+    if (!armed) return
+    const t = window.setTimeout(() => setArmed(null), 3000)
+    return () => window.clearTimeout(t)
+  }, [armed])
+
   async function undo(id: string) {
+    if (armed !== id) { setArmed(id); return }
+    setArmed(null)
     setBusyId(id)
     const ok = await unfollowUser(id)
     setBusyId(null)
@@ -72,6 +84,29 @@ export default function FollowingPage() {
       </div>
 
       <div style={{ padding: SPACE_MD }}>
+        {/* Always present, not just when the list is empty. Following is a list
+            you keep adding to, so the way to add to it belongs on the screen
+            permanently rather than disappearing the moment you follow one
+            person. */}
+        <button
+          onClick={() => navigate('/discover')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: SPACE_SM, width: '100%',
+            minHeight: 46, marginBottom: SPACE_SM, cursor: 'pointer', textAlign: 'left',
+            background: 'rgba(240,228,200,0.05)', border: '1px solid rgba(240,228,200,0.12)',
+            borderRadius: 0, padding: `0 ${SPACE_SM}px`, WebkitTapHighlightColor: 'transparent',
+          }}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+            <circle cx="7" cy="7" r="5" stroke={COLOR_ACCENT} strokeWidth="1.6" />
+            <path d="M11 11L14.5 14.5" stroke={COLOR_ACCENT} strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          <span style={{ flex: 1, fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM }}>
+            Find more builds
+          </span>
+          <span style={{ fontFamily: FONT_UI, fontSize: 11.5, color: MUTED }}>Discover</span>
+          <span style={{ color: FAINT, fontSize: 18, lineHeight: 1 }}>›</span>
+        </button>
+
         {rows === null && <p style={{ fontFamily: FONT_UI, fontSize: 13, color: MUTED }}>Loading…</p>}
 
         {rows !== null && rows.length === 0 && (
@@ -79,7 +114,7 @@ export default function FollowingPage() {
             You aren't following anyone yet.
             <br />
             <span style={{ fontSize: 12 }}>
-              When you find a build worth keeping, tap Follow on their profile and it will show up here.
+              Search for a car you like, then tap Follow on the owner's profile. It will show up here.
             </span>
           </p>
         )}
@@ -109,12 +144,13 @@ export default function FollowingPage() {
               </div>
               <button onClick={() => undo(u.id)} disabled={busyId === u.id} style={{
                 minHeight: 36, padding: `0 ${SPACE_SM}px`, cursor: 'pointer', flexShrink: 0,
-                background: 'transparent', border: `1px solid ${COLOR_ACCENT}`, borderRadius: RADIUS_BUTTON,
-                color: COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                background: armed === u.id ? COLOR_ACCENT : 'transparent',
+                border: `1px solid ${COLOR_ACCENT}`, borderRadius: RADIUS_BUTTON,
+                color: armed === u.id ? '#fff5dc' : COLOR_ACCENT, fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
                 letterSpacing: '0.08em', textTransform: 'uppercase',
                 opacity: busyId === u.id ? 0.5 : 1, WebkitTapHighlightColor: 'transparent',
               }}>
-                {busyId === u.id ? '…' : 'Unfollow'}
+                {busyId === u.id ? '…' : armed === u.id ? 'Sure?' : 'Unfollow'}
               </button>
             </div>
           )

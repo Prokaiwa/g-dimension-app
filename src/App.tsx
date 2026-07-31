@@ -108,6 +108,7 @@ const AdminHubPage         = lazyWithRetry(() => import('./pages/AdminHubPage'))
 const NotificationsPage    = lazyWithRetry(() => import('./pages/NotificationsPage'))
 const AdminSuspendedPage   = lazyWithRetry(() => import('./pages/AdminSuspendedPage'))
 const AdminReviewPage      = lazyWithRetry(() => import('./pages/AdminReviewPage'))
+const DiscoverPage         = lazyWithRetry(() => import('./pages/DiscoverPage'))
 
 // Legal (public)
 const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
@@ -437,6 +438,7 @@ export default function App() {
       <Route path="/admin/review/:carId" element={<ProtectedRoute><AdminOnly><AdminReviewPage /></AdminOnly></ProtectedRoute>} />
 
       {/* Non-authenticated public routes — Part 13 */}
+      <Route path="/discover" element={<DiscoverPage />} />
       <Route path="/builds/:username" element={<PublicProfilePage />} />
       <Route path="/builds/:username/garage" element={<PublicGaragePage />} />
       <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />

@@ -1101,3 +1101,56 @@ means private buckets and signed URLs for all user media, which is a much larger
 change than this one and should be its own decision.
 
 Source: migration 091, `src/pages/AdminReviewPage.tsx`.
+
+---
+
+## ADR-030 — Search reads the public view, so it cannot leak (2026-07-31)
+
+**Decision:** `/discover` is a public search over people and builds, backed by
+two `security definer` functions that read **`public_car_profiles`** — the same
+view every `/builds/*` page reads. Both are granted to `anon`. Migration 092.
+
+**Context:** there has never been a way to find anything in this app. No search,
+no browse, no index. The only route to a build was someone handing you the URL,
+which is the complaint that started the follows work in the first place. 086
+gave people a way to *keep* a build; this is the missing half.
+
+**Rationale:**
+
+- **Searching through the public view is a structural guarantee, not a careful
+  one.** `public_car_profiles` is where `is_public`, deleted cars, deleted users
+  and suspended owners are already enforced (084). Reading through it means
+  search *cannot* surface a build the site would not already show — there is no
+  code path for it to get that wrong. Had these functions queried `cars`
+  directly they would have re-implemented the visibility rule, and a duplicated
+  rule drifts. This is the same lesson as 090's `target_car_hidden`, which
+  re-derived a lookup instead of reusing one and was silently wrong for a year's
+  worth of report types.
+- **Public, unlike every other definer RPC here.** The pages it points at are
+  readable signed out, so gating the way *in* would mean only people who already
+  have an account can find anything. Signing in is for following, not looking.
+- **Only people with a public build are findable.** `/builds/:username` needs
+  one; surfacing a handle whose profile then says "not available" is a worse
+  answer than no answer.
+- **`word_similarity`, not `similarity`.** The haystack is a whole label like
+  "2006 lexus ls 430 big body". Plain `similarity()` compares the needle against
+  the *entire* string, so the typo "lexis" scored 0.11 and the fuzzy tier never
+  fired once — the feature looked implemented and did nothing. `word_similarity`
+  scores against the best-matching run of words and gives 0.50. Gated on
+  `length >= 3`, because a single character scores 0.5 against nearly anything.
+  Both numbers were measured on a scratch cluster, not guessed.
+- **The landing page shows what is actually there.** Model chips are grouped
+  from real cars and "worked on lately" is ordered by real timeline activity. At
+  39 builds a "trending" or "recommended" list would be fiction, and inventing
+  one would mean the first thing a new user sees is the least honest thing on
+  the site.
+
+**Consequences:** search is a sequential scan of the view, which is free at this
+size and will not stay free. The fix when it stops being free is a materialised
+search table refreshed on write — not an index, which a view cannot use. Second,
+`vehicle_search_aliases` (018) is now load-bearing for the first time: it has
+sat unused since it was written, and enthusiast shorthand ("evo", "mitsu") only
+resolves for entries that exist in it. Adding aliases is now a product decision
+with a visible effect rather than dead reference data.
+
+Source: migration 092, `src/lib/discover.ts`, `src/pages/DiscoverPage.tsx`.

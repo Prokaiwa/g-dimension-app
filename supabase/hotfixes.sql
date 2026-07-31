@@ -33,7 +33,12 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- No migrations pending.
+-- PENDING: 092_discovery_search.sql (ADR-030) — search + discovery.
+--   search_public() and discover_home(), both definer, both granted to ANON.
+--   They read public_car_profiles, the same view /builds/* reads, so search
+--   cannot surface a build the site would not already show. Fuzzy matching uses
+--   word_similarity (plain similarity scored a typo at 0.11 against a full
+--   label and never fired). Verified on a scratch PG16 cluster before shipping.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the

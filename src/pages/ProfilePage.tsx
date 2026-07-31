@@ -566,6 +566,7 @@ export default function ProfilePage() {
                   trailing={attention.reports > 0 ? <AlertDot /> : undefined}
                 />
               )}
+              <NavRow label="Discover" sub="Find builds and people by car or handle" onClick={() => navigate('/discover')} />
               <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>
