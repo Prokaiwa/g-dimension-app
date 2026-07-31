@@ -1154,3 +1154,56 @@ resolves for entries that exist in it. Adding aliases is now a product decision
 with a visible effect rather than dead reference data.
 
 Source: migration 092, `src/lib/discover.ts`, `src/pages/DiscoverPage.tsx`.
+
+---
+
+## ADR-031 — A follow notifies through a trigger, not the client (2026-07-31)
+
+**Decision:** Following someone files a `new_follower` notice in their inbox,
+written by a `security definer` trigger on `follows`. `user_notices` gains
+`actor_id`; `notify_user` gains an `actor` parameter. One notice per follower
+per 30 days. Migration 094.
+
+**Context:** follows have been silent since 086. You could gain followers and
+never know, which makes a social feature one-directional and gives the person
+being followed no reason to come back. The inbox (087) and the single attention
+count (ADR-025) already existed and were used only by moderation.
+
+**Rationale:**
+
+- **A trigger, because the client is not permitted to do this and should not
+  be.** `notify_user` has EXECUTE revoked from `anon` and `authenticated`
+  deliberately (087) so that nobody can forge having been told something or
+  write into someone else's inbox. That rules out the app sending it, correctly:
+  a notice that depends on the client remembering to send it is a notice that
+  goes missing on a dropped connection, and one that the client *can* send is
+  one a modified client can spam.
+- **`notify_user` is dropped and recreated rather than replaced.** Adding a
+  parameter to an existing function creates a second **overload**, not a
+  replacement, and two candidates differing only by a defaulted trailing
+  argument is an ambiguity waiting to be hit. The four existing five-argument
+  callers keep working untouched because plpgsql resolves the call at run time
+  — verified explicitly rather than assumed.
+- **Dedupe at 30 days.** Unfollow/refollow is otherwise a free way to put
+  yourself at the top of someone's inbox as many times as you like. `actor_id`
+  exists for this as much as for the link.
+- **The body is stored, the link is derived.** ADR-025 established that a notice
+  is a record of what someone was told on a date, so the text is frozen. The
+  tap-through is resolved from `actor_id` at read time instead, because a handle
+  can change and the link should go wherever that person is *now* rather than to
+  a 404. Those two rules look contradictory and aren't: one preserves history,
+  the other preserves a working link.
+- **Follow moved into the search results.** Finding someone and keeping them
+  were two separate journeys — open the profile, open the permit, then tap
+  Follow. The button now sits on the result row, at the moment intent is
+  highest. Optimistic, because on a list you are scanning a round trip of dead
+  time reads as a broken tap; it reverts on failure. Signed out it parks the
+  intent and routes to signup, the same path the public profile already uses.
+
+**Consequences:** `user_notices` now carries notices that are not about
+moderation, so anything reading `kind` must not assume restriction — the
+Notifications screen already branches on it. The client reads the actor's handle
+through a PostgREST embed, which 400s before 094 exists; `getNotices` falls back
+to the plain select rather than showing an empty inbox on a stale deploy.
+
+Source: migration 094, `src/lib/notices.ts`, `src/pages/DiscoverPage.tsx`.

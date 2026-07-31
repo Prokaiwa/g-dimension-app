@@ -19,11 +19,14 @@ import {
   getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches,
   recentHref, type RecentSearch,
 } from '../lib/recentSearches'
+import { getFollowing, followUser, unfollowUser, setPendingFollow } from '../lib/follows'
+import { getCurrentUserProfile } from '../lib/userProfile'
 import { flagEmoji } from '../lib/countries'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
-  GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE,
+  GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
   FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG,
+  RADIUS_BUTTON,
 } from '../tokens'
 
 const CREAM = '#f0e4c8'
@@ -106,6 +109,11 @@ export default function DiscoverPage() {
   const [home, setHome]     = useState<DiscoverHome | null>(null)
   const [busy, setBusy]     = useState(false)
   const [recent, setRecent] = useState<RecentSearch[]>(() => getRecentSearches())
+  // Who I already follow, fetched once. One query for the whole page beats one
+  // `isFollowing` per result row, and search results churn on every keystroke.
+  const [me, setMe]                 = useState<string | null>(null)
+  const [followed, setFollowed]     = useState<Set<string>>(new Set())
+  const [followBusy, setFollowBusy] = useState<string | null>(null)
   const inputRef            = useRef<HTMLInputElement>(null)
   // Every request carries a sequence number. Responses can land out of order —
   // "s2" resolving after "s2000" would otherwise overwrite the better results
@@ -113,6 +121,50 @@ export default function DiscoverPage() {
   const seq                 = useRef(0)
 
   useEffect(() => { getDiscoverHome().then(setHome) }, [])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const p = await getCurrentUserProfile()
+      if (!alive || !p) return
+      setMe(p.id)
+      const rows = await getFollowing(p.id)
+      if (!alive) return
+      setFollowed(new Set(rows.map(r => r.id)))
+    })()
+    return () => { alive = false }
+  }, [])
+
+  // Follow without leaving the search. This is the moment intent is highest —
+  // you just found them — and making someone open the profile, open the permit
+  // and then tap Follow loses most of that.
+  const toggleFollow = useCallback(async (userId: string, username: string | null) => {
+    // Signed out: park the intent and send them to signup, exactly as the
+    // public profile does, so the follow completes itself after they land.
+    if (!me) {
+      if (username) setPendingFollow(username)
+      navigate('/signup?ref=discover')
+      return
+    }
+    setFollowBusy(userId)
+    const wasFollowing = followed.has(userId)
+    // Optimistic: the button is the feedback, and a round trip of dead time on
+    // a list you are scanning reads as a broken tap.
+    setFollowed(prev => {
+      const next = new Set(prev)
+      if (wasFollowing) next.delete(userId); else next.add(userId)
+      return next
+    })
+    const ok = wasFollowing ? await unfollowUser(userId) : (await followUser(userId)).ok
+    if (!ok) {
+      setFollowed(prev => {
+        const next = new Set(prev)
+        if (wasFollowing) next.add(userId); else next.delete(userId)
+        return next
+      })
+    }
+    setFollowBusy(null)
+  }, [me, followed, navigate])
 
   // replaceState, not navigate(): a router push per keystroke would stack a
   // history entry for every letter, and Back would walk them one at a time.
@@ -369,7 +421,25 @@ export default function DiscoverPage() {
                         {place(p.city, p.country_code) ? ` · ${place(p.city, p.country_code)}` : ''}
                       </p>
                     </div>
-                    <span style={{ flexShrink: 0, color: FAINT, fontSize: 18, lineHeight: 1 }}>›</span>
+                    {/* Never on your own row. stopPropagation because the whole
+                        row is a tap target that opens the profile. */}
+                    {p.user_id !== me && (
+                      <button
+                        onClick={e => { e.stopPropagation(); toggleFollow(p.user_id, p.username) }}
+                        disabled={followBusy === p.user_id}
+                        style={{
+                          flexShrink: 0, minHeight: 34, padding: `0 ${SPACE_SM}px`, cursor: 'pointer',
+                          background: followed.has(p.user_id) ? 'transparent' : COLOR_ACCENT,
+                          color: followed.has(p.user_id) ? COLOR_ACCENT : '#fff5dc',
+                          border: `1px solid ${COLOR_ACCENT}`, borderRadius: RADIUS_BUTTON,
+                          fontFamily: FONT_UI, fontWeight: 800, fontSize: 10,
+                          letterSpacing: '0.08em', textTransform: 'uppercase',
+                          opacity: followBusy === p.user_id ? 0.6 : 1,
+                          WebkitTapHighlightColor: 'transparent',
+                        }}>
+                        {followed.has(p.user_id) ? 'Following' : 'Follow'}
+                      </button>
+                    )}
                   </Row>
                 ))}
               </>

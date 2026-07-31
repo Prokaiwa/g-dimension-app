@@ -5,7 +5,14 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 092_discovery_search.sql (applied 2026-07-31)
+-- Last migration applied : 093_search_year_collision.sql (applied 2026-07-31)
+--   - 093 (function-only): searching "s2000" returned a 2000 Toyota Celica and
+--     a 2000 Toyota MR2, because the YEAR shared the fuzzy haystack with the
+--     names (word_similarity('s2000','2000 toyota celica gt-s') = 0.50). Every
+--     digit-bearing model collides the same way: 350Z, 240SX, RX-7. Fix: strip
+--     bare four-digit tokens from the FUZZY haystack only, by pattern rather
+--     than by dropping the year column, since a Celica is nicknamed "2000
+--     Toyota Celica". Literal matching keeps the year, so "2006" still works.
 --   - 092 (ADR-030): search + discovery. search_public() and discover_home(),
 --     both definer, both granted to ANON. They read public_car_profiles, the
 --     same view /builds/* reads, so search cannot surface a build the site
@@ -39,15 +46,14 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- PENDING: 093_search_year_collision.sql — function-only fix to search_public,
---   found within a minute of 092 going live: "s2000" returned a 2000 Toyota
---   Celica and a 2000 Toyota MR2, because the YEAR shared the fuzzy haystack
---   with the names (word_similarity('s2000','2000 toyota celica gt-s') = 0.50).
---   Every digit-bearing model name collides the same way: 350Z, 240SX, RX-7.
---   Fix: strip bare four-digit tokens from the FUZZY haystack only, by pattern
---   rather than by dropping the year column — a Celica is nicknamed "2000
---   Toyota Celica", so the year came back through user-typed data. Literal
---   matching keeps the year, so "2006" still searches the year.
+-- PENDING: 094_follow_notices.sql (ADR-031) — follows stop being silent.
+--   Adds user_notices.actor_id, widens the kind CHECK with 'new_follower', and
+--   adds a definer trigger on follows insert. notify_user is DROPped and
+--   recreated with a sixth `actor` param (adding a param would otherwise create
+--   a second overload, not a replacement); the four existing 5-arg callers keep
+--   working untouched. A trigger rather than the client, because notify_user has
+--   EXECUTE revoked from every client role by design. Dedupes to one notice per
+--   follower per 30 days. Verified on a scratch PG16 cluster.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the

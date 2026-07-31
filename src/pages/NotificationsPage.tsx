@@ -9,7 +9,7 @@
 // insert policy on user_notices), so nothing on this screen can be forged.
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getNotices, markNoticesRead, isRestrictive, type Notice } from '../lib/notices'
+import { getNotices, markNoticesRead, isRestrictive, noticeHref, type Notice } from '../lib/notices'
 import { invalidateAttention } from '../lib/attention'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
@@ -86,6 +86,7 @@ export default function NotificationsPage() {
           const bad = isRestrictive(n.kind)
           const good = n.kind === 'content_restored' || n.kind === 'account_restored'
           const accent = bad ? COLOR_ERROR : good ? COLOR_SUCCESS : COLOR_ACCENT
+          const href = noticeHref(n)
           return (
             <div key={n.id} style={{
               borderLeft: `2px solid ${accent}`,
@@ -108,6 +109,17 @@ export default function NotificationsPage() {
                 }}>
                   {n.body}
                 </p>
+              )}
+              {href && (
+                <button
+                  onClick={() => navigate(href)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, marginTop: SPACE_XS, cursor: 'pointer',
+                    fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: COLOR_ACCENT,
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>
+                  {n.kind === 'new_follower' ? 'See their builds' : 'Open'}
+                </button>
               )}
               {n.car_id && (
                 <button
