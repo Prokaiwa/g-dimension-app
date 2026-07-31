@@ -5,7 +5,21 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 090_report_queue_targets.sql (applied 2026-07-30)
+-- Last migration applied : 091_admin_review_car.sql (applied 2026-07-31)
+--   - 091 (ADR-029): an admin read path into a HIDDEN build, plus an audit row
+--     per look. 084 working as designed left nobody exempt from is_public — the
+--     admin included — so reviewing a severe report meant dismiss (which
+--     REPUBLISHES it and files a "we found no problem" notice), look, re-hide
+--     (a second, contradicting notice). Adds moderation_reviews (no policies,
+--     revoke all from both client roles) and admin_review_car(), a definer
+--     function returning one jsonb blob. NO public policy or view was touched.
+--     The column list is the security control: never wider than what a visitor
+--     would see if the build were public, and `select *` is banned in that
+--     function forever (081/083 are why). Verified on a scratch PG16 cluster
+--     before shipping, then live after running: admin_review_car returns 42501
+--     not_admin to a non-admin, and moderation_reviews refuses select to BOTH
+--     authenticated and anon and refuses insert to authenticated — so the audit
+--     trail cannot be read, forged or wiped by the people it audits.
 --   - 090 (function-only, ADR-026 follow-up): admin_report_queue now resolves a
 --     report's target. Fixed a silent bug — target_car_hidden read
 --     `cars where id = r.target_id`, true only for a 'car' report, so a photo
@@ -19,14 +33,7 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- PENDING: 091_admin_review_car.sql (ADR-029) — an admin read path into a
---   HIDDEN build, plus an audit row per look. Adds moderation_reviews (no
---   policies, revoke all from anon+authenticated, written only by the function)
---   and admin_review_car(), a definer function returning one jsonb blob of
---   everything user-generated on a car. The column list is the security control:
---   never wider than what a visitor would see if the build were public, and
---   `select *` is banned in it forever (081/083 are why). Touches no public
---   policy or view. Syntax + behaviour verified on a scratch PG16 cluster.
+-- No migrations pending.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
