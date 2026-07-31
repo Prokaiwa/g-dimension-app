@@ -5,39 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- ═══ PRIMARY SEO ═══ -->
-<!-- Targets "car build sheet template" and its neighbours. That query currently
-     returns paid Word/PDF templates on Etsy, a PDF-filler site, and forum
-     threads trading spreadsheets: high intent, weak supply. This page is the
-     free, better answer, and the product is the natural close rather than the
-     pitch. -->
-<title>Car Build Sheet: What It Is and How to Make One (Free Template)</title>
-<meta name="description" content="A car build sheet lists everything done to a build: the mods, the parts, the specs, and the service history. Here is what belongs on one, a full example you can copy, and a free way to generate yours automatically.">
+<!-- Targets "how to document car mods for resale" and "selling a modified car".
+     That query space is dominated by vendor blogs arguing WHETHER mods add value;
+     almost nobody covers the how, which is both the gap and the strongest honest
+     argument for the product. -->
+<title>How to Document a Car Build for Resale | G-Dimension</title>
+<meta name="description" content="A modified car sells for what a buyer can verify. Here is what to document while you build, what buyers actually check, what to keep private, and how to hand it over.">
 <meta name="robots" content="index, follow">
-<link rel="canonical" href="https://gdimension.app/build-sheet">
+<link rel="canonical" href="https://gdimension.app/documenting-your-build">
 <meta name="theme-color" content="#050507">
 <meta name="author" content="G-Dimension">
 
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://gdimension.app/build-sheet">
+<meta property="og:url" content="https://gdimension.app/documenting-your-build">
 <meta property="og:site_name" content="G-Dimension">
-<meta property="og:title" content="Car Build Sheet: What It Is and How to Make One">
-<meta property="og:description" content="What belongs on a car build sheet, a full example you can copy, and a free way to generate yours automatically.">
+<meta property="og:title" content="How to Document a Car Build for Resale">
+<meta property="og:description" content="How to Document a Car Build for Resale. What buyers check, what to record, and what to keep private.">
 <meta property="og:image" content="https://gdimension.app/og-default.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="600">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@gdimensionapp">
-<meta name="twitter:title" content="Car Build Sheet: What It Is and How to Make One">
-<meta name="twitter:description" content="What belongs on a car build sheet, a full example you can copy, and a free way to generate yours automatically.">
+<meta name="twitter:title" content="How to Document a Car Build for Resale">
+<meta name="twitter:description" content="How to Document a Car Build for Resale. What buyers check, what to record, and what to keep private.">
 <meta name="twitter:image" content="https://gdimension.app/og-default.png">
 
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-<!-- Self-hosted fonts, same two faces and same reasoning as marketing.html:
-     keeps the Google Fonts round-trip off the critical path. -->
 <link rel="preload" href="/fonts/hanken-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/guide.css">
 <script defer src="/_vercel/insights/script.js"></script>
@@ -59,178 +56,153 @@
 <article>
 
   <p class="eyebrow">Guide</p>
-  <h1>Car Build Sheet: What It Is and How to Make One</h1>
-  <p class="standfirst">A build sheet is the one-page answer to "what have you done to it?" Here is what belongs on one, a worked example you can copy, and a way to stop maintaining it by hand.</p>
+  <h1>How to Document a Car Build for Resale</h1>
+  <p class="standfirst">A modified car sells for what a buyer can verify, not for what you spent. This is what to document while you build, what a buyer is actually checking, and how to hand it over.</p>
   <p class="byline">By G-Dimension &middot; Updated July 2026</p>
 
   <nav class="toc" aria-label="Contents">
     <p class="toc-h">Contents</p>
     <ol>
-      <li><a href="#what">What a build sheet actually is</a></li>
-      <li><a href="#whats-on-it">What goes on a build sheet</a></li>
-      <li><a href="#example">A worked example</a></li>
-      <li><a href="#mistakes">Four mistakes that make a build sheet useless</a></li>
-      <li><a href="#how">How to make one</a></li>
+      <li><a href="#discount">Why modified cars sell at a discount</a></li>
+      <li><a href="#questions">The three questions a buyer is really asking</a></li>
+      <li><a href="#per-mod">What to record for each modification</a></li>
+      <li><a href="#stock">The stock parts question</a></li>
+      <li><a href="#private">What to keep private</a></li>
+      <li><a href="#handover">Handing it over</a></li>
       <li><a href="#faq">Questions</a></li>
     </ol>
   </nav>
 
-  <h2 id="what">What a build sheet actually is</h2>
+  <h2 id="discount">Why modified cars sell at a discount</h2>
 
-  <p>A build sheet is a single organized document listing everything that has been done to a car: every modification, the brand and part number behind it, the specs that changed as a result, and the service history underneath it all. It is the difference between saying "it's built" and being able to show precisely what that means.</p>
+  <p>It is not because buyers dislike modifications. It is because they cannot price them.</p>
 
-  <p>The term gets used two ways, and it is worth separating them before you go looking:</p>
+  <p>A stock car of known mileage has a market value anyone can look up. A modified car has an unknown: somebody has been inside it, and the buyer has no way to tell whether that was careful work by someone who knew what they were doing, or a series of cheap decisions that will surface in eighteen months. Faced with that uncertainty, a rational buyer does the only thing available and assumes the worse case. The discount is not a judgment on your build. It is the price of the question you have not answered.</p>
+
+  <p><strong>Documentation is how you answer it.</strong> Not by claiming the work was good, which every seller does, but by making it checkable. That is the entire mechanism, and it is why the same car with the same parts can sell for meaningfully different money depending on what comes with it.</p>
+
+  <div class="callout">
+    <p>Worth being straight about this: <strong>documentation does not make modifications profitable.</strong> Most mods do not return what they cost, and no amount of paperwork changes that. What it does is stop you losing money twice, once on the parts and again on the discount applied to an unverifiable car.</p>
+  </div>
+
+  <h2 id="questions">The three questions a buyer is really asking</h2>
+
+  <p>Every question a serious buyer asks is a version of one of these. Answer all three and there is very little left to negotiate about.</p>
+
+  <div class="step">
+    <p class="step-n">Question one</p>
+    <h3>Was the work done properly?</h3>
+    <p>Who did it, when, and with what. A receipt from a known shop settles this immediately. Work you did yourself is equally credible if you can show the parts receipts and photos from during the install, which is why photographing the process matters more than photographing the result. A finished part tells a buyer nothing about how it was fitted.</p>
+  </div>
+
+  <div class="step">
+    <p class="step-n">Question two</p>
+    <h3>Has it been maintained since?</h3>
+    <p>This is the one sellers underestimate, and it usually carries more weight than the mod list. A built engine with no service record is a liability. The same engine with dated oil changes, fluid intervals, and the timing components logged at a known mileage is a car someone looked after. If you only document one thing, document this. There is more on it in the <a href="/service-history">service history guide</a>.</p>
+  </div>
+
+  <div class="step">
+    <p class="step-n">Question three</p>
+    <h3>What am I inheriting?</h3>
+    <p>Wear items, known quirks, and what is coming due. Sellers hide this and it backfires, because buyers assume the worst about anything unmentioned. Stating plainly that the clutch has 20,000 miles on it and the rear tires are half worn reads as honesty and makes the rest of your account more believable, not less. A buyer who catches one omission stops trusting the whole document.</p>
+  </div>
+
+  <h2 id="per-mod">What to record for each modification</h2>
+
+  <p>At the moment you install something, this takes about a minute. Reconstructed two years later it takes an afternoon and is half guesswork.</p>
 
   <ul>
-    <li><strong>A factory build sheet</strong> is the document the manufacturer produced when the car was assembled, listing the trim, options, and equipment codes it left the plant with. You look this up by VIN. It describes the car you started with.</li>
-    <li><strong>An enthusiast build sheet</strong> is the one you write. It describes what the car has become: the mods, the parts, the work, in order. This guide is about that one.</li>
+    <li><strong>Brand and exact part.</strong> Part number where one exists. "Coilovers" is not a record, "Ohlins DFV, 8k front, 6k rear" is.</li>
+    <li><strong>Date and mileage at install.</strong> This is what lets a buyer work out the wear on the part, separately from the wear on the car.</li>
+    <li><strong>Who installed it.</strong> Shop name, or yourself. Both are fine. Unstated is not.</li>
+    <li><strong>Cost, and the receipt.</strong> Keep the receipt attached to the part rather than in a folder. A receipt you cannot match to a part proves nothing.</li>
+    <li><strong>Photos from during the install.</strong> The old part off, the new part on, anything you had to modify to make it fit.</li>
+    <li><strong>Why.</strong> One line. It is the part that reads as an owner who was thinking, and it is the first thing lost to memory.</li>
   </ul>
 
-  <p>Enthusiasts reach for a build sheet at three moments, and each one wants slightly different things from it. <strong>At a car show</strong>, it goes on the windshield or a stand, and it needs to be scannable in ten seconds by someone walking past. <strong>When selling</strong>, it goes to the buyer, and it needs to be complete and backed by receipts, because that is what turns a list of claims into evidence. <strong>For yourself</strong>, it is the running record of what is on the car right now, which matters more than people expect the first time a shop asks what spring rate you are running and you cannot remember.</p>
+  <p>Collected consistently, this is also exactly what a <a href="/build-sheet">build sheet</a> is assembled from, so the work of documenting and the work of presenting turn out to be the same work done once.</p>
 
-  <h2 id="whats-on-it">What goes on a build sheet</h2>
+  <h2 id="stock">The stock parts question</h2>
 
-  <p>The failure mode of most build sheets is that they are a flat, unsorted list of parts. A reader cannot tell what matters, and the person who wrote it cannot tell what is missing. Grouping fixes both problems. These are the sections worth having.</p>
+  <p>Keep them, and say that you kept them.</p>
 
-  <p>Sections 1 to 5 are the build sheet proper: what the car is running. Sections 6 and 7 are what turn it into a record someone else can trust, and they are the ones people leave out.</p>
+  <p>Original parts matter to two buyers at once: the one who wants to return the car toward standard, and the one who does not care but reads "stock parts included" as evidence that the previous owner was not reckless. Boxed original wheels in a garage are worth more as a signal than as parts.</p>
 
-  <h3>1. Vehicle identity</h3>
-  <p>Year, make, model, and trim, plus the chassis code if the community uses one, because that is how people actually search and talk. Add color, current mileage, and transmission type (automatic, manual, dual-clutch). Leave VIN and license plate off any copy that leaves your hands. They are not useful to a reader and they are worth something to the wrong one.</p>
+  <p>Where the choice is genuinely open is on reversible, high-demand items. Wheels, a tune, and sometimes an exhaust often realize more sold separately than they add to the car. There is no universal answer, but there is a reliable tiebreaker: <strong>a coherent build sells better than a half-reverted one.</strong> A car stripped back to stock in a hurry, with the tell-tale marks of parts recently removed, invites exactly the suspicion you were trying to avoid.</p>
 
-  <h3>2. Power</h3>
-  <p>Engine and drivetrain work: internals, forced induction, exhaust, intake, fuel system, cooling, tuning, and any engine management. If you have dyno figures, give the number, the wheel or crank basis, and the dyno it was run on. A bare horsepower claim with no context reads as a guess even when it is honest.</p>
+  <h2 id="private">What to keep private</h2>
 
-  <h3>3. Chassis</h3>
-  <p>Suspension, brakes, wheels, and tires. This is the section people most often under-specify. Coilover brand alone is not much use. Spring rates, ride height, camber, wheel size, offset, tire model, and tire size are what another owner or a buyer actually wants, and they cost you nothing to write down.</p>
+  <p>Documentation is not the same as disclosure, and a public build page is not a place for everything.</p>
 
-  <h3>4. Exterior</h3>
-  <p>Body work, aero, paint or wrap, lighting, and glass. Note what is genuine versus replica if that distinction exists for the part, and note it plainly. Everyone finds out eventually, and being the one who said it first is worth more than the part.</p>
-
-  <h3>5. Interior</h3>
-  <p>Seats, harnesses, steering wheel, gauges, audio, and any safety equipment such as a cage or fire suppression. If a seat or harness is dated, list the date, because it determines whether the car can run certain events.</p>
-
-  <h3>6. Service history</h3>
-  <p>The section that gets skipped and the one that carries the most weight with a buyer. Scheduled maintenance, repairs, fluids, timing components, and the mileage at each. A modified car with a documented service history sells as a cared-for car. The same car without one sells as a risk, no matter what the mod list says.</p>
-
-  <h3>7. Photos and receipts</h3>
-  <p>Not every part, but the meaningful ones: the work in progress, the parts before they went on, and the receipts for anything expensive. Receipts are what move a build sheet from a list of claims to a record, and they are the single strongest thing you can hand a skeptical buyer.</p>
-
-  <h2 id="example">A worked example</h2>
-
-  <p>Here is the shape it takes when it is filled in: group headings, part on the left, detail on the right, service history at the bottom. This is the long form, all seven sections, the version you hand to a buyer. A sheet made for a show is the same thing cut down to what someone can read while walking past.</p>
-
-  <div class="sheet">
-    <p class="sheet-title">1994 Mazda RX-7</p>
-    <p class="sheet-sub">FD3S &middot; Touring &middot; 78,400 mi &middot; 5MT</p>
-
-    <p class="sheet-group">Power</p>
-    <div class="sheet-row"><span>Single turbo conversion</span><span>Garrett GTX3076R</span></div>
-    <div class="sheet-row"><span>Downpipe and midpipe</span><span>3.5 in stainless</span></div>
-    <div class="sheet-row"><span>Intercooler</span><span>Front mount, 3 in</span></div>
-    <div class="sheet-row"><span>Engine management</span><span>Haltech Elite 2500</span></div>
-    <div class="sheet-row"><span>Fuel system</span><span>1000cc primaries, Walbro 450</span></div>
-    <div class="sheet-row"><span>Output</span><span>412 whp, Dynojet, 93 oct</span></div>
-
-    <p class="sheet-group">Chassis</p>
-    <div class="sheet-row"><span>Coilovers</span><span>Ohlins DFV, 8k / 6k</span></div>
-    <div class="sheet-row"><span>Sway bars</span><span>Front 25mm, rear 19mm</span></div>
-    <div class="sheet-row"><span>Brakes</span><span>StopTech ST-40, 355mm</span></div>
-    <div class="sheet-row"><span>Wheels</span><span>Volk TE37, 17x9 +35</span></div>
-    <div class="sheet-row"><span>Tires</span><span>Michelin PS4S, 255/40/17</span></div>
-    <div class="sheet-row"><span>Alignment</span><span>-2.5 front, -1.8 rear</span></div>
-
-    <p class="sheet-group">Exterior</p>
-    <div class="sheet-row"><span>Front lip</span><span>Feed Afflux, genuine</span></div>
-    <div class="sheet-row"><span>Paint</span><span>Respray, Montego Blue</span></div>
-    <div class="sheet-row"><span>Lighting</span><span>LED retrofit, projector</span></div>
-
-    <p class="sheet-group">Interior</p>
-    <div class="sheet-row"><span>Seats</span><span>Bride Zeta III, 2024 date</span></div>
-    <div class="sheet-row"><span>Harnesses</span><span>Takata 4-point, 2025 date</span></div>
-    <div class="sheet-row"><span>Gauges</span><span>AEM wideband, oil temp</span></div>
-
-    <p class="sheet-group">Service history</p>
-    <div class="sheet-row"><span>Apex seal rebuild</span><span>61,200 mi &middot; Mar 2023</span></div>
-    <div class="sheet-row"><span>Coolant seals, all</span><span>61,200 mi &middot; Mar 2023</span></div>
-    <div class="sheet-row"><span>Clutch, OS Giken</span><span>68,900 mi &middot; Aug 2024</span></div>
-    <div class="sheet-row"><span>Oil, every 3k</span><span>Last 77,800 mi</span></div>
-    <div class="sheet-row"><span>Receipts on file</span><span>Yes, all of the above</span></div>
-  </div>
-  <p class="caption">An example sheet. Note that every performance claim carries its context, and the service history sits on the same page as the mods rather than in a separate folder.</p>
-
-  <div class="callout">
-    <p><strong>Two documents, and it is worth naming them separately.</strong> The mod list and the record you hand a buyer do different jobs, so <span class="wm">G-Dimension</span> keeps them apart. The <strong>Build Sheet</strong> is the mods, grouped into Power, Chassis, Exterior and Interior: what the car is running right now. The <strong>Build Report</strong> is the full history you export as a PDF, adding the vehicle identity and the dated maintenance and service record underneath. The example above is a Build Report, because that is the version that answers a buyer's questions.</p>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Share freely</th><th>Keep private</th></tr></thead>
+    <tbody>
+      <tr><td>Mods, brands, specs</td><td>VIN and license plate</td></tr>
+      <tr><td>Service dates and mileage</td><td>Your address, or anything showing where the car is kept</td></tr>
+      <tr><td>Photos of the work</td><td>Purchase price and total spend</td></tr>
+      <tr><td>That receipts exist</td><td>The receipts themselves, until a buyer is serious</td></tr>
+    </tbody>
+  </table>
   </div>
 
-  <h2 id="mistakes">Four mistakes that make a build sheet useless</h2>
+  <p>The purchase price one surprises people. It feels like transparency, but it anchors the negotiation against you and it is not evidence of anything: what you paid says nothing about what the car is worth now. The same is true of your running total. Buyers who ask what you have in it are almost always trying to establish a ceiling, not a value.</p>
 
-  <ol>
-    <li><strong>Brand with no spec.</strong> "Ohlins coilovers" tells a reader almost nothing. "Ohlins DFV, 8k front, 6k rear" tells them what the car is set up to do.</li>
-    <li><strong>No service history.</strong> A mod list on its own reads as money spent. A mod list with maintenance underneath it reads as a car that was looked after, which is what a buyer is actually trying to establish.</li>
-    <li><strong>No dates.</strong> A part installed last month and a part installed six years and forty thousand miles ago are not the same part. Dates and mileage are what let someone judge wear.</li>
-    <li><strong>It stopped being updated.</strong> This is the one that gets everybody. A build sheet made once in a word processor is accurate on the day you write it and wrong within a month. The half-finished document is worse than none, because now you also have to work out which parts of it are still true.</li>
-  </ol>
+  <p>Receipts are different. They are your strongest evidence, so share them, but share them with someone who has shown they are serious rather than posting them publicly.</p>
 
-  <h2 id="how">How to make one</h2>
+  <h2 id="handover">Handing it over</h2>
 
-  <p>Three approaches, and the honest tradeoffs of each.</p>
+  <p>Give it as <strong>one organized document</strong>, not a folder of loose paper and a camera roll. The organization is itself part of the message: a buyer who receives a clean record concludes the car was kept the same way, and that conclusion is doing real work before they read a word of it.</p>
 
-  <h3>A document or template</h3>
-  <p>Word, Pages, Google Docs, or one of the paid printable templates sold for car shows. Fine for a one-off, and genuinely good if what you need is something attractive to sit on a stand next to the car. The catch is mistake number four: it is a snapshot, it will not update itself, and receipts live somewhere else entirely.</p>
-
-  <h3>A spreadsheet</h3>
-  <p>The enthusiast default, and better than it gets credit for. It sorts, it totals your spend, and it costs nothing. Where it struggles is everything that is not a number. Photos, receipts, and the story of why a part was chosen do not fit in a cell, so they end up in a folder, a camera roll, and a forum thread, which means the record is complete only as long as you personally remember where all four pieces live.</p>
-
-  <h3>A build journal that generates it</h3>
-  <p>Log each mod and each service once, as it happens, with its receipt and photos attached. The build sheet is then a view of that record rather than a separate document you maintain, so it is current by construction. This is what <a href="/"><span class="wm">G-Dimension</span></a> does: you record the work, and the Build Sheet, the timeline, and the exportable Build Report all come out of it. It is free, it runs in a browser, and it installs to your phone.</p>
+  <p>In practice the strongest handover is a single export covering vehicle identity, every modification with dates and mileage, and the full service history, with the receipts available on request. That is what the <a href="/build-sheet">Build Report</a> is, and generating it from a record you kept as you went is the difference between ten minutes and a lost weekend.</p>
 
   <div class="callout">
-    <p><strong>Whichever you choose, keep the receipts attached to the parts.</strong> Almost every argument about a build sheet's credibility ends the moment a receipt appears next to the claim. That is the part people skip and the part that does the work.</p>
+    <p><strong>One habit worth more than the rest.</strong> Photograph the work while it is apart. Almost nobody does it, everybody wishes they had, and it is the single piece of evidence that cannot be reconstructed afterwards at any price.</p>
   </div>
 
   <h2 id="faq">Questions</h2>
 
   <div class="faq-item">
-    <h3>What is a car build sheet?</h3>
-    <p>A car build sheet is a single organized document listing every modification made to a vehicle, the parts and specs behind each one, and the service history underneath. Enthusiasts use it to display a car at a show, to prove the work to a buyer, and to keep track of what is currently on the car.</p>
+    <h3>Do modifications increase a car's resale value?</h3>
+    <p>Usually not on their own. Most modifications do not return what they cost, and some narrow the buyer pool enough to reduce what the car sells for. What changes the outcome is documentation: the same car sells for more when the buyer can verify what was fitted, who fitted it, and that it has been maintained since. You are not selling the mods, you are selling the certainty that they were done properly.</p>
   </div>
 
   <div class="faq-item">
-    <h3>How is it different from a factory build sheet?</h3>
-    <p>A factory build sheet is the manufacturer's record of how the car was equipped when it was assembled, looked up by VIN. An enthusiast build sheet documents what the owner has done since. They answer opposite questions: one describes the car you started with, the other describes what it has become.</p>
+    <h3>What paperwork should I give a buyer of a modified car?</h3>
+    <p>A build sheet listing every modification with brand and spec, a dated service history with mileage, receipts for the significant parts and any professional installation, the original stock parts if you still have them, and photos of the work in progress. Give it as one organized document rather than a folder of loose paper, because the organization itself signals how the car was kept.</p>
   </div>
 
   <div class="faq-item">
-    <h3>What should be on a car build sheet?</h3>
-    <p>Vehicle identity (year, make, model, trim, chassis code, mileage), then the modifications grouped into Power, Chassis, Exterior, and Interior with brand and spec for each, then the service history with dates and mileage, then photos and receipts for the significant items. Leave VIN and license plate off any copy you hand out.</p>
+    <h3>Should I return a modified car to stock before selling?</h3>
+    <p>It depends on the car and the buyer. Reversible items with strong resale value, such as wheels or a tune, are often worth selling separately. A car whose modifications are coherent and well documented usually sells better as it is, because returning it to stock removes the work without removing the buyer's suspicion that work was done. If you do keep the stock parts, say so in the listing, since it lowers the perceived risk.</p>
   </div>
 
   <div class="faq-item">
-    <h3>Do I need a build sheet to sell a modified car?</h3>
-    <p>You do not need one, but a modified car without documentation is priced as an unknown. A build sheet backed by receipts lets a buyer verify what was done rather than take your word for it, which is what supports the asking price. The service history usually does more of that work than the mod list.</p>
+    <h3>How do I prove work was done properly?</h3>
+    <p>Receipts and photos, tied to the specific part. A receipt from a reputable shop dated near the install, plus a photo of the work in progress, answers the question directly. For work you did yourself, photos through the process and the parts receipts do the same job. What you cannot prove is a claim with nothing attached to it, and an experienced buyer prices those at zero.</p>
   </div>
 
   <div class="faq-item">
-    <h3>Is there a free car build sheet template?</h3>
-    <p>Yes. G-Dimension generates one for free from the mods and services you log: a grouped Build Sheet in the app, and an exportable Build Report that adds the vehicle identity and the full maintenance history for handing to a buyer. Because both are generated from the record rather than typed out separately, they stay current instead of going stale the week after you make them.</p>
+    <h3>What should I leave off a public build listing?</h3>
+    <p>VIN, license plate, your address, and anything that identifies where the car is kept. Purchase price and total spend are worth withholding too, because they anchor the negotiation against you and are not evidence of anything. Keep them in your own records and share receipts selectively with a serious buyer instead.</p>
   </div>
 
   <div class="faq-item">
-    <h3>What should a build sheet for a car show look like?</h3>
-    <p>Shorter than one made for a buyer. Someone walking past gives it about ten seconds, so lead with the car's identity and the four or five modifications that define it, keep the type large enough to read standing up, and leave the exhaustive parts list for anyone who asks. A QR code to the full build online is a good way to serve both readers from one sheet.</p>
+    <h3>When should I start documenting?</h3>
+    <p>The day you buy the car, if you can. Documentation assembled at the point of sale is visibly reconstructed: dates are approximate, receipts are missing, and photos of finished parts cannot show how they went on. A record built as the work happened is both more complete and more credible, and it costs almost nothing per entry when spread across the ownership.</p>
   </div>
 
   <div class="cta">
-    <h2>Generate your build sheet automatically</h2>
-    <p>Log your mods and services once. The build sheet, the timeline, and the PDF come out of it. Free during early access.</p>
+    <h2>Document it while you build</h2>
+    <p>Log each mod and each service once, with its receipt and photos. The build sheet and the exportable Build Report come out of it. Free during early access.</p>
     <a class="cta-btn" href="/signup">Create Your Garage</a>
   </div>
 
   <div class="related">
     <p class="related-h">Related guides</p>
-    <a class="related-item" href="/documenting-your-build">
-      <strong>How to Document a Car Build for Resale</strong>
-      <span>Why modified cars sell at a discount, the three questions a buyer is really asking, and what to keep private.</span>
+    <a class="related-item" href="/build-sheet">
+      <strong>Car Build Sheet: What It Is and How to Make One</strong>
+      <span>What belongs on a build sheet, a worked example, and the four mistakes that make one useless.</span>
     </a>
     <a class="related-item" href="/service-history">
       <strong>Service History for a Modified Car</strong>
@@ -256,81 +228,108 @@
   </a>
   <div class="f-links">
     <a href="/">Home</a>
-    <a href="/documenting-your-build">Documenting a Build</a>
-    <a href="/service-history">Service History</a>
+    <a href="/build-sheet">Build Sheet Guide</a>
     <a href="/signup">Sign up</a>
-    <a href="/login">Log in</a>
     <a href="/terms">Terms</a>
     <a href="/privacy">Privacy</a>
   </div>
   <p class="f-legal">gdimension.app &middot; &copy; 2026</p>
 </footer>
 </div>
-
-<!-- Structured data. JSON-LD is a data block, not an executable script, so it is
-     not covered by the CSP script-src hash allowlist. The FAQPage entries match
-     the visible FAQ above 1:1, which is what Google requires. -->
-<script type="application/ld+json">
-{
+<script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "Article",
-  "headline": "Car Build Sheet: What It Is and How to Make One",
-  "description": "What belongs on a car build sheet, a worked example, the four mistakes that make one useless, and how to generate one automatically.",
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "https://gdimension.app/build-sheet" },
+  "headline": "How to Document a Car Build for Resale",
+  "description": "Why modified cars sell at a discount, the three questions a buyer is really asking, what to record for each modification, and what to keep private.",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://gdimension.app/documenting-your-build"
+  },
   "image": "https://gdimension.app/og-default.png",
-  "author": { "@type": "Organization", "name": "G-Dimension", "url": "https://gdimension.app/" },
+  "author": {
+    "@type": "Organization",
+    "name": "G-Dimension",
+    "url": "https://gdimension.app/"
+  },
   "publisher": {
     "@type": "Organization",
     "name": "G-Dimension",
     "url": "https://gdimension.app/",
-    "logo": { "@type": "ImageObject", "url": "https://gdimension.app/icon-512.png" }
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://gdimension.app/icon-512.png"
+    }
   },
   "dateModified": "2026-07-31",
   "about": [
-    { "@type": "Thing", "name": "Car build sheet" },
-    { "@type": "Thing", "name": "Car modification documentation" },
-    { "@type": "Thing", "name": "Vehicle service history" }
+    {
+      "@type": "Thing",
+      "name": "Selling a modified car"
+    },
+    {
+      "@type": "Thing",
+      "name": "Car modification documentation"
+    },
+    {
+      "@type": "Thing",
+      "name": "Vehicle resale value"
+    }
   ]
-}
-</script>
-<script type="application/ld+json">
-{
+}</script>
+<script type="application/ld+json">{
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "What is a car build sheet?",
-      "acceptedAnswer": { "@type": "Answer", "text": "A car build sheet is a single organized document listing every modification made to a vehicle, the parts and specs behind each one, and the service history underneath. Enthusiasts use it to display a car at a show, to prove the work to a buyer, and to keep track of what is currently on the car." }
+      "name": "Do modifications increase a car's resale value?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Usually not on their own. Most modifications do not return what they cost, and some narrow the buyer pool enough to reduce what the car sells for. What changes the outcome is documentation: the same car sells for more when the buyer can verify what was fitted, who fitted it, and that it has been maintained since. You are not selling the mods, you are selling the certainty that they were done properly."
+      }
     },
     {
       "@type": "Question",
-      "name": "How is it different from a factory build sheet?",
-      "acceptedAnswer": { "@type": "Answer", "text": "A factory build sheet is the manufacturer's record of how the car was equipped when it was assembled, looked up by VIN. An enthusiast build sheet documents what the owner has done since. They answer opposite questions: one describes the car you started with, the other describes what it has become." }
+      "name": "What paperwork should I give a buyer of a modified car?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A build sheet listing every modification with brand and spec, a dated service history with mileage, receipts for the significant parts and any professional installation, the original stock parts if you still have them, and photos of the work in progress. Give it as one organized document rather than a folder of loose paper, because the organization itself signals how the car was kept."
+      }
     },
     {
       "@type": "Question",
-      "name": "What should be on a car build sheet?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Vehicle identity (year, make, model, trim, chassis code, mileage), then the modifications grouped into Power, Chassis, Exterior, and Interior with brand and spec for each, then the service history with dates and mileage, then photos and receipts for the significant items. Leave VIN and license plate off any copy you hand out." }
+      "name": "Should I return a modified car to stock before selling?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It depends on the car and the buyer. Reversible items with strong resale value, such as wheels or a tune, are often worth selling separately. A car whose modifications are coherent and well documented usually sells better as it is, because returning it to stock removes the work without removing the buyer's suspicion that work was done. If you do keep the stock parts, say so in the listing, since it lowers the perceived risk."
+      }
     },
     {
       "@type": "Question",
-      "name": "Do I need a build sheet to sell a modified car?",
-      "acceptedAnswer": { "@type": "Answer", "text": "You do not need one, but a modified car without documentation is priced as an unknown. A build sheet backed by receipts lets a buyer verify what was done rather than take your word for it, which is what supports the asking price. The service history usually does more of that work than the mod list." }
+      "name": "How do I prove work was done properly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Receipts and photos, tied to the specific part. A receipt from a reputable shop dated near the install, plus a photo of the work in progress, answers the question directly. For work you did yourself, photos through the process and the parts receipts do the same job. What you cannot prove is a claim with nothing attached to it, and an experienced buyer prices those at zero."
+      }
     },
     {
       "@type": "Question",
-      "name": "Is there a free car build sheet template?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. G-Dimension generates one for free from the mods and services you log: a grouped Build Sheet in the app, and an exportable Build Report that adds the vehicle identity and the full maintenance history for handing to a buyer. Because both are generated from the record rather than typed out separately, they stay current instead of going stale the week after you make them." }
+      "name": "What should I leave off a public build listing?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "VIN, license plate, your address, and anything that identifies where the car is kept. Purchase price and total spend are worth withholding too, because they anchor the negotiation against you and are not evidence of anything. Keep them in your own records and share receipts selectively with a serious buyer instead."
+      }
     },
     {
       "@type": "Question",
-      "name": "What should a build sheet for a car show look like?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Shorter than one made for a buyer. Someone walking past gives it about ten seconds, so lead with the car's identity and the four or five modifications that define it, keep the type large enough to read standing up, and leave the exhaustive parts list for anyone who asks. A QR code to the full build online is a good way to serve both readers from one sheet." }
+      "name": "When should I start documenting?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The day you buy the car, if you can. Documentation assembled at the point of sale is visibly reconstructed: dates are approximate, receipts are missing, and photos of finished parts cannot show how they went on. A record built as the work happened is both more complete and more credible, and it costs almost nothing per entry when spread across the ownership."
+      }
     }
   ]
-}
-</script>
+}</script>
 
 </body>
 </html>

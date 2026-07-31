@@ -27,7 +27,13 @@ const ROOT = new URL('..', import.meta.url).pathname
 // has none today and deliberately loads analytics from a src= instead, but it is
 // listed so that adding one is caught here rather than in production, where a
 // missing hash fails silently (Vite serves no CSP locally).
-const HTML_FILES = ['index.html', 'public/marketing.html', 'public/build-sheet.html']
+const HTML_FILES = [
+  'index.html',
+  'public/marketing.html',
+  'public/build-sheet.html',
+  'public/documenting-your-build.html',
+  'public/service-history.html',
+]
 
 /** Executable inline scripts: no src=, and no type= other than a JS MIME. */
 function inlineScripts(html) {

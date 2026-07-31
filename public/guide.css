@@ -1,0 +1,290 @@
+/* Shared stylesheet for the /guide pages (build-sheet, documenting-your-build,
+   service-history). Extracted from build-sheet.html once a second guide existed:
+   three copies of 230 lines is three places for the design to drift.
+
+   Served from 'self', so no CSP change is needed. It is one small render-blocking
+   request, which is the accepted trade for one place to fix the design and a file
+   the browser caches across every guide the reader visits after the first.
+
+   Tokens mirror src/tokens/index.ts and marketing.html. Do not invent colours
+   here. */
+@font-face{
+  font-family:'Hanken Grotesk';
+  font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(/fonts/hanken-grotesk-latin.woff2) format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:italic;font-weight:500 600;font-display:swap;
+  src:url(/fonts/cormorant-garamond-italic-latin.woff2) format('woff2');
+}
+
+:root{
+  --brand:#780E12;
+  --accent:#c8661a;
+  --accent-dim:#8a4810;
+  --accent-text:#fff5dc;
+  --cavity:#050507;
+  --text-primary:#f5f5f5;
+  --text-secondary:#8a8a8c;
+  --rule:#26262b;
+  --panel:#0e0e12;
+  --font-ui:'Hanken Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --font-title:'Cormorant Garamond','Garamond',serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+html,body{overflow-x:hidden;}
+body{
+  font-family:var(--font-ui);
+  color:var(--text-primary);
+  background:var(--cavity);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.7;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.header{
+  position:sticky;top:0;z-index:50;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;
+  background:rgba(5,5,7,0.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--rule);
+}
+/* Brand lockup: the real G badge plus the wordmark in the house style, which is
+   Hanken italic at -0.10em, not the plain uppercase this page shipped with.
+   Same treatment as marketing.html so the two read as one site. */
+.h-brand{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0;}
+.h-logo{height:30px;width:auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35));}
+.h-wordmark{
+  font-family:var(--font-ui);
+  font-weight:600;font-style:italic;
+  font-size:18px;letter-spacing:-0.10em;
+  color:var(--text-primary);white-space:nowrap;
+}
+.h-nav{display:flex;align-items:center;gap:18px;}
+.h-link{
+  font-size:13px;font-weight:600;color:var(--text-secondary);text-decoration:none;
+}
+.h-link:hover{color:var(--accent);}
+.h-cta{
+  font-size:13px;font-weight:700;
+  background:var(--accent);color:var(--cavity);
+  padding:7px 14px;border-radius:10px;text-decoration:none;
+}
+.h-cta:hover{background:var(--accent-dim);color:var(--accent-text);}
+
+/* ── Layout ─────────────────────────────────────────────
+   One centred reading column. 760px is about 80 characters at this size, which
+   is where long-form prose stays readable; the page does NOT stretch to fill a
+   desktop window, and that is deliberate. What it does do is scale type and
+   spacing up past 900px so the column reads as a considered measure rather
+   than a phone layout that forgot to grow. */
+.wrap{max-width:760px;margin:0 auto;padding:0 24px;}
+article{padding:56px 0 40px;}
+
+.eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:14px;
+}
+h1{
+  font-size:38px;line-height:1.18;font-weight:800;letter-spacing:-0.02em;
+  margin-bottom:18px;
+}
+.standfirst{
+  font-size:18px;color:#c9c9cc;margin-bottom:14px;
+}
+.byline{
+  font-size:13px;color:var(--text-secondary);
+  padding-bottom:26px;border-bottom:1px solid var(--rule);margin-bottom:34px;
+}
+h2{
+  font-size:25px;line-height:1.25;font-weight:800;letter-spacing:-0.015em;
+  margin:44px 0 14px;
+}
+h3{font-size:17px;font-weight:700;margin:28px 0 8px;}
+p{margin-bottom:16px;color:#dcdcdf;}
+p strong{color:var(--text-primary);font-weight:700;}
+/* The brand name set as the wordmark when it appears in running prose. Italic
+   with the tight tracking is the house treatment; plain roman reads as a
+   different company's name. */
+.wm{font-style:italic;font-weight:600;letter-spacing:-0.06em;}
+a{color:var(--accent);}
+ul,ol{margin:0 0 18px 22px;}
+li{margin-bottom:9px;color:#dcdcdf;}
+
+/* ── Table of contents ──────────────────────────────── */
+.toc{
+  background:var(--panel);border:1px solid var(--rule);
+  padding:20px 22px;margin-bottom:34px;
+}
+.toc-h{
+  font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:10px;
+}
+.toc ol{margin:0 0 0 18px;}
+.toc li{margin-bottom:5px;font-size:14.5px;}
+.toc a{text-decoration:none;}
+.toc a:hover{text-decoration:underline;}
+
+/* ── The example sheet ──────────────────────────────── */
+.sheet{
+  background:var(--panel);border:1px solid var(--rule);
+  padding:26px 24px;margin:24px 0 10px;
+  font-size:14.5px;
+}
+.sheet-title{
+  font-family:var(--font-title);font-style:italic;font-weight:600;
+  font-size:27px;line-height:1.2;margin-bottom:2px;color:var(--text-primary);
+}
+.sheet-sub{
+  font-size:12px;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:20px;
+}
+.sheet-group{
+  font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--accent);
+  margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--rule);
+}
+.sheet-group:first-of-type{margin-top:0;}
+.sheet-row{
+  display:flex;justify-content:space-between;gap:16px;
+  padding:5px 0;color:#dcdcdf;
+}
+.sheet-row span:last-child{color:var(--text-secondary);text-align:right;flex-shrink:0;}
+.caption{font-size:13px;color:var(--text-secondary);margin-bottom:26px;}
+
+/* ── Callout ────────────────────────────────────────── */
+.callout{
+  border-left:3px solid var(--accent);
+  background:var(--panel);
+  padding:18px 20px;margin:26px 0;
+}
+.callout p:last-child{margin-bottom:0;}
+
+/* ── FAQ ────────────────────────────────────────────── */
+.faq-item{border-top:1px solid var(--rule);padding:20px 0;}
+.faq-item h3{margin:0 0 7px;font-size:16.5px;}
+.faq-item p{margin:0;font-size:15px;}
+
+/* ── CTA ────────────────────────────────────────────── */
+.cta{
+  border:1px solid var(--rule);background:var(--panel);
+  padding:34px 26px;margin:48px 0 10px;text-align:center;
+}
+.cta h2{margin:0 0 10px;font-size:24px;}
+.cta p{margin-bottom:20px;color:var(--text-secondary);}
+.cta-btn{
+  display:inline-block;background:var(--accent);color:var(--cavity);
+  font-weight:800;font-size:15px;padding:13px 26px;border-radius:10px;
+  text-decoration:none;
+}
+.cta-btn:hover{background:var(--accent-dim);color:var(--accent-text);}
+
+/* ── Footer ─────────────────────────────────────────── */
+footer{
+  border-top:1px solid var(--rule);margin-top:56px;padding:38px 0 48px;
+  font-size:13px;color:var(--text-secondary);
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:13px;
+}
+footer a{color:var(--text-secondary);text-decoration:none;}
+footer a:hover{color:var(--accent);}
+/* 0.55 keeps the brand lockup at ~6.3:1 on the cavity, same as marketing.html. */
+.f-brand{display:flex;align-items:center;gap:8px;opacity:0.55;}
+.f-logo{height:18px;width:auto;}
+.f-wordmark{
+  font-family:var(--font-ui);font-weight:600;font-style:italic;
+  font-size:14px;letter-spacing:-0.10em;color:#f5f5f5;
+}
+.f-tag{margin:0;max-width:420px;font-size:13px;color:var(--text-secondary);line-height:1.6;}
+.f-ig{display:flex;align-items:center;gap:6px;font-size:12.5px;}
+.f-links{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;}
+.f-legal{margin:0;font-size:12px;color:#5a5a5e;}
+
+@media (max-width:600px){
+  h1{font-size:29px;}
+  h2{font-size:21px;}
+  .standfirst{font-size:16.5px;}
+  article{padding:36px 0 30px;}
+  .sheet-row{flex-direction:column;gap:0;}
+  .sheet-row span:last-child{text-align:left;}
+  .h-nav .h-link{display:none;}
+}
+
+/* Desktop: give the page real presence. Same column, larger everything, and
+   the example sheet breaks out past the measure because it is a table being
+   scanned, not prose being read. */
+@media (min-width:900px){
+  .header{height:60px;padding:0 34px;}
+  article{padding:78px 0 52px;}
+  h1{font-size:50px;letter-spacing:-0.025em;}
+  .standfirst{font-size:20px;}
+  h2{font-size:30px;margin:58px 0 16px;}
+  h3{font-size:18.5px;margin:32px 0 9px;}
+  p,li{font-size:17px;}
+  .sheet{
+    /* 68px each side, held back so it can never exceed the viewport. */
+    margin-left:max(-68px, calc((100vw - 100%) / -2 + 24px));
+    margin-right:max(-68px, calc((100vw - 100%) / -2 + 24px));
+    padding:34px 38px;font-size:15.5px;
+  }
+  .cta{padding:46px 34px;}
+  .cta h2{font-size:28px;margin-top:0;}
+}
+
+/* ── Related guides (cross-links between the guide pages) ────────────
+   Real internal links, which are how a crawler finds guide two from guide one
+   and how a reader keeps reading. */
+.related{
+  border-top:1px solid var(--rule);margin-top:46px;padding-top:26px;
+}
+.related-h{
+  font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--text-secondary);margin-bottom:14px;
+}
+.related-item{
+  display:block;padding:14px 0;border-bottom:1px solid var(--rule);
+  text-decoration:none;
+}
+.related-item:last-child{border-bottom:none;}
+.related-item strong{
+  display:block;color:var(--text-primary);font-weight:700;font-size:16px;
+  margin-bottom:3px;
+}
+.related-item span{color:var(--text-secondary);font-size:14px;line-height:1.55;}
+.related-item:hover strong{color:var(--accent);}
+
+/* ── Comparison table (what a history report captures vs what it misses) ──
+   Scrolls inside its own container so a narrow screen never scrolls the page
+   sideways. */
+.table-scroll{overflow-x:auto;margin:22px 0;-webkit-overflow-scrolling:touch;}
+table{border-collapse:collapse;width:100%;min-width:460px;font-size:15px;}
+th,td{
+  text-align:left;padding:11px 14px;
+  border-bottom:1px solid var(--rule);vertical-align:top;
+}
+th{
+  font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--accent);border-bottom-color:var(--rule);
+}
+td{color:#dcdcdf;}
+td:first-child{color:var(--text-primary);font-weight:600;}
+
+/* ── Numbered steps ─────────────────────────────────────────────────── */
+.step{
+  border-left:2px solid var(--rule);padding:2px 0 2px 20px;margin:0 0 26px;
+}
+.step-n{
+  font-size:11px;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:5px;
+}
+.step h3{margin:0 0 7px;}
+.step p:last-child{margin-bottom:0;}
+
+@media (min-width:900px){
+  table{font-size:16px;}
+  .step{padding-left:24px;}
+}

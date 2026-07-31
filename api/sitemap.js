@@ -42,7 +42,14 @@ const SITE = 'https://gdimension.app'
 // Fixed pages that always exist. /login and /signup are intentionally excluded
 // (thin auth screens, no crawl value). /build-sheet is a standalone static guide
 // served from public/build-sheet.html via a rewrite, not a SPA route.
-const STATIC_PATHS = ['/', '/build-sheet', '/terms', '/privacy']
+const STATIC_PATHS = [
+  '/',
+  '/build-sheet',
+  '/documenting-your-build',
+  '/service-history',
+  '/terms',
+  '/privacy',
+]
 
 // XML-escape a loc value. Usernames are URL-encoded first (encodeURIComponent),
 // which already removes < > & " ', so this is belt-and-suspenders.

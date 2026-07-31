@@ -34,6 +34,8 @@ People look for this kind of tool under several names. G-Dimension is all of the
 
 - [Home / product overview](https://gdimension.app/): what G-Dimension is, features, FAQ, and signup
 - [Car build sheet guide](https://gdimension.app/build-sheet): what a car build sheet is, what belongs on one, a worked example, and how to generate one
+- [Documenting a build for resale](https://gdimension.app/documenting-your-build): why modified cars sell at a discount, what a buyer checks, what to record per modification, and what to keep private
+- [Service history for a modified car](https://gdimension.app/service-history): what vehicle history reports capture and miss, and how to keep a service record for a car maintained outside the dealer network
 - [Sign up](https://gdimension.app/signup): create a free account
 - [Terms of Service](https://gdimension.app/terms): the terms governing use of the service
 - [Privacy Policy](https://gdimension.app/privacy): what data is collected and how it is used

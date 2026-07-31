@@ -84,6 +84,8 @@ export default defineConfig({
           /^\/api\//,
           /^\/builds\//,
           /^\/build-sheet/,
+          /^\/documenting-your-build/,
+          /^\/service-history/,
           /^\/sitemap/,
           /^\/marketing/,
           /\.[^/]+$/,
