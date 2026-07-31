@@ -92,7 +92,12 @@ function place(city: string | null, cc: string | null): string {
 
 export default function DiscoverPage() {
   const navigate = useNavigate()
-  const [q, setQ]           = useState('')
+  // Seeded from the URL, and written back to it on every change. Two reasons:
+  // a search you tapped into and backed out of returns to the same results
+  // rather than a blank box, and the results become linkable.
+  const [q, setQ]           = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('q') ?? '' } catch { return '' }
+  })
   const [hits, setHits]     = useState<SearchHit[] | null>(null)
   const [home, setHome]     = useState<DiscoverHome | null>(null)
   const [busy, setBusy]     = useState(false)
@@ -103,6 +108,18 @@ export default function DiscoverPage() {
   const seq                 = useRef(0)
 
   useEffect(() => { getDiscoverHome().then(setHome) }, [])
+
+  // replaceState, not navigate(): a router push per keystroke would stack a
+  // history entry for every letter, and Back would walk them one at a time.
+  useEffect(() => {
+    try {
+      const t = q.trim()
+      const url = t ? `/discover?q=${encodeURIComponent(t)}` : '/discover'
+      if (window.location.pathname + window.location.search !== url) {
+        window.history.replaceState(window.history.state, '', url)
+      }
+    } catch { /* ignore */ }
+  }, [q])
 
   useEffect(() => {
     const t = q.trim()
@@ -118,14 +135,22 @@ export default function DiscoverPage() {
     return () => window.clearTimeout(timer)
   }, [q])
 
+  // `from` tells the public profile where Leave should return to. Without it
+  // Leave always dumps you on the app home, which loses the search you were
+  // in the middle of.
+  const backHere = useCallback(() => {
+    const t = q.trim()
+    return { from: t ? `/discover?q=${encodeURIComponent(t)}` : '/discover' }
+  }, [q])
+
   const goHit = useCallback((h: SearchHit) => {
     const href = hitHref(h)
-    if (href) navigate(href)
-  }, [navigate])
+    if (href) navigate(href, { state: backHere() })
+  }, [navigate, backHere])
 
   const goBuild = useCallback((b: DiscoverBuild) => {
-    if (b.username) navigate(`/builds/${b.username}?car=${b.car_id}`)
-  }, [navigate])
+    if (b.username) navigate(`/builds/${b.username}?car=${b.car_id}`, { state: backHere() })
+  }, [navigate, backHere])
 
   const searching = q.trim().length >= MIN_QUERY
   const people = (hits ?? []).filter(h => h.kind === 'person')

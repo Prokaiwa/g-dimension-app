@@ -16,7 +16,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { playConfirm } from '../lib/sound'
 import { shareLink } from '../lib/share'
@@ -37,7 +37,7 @@ import {
   COLOR_BRAND,
   COLOR_ACCENT,
   FONT_UI,
-  HEADER_HEIGHT,
+  HEADER_HEIGHT, SPACE_MD,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   COLOR_HEADER_BLACK,
@@ -232,6 +232,9 @@ interface CarRow {
   original_photo_url: string | null
   featured_story: string | null
   show_featured_publicly: boolean | null
+  // The published magazine (migration 055). The view nulls it when the section
+  // is private, so `published === true` is the whole gate for the Featured node.
+  featured_layout?: unknown
   active_car_id: string | null
   created_at: string | null
   // The owner's permit grade (migration 077) — read defensively (undefined
@@ -239,9 +242,14 @@ interface CarRow {
   license_grade?: string | null
 }
 
+// Where the visitor entered this build from, so Leave can put them back.
+// Keyed by username inside the payload; see `leave` below.
+const ORIGIN_KEY = 'gdim_pub_origin'
+
 export default function PublicProfilePage() {
   const { username } = useParams<{ username: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   // Captured once at mount: did we arrive by returning from a sub-page? (flag set
   // in onNodeTap). Drives the driver-dot direction; cleared immediately so a later
   // fresh visit reads as an arrival (left-to-right).
@@ -393,10 +401,27 @@ export default function PublicProfilePage() {
       const hasTimeline   = (tl.data?.length ?? 0) > 0
 
       // Build Sheet / Timeline auto-hide via RLS (no rows when the section is
-      // private). Featured has no probe query, so gate it on the flag
-      // (defaults to visible if the column predates migration 053).
-      const featuredShared = row.show_featured_publicly !== false
-      const hasFeatured = featuredShared && !!(row.garage_photo_url || row.original_photo_url || row.featured_story)
+      // private). Featured has no probe query, so the node has to reproduce the
+      // PAGE's gate exactly, and PublicFeaturedPage refuses anything whose
+      // featured_layout.published isn't literally true. This node used to check
+      // only the visibility flag plus "has a photo", which is satisfied by
+      // almost every build — so a driver who never published their magazine got
+      // a Featured node that led straight to "Featured not available". A node
+      // that goes nowhere is worse than a missing one: it reads as the site
+      // being broken rather than the section being empty.
+      //
+      // The view already nulls featured_layout when show_featured_publicly is
+      // false (084), so the published check subsumes the flag check.
+      const publishedLayout = (() => {
+        const raw: unknown = row.featured_layout
+        if (!raw) return false
+        try {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+          return (parsed as { published?: boolean } | null)?.published === true
+        } catch { return false }
+      })()
+      const hasFeatured = publishedLayout
+        && !!(row.garage_photo_url || row.original_photo_url || row.featured_story)
       const built: NodeDef[] = [
         { id: 'garage', label: 'Garage', icon: ICON_HOME, focal: true },
       ]
@@ -638,7 +663,43 @@ export default function PublicProfilePage() {
     }
   }, [nodes])
 
+  // Leave goes back where you came FROM, when we know. Arriving from Following
+  // or Discover and being dumped on the app home is a real loss: you were part
+  // way through a list, and the way back to it was gone.
+  //
+  // Router state alone is not enough, because the sub-pages of a build
+  // (/garage, /timeline, /buildsheet) navigate BACK to `/builds/:username` with
+  // no state, so a single drill-down would forget where you came from. So the
+  // origin is also parked in sessionStorage — KEYED BY USERNAME, since a later
+  // visit to a different profile from a shared link must not inherit it.
+  //
+  // Only in-app paths are honoured. `from` travels in router state rather than
+  // a query param specifically so a shared link cannot aim it, and the
+  // leading-slash check keeps it from being pointed off-site even so.
+  const originOk = (v: unknown): v is string =>
+    typeof v === 'string' && v.startsWith('/') && !v.startsWith('//')
+
+  useEffect(() => {
+    const from = (location.state as { from?: string } | null)?.from
+    if (!username || !originOk(from)) return
+    try { sessionStorage.setItem(ORIGIN_KEY, JSON.stringify({ user: username, from })) } catch { /* ignore */ }
+  }, [location.state, username])
+
   const leave = async () => {
+    const stateFrom = (location.state as { from?: string } | null)?.from
+    let from: string | null = originOk(stateFrom) ? stateFrom : null
+    if (!from) {
+      try {
+        const raw = sessionStorage.getItem(ORIGIN_KEY)
+        const parked = (raw ? JSON.parse(raw) : null) as { user?: string; from?: string } | null
+        if (parked && parked.user === username && originOk(parked.from)) from = parked.from
+      } catch { /* ignore */ }
+    }
+    if (from) {
+      try { sessionStorage.removeItem(ORIGIN_KEY) } catch { /* ignore */ }
+      navigate(from)
+      return
+    }
     const { data: { session: authSession } } = await supabase.auth.getSession()
     if (authSession) navigate('/home')
     else navigate('/')
@@ -862,8 +923,16 @@ export default function PublicProfilePage() {
            (a driver license card), not a SaaS bio block. ── */}
       {cardOpen && car && (
         <>
-          {/* scrim: tap anywhere outside to close */}
-          <div onClick={() => setCardOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 48 }} />
+          {/* Scrim: tap anywhere off the permit to dismiss. Dimmed now that the
+              card is centred rather than hanging off the header chip — an
+              invisible scrim under a corner dropdown was fine, but a centred
+              card needs the page to recede behind it or it reads as floating
+              debris. */}
+          <div onClick={() => setCardOpen(false)} style={{
+            position: 'fixed', inset: 0, zIndex: 48,
+            background: 'rgba(6,8,12,0.55)', backdropFilter: 'blur(2px)',
+            animation: 'pubScrimIn 200ms ease both',
+          }} />
           {(() => {
             // The driver card IS the owner's permit (migration 077 persists the
             // grade so the public side never recomputes over private cars). A
@@ -873,11 +942,29 @@ export default function PublicProfilePage() {
             const place = [car.city, car.country].filter(Boolean).join(', ')
             const flag = flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')
             return (
-              <div style={{
-                position: 'absolute', top: HEADER_HEIGHT + 8, right: 10, zIndex: 49, width: 236,
-                animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
-              }}>
-                <style>{`@keyframes pubCardIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }`}</style>
+              // Centred, at a real card width, and the ACTIONS MOVED OUT of the
+              // permit frame. They used to render as PermitMini's `footer`,
+              // inside the card, which pushed a 236px-wide permit to nearly
+              // square — a licence is a landscape document and looked wrong
+              // stretched into a panel. The permit is now just the permit; the
+              // things you can do about it sit under it.
+              <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: 'fixed', inset: 0, zIndex: 49,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: SPACE_MD, pointerEvents: 'none',
+                }}
+              >
+                <style>{`
+                  @keyframes pubScrimIn { from{opacity:0} to{opacity:1} }
+                  @keyframes pubCardIn { from{opacity:0;transform:translateY(10px) scale(0.97)} to{opacity:1;transform:none} }
+                `}</style>
+                <div style={{
+                  width: 'min(340px, 88vw)', maxHeight: '86dvh', overflowY: 'auto',
+                  pointerEvents: 'auto',
+                  animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
+                }}>
                 <PermitMini
                   grade={g}
                   driver={car.display_name || `@${username}`}
@@ -885,8 +972,16 @@ export default function PublicProfilePage() {
                   location={place ? `${flag} ${place}`.trim() : null}
                   bio={car.bio}
                   avatarUrl={car.avatar_url}
-                  footer={
-                    <>
+                />
+
+                {/* Actions, under the permit rather than inside it. Same ink as
+                    the card so they still read as one object, on their own
+                    surface so the permit keeps its shape. */}
+                <div style={{
+                  marginTop: 10, overflow: 'hidden',
+                  background: ink.wash, border: `1px solid ${ink.hair}`,
+                  boxShadow: '0 16px 44px rgba(0,0,0,0.5)',
+                }}>
                       {/* Follower / following counts — public, so anon sees them too. */}
                       <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
@@ -973,9 +1068,8 @@ export default function PublicProfilePage() {
                           Start your own build journal →
                         </button>
                       )}
-                    </>
-                  }
-                />
+                </div>
+                </div>
               </div>
             )
           })()}

@@ -128,8 +128,8 @@ export default function FollowingPage() {
             }}>
               <div
                 role="button" tabIndex={0}
-                onClick={() => u.username && navigate(`/builds/${u.username}`)}
-                onKeyDown={e => { if (e.key === 'Enter' && u.username) navigate(`/builds/${u.username}`) }}
+                onClick={() => u.username && navigate(`/builds/${u.username}`, { state: { from: '/following' } })}
+                onKeyDown={e => { if (e.key === 'Enter' && u.username) navigate(`/builds/${u.username}`, { state: { from: '/following' } }) }}
                 style={{ display: 'flex', alignItems: 'center', gap: SPACE_SM, flex: 1, minWidth: 0, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
               >
                 <Avatar u={u} />
