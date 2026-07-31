@@ -898,3 +898,68 @@ reportable at its source (section photos on the Build Sheet, entry photos on the
 Timeline, the cover on the Garage).
 
 Source: `src/hooks/useReportLongPress.tsx`.
+
+---
+
+## ADR-027 — The migration log leaves CLAUDE.md (2026-07-31)
+
+**Decision:** The per-migration table moves out of `CLAUDE.md` into
+`supabase/migrations/MIGRATIONS.md`. `CLAUDE.md` keeps only the migration facts
+that apply to work not yet written: the missing `028`, the PostgREST grant
+requirement for new `public` tables, and the revoke-before-grant ordering trap.
+The current range and last-applied watermark are stated in exactly two places
+that already had to be maintained (`MIGRATIONS.md` and the `hotfixes.sql`
+watermark comment), and nowhere else.
+
+**Context:** `CLAUDE.md` had reached 83 KB, of which 44 KB was the migration
+table — 66 rows, some of them paragraphs. The whole file is loaded before every
+session, so the table was the single largest standing cost in the project, paid
+on every task whether or not it touched the database. An audit the same day
+found the prose in good health (five stale claims in 466 lines, all fixed in
+`84f7eee`), so the problem was never rot. It was genre: a changelog had been
+accumulating inside an instruction file.
+
+**Rationale:**
+
+- **Instructions and records want different lifetimes.** A rule earns its place
+  by shaping work that hasn't happened yet. A record of what migration 067 did
+  is worth keeping and worth finding, but it does not steer the next commit, and
+  it should be read when a specific table's history is in question — not
+  preloaded 66 rows deep, every session, forever.
+- **The traps were the part actually worth preloading.** Three facts in that
+  table were rules wearing history's clothing, and each had already cost
+  something. Revoke-before-grant is the clearest: 071, 081 and 083 each exist to
+  fix a version of it, and it fails in the worst possible direction — the grant
+  reads as restrictive while the table stays open. That belongs where it is seen
+  before someone writes SQL, not in the row for the migration that got it wrong.
+- **Duplication is the real decay mechanism, not age.** The range lived in three
+  places. Two of them disagreed *during this work*: the Key File Map's copy was
+  deduplicated in `909f6df` while a concurrent session bumped the Database
+  section's copy to 090 in `1602398`. Neither was careless. Any fact stated
+  twice will eventually be updated once, so the fix is structural — state it
+  once, and say out loud in `CLAUDE.md` that it is deliberately not repeated
+  there.
+- **Verbatim move, verified.** All 66 rows were relocated with `sed` and the
+  extracted rows diffed byte-for-byte against the originals before committing.
+  Nothing was summarized, and no row was rewritten in transit.
+- **This entry instead of edits.** Four docs pointed at "the CLAUDE.md migration
+  table"; `README`, `MASTER_ARCHITECTURE`, `FEATURED` and — the one that
+  mattered — `IMPLEMENTATION_GUIDE` step 4, which *instructs* you to add a row
+  there, were repointed. Three references remain in this log, at ADR-014,
+  ADR-016 and the entry on unit storage. They were left exactly as written,
+  because this file is append-only and a stale citation in a historical record
+  is a smaller harm than a rewritten one. This entry is where the trail picks
+  back up.
+
+**Consequences:** `CLAUDE.md` drops to 39 KB, roughly halving what every session
+pays before reading a line of code. Adding a migration now touches
+`MIGRATIONS.md` rather than `CLAUDE.md`; `IMPLEMENTATION_GUIDE.md` step 4 says
+so. The cost is one more hop for anyone tracing a column's history, which is the
+right trade for a lookup that is occasional and deliberate. It does **not**
+license trimming `CLAUDE.md` on a schedule: the same audit found the remaining
+prose accurate and load-bearing, and most of it is knowledge no model can
+re-derive from the code — which two buckets are private, that `/` serves
+`marketing.html` and not the React app, that the details sheet morphs the real
+card rather than a replica.
+
+Source: `supabase/migrations/MIGRATIONS.md`; commit `efbd1f1`.
