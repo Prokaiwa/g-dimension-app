@@ -5,7 +5,13 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 091_admin_review_car.sql (applied 2026-07-31)
+-- Last migration applied : 092_discovery_search.sql (applied 2026-07-31)
+--   - 092 (ADR-030): search + discovery. search_public() and discover_home(),
+--     both definer, both granted to ANON. They read public_car_profiles, the
+--     same view /builds/* reads, so search cannot surface a build the site
+--     would not already show. Verified live: 39 builds / 22 owners on the
+--     landing page, "s2000" finds both S2000s, "scan" finds the handles,
+--     "evo" resolves the alias.
 --   - 091 (ADR-029): an admin read path into a HIDDEN build, plus an audit row
 --     per look. 084 working as designed left nobody exempt from is_public — the
 --     admin included — so reviewing a severe report meant dismiss (which
@@ -33,12 +39,15 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- PENDING: 092_discovery_search.sql (ADR-030) — search + discovery.
---   search_public() and discover_home(), both definer, both granted to ANON.
---   They read public_car_profiles, the same view /builds/* reads, so search
---   cannot surface a build the site would not already show. Fuzzy matching uses
---   word_similarity (plain similarity scored a typo at 0.11 against a full
---   label and never fired). Verified on a scratch PG16 cluster before shipping.
+-- PENDING: 093_search_year_collision.sql — function-only fix to search_public,
+--   found within a minute of 092 going live: "s2000" returned a 2000 Toyota
+--   Celica and a 2000 Toyota MR2, because the YEAR shared the fuzzy haystack
+--   with the names (word_similarity('s2000','2000 toyota celica gt-s') = 0.50).
+--   Every digit-bearing model name collides the same way: 350Z, 240SX, RX-7.
+--   Fix: strip bare four-digit tokens from the FUZZY haystack only, by pattern
+--   rather than by dropping the year column — a Celica is nicknamed "2000
+--   Toyota Celica", so the year came back through user-typed data. Literal
+--   matching keeps the year, so "2006" still searches the year.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
