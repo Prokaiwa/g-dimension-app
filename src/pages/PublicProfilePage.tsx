@@ -939,6 +939,9 @@ export default function PublicProfilePage() {
             // driver with no grade yet gets the provisional laminate.
             const g = gradeById(car.license_grade)
             const ink = permitInk(g)
+            // PermitMini scales its internals from this rather than re-flowing,
+            // so it has to be a real number, not a CSS min().
+            const cardW = Math.min(340, Math.round((window.innerWidth || 360) * 0.88))
             const place = [car.city, car.country].filter(Boolean).join(', ')
             const flag = flagEmoji(car.country_code ?? codeForCountry(car.country ?? '') ?? '')
             return (
@@ -961,7 +964,7 @@ export default function PublicProfilePage() {
                   @keyframes pubCardIn { from{opacity:0;transform:translateY(10px) scale(0.97)} to{opacity:1;transform:none} }
                 `}</style>
                 <div style={{
-                  width: 'min(340px, 88vw)', maxHeight: '86dvh', overflowY: 'auto',
+                  width: cardW, maxHeight: '86dvh', overflowY: 'auto',
                   pointerEvents: 'auto',
                   animation: `pubCardIn 260ms ${EASING_SETTLE} both`,
                 }}>
@@ -972,6 +975,7 @@ export default function PublicProfilePage() {
                   location={place ? `${flag} ${place}`.trim() : null}
                   bio={car.bio}
                   avatarUrl={car.avatar_url}
+                  width={cardW}
                 />
 
                 {/* Actions, under the permit rather than inside it. Same ink as

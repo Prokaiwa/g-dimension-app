@@ -338,7 +338,12 @@ function seedFrom(s: string): number {
 //
 // A driver with no grade yet renders on the provisional laminate rather than
 // falling back to a neutral panel, so the card is always a permit.
-export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, footer }: {
+// The design width every internal size below is expressed at. Rendering wider
+// or narrower scales the whole card rather than re-flowing it, which is what
+// keeps it reading as one document at any size.
+const MINI_BASE_W = 320
+
+export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, footer, width = MINI_BASE_W }: {
   grade: Grade | null
   driver: string
   handle: string
@@ -346,49 +351,61 @@ export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, fo
   bio?: string | null
   avatarUrl?: string | null
   footer?: React.ReactNode
+  /** Rendered width in px. Internals scale from MINI_BASE_W. */
+  width?: number
 }) {
   const g = grade ?? GRADES[0]
   const m = MATERIALS[g.material]
   const seed = useMemo(() => seedFrom(handle || driver || 'g'), [handle, driver])
   // Dark materials (crimson/carbon) need light hairlines; light ones need dark.
   const hair = m.grid === '#fff' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)'
+  // One factor drives every size, so the card scales instead of re-flowing.
+  const k = width / MINI_BASE_W
+  const px = (n: number) => `${(n * k).toFixed(2)}px`
+  const rail = Math.round(RAIL_W_MINI * 1.25 * k)
 
   return (
-    <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', boxShadow: '0 16px 44px rgba(0,0,0,0.5)', ...m.bg }}>
+    <div style={{ position: 'relative', borderRadius: 12 * k, overflow: 'hidden', boxShadow: '0 16px 44px rgba(0,0,0,0.5)', ...m.bg }}>
       <CheckerField m={{ ...m, gridAlpha: m.gridAlpha * 0.45 }} seed={seed} />
-      <GradeRail grade={g} m={m} still w={RAIL_W_MINI} />
+      <GradeRail grade={g} m={m} still w={rail} />
 
-      <div style={{ position: 'relative', marginLeft: RAIL_W_MINI }}>
-        <div style={{ padding: '10px 12px 10px' }}>
+      {/* The permit face carries the REAL card's 420/264 proportion (the same
+          ratio LicenseCard uses, and the same one a physical licence has).
+          Without it this was content-sized, which at a wide dropdown width
+          made a landscape document render nearly square — the owner's words:
+          "a bad copy of the permit". The footer sits OUTSIDE this box so
+          buttons can never distort the card itself. */}
+      <div style={{ position: 'relative', marginLeft: rail, aspectRatio: '420 / 264' }}>
+        <div style={{ padding: `${px(13)} ${px(15)}` }}>
           {/* Permit header — the document title, exactly as on the full card.
               Kicker and class sit on one baseline to save a whole row. */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 8.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: m.inkDim }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: px(7), flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: px(9.5), letterSpacing: '0.14em', textTransform: 'uppercase', color: m.inkDim }}>
               Permit
             </span>
-            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 12, letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent }}>
+            <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: px(13), letterSpacing: '0.02em', textTransform: 'uppercase', color: m.accent }}>
               {g.className} Class
             </span>
           </div>
 
           {/* Photo + name, the way a licence carries them. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 9 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: px(10), marginTop: px(11) }}>
             <div style={{
-              width: 36, height: 36, flexShrink: 0, overflow: 'hidden',
+              width: px(42), height: px(42), flexShrink: 0, overflow: 'hidden',
               border: `1px solid ${hair}`, background: m.rail,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               {avatarUrl
                 ? <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 15, color: m.railInk }}>
+                : <span style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: px(17), color: m.railInk }}>
                     {(driver || handle || '?').charAt(0).toUpperCase()}
                   </span>}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 13, color: m.ink, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: px(15), color: m.ink, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {driver}
               </div>
-              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 10.5, color: m.inkDim, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: px(11.5), color: m.inkDim, marginTop: px(1), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 @{handle}
               </div>
             </div>
@@ -396,22 +413,24 @@ export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, fo
 
           {location && (
             <div style={{
-              marginTop: 8, fontFamily: FONT_UI, fontWeight: 700, fontSize: 10.5, lineHeight: 1.3, color: m.ink,
+              marginTop: px(9), fontFamily: FONT_UI, fontWeight: 700, fontSize: px(11.5), lineHeight: 1.3, color: m.ink,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{location}</div>
           )}
 
           {bio && (
             <p style={{
-              margin: '8px 0 0', paddingTop: 7, borderTop: `1px solid ${hair}`,
-              fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, lineHeight: 1.45, color: m.ink, opacity: 0.85,
+              margin: `${px(9)} 0 0`, paddingTop: px(8), borderTop: `1px solid ${hair}`,
+              fontFamily: FONT_UI, fontWeight: 500, fontSize: px(11.5), lineHeight: 1.45, color: m.ink, opacity: 0.85,
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
             }}>{bio}</p>
           )}
         </div>
-
-        {footer && <div style={{ borderTop: `1px solid ${hair}` }}>{footer}</div>}
       </div>
+
+      {/* Outside the aspect-locked face on purpose: actions must never change
+          the card's shape. */}
+      {footer && <div style={{ position: 'relative', marginLeft: rail, borderTop: `1px solid ${hair}` }}>{footer}</div>}
     </div>
   )
 }

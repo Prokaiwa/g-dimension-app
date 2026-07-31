@@ -19,6 +19,16 @@ export type FollowedUser = {
   city: string | null
   country_code: string | null
   followed_at: string
+  /** Following list (095): do they follow you back? */
+  follows_you?: boolean
+}
+
+/** A row on the followers screen (migration 095). */
+export type Follower = FollowedUser & {
+  /** Does the list's owner follow this person back? Drives "Follow back". */
+  follows_back?: boolean
+  /** Does the VIEWER follow them? Differs from follows_back on someone else's list. */
+  you_follow?: boolean
 }
 
 export async function getFollowCounts(userId: string): Promise<FollowCounts> {
@@ -82,9 +92,23 @@ export async function unfollowUser(userId: string): Promise<boolean> {
 
 export async function getFollowing(userId: string): Promise<FollowedUser[]> {
   try {
+    // v2 adds `follows_you` for the mutual marker. 086's original is left in
+    // place and used as the fallback, because a deploy is not atomic with a
+    // migration: a bundle that shipped before 095 ran must keep working.
+    const v2 = await supabase.rpc('following_list_v2', { target: userId })
+    if (!v2.error && v2.data) return v2.data as FollowedUser[]
     const { data, error } = await supabase.rpc('following_list', { target: userId })
     if (error || !data) return []
     return data as FollowedUser[]
+  } catch { return [] }
+}
+
+/** Who follows this person (migration 095). Empty pre-095. */
+export async function getFollowers(userId: string): Promise<Follower[]> {
+  try {
+    const { data, error } = await supabase.rpc('follower_list', { target: userId })
+    if (error || !data) return []
+    return data as Follower[]
   } catch { return [] }
 }
 

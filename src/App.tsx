@@ -104,6 +104,7 @@ const SettingsArchivedPage = lazyWithRetry(() => import('./pages/SettingsArchive
 const SettingsBlockedPage  = lazyWithRetry(() => import('./pages/SettingsBlockedPage'))
 const AdminReportsPage     = lazyWithRetry(() => import('./pages/AdminReportsPage'))
 const FollowingPage        = lazyWithRetry(() => import('./pages/FollowingPage'))
+const FollowersPage        = lazyWithRetry(() => import('./pages/FollowersPage'))
 const AdminHubPage         = lazyWithRetry(() => import('./pages/AdminHubPage'))
 const NotificationsPage    = lazyWithRetry(() => import('./pages/NotificationsPage'))
 const AdminSuspendedPage   = lazyWithRetry(() => import('./pages/AdminSuspendedPage'))
@@ -430,6 +431,7 @@ export default function App() {
       <Route path="/settings/archived" element={<ProtectedRoute><SettingsArchivedPage /></ProtectedRoute>} />
       <Route path="/settings/blocked" element={<ProtectedRoute><SettingsBlockedPage /></ProtectedRoute>} />
       <Route path="/following" element={<ProtectedRoute><FollowingPage /></ProtectedRoute>} />
+      <Route path="/followers" element={<ProtectedRoute><FollowersPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       {/* Moderation queue. AdminOnly hides it; every RPC behind it re-checks
           the `admin` user_flag server-side regardless (ADR-023). */}

@@ -1207,3 +1207,50 @@ through a PostgREST embed, which 400s before 094 exists; `getNotices` falls back
 to the plain select rather than showing an empty inbox on a stale deploy.
 
 Source: migration 094, `src/lib/notices.ts`, `src/pages/DiscoverPage.tsx`.
+
+---
+
+## ADR-032 — A new function beside the old one, not a replacement (2026-07-31)
+
+**Decision:** `/followers` ships with two new RPCs — `follower_list`, and
+`following_list_v2` which is 086's list plus a `follows_you` flag. **086's
+`following_list` is left untouched** and used as a client-side fallback.
+Migration 095.
+
+**Context:** 086 shipped "people I follow" and never its inverse, so you could
+gain followers with nowhere to see them. 094 then began sending "You have a new
+follower" — a notice pointing at a room that did not exist.
+
+**Rationale:**
+
+- **Adding an OUT column means DROP and CREATE** (090 already learned this), and
+  a drop is not safe here the way it was there. **A deploy is not atomic with a
+  migration**: the page and the function are versioned separately, and a browser
+  holding yesterday's bundle keeps calling the old signature for as long as that
+  tab lives. Dropping `following_list` would have broken the Following screen
+  for everyone mid-flight, to save one function. The new name costs nothing and
+  removes the window entirely; the client tries v2 and falls back.
+- **The viewer comes from `auth.uid()`, never a parameter.** Both functions
+  report a relationship relative to whoever is calling. If the viewer were an
+  argument, anyone could ask "does X follow Y" about two other people. Passing
+  it would have been marginally simpler and quietly turned a definer function
+  into an oracle about strangers.
+- **Blocks hide the person from the reader, but the follow edge stays.** 086
+  gates new follows on blocks; it does not delete existing ones. So the list
+  filters at read time, in both directions, rather than pretending the edge is
+  gone. Verified both ways round.
+- **`follows_back` and `you_follow` are different questions** and both are
+  needed. On your own followers list they coincide. On someone else's they do
+  not: `follows_back` is about the list's owner, `you_follow` is about you.
+  Collapsing them would render the wrong button the moment follower lists become
+  visible on a public profile.
+- **Follow back lives on the row.** Same argument as the search results: the
+  screen exists to act on, and routing every action through a profile visit is
+  the friction that made following feel like work.
+
+**Consequences:** there are now two functions doing nearly the same job. That is
+deliberate and should stay until there is no plausible client left on the old
+signature — at which point `following_list` can be dropped in its own migration,
+with the client fallback removed first, in that order.
+
+Source: migration 095, `src/pages/FollowersPage.tsx`.

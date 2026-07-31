@@ -173,6 +173,7 @@ export default function ProfilePage() {
   // Not part of the profile row any more (migration 083) — read from the session.
   const [email, setEmail]     = useState<string | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
+  const [followerCount, setFollowerCount] = useState<number | null>(null)
   // Owner-only entry point to /admin. Hides the row; grants nothing by itself.
   const isAdminUser = useIsAdmin() === true
   const attention   = useAttention()
@@ -231,7 +232,7 @@ export default function ProfilePage() {
       setProfile(p)
       setLoading(false)
       if (p) {
-        getFollowCounts(p.id).then(c => setFollowingCount(c.following))
+        getFollowCounts(p.id).then(c => { setFollowingCount(c.following); setFollowerCount(c.followers) })
         getProfileStats(p.id).then(setStats)
         getLicenseStats(p.id).then(async s => {
           // Ratchet: read the last-persisted grade so the permit never demotes
@@ -567,6 +568,7 @@ export default function ProfilePage() {
                 />
               )}
               <NavRow label="Discover" sub="Find builds and people by car or handle" onClick={() => navigate('/discover')} />
+              <NavRow label="Followers" sub={followerCount === null ? 'People following your builds' : `${followerCount} ${followerCount === 1 ? 'person is' : 'people are'} following your builds`} onClick={() => navigate('/followers')} />
               <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>

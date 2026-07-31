@@ -5,7 +5,14 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 093_search_year_collision.sql (applied 2026-07-31)
+-- Last migration applied : 094_follow_notices.sql (applied 2026-07-31)
+--   - 094 (ADR-031): follows stop being silent. user_notices.actor_id, a
+--     'new_follower' kind, and a definer trigger on follows insert. notify_user
+--     DROPped and recreated with a sixth `actor` param; the four existing 5-arg
+--     callers keep working. A trigger rather than the client, because
+--     notify_user has EXECUTE revoked from every client role by design. One
+--     notice per follower per 30 days, so unfollow/refollow can't pester.
+--     NOTHING is ever sent on an unfollow — there is no delete trigger.
 --   - 093 (function-only): searching "s2000" returned a 2000 Toyota Celica and
 --     a 2000 Toyota MR2, because the YEAR shared the fuzzy haystack with the
 --     names (word_similarity('s2000','2000 toyota celica gt-s') = 0.50). Every
@@ -46,14 +53,13 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- PENDING: 094_follow_notices.sql (ADR-031) — follows stop being silent.
---   Adds user_notices.actor_id, widens the kind CHECK with 'new_follower', and
---   adds a definer trigger on follows insert. notify_user is DROPped and
---   recreated with a sixth `actor` param (adding a param would otherwise create
---   a second overload, not a replacement); the four existing 5-arg callers keep
---   working untouched. A trigger rather than the client, because notify_user has
---   EXECUTE revoked from every client role by design. Dedupes to one notice per
---   follower per 30 days. Verified on a scratch PG16 cluster.
+-- PENDING: 095_follower_list.sql (ADR-032) — the followers screen.
+--   follower_list(target) with follows_back + you_follow, and
+--   following_list_v2(target) with follows_you. 086's following_list is LEFT IN
+--   PLACE as a client fallback: adding an OUT column needs DROP+CREATE, and a
+--   deploy is not atomic with a migration, so dropping it would break the
+--   Following screen for anyone still on the previous bundle. Viewer comes from
+--   auth.uid(), never a parameter. Verified on a scratch PG16 cluster.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
