@@ -15,6 +15,10 @@ import {
   searchPublic, getDiscoverHome, hitHref, buildCountLabel, MIN_QUERY, EMPTY_HOME,
   type SearchHit, type DiscoverHome, type DiscoverBuild,
 } from '../lib/discover'
+import {
+  getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches,
+  recentHref, type RecentSearch,
+} from '../lib/recentSearches'
 import { flagEmoji } from '../lib/countries'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
@@ -101,6 +105,7 @@ export default function DiscoverPage() {
   const [hits, setHits]     = useState<SearchHit[] | null>(null)
   const [home, setHome]     = useState<DiscoverHome | null>(null)
   const [busy, setBusy]     = useState(false)
+  const [recent, setRecent] = useState<RecentSearch[]>(() => getRecentSearches())
   const inputRef            = useRef<HTMLInputElement>(null)
   // Every request carries a sequence number. Responses can land out of order —
   // "s2" resolving after "s2000" would otherwise overwrite the better results
@@ -143,9 +148,23 @@ export default function DiscoverPage() {
     return { from: t ? `/discover?q=${encodeURIComponent(t)}` : '/discover' }
   }, [q])
 
+  // Only taps on SEARCH RESULTS are recorded. A tap from "Worked on lately" is
+  // browsing, not looking something up, and recording it would make Recent a
+  // near-duplicate of the list sitting right below it.
   const goHit = useCallback((h: SearchHit) => {
     const href = hitHref(h)
-    if (href) navigate(href, { state: backHere() })
+    if (!href || !h.username) return
+    setRecent(addRecentSearch({
+      kind:     h.kind,
+      id:       h.kind === 'build' ? (h.car_id ?? h.user_id) : h.user_id,
+      username: h.username,
+      label:    h.kind === 'build'
+        ? (h.nickname?.trim() || h.car_label || h.username)
+        : (h.display_name || `@${h.username}`),
+      sub:      h.kind === 'build' ? `@${h.username}` : `@${h.username}`,
+      image:    h.kind === 'build' ? h.photo_url : h.avatar_url,
+    }))
+    navigate(href, { state: backHere() })
   }, [navigate, backHere])
 
   const goBuild = useCallback((b: DiscoverBuild) => {
@@ -223,6 +242,60 @@ export default function DiscoverPage() {
               <p style={{ fontFamily: FONT_UI, fontSize: 12, color: MUTED, margin: `${SPACE_MD}px 0 0` }}>
                 {h.total} public build{h.total === 1 ? '' : 's'} from {h.people} owner{h.people === 1 ? '' : 's'}.
               </p>
+            )}
+
+            {recent.length > 0 && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <SectionLabel>Recent</SectionLabel>
+                  <button
+                    onClick={() => { clearRecentSearches(); setRecent([]) }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: `${SPACE_LG}px 0 ${SPACE_XS}px`,
+                      fontFamily: FONT_UI, fontWeight: 700, fontSize: 10.5, color: FAINT,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}>Clear</button>
+                </div>
+                {recent.map(r => (
+                  <div key={`${r.kind}-${r.id}`} style={{
+                    display: 'flex', alignItems: 'center', gap: SPACE_SM,
+                    padding: `${SPACE_SM}px 0`, borderBottom: HAIR,
+                  }}>
+                    <div
+                      role="button" tabIndex={0}
+                      onClick={() => navigate(recentHref(r), { state: backHere() })}
+                      onKeyDown={e => { if (e.key === 'Enter') navigate(recentHref(r), { state: backHere() }) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: SPACE_SM, flex: 1, minWidth: 0,
+                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                      }}>
+                      {r.kind === 'build'
+                        ? <Thumb url={r.image} />
+                        : <Avatar url={r.image} name={r.label} />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.label}
+                        </p>
+                        {r.sub && (
+                          <p style={{ fontFamily: FONT_UI, fontSize: 11.5, color: MUTED, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {r.sub}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {/* Per-row remove, so one stray tap doesn't force clearing
+                        the whole list to get rid of it. */}
+                    <button
+                      onClick={() => setRecent(removeRecentSearch(r.kind, r.id))}
+                      aria-label={`Remove ${r.label} from recent`}
+                      style={{
+                        width: 34, height: 34, flexShrink: 0, background: 'none', border: 'none',
+                        cursor: 'pointer', color: FAINT, fontSize: 16, lineHeight: 1,
+                        WebkitTapHighlightColor: 'transparent',
+                      }}>×</button>
+                  </div>
+                ))}
+              </>
             )}
 
             {h.models.length > 0 && (
