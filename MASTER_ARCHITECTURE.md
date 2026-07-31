@@ -595,7 +595,7 @@ Only entries with toggle ON appear in Timeline. All entries exist in the databas
 
 ### AS-BUILT ADDENDUM (Timeline shipped 2026-06) — supersedes the above where they differ
 
-Built across migrations 045–048 (see CLAUDE.md migration table + `hotfixes.sql` for the DB deltas; the Timeline DB sync had two latent bugs fixed in 045 before any entry could be created). The implemented design:
+Built across migrations 045–048 (see `supabase/migrations/MIGRATIONS.md` + `hotfixes.sql` for the DB deltas; the Timeline DB sync had two latent bugs fixed in 045 before any entry could be created). The implemented design:
 
 - **Aesthetic.** Warm parchment (`COLOR_TIMELINE_BG`), NO header, single floating amber-gold `‹`. A **vertical connecting thread** runs down the left with a **type-colored node** per entry (mod stone-grey / service gold / detail blue / note amber-gold). **Year chapter dividers**; IntersectionObserver fade-in; oldest-at-top (Origin first).
 - **Cards.** Type stripe + label + right-aligned date + title, with the journal (Cormorant italic, 2-line clamp) and an inset **"photo-print" thumbnail** to the right (NOT a full-width banner — the Part 12 "~160px full-width photo" was refined to a compact thumbnail for phone). Thumbnail source = `sessions.timeline_photo_url` → falls back to the entry's first `job_photo`.

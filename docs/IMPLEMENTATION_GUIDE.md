@@ -97,7 +97,7 @@ that must never happen.
 3. Present the full verification chain + a plain-English explanation before
    it runs against the live DB (Principle 4).
 4. After it's confirmed applied: update the `hotfixes.sql` watermark and add
-   a row to the CLAUDE.md migration table.
+   a row to `supabase/migrations/MIGRATIONS.md`.
 5. If the public surface changes, refresh the `public_*` view in the same
    migration (see 051–055 for the pattern) — never grant anon table access.
 

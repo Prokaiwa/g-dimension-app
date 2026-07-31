@@ -14,7 +14,8 @@ Read in this order; on conflicts, the earlier doc wins.
 | Doc | Answers |
 |---|---|
 | `MASTER_ARCHITECTURE.md` | What is the product? Routes, design system, data model. **Wins every conflict.** |
-| `CLAUDE.md` | How do we work here? Conventions, git rules, gotchas, migration table. Read before any session. |
+| `CLAUDE.md` | How do we work here? Conventions, git rules, gotchas. Read before any session. |
+| `supabase/migrations/MIGRATIONS.md` | What did each migration do, and when was it applied? Read when you need one table's history. |
 | `BUILD_NOTES.md` | What state is each feature in? Read the section you're touching. |
 | `docs/ENGINEERING_PRINCIPLES.md` | The 9 permanent rules that bind every contributor. |
 | `docs/DECISION_LOG.md` | Why is it built this way? Append-only ADRs. |
