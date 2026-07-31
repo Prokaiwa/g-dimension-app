@@ -72,10 +72,18 @@ export default defineConfig({
         // Never hijack these with the SPA shell — let them hit the network so the
         // marketing page ("/"), the per-build OG injector (api/og.js), the
         // sitemaps, and files with extensions resolve normally.
+        // ADD EVERY NEW STATIC PAGE HERE. Anything served from public/ as its
+        // own HTML file (rather than by the SPA) must be denylisted, or a
+        // SW-controlled visitor gets the precached SPA shell instead — which,
+        // for a path React has no route for, renders as a blank dark page.
+        // curl and crawlers never see it because they have no service worker,
+        // so this fails only for real returning users. /build-sheet shipped
+        // without its entry and did exactly that.
         navigateFallbackDenylist: [
           /^\/$/,
           /^\/api\//,
           /^\/builds\//,
+          /^\/build-sheet/,
           /^\/sitemap/,
           /^\/marketing/,
           /\.[^/]+$/,
