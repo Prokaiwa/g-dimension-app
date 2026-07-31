@@ -107,6 +107,7 @@ const FollowingPage        = lazyWithRetry(() => import('./pages/FollowingPage')
 const AdminHubPage         = lazyWithRetry(() => import('./pages/AdminHubPage'))
 const NotificationsPage    = lazyWithRetry(() => import('./pages/NotificationsPage'))
 const AdminSuspendedPage   = lazyWithRetry(() => import('./pages/AdminSuspendedPage'))
+const AdminReviewPage      = lazyWithRetry(() => import('./pages/AdminReviewPage'))
 
 // Legal (public)
 const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
@@ -433,6 +434,7 @@ export default function App() {
           the `admin` user_flag server-side regardless (ADR-023). */}
       <Route path="/admin/reports" element={<ProtectedRoute><AdminOnly><AdminReportsPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/admin/suspended" element={<ProtectedRoute><AdminOnly><AdminSuspendedPage /></AdminOnly></ProtectedRoute>} />
+      <Route path="/admin/review/:carId" element={<ProtectedRoute><AdminOnly><AdminReviewPage /></AdminOnly></ProtectedRoute>} />
 
       {/* Non-authenticated public routes — Part 13 */}
       <Route path="/builds/:username" element={<PublicProfilePage />} />

@@ -269,6 +269,92 @@ export async function getSuspendedUsers(): Promise<SuspendedUser[]> {
   } catch { return [] }
 }
 
+// ── Review ───────────────────────────────────────────────────────────────────
+
+export type ReviewPhoto = {
+  id: string
+  url: string
+  caption?: string | null
+  created_at?: string | null
+  job_id?: string | null
+  job_title?: string | null
+  category?: string | null
+  entry_id?: string | null
+  step_id?: string | null
+}
+
+export type ReviewEntry = {
+  id: string
+  entry_type: string
+  is_origin: boolean
+  title: string | null
+  journal_entry: string | null
+  url: string | null
+  display_date: string
+}
+
+export type ReviewCar = {
+  id: string
+  owner_id: string
+  username: string | null
+  display_name: string | null
+  bio: string | null
+  avatar_url: string | null
+  suspended: boolean
+  year: number | null
+  make: string | null
+  model: string | null
+  trim: string | null
+  nickname: string | null
+  color: string | null
+  is_public: boolean
+  moderation_hidden_at: string | null
+  deleted_at: string | null
+  purchase_story: string | null
+  garage_photo_url: string | null
+  showcase_photo_url: string | null
+  original_photo_url: string | null
+  build_sheet_photos: (string | null)[]
+}
+
+export type CarReview = {
+  car: ReviewCar
+  job_photos: ReviewPhoto[]
+  timeline_entries: ReviewEntry[]
+  entry_photos: ReviewPhoto[]
+  diy_photos: ReviewPhoto[]
+  reports: {
+    id: string
+    reason: ReportReason
+    details: string | null
+    status: string
+    target_type: ReportTargetType
+    target_id: string
+    auto_hidden: boolean
+    created_at: string
+  }[]
+}
+
+/**
+ * Everything user-generated on one car, readable even when the build is hidden
+ * (migration 091). The definer function re-checks `is_admin` server-side, so
+ * this is a convenience, never the boundary.
+ *
+ * Every look is audited. Pre-091 this returns null and the caller shows the
+ * public page link instead, so a deploy ahead of the migration degrades rather
+ * than breaks.
+ */
+export async function reviewCar(carId: string, reportId?: string | null): Promise<CarReview | null> {
+  try {
+    const { data, error } = await supabase.rpc('admin_review_car', {
+      target_car: carId,
+      from_report: reportId ?? null,
+    })
+    if (error || !data) return null
+    return data as CarReview
+  } catch { return null }
+}
+
 export const dismissReport = (reportId: string) => adminCall('admin_dismiss_report', { report_id: reportId })
 export const hideReported  = (reportId: string) => adminCall('admin_hide_content',   { report_id: reportId })
 export const suspendUser   = (userId: string, reason: string) =>

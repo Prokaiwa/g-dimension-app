@@ -107,6 +107,10 @@ export default function AdminReportsPage() {
           const busy = busyId === r.id
           const resolved = r.status !== 'open'
           const href = reportTargetHref(r)
+          // Pre-090 rows carry no resolved car; a 'car' report still has one in
+          // target_id. A 'user' report has none, and the review page is about a
+          // build, so it simply isn't offered there.
+          const reviewCarId = r.target_car_id ?? (r.target_type === 'car' ? r.target_id : null)
           return (
             <div key={r.id} style={{
               border: '1px solid rgba(240,228,200,0.10)', padding: SPACE_SM,
@@ -143,28 +147,39 @@ export default function AdminReportsPage() {
                 </p>
               )}
 
-              {href && (
-                <button
-                  onClick={() => window.open(href, '_blank')}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: COLOR_ACCENT,
-                    marginBottom: SPACE_XS, WebkitTapHighlightColor: 'transparent',
-                  }}>
-                  {reportTargetLinkLabel(r)}
-                  <LinkOutIcon size={12} />
-                </button>
-              )}
-              {/* The public pages read `public_car_profiles`, which filters on
-                  is_public. A hidden build is therefore invisible to the admin
-                  too. Say so rather than letting the link look broken. */}
-              {href && r.target_car_hidden && (
-                <p style={{ fontFamily: FONT_UI, fontSize: 10.5, color: FAINT, margin: `0 0 ${SPACE_XS}px`, lineHeight: 1.45 }}>
-                  Hidden right now, so that page will not load. Dismiss to put it
-                  back, look, then hide again if it deserves it.
-                </p>
-              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: SPACE_MD, marginBottom: SPACE_XS }}>
+                {/* Primary. Works whether or not the build is hidden (091), and
+                    shows every photo at once with the reported one ringed. */}
+                {reviewCarId && (
+                  <button
+                    onClick={() => navigate(`/admin/review/${reviewCarId}?report=${r.id}`)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                      fontFamily: FONT_UI, fontWeight: 700, fontSize: 11.5, color: COLOR_ACCENT,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}>
+                    Review the build ›
+                  </button>
+                )}
+                {/* Secondary, and only when it would actually load: the public
+                    pages read `public_car_profiles`, which filters on is_public,
+                    so a hidden build is invisible here too. Worth keeping for a
+                    visible build, where seeing it as a visitor does is the point. */}
+                {href && !r.target_car_hidden && (
+                  <button
+                    onClick={() => window.open(href, '_blank')}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                      fontFamily: FONT_UI, fontWeight: 600, fontSize: 11.5, color: MUTED,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}>
+                    {reportTargetLinkLabel(r)}
+                    <LinkOutIcon size={12} />
+                  </button>
+                )}
+              </div>
 
               {!resolved && (
                 <div style={{ display: 'flex', gap: SPACE_XS, marginTop: SPACE_XS }}>

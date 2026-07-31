@@ -1244,6 +1244,63 @@ on `is_public`, so an auto-hidden build is invisible to the *admin* too. You
 cannot look at what you are judging without first dismissing the report. The
 queue now says so under the link instead of letting it look broken. The real fix
 is an admin-visible read path, which is a bigger change than a label.
+**Closed the next day — see below (091, ADR-029).**
+
+### Reviewing a hidden build (2026-07-31, migration 091, ADR-029)
+
+**You could not look at what you were judging.** ADR-023 reused `is_public` so
+one flip hides a build everywhere, and the thing nobody costed is that *no
+reader is exempt from that flag* — the admin included. It is checked in
+`public_car_profiles`'s own `WHERE` and in fourteen row policies across twelve
+tables. `is_admin` is in none of them.
+
+So reviewing a severe report meant dismiss → look → re-hide, which:
+
+- **republished the content** (dismiss restores `moderation_prev_public`), so
+  material severe enough to auto-hide went back to the open internet for the
+  length of the review, and
+- **sent the owner two contradicting notices** — "we found no problem", then
+  "this breaks the Terms". ADR-025 built notices to be trustworthy to someone
+  already in a dispute, and this made them lie to exactly that person.
+
+**The fix is a separate read path, not an exception in the public one.**
+`admin_review_car()` is a definer function returning one jsonb blob; the public
+boundary is untouched. Putting `or is_admin(...)` into those fifteen gates would
+have meant editing the boundary that protects every user's data for one person's
+benefit, an `is_admin` subquery in the hot path of every anonymous read, and the
+end of the property that makes it auditable (today: one flag, no exceptions).
+
+`/admin/review/:carId` is deliberately **not** a copy of the public pages. Every
+photo on the car in one flat grid with the reported one ringed, every piece of
+free text under it, the open reports at the top, and the current state in
+badges. That is the shape moderation actually wants; a magazine spread is not.
+Read-only on purpose, so dismiss/hide/suspend stay in one place.
+
+Three things to remember:
+
+- **The column list is the security control.** 081 leaked costs and 083 leaked
+  emails through grants wider than the intent. The rule for anyone extending
+  091: *never wider than what a visitor would see if the build were public.*
+  Nothing from receipts, documents, `car_private` or contacts; no cost, price,
+  VIN or plate. `select *` is banned in that function.
+- **Every look is audited.** `moderation_reviews` has no policies and
+  `revoke all` from both client roles — this DB grants `authenticated` full DML
+  on new public tables by default (085), so without the revoke the audit trail
+  would be editable by the people it audits.
+- **Storage needed no work**, because `car-photos` / `job-photos` /
+  `timeline-photos` are public buckets. Hiding a build hides the rows, not the
+  files. Which also names a gap left deliberately open: **a photo URL that
+  leaked before a hide still resolves.** Hiding controls discovery, not
+  distribution. Closing it means private buckets and signed URLs for all user
+  media, a far bigger change than this one.
+
+Verified on a scratch Postgres 16 cluster before shipping (schema stubs + seed
+data, since the real DB is the owner's): non-admin refused with `not_admin`, a
+hidden car fully readable, reports on other cars correctly excluded, an unknown
+car returning a clean `car_not_found` rather than a raw FK violation naming the
+constraint, a bogus `?report=` recording null instead of failing the read,
+`authenticated` and `anon` holding no privilege on the audit table, and the
+whole file re-running cleanly.
 
 ## What's Next (not yet built)
 

@@ -19,6 +19,15 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
+-- PENDING: 091_admin_review_car.sql (ADR-029) — an admin read path into a
+--   HIDDEN build, plus an audit row per look. Adds moderation_reviews (no
+--   policies, revoke all from anon+authenticated, written only by the function)
+--   and admin_review_car(), a definer function returning one jsonb blob of
+--   everything user-generated on a car. The column list is the security control:
+--   never wider than what a visitor would see if the build were public, and
+--   `select *` is banned in it forever (081/083 are why). Touches no public
+--   policy or view. Syntax + behaviour verified on a scratch PG16 cluster.
+--
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
 --     property is real (restores read moderation_prev_public, see 088) but the
@@ -26,8 +35,6 @@
 --     it come back the way I had it?" Also removes the two em dashes that were
 --     sitting inside sentences, against the project's own copy rule. Function
 --     bodies otherwise byte-identical to 087/088.
---
--- No migrations pending.
 --
 --   - 088 (function-only copy fix, found while verifying 087): the dismissal
 --     notice was titled "Your build is public again", which is false when the

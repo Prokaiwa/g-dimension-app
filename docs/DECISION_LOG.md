@@ -1031,3 +1031,73 @@ cannot import `src/lib/unitConversion.ts`; both copies carry a note saying so.
 
 Source: `api/og.js`, `public/marketing.html`, `public/llms.txt`, `index.html`;
 commit `435fa1c`.
+
+---
+
+## ADR-029 — Moderation gets its own read path, not an exception in the public one (2026-07-31)
+
+**Decision:** An admin reviewing a hidden build reads it through
+`admin_review_car()`, a `security definer` function returning one jsonb blob,
+rendered at `/admin/review/:carId`. **No public policy or view gains an admin
+branch.** Every look writes a `moderation_reviews` audit row. Migration 091.
+
+**Context:** ADR-023 chose to reuse `is_public` rather than invent a thirteenth
+visibility rule, so hiding a build flips one boolean and every existing public
+policy honours it for free. The consequence nobody costed is that **no reader is
+exempt from that flag, the admin included.** The gate is checked in
+`public_car_profiles`'s own `WHERE` clause and in fourteen row policies across
+twelve tables; `is_admin` appears in none of them.
+
+So reviewing a severe report meant: dismiss it, look, hide it again. Which is
+not merely awkward:
+
+- **Dismissing republishes the content.** `admin_dismiss_report` restores
+  `moderation_prev_public`, so material severe enough to auto-hide goes back to
+  the open internet for the length of the review.
+- **The owner gets two contradictory notices.** Dismiss files *"We reviewed the
+  report and found no problem. Everything is back to normal."* The re-hide files
+  *"...breaks the content rules in our Terms."* Cleared, then not. ADR-025 built
+  that notice system specifically to be trustworthy to someone in a dispute, and
+  this made it lie to exactly that person.
+
+**Rationale:**
+
+- **Not `or public.is_admin(...)` on the public policies.** Fifteen edits to the
+  boundary protecting every user's data, for one person's benefit; an `is_admin`
+  subquery in the hot path of every anonymous read; and the loss of the property
+  that makes that boundary auditable at all. Today it is one flag with no
+  exceptions. Every future audit would otherwise have to ask "and does the admin
+  branch hold here too?" The blast radius is wrong for the problem.
+- **The column list is the security control, not the definer boundary.** A
+  definer function reading tables it doesn't own is exactly where this codebase
+  has been bitten: 081 leaked `parts_cost`/`sale_price` to anon, 083 leaked 28
+  beta emails, both through a grant wider than the intent. The standing rule for
+  anyone extending 091: **never wider than what a visitor would see if the build
+  were public.** Nothing from `receipts`, `car_documents`, `car_private`,
+  `user_contacts`. No cost, price, VIN, plate or purchase price. A judgement
+  about nudity or hate needs pixels and prose, never somebody's finances.
+  `select *` is banned in that function permanently.
+- **A moderation view, not a copy of the public pages.** Even if admin-visible
+  public pages were free, they'd be the wrong tool: a reviewer wants every photo
+  on the car in one grid with the reported one ringed and every piece of free
+  text under it, not a magazine spread to navigate. The fix is better than the
+  thing it replaces, which is how you know it isn't a workaround.
+- **Read-only, deliberately.** Dismiss, hide and suspend stay in the queue, so
+  there remains exactly one place where moderation decisions are taken.
+- **Audited.** Reading a private build is privileged. `moderation_reviews` has
+  no policies and `revoke all` from both client roles — this DB grants
+  `authenticated` full DML on new public tables by default (085's lesson), so
+  without the revoke the audit trail would be editable by the people it audits.
+- **Storage needed nothing.** `car-photos`, `job-photos` and `timeline-photos`
+  are public buckets: hiding a build hides the *rows*, not the files. Handing
+  back URLs is enough for the images to render.
+
+**Consequence:** hiding is now a decision an admin can make *after* looking
+rather than before, and the notice history stops containing retractions that
+were never really retractions. A related gap is now visible and deliberately
+left open: because those buckets are public, a photo URL that leaked before a
+hide still resolves. Hiding controls discovery, not distribution. Fixing that
+means private buckets and signed URLs for all user media, which is a much larger
+change than this one and should be its own decision.
+
+Source: migration 091, `src/pages/AdminReviewPage.tsx`.
