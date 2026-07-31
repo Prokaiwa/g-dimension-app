@@ -33,3 +33,10 @@ supabase/.temp/
 # Playwright artifacts
 test-results/
 playwright-report/
+
+# Store-shot renders — regenerable from scripts/capture-store-shots.mjs and
+# scripts/render-store-panel.mjs. The composition SOURCE (*.html) is tracked;
+# the PNGs are not, because they are re-rendered on every iteration and would
+# add a fresh multi-MB blob to history each time.
+design/store-shots/raw/
+design/store-shots/*.png
