@@ -13,10 +13,9 @@
    Featured. Cormorant appears on exactly one panel (the Timeline), matching
    the app's own rule that Cormorant carries the personal voice.
 
-   THE SPREAD: the burgundy wedge is not decoration, it travels. Each panel
-   sets --wedge-h and --wedge-rise so the cut walks down and across the set,
-   entering shallow on 01 and peaking mid-run. Viewed as a filmstrip the six
-   panels read as one continuous artwork rather than six posters.
+   THE WEDGE IS ONE FIXED GEOMETRY across the whole set (see :root). An earlier
+   version varied it per panel so the cut would "travel"; side by side, which is
+   how the store actually shows them, that just read as inconsistent.
    ════════════════════════════════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -29,10 +28,16 @@ html, body { background: #17181a; }
   --cavity: #050507;
   --ink: #f5f5f5;
 
-  /* Per-panel overrides. Defaults suit a full-bleed panel. */
-  --shift: 0px;         /* vertical pull on the captured screen */
-  --wedge-h: 344px;     /* wedge height at the LEFT edge */
-  --wedge-rise: 54%;    /* where the cut meets the RIGHT edge */
+  --shift: 0px;         /* per-panel vertical pull on the captured screen */
+
+  /* THE WEDGE IS FIXED FOR THE WHOLE SET. It used to vary per panel on the
+     theory that a "travelling" cut would tie the run together; in practice it
+     just looked inconsistent when the panels sit side by side, which is how the
+     store shows them. One geometry, no per-panel overrides. Anything that has
+     to dodge a busy corner does it with --shift on the artwork, not by
+     reshaping the wedge. */
+  --wedge-h: 620px;
+  --wedge-rise: 37%;
 }
 
 .canvas {
@@ -74,7 +79,7 @@ html, body { background: #17181a; }
   background: rgba(245,245,245,0.16);
 }
 
-/* ── The travelling wedge ────────────────────────────────────────────────── */
+/* ── The wedge ────────────────────────────────────────────────── */
 .wedge {
   position: absolute; left: 0; right: 0; top: 0; height: var(--wedge-h); z-index: 2;
   background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 78%, #3a0709 100%);

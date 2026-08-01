@@ -11,16 +11,26 @@
      smallest wedge in the run and sets its one line in the cover's own dead
      band between photo and headline. */
   :root {
-    --wedge-h: 348px; --wedge-rise: 74%;
-    --type-top: 418px; --headline-size: 104px;
-    --deck-top: 1735px;
+    /* Nudged UP, not down. Pushing the cover down put its cream masthead below
+       the wedge's right-hand edge, where it poked out as a bright band. At -40
+       the masthead sits entirely under the wedge and the black gap above the
+       photo is free for the explanatory line. */
+    --shift: -40px;
+    --type-top: 285px; --headline-size: 92px;
+    --deck-top: 470px;
   }
+  /* One line only, and smaller: the gap between the headline and the top of the
+     cover photo is ~110px and a two-line deck ran straight through it. */
+  .deck-float { font-size: 40px; }
+  /* This panel's bottom-right corner is already occupied by the cover's own
+     INSIDE button and barcode, so the brand mark moves up out of them. */
+  .gmark-corner { bottom: 300px; }
 </style>
 </head>
 <body>
 <div class="canvas">
   <img class="art" src="raw/07-featured.png" alt="">
-  <div class="plate" style="left:246px; top:1300px; width:98px; height:44px; z-index:3;"></div>
+  <div class="plate" style="left:246px; top:1260px; width:98px; height:44px; z-index:3;"></div>
 
   <div class="wedge"></div><div class="wedge-edge"></div>
 
@@ -29,7 +39,7 @@
     <div class="headline">Your build, <span class="warm">on a cover.</span></div>
   </div>
 
-  <div class="deck-float" style="z-index:4">The app writes you a magazine cover from your own photos and specs.</div>
+  <div class="deck-float" style="z-index:4">A magazine cover, written from your own photos and specs.</div>
   <div class="numeral" style="z-index:5">06</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>

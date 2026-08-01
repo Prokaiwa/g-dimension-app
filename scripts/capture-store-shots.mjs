@@ -64,7 +64,10 @@ const PUBLIC_SCREENS = (u, car) => [
   // The PUBLIC build sheet, which is what a store panel should show: the authed
   // one carries an "+ MODS" action button that has no business in a screenshot.
   { name: `pub-buildsheet`, path: `/builds/${u}/buildsheet${car ? `?car=${car}` : ''}` },
-  { name: `pub-timeline`,   path: `/builds/${u}/timeline` },
+  // Scrolled past the origin entry to the entry CARDS, which show what the app
+  // actually keeps (mods, details, services) rather than one long story. The
+  // public route also has no "+ Add Entry" button to design around.
+  { name: `pub-timeline`,   path: `/builds/${u}/timeline`, scrollY: 2150 },
   { name: `pub-featured`,   path: `/builds/${u}/featured` },
   { name: `pub-profile`,    path: `/builds/${u}` },
 ]
@@ -111,6 +114,25 @@ async function shoot(page, screen) {
   // Entry animations (EASING_SETTLE, staggered grid reveals) need to settle,
   // and lazy route chunks + images need to land.
   await page.waitForTimeout(3500)
+
+  // Some screens are only worth shooting further down the scroll: the Timeline
+  // opens on its origin entry, but the entry CARDS below it are what show what
+  // the app actually keeps.
+  if (screen.scrollY) {
+    await page.evaluate((y) => {
+      const doc = document.scrollingElement || document.documentElement
+      // The app's scroll container is not always the document.
+      const pane = [...document.querySelectorAll('*')].find(
+        (el) => el.scrollHeight > el.clientHeight + 200 &&
+                getComputedStyle(el).overflowY.match(/auto|scroll/),
+      )
+      if (pane) pane.scrollTop = y
+      else doc.scrollTop = y
+      window.scrollTo(0, y)
+    }, screen.scrollY)
+    await page.waitForTimeout(1800)
+  }
+
   const file = path.join(OUT, `${screen.name}.png`)
   await page.screenshot({ path: file })
   console.log(`  captured ${screen.name}.png`)

@@ -10,19 +10,24 @@
   /* Shift puts the dated rows AND the services / total footer below the type,
      so the money is visible without captioning it. */
   :root {
-    --shift: -250px;
-    /* Shallower than its neighbours on purpose: the Maintenance screen has a
-       strong orange diagonal of its own, and a deep burgundy cut on top of it
-       made two diagonals fight for the same corner. */
-    --wedge-h: 520px; --wedge-rise: 46%;
+    /* Pushed DOWN, not up: at a negative shift the "+ Add Service" button sat in
+       the lower right. Positive shift carries it off the canvas while keeping
+       the dated rows and the services / total footer in view. */
+    --shift: 290px;
     --type-top: 320px; --headline-size: 150px;
-    --scrim-top: 260px; --scrim-h: 1120px;
+    --scrim-top: 250px; --scrim-h: 1150px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
   <img class="art" src="raw/06b-service.png" alt="">
+  <!-- The positive shift that carries "+ Add Service" off the bottom also
+       carries the app HEADER down into view, where it poked out to the right of
+       the wedge as a bright bar. Masked to cavity black at z-index 1, so it
+       hides behind the wedge on the left and reads as header darkness on the
+       right. -->
+  <div class="mask" style="left:0; right:0; top:222px; height:215px; z-index:1;"></div>
   <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 

@@ -10,8 +10,7 @@
   /* Map shifted down so the HOME node clears the type block; all five
      destinations stay on the panel at native scale. */
   :root {
-    --shift: 300px;
-    --wedge-h: 600px; --wedge-rise: 38%;
+    --shift: 250px;
     --type-top: 330px; --headline-size: 150px;
     --scrim-top: 240px; --scrim-h: 1050px;
   }
@@ -20,6 +19,9 @@
 <body>
 <div class="canvas">
   <img class="art" src="raw/01-home.png" alt="">
+  <!-- App header, which sits below the wedge's right edge and read as a bright
+       bar. z-index 1 keeps it behind the wedge on the left. -->
+  <div class="mask" style="left:0; right:0; top:222px; height:200px; z-index:1;"></div>
   <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
