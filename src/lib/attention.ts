@@ -59,8 +59,28 @@ export async function getAttention(): Promise<Attention> {
   return inflight
 }
 
+// Everything currently showing a count. Dropping the memo used to be enough
+// because every surface re-mounted on navigation — reading notices was a route
+// push, and coming back re-ran the hook. The Profile bell opens a SHEET now, so
+// Profile never unmounts and the dot would sit there lit over an inbox you had
+// just read. Invalidation has to be able to reach live surfaces, not only the
+// next mount.
+type Listener = (v: Attention) => void
+const listeners = new Set<Listener>()
+
+/** Subscribe to attention changes. Returns the unsubscribe. */
+export function onAttentionChange(fn: Listener): () => void {
+  listeners.add(fn)
+  return () => { listeners.delete(fn) }
+}
+
 /**
- * Drop the memo so the next read is fresh. Call after actioning a report or
- * reading notices, so the glow clears at once rather than lingering for the TTL.
+ * Drop the memo so the next read is fresh, then push the fresh value to every
+ * mounted surface. Call after actioning a report or reading notices, so the
+ * glow clears at once rather than lingering for the TTL.
  */
-export function invalidateAttention(): void { cached = null }
+export function invalidateAttention(): void {
+  cached = null
+  if (listeners.size === 0) return
+  getAttention().then(v => { for (const fn of listeners) fn(v) }).catch(() => { /* ignore */ })
+}

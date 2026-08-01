@@ -15,6 +15,7 @@ export default function BottomSheet({
   title,
   bg = '#121316',
   busy = false,
+  closeLabel = 'Cancel',
   children,
 }: {
   open: boolean
@@ -22,6 +23,8 @@ export default function BottomSheet({
   title: string
   bg?: string
   busy?: boolean
+  /** "Cancel" reads wrong on a sheet with nothing to cancel (an inbox). */
+  closeLabel?: string
   children: ReactNode
 }) {
   const [dragY, setDragY] = useState(0)
@@ -114,7 +117,7 @@ export default function BottomSheet({
               onClick={close}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,228,200,0.5)' }}
             >
-              Cancel
+              {closeLabel}
             </button>
           </div>
         </div>

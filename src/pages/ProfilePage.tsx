@@ -37,6 +37,7 @@ import { GRADE_RING } from '../lib/permit'
 import LicenseCard from '../components/LicenseCard'
 import { ShareIcon } from '../components/ShareIcon'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
+import NoticeList from '../components/NoticeList'
 import {
   GRADIENT_APP_BG,
   COLOR_HEADER_BLACK,
@@ -199,6 +200,12 @@ export default function ProfilePage() {
   const [email, setEmail]     = useState<string | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
+  // A sheet rather than a route push. The bell lives ON the profile, and the
+  // profile is already where you were going — opening a whole page to read
+  // "one person followed you" and backing out is two navigations for a glance.
+  // Dismissing a sheet is one gesture and leaves you exactly where you were.
+  // /notifications still exists for deep links and for the suspension banner.
+  const [noticesOpen, setNoticesOpen] = useState(false)
   // Owner-only entry point to /admin. Hides the row; grants nothing by itself.
   const isAdminUser = useIsAdmin() === true
   const attention   = useAttention()
@@ -417,7 +424,7 @@ export default function ProfilePage() {
                 it sat below the fold, which is the one place a notification
                 indicator is useless. */}
             <button
-              onClick={() => navigate('/notifications')}
+              onClick={() => setNoticesOpen(true)}
               aria-label={attention.notices > 0 ? `Notifications, ${attention.notices} unread` : 'Notifications'}
               style={{
                 position: 'absolute', top: SPACE_SM, right: SPACE_MD, zIndex: 3,
@@ -443,6 +450,23 @@ export default function ProfilePage() {
                 )}
               </span>
             </button>
+
+            {noticesOpen && (
+              <BottomSheet
+                open
+                onClose={() => setNoticesOpen(false)}
+                title="Notifications"
+                closeLabel="Done"
+              >
+                <NoticeList onGo={(href, state) => {
+                  // Close first: leaving a sheet mounted over a page you have
+                  // navigated away from is how you get a sheet floating on the
+                  // wrong screen.
+                  setNoticesOpen(false)
+                  navigate(href, state ? { state } : undefined)
+                }} />
+              </BottomSheet>
+            )}
 
             {/* Hero — avatar + identity */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
