@@ -7,13 +7,28 @@
 // panel out of step is only visible when they sit edge to edge. The strip below
 // scroll-snaps one panel at a time to reproduce that.
 //
-// Images are WebP previews from public/store-shots/, built by
-// scripts/build-store-shot-previews.mjs. The upload-quality 1290x2796 PNGs are
-// deliberately NOT shipped in the app: they are ~1.5MB each and regenerable
-// with scripts/render-all-panels.mjs. This page is for judging a layout, not
-// for exporting the deliverable.
+// Images are WebP previews built by scripts/build-store-shot-previews.mjs. The
+// upload-quality 1290x2796 PNGs are deliberately NOT shipped in the app: they
+// are ~1.5MB each and regenerable with scripts/render-all-panels.mjs. This page
+// is for judging a layout, not for exporting the deliverable.
+//
+// They are IMPORTED from src/assets rather than served from public/ so Vite
+// content-hashes the filenames. This is load-bearing, not tidiness: the service
+// worker runtime-caches every same-origin image CacheFirst for 60 days
+// (vite.config.ts), which is correct only for URLs that never change meaning.
+// From public/ these previews kept the same path across renders, so a re-render
+// was invisible to anyone who had already opened the page — no amount of
+// refreshing helped. Hashed filenames make each render a new URL, so the cache
+// misses and self-heals.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import panel01 from '../assets/store-shots/panel-01.webp'
+import panel02 from '../assets/store-shots/panel-02.webp'
+import panel03 from '../assets/store-shots/panel-03.webp'
+import panel04 from '../assets/store-shots/panel-04.webp'
+import panel05 from '../assets/store-shots/panel-05.webp'
+import panel06 from '../assets/store-shots/panel-06.webp'
+import panel07 from '../assets/store-shots/panel-07.webp'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
   FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL,
@@ -39,7 +54,11 @@ const PANELS: Panel[] = [
   { n: '07', title: 'Share',       line: 'One link. The whole story.' },
 ]
 
-const src = (n: string) => `/store-shots/panel-${n}.webp`
+const SOURCES: Record<string, string> = {
+  '01': panel01, '02': panel02, '03': panel03, '04': panel04,
+  '05': panel05, '06': panel06, '07': panel07,
+}
+const src = (n: string) => SOURCES[n]
 
 export default function AdminStoreShotsPage() {
   const navigate = useNavigate()
@@ -76,8 +95,8 @@ export default function AdminStoreShotsPage() {
           margin: `0 ${SPACE_MD}px ${SPACE_MD}px`,
         }}>
           Swipe sideways, the way the store presents them. The burgundy wedge is meant to
-          travel across the six: shallow at the start, steepest around Service, easing off
-          by the end. Tap any panel to fill the screen.
+          travel across the seven: shallow at the start, steepest around the Timeline,
+          easing off by the end. Tap any panel to fill the screen.
         </p>
 
         {/* The strip. scroll-snap so each swipe lands on exactly one panel. */}

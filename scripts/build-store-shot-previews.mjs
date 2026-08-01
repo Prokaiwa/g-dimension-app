@@ -8,6 +8,12 @@
 // different thing: small enough to commit, good enough to judge a layout on a
 // real phone, and they are what /admin/store-shots displays.
 //
+// They land in src/assets (NOT public/) so Vite content-hashes the emitted
+// filenames. The service worker caches same-origin images CacheFirst for 60
+// days, which is only safe for URLs whose contents never change. A fixed path
+// under public/ meant a re-render never reached anyone who had already loaded
+// the page.
+//
 // sharp is already a dependency (it comes in via the toolchain), so this adds
 // nothing to install.
 import sharp from 'sharp'
@@ -16,7 +22,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 
 const SRC = path.resolve('design/store-shots')
-const OUT = path.resolve('public/store-shots')
+const OUT = path.resolve('src/assets/store-shots')
 
 // 860px wide is ~2x a phone's rendered width for this gallery, so the preview
 // still looks sharp when tapped to full screen, at roughly a tenth the bytes.
@@ -41,4 +47,4 @@ for (const file of panels) {
   console.log(`  ${file} -> ${path.basename(to)}  ${kb}KB`)
 }
 
-console.log(`\n${panels.length} previews, ${total}KB total, in public/store-shots/`)
+console.log(`\n${panels.length} previews, ${total}KB total, in src/assets/store-shots/`)
