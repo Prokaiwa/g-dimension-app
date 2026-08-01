@@ -5,7 +5,18 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 094_follow_notices.sql (applied 2026-07-31)
+-- Last migration applied : 095_follower_list.sql (applied 2026-08-01)
+--   - 095 (ADR-032): the followers screen. follower_list(target) with
+--     follows_back + you_follow, and following_list_v2(target) with follows_you.
+--     086's following_list is LEFT IN PLACE as a client fallback, because adding
+--     an OUT column needs DROP+CREATE and a deploy is not atomic with a
+--     migration — dropping it would break the Following screen for anyone still
+--     on the previous bundle. The viewer comes from auth.uid(), never a
+--     parameter, so nobody can ask whether X follows Y about two other people.
+--     Blocks hide the person from the reader in both directions while leaving
+--     the follow edge intact. Verified live after running: following_list_v2
+--     returned the caller's two follows with follows_you=false, and
+--     follower_list(@scantee) returned the caller with follows_back=false.
 --   - 094 (ADR-031): follows stop being silent. user_notices.actor_id, a
 --     'new_follower' kind, and a definer trigger on follows insert. notify_user
 --     DROPped and recreated with a sixth `actor` param; the four existing 5-arg
@@ -53,13 +64,7 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- PENDING: 095_follower_list.sql (ADR-032) — the followers screen.
---   follower_list(target) with follows_back + you_follow, and
---   following_list_v2(target) with follows_you. 086's following_list is LEFT IN
---   PLACE as a client fallback: adding an OUT column needs DROP+CREATE, and a
---   deploy is not atomic with a migration, so dropping it would break the
---   Following screen for anyone still on the previous bundle. Viewer comes from
---   auth.uid(), never a parameter. Verified on a scratch PG16 cluster.
+-- No migrations pending.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the
