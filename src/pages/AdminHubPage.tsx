@@ -145,6 +145,7 @@ export default function AdminHubPage() {
             { label: 'Sound board',    sub: 'Audition every UI sound. Ignores the Settings toggle', to: '/sound-test' },
             { label: 'Permit ladder',  sub: 'Every licence grade with sample data, front and back', to: '/license-preview' },
             { label: 'Trading cards',  sub: 'Print-ready front/back PNGs for any public car',       to: '/dev/trading-cards' },
+            { label: 'Store screenshots', sub: 'The App Store and Play set, in swipe order',        to: '/admin/store-shots' },
           ]}
           onGo={go}
         />

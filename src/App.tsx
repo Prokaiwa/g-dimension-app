@@ -109,6 +109,7 @@ const AdminHubPage         = lazyWithRetry(() => import('./pages/AdminHubPage'))
 const NotificationsPage    = lazyWithRetry(() => import('./pages/NotificationsPage'))
 const AdminSuspendedPage   = lazyWithRetry(() => import('./pages/AdminSuspendedPage'))
 const AdminReviewPage      = lazyWithRetry(() => import('./pages/AdminReviewPage'))
+const AdminStoreShotsPage  = lazyWithRetry(() => import('./pages/AdminStoreShotsPage'))
 const DiscoverPage         = lazyWithRetry(() => import('./pages/DiscoverPage'))
 
 // Legal (public)
@@ -438,6 +439,7 @@ export default function App() {
       <Route path="/admin/reports" element={<ProtectedRoute><AdminOnly><AdminReportsPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/admin/suspended" element={<ProtectedRoute><AdminOnly><AdminSuspendedPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/admin/review/:carId" element={<ProtectedRoute><AdminOnly><AdminReviewPage /></AdminOnly></ProtectedRoute>} />
+      <Route path="/admin/store-shots" element={<ProtectedRoute><AdminOnly><AdminStoreShotsPage /></AdminOnly></ProtectedRoute>} />
 
       {/* Non-authenticated public routes — Part 13 */}
       <Route path="/discover" element={<DiscoverPage />} />
