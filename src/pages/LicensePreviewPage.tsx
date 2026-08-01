@@ -1,13 +1,35 @@
 // Dev/preview tool at /license-preview — renders every G-Dimension Permit grade
-// (front + tap-to-flip checklist) with sample data, so the whole ladder can be
-// eyeballed without grinding the real counts to each grade. Unlinked from any
-// nav (same pattern as /sound-test); ships to prod but hidden.
-import { useState } from 'react'
+// (front + tap-to-flip checklist) so the whole ladder can be eyeballed without
+// grinding the real counts to each grade. Unlinked from any nav (same pattern as
+// /sound-test); ships to prod but hidden.
+//
+// The STATS are synthetic — that is the point of the page. The IDENTITY is real:
+// your own driver name, handle, join date and profile URL. Judging a card's type
+// sizes and line breaks against a placeholder name tells you how the placeholder
+// looks, not how yours does, and the name is the longest variable string on the
+// card. Falls back to the sample identity until the profile loads, and for
+// anyone without a handle yet.
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GRADES, computeLicense, type LicenseStats } from '../lib/license'
+import { getCurrentUserProfile, profileName } from '../lib/userProfile'
 import LicenseCard from '../components/LicenseCard'
 import PermitCelebration from '../components/PermitCelebration'
 import { FONT_UI, COLOR_ACCENT, COLOR_CAVITY_BG } from '../tokens'
+
+const SAMPLE = {
+  driver: 'Hiroshi',
+  handle: '@hiroshi_ls430',
+  licensed: '06.2026',
+  profileUrl: 'https://gdimension.app/builds/hiroshi_ls430',
+}
+
+function licensedDate(iso: string | null | undefined): string {
+  if (!iso) return SAMPLE.licensed
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return SAMPLE.licensed
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+}
 
 // A stats object that sits the holder EXACTLY at grade index `i`: every
 // requirement up to and including grade i is met, and the next grade is
@@ -37,14 +59,29 @@ function statsAtGrade(i: number): LicenseStats {
 export default function LicensePreviewPage() {
   const navigate = useNavigate()
   const [celebrateIdx, setCelebrateIdx] = useState<number | null>(null)
+  const [who, setWho] = useState(SAMPLE)
   const celebrateLic = celebrateIdx !== null ? computeLicense(statsAtGrade(celebrateIdx)) : null
+
+  useEffect(() => {
+    let alive = true
+    getCurrentUserProfile().then(p => {
+      if (!alive || !p?.username) return
+      setWho({
+        driver:     profileName(p) || SAMPLE.driver,
+        handle:     `@${p.username}`,
+        licensed:   licensedDate(p.created_at),
+        profileUrl: `https://gdimension.app/builds/${p.username}`,
+      })
+    })
+    return () => { alive = false }
+  }, [])
   return (
     <div style={{ minHeight: '100dvh', background: COLOR_CAVITY_BG, padding: '20px 16px calc(40px + env(safe-area-inset-bottom))' }}>
       {celebrateLic?.current && (
         <PermitCelebration
           grade={celebrateLic.current} next={celebrateLic.next} toNext={celebrateLic.toNext}
-          driver="Hiroshi" handle="@hiroshi_ls430" licensed="06.2026"
-          profileUrl="https://gdimension.app/builds/hiroshi_ls430"
+          driver={who.driver} handle={who.handle} licensed={who.licensed}
+          profileUrl={who.profileUrl}
           onDone={() => setCelebrateIdx(null)}
         />
       )}
@@ -53,7 +90,8 @@ export default function LicensePreviewPage() {
       </button>
       <h1 style={{ fontFamily: FONT_UI, fontWeight: 900, fontSize: 20, color: '#f5f5f5', margin: '0 0 4px' }}>Permit Preview</h1>
       <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: 'rgba(245,240,228,0.5)', margin: '0 0 20px', lineHeight: 1.5 }}>
-        Every grade, front and flipped. Tap a card to see its next-grade checklist. Sample data only, this doesn't touch your account.
+        Every grade, front and flipped. Tap a card to see its next-grade checklist.
+        Your name and handle, sample progress. Nothing here touches your account.
       </p>
 
       {/* Preview the rank-up celebration for any grade (sound + motion). */}
@@ -84,9 +122,10 @@ export default function LicensePreviewPage() {
                 grade={lic.current}
                 next={lic.next}
                 toNext={lic.toNext}
-                driver="Hiroshi"
-                handle="@hiroshi_ls430"
-                licensed="06.2026" profileUrl="https://gdimension.app/builds/hiroshi_ls430"
+                driver={who.driver}
+                handle={who.handle}
+                licensed={who.licensed}
+                profileUrl={who.profileUrl}
               />
             </div>
           )
@@ -97,7 +136,7 @@ export default function LicensePreviewPage() {
           <div style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.4)', margin: '0 0 10px' }}>
             Provisional (no car yet)
           </div>
-          <LicenseCard grade={null} next={null} toNext={[]} driver="Hiroshi" handle="@hiroshi_ls430" licensed="06.2026" profileUrl="https://gdimension.app/builds/hiroshi_ls430" />
+          <LicenseCard grade={null} next={null} toNext={[]} driver={who.driver} handle={who.handle} licensed={who.licensed} profileUrl={who.profileUrl} />
         </div>
       </div>
     </div>
