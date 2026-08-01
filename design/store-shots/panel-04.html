@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="panel.css">
+<style>
+  /* The strongest panel in the set is a number, not a sentence: 125 services
+     and $34,761 logged on one car. The card is cropped to the lower half of
+     the list so the app's OWN totals row is visible under the headline stat. */
+  :root {
+    --wedge-h: 560px; --wedge-rise: 34%;
+    --type-top: 380px;
+    --headline-size: 150px;
+    --dev-top: 1500px; --dev-crop: 430px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="bloom"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="type">
+    <div class="rule-row"><span class="kicker">Service History</span><span class="hair"></span></div>
+    <div class="headline">A record<br><span class="warm">buyers believe.</span></div>
+    <div class="stat">
+      <div><div class="stat-num">125</div><div class="stat-lab">Services</div></div>
+      <div><div class="stat-num">$34,761</div><div class="stat-lab">Logged</div></div>
+    </div>
+  </div>
+
+  <div class="device">
+    <img src="raw/06b-service.png" alt="">
+  </div>
+
+  <div class="numeral">04</div>
+  <div class="wordmark">G-Dimension</div>
+</div>
+</body>
+</html>

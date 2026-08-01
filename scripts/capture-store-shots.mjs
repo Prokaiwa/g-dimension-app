@@ -39,7 +39,11 @@ const SCREENS = [
   { name: '03-buildsheet',  path: '/tuning/build-sheet',            auth: true },
   { name: '04-timeline',    path: '/timeline',                      auth: true },
   { name: '05-parts-bin',   path: '/tuning/parts-bin',              auth: true },
+  // /maintenance is only the hub (a mostly empty diagonal with two tiles).
+  // The service history LIST is the screen that proves the record exists.
   { name: '06-maintenance', path: '/maintenance',                   auth: true },
+  { name: '06b-service',    path: '/maintenance/service',           auth: true },
+  { name: '06c-detailing',  path: '/maintenance/detail',            auth: true },
   { name: '07-featured',    path: '/featured',                      auth: true },
   { name: '08-garage',      path: '/garage',                        auth: true },
   { name: '09-tuning',      path: '/tuning',                        auth: true },
