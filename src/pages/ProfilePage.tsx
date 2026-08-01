@@ -451,23 +451,6 @@ export default function ProfilePage() {
               </span>
             </button>
 
-            {noticesOpen && (
-              <BottomSheet
-                open
-                onClose={() => setNoticesOpen(false)}
-                title="Notifications"
-                closeLabel="Done"
-              >
-                <NoticeList onGo={(href, state) => {
-                  // Close first: leaving a sheet mounted over a page you have
-                  // navigated away from is how you get a sheet floating on the
-                  // wrong screen.
-                  setNoticesOpen(false)
-                  navigate(href, state ? { state } : undefined)
-                }} />
-              </BottomSheet>
-            )}
-
             {/* Hero — avatar + identity */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <button
@@ -676,6 +659,34 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* ── Notices sheet ──
+           MUST live out here, as a sibling of the content block rather than
+           inside it. That block carries `animation: profileIn ... both`, whose
+           final keyframe is `transform: translateY(0)` — and fill-mode `both`
+           keeps that transform applied forever. A non-none transform makes an
+           element a containing block for `position: fixed` descendants, so a
+           sheet nested inside it anchors its `bottom: 0` to the bottom of the
+           PROFILE CONTENT instead of the viewport: the backdrop still darkens
+           the screen, and the sheet itself sits below the fold. Which is
+           exactly what the owner saw. The Edit sheet below was already out here
+           and always worked, which is the tell. */}
+      {noticesOpen && (
+        <BottomSheet
+          open
+          onClose={() => setNoticesOpen(false)}
+          title="Notifications"
+          closeLabel="Done"
+        >
+          <NoticeList onGo={(href, state) => {
+            // Close first: leaving a sheet mounted over a page you have
+            // navigated away from is how you get a sheet floating on the
+            // wrong screen.
+            setNoticesOpen(false)
+            navigate(href, state ? { state } : undefined)
+          }} />
+        </BottomSheet>
+      )}
 
       {/* ── Edit sheet ── */}
       <BottomSheet open={!!draft} onClose={() => setDraft(null)} title="Edit Profile" busy={saving}>
