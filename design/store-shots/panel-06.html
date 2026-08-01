@@ -7,35 +7,33 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Closes the set by mirroring panel 01's shallow wedge, so the run reads as
-     a loop rather than stopping mid-thought. The public build map is the
-     second light surface and shows all four sections at once, which is the
-     whole pitch in one image. */
+  /* The cover is finished work, so this panel stays out of its way.
+     The dead band between the photo and the cover's own headline is now doing
+     a job: it carries the line that says what the feature actually IS, which
+     the cover alone never explains. */
   :root {
-    --wedge-h: 300px; --wedge-rise: 66%;
-    --type-top: 400px;
-    --headline-size: 150px;
-    --dev-top: 1240px; --dev-crop: 116px;
+    --wedge-h: 348px; --wedge-rise: 74%;
+    --type-top: 418px;
+    --headline-size: 104px;
+    --deck-top: 1735px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
+  <img class="art" src="raw/07-featured.png" alt="">
+  <div class="plate" style="left:246px; top:1300px; width:98px; height:44px;"></div>
+
   <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type">
-    <div class="rule-row"><span class="kicker">Share</span><span class="hair"></span></div>
-    <div class="headline">One link.<br><span class="warm">The whole story.</span></div>
-    <div class="deck">They see the build. They never see your receipts.</div>
+    <div class="rule-row"><span class="kicker">Featured</span><span class="hair"></span></div>
+    <div class="headline">Your build, <span class="warm">on a cover.</span></div>
   </div>
 
-  <div class="device">
-    <img src="raw/pub-profile.png" alt="">
-  </div>
+  <div class="deck-float">The app writes you a magazine cover from your own photos and specs.</div>
 
   <div class="numeral">06</div>
-  <div class="wordmark">G-Dimension</div>
 </div>
 </body>
 </html>

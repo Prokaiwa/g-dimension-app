@@ -7,14 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The one panel that breaks the type rule: Cormorant italic for the deck,
-     matching the app's own rule that Cormorant carries the personal voice.
-     Also the first LIGHT surface in the run (parchment), so it lands as a
-     page-turn after two dark panels. */
+  /* Moved ahead of the Timeline: this is a service tracker first, so the
+     service record should land before the storytelling.
+     The big stat block is gone. The app's OWN list already shows dates,
+     mileage, cost and the running total, and showing it beats captioning it. */
   :root {
     --wedge-h: 500px; --wedge-rise: 40%;
-    --type-top: 360px;
-    --dev-top: 1290px; --dev-crop: 0px;     /* Timeline has no header to crop */
+    --type-top: 340px;
+    --headline-size: 140px;
+    --dev-top: 880px; --dev-crop: 155px;
   }
 </style>
 </head>
@@ -24,18 +25,12 @@
   <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type">
-    <div class="rule-row"><span class="kicker">The Timeline</span><span class="hair"></span></div>
-    <div class="headline">It writes<br><span class="warm">itself.</span></div>
-    <div class="deck voice">Every entry in the order it actually happened.</div>
+    <div class="rule-row"><span class="kicker">Service History</span><span class="hair"></span></div>
+    <div class="headline">Every service,<br><span class="warm">logged.</span></div>
+    <div class="deck">Date, mileage, cost, and the shop. On every oil change and every repair.</div>
   </div>
 
-  <div class="device">
-    <img src="raw/04-timeline.png" alt="">
-    <!-- Floating back chevron and CHANGE button are app chrome, not content. -->
-    <div class="mask" style="left:0; top:0; width:150px; height:130px;"></div>
-    <div class="mask" style="left:820px; top:0; width:290px; height:130px;"></div>
-    <div class="plate" style="left:68px; top:620px; width:138px; height:92px;"></div>
-  </div>
+  <div class="device"><img src="raw/06b-service.png" alt=""></div>
 
   <div class="numeral">03</div>
   <div class="wordmark">G-Dimension</div>

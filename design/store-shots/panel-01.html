@@ -7,11 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Panel 01 opens the set: wedge shallow, canvas nearly all black. */
+  /* Opens the set: wedge shallow, canvas nearly all black. */
   :root {
     --shift: -150px;
-    --wedge-h: 344px; --wedge-rise: 54%;
-    --type-top: 430px;
+    /* Wedge raised on the right so it swallows the app's own "01 / 14"
+       carousel counter, which otherwise sits right where the brand mark goes
+       and reads as clutter. Headline drops a step to keep the deck clear of
+       the car's roofline. */
+    --wedge-h: 430px; --wedge-rise: 60%;
+    --type-top: 480px;
+    --headline-size: 158px;
     --footer-top: 2268px;
   }
 </style>
@@ -19,17 +24,22 @@
 <body>
 <div class="canvas">
   <img class="art" src="raw/pub-garage.png" alt="">
-  <!-- Plate blur, positioned against the full-bleed art. -->
   <div class="plate" style="left:176px; top:calc(1756px + var(--shift)); width:146px; height:56px;"></div>
 
   <div class="footer"></div><div class="footer-rule"></div>
   <div class="scrim"></div><div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
+  <!-- Brand mark, top right in the black band. Positioned absolutely rather
+       than inside the kicker row: in the row it sat at hairline height and read
+       as a stray icon instead of a masthead. -->
+  <img class="gmark" src="../../src/assets/logo/gdimensionG.webp" alt=""
+       style="right:96px; top:318px; height:104px;">
+
   <div class="type">
     <div class="rule-row"><span class="kicker">The Garage</span><span class="hair"></span></div>
     <div class="headline">Your build<br><span class="warm">has a story.</span></div>
-    <div class="deck">Every car you have owned, in one permanent place.</div>
+    <div class="deck">Every car you have owned, logged in one place that does not forget.</div>
   </div>
 
   <div class="footer-line">

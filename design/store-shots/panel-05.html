@@ -7,30 +7,35 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The Featured cover is already a finished poster, so this panel gets out of
-     its way: one line of type, and a wedge sized purely to swallow the app
-     chrome sitting on the masthead (back chevron, SHARE, the PUBLISHED toast).
-     Masking those individually would have cut into the masthead itself. */
+  /* The panel that was missing. Two features that only matter at the end of
+     ownership, and together they are the strongest argument for logging
+     anything at all: a full build report, and handing the entire car profile
+     to whoever buys it.
+     Card is sized to end exactly at the canvas bottom (--dev-h) so it stops on
+     the "Generated on-device" line instead of trailing into empty grey. */
   :root {
-    --wedge-h: 348px; --wedge-rise: 74%;
-    --type-top: 418px;
-    --headline-size: 104px;
+    --wedge-h: 470px; --wedge-rise: 44%;
+    --type-top: 330px;
+    --headline-size: 140px;
+    --dev-top: 1420px; --dev-h: 1376px; --dev-crop: 116px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <img class="art" src="raw/07-featured.png" alt="">
-  <div class="plate" style="left:246px; top:1300px; width:98px; height:44px;"></div>
-
+  <div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type">
-    <div class="rule-row"><span class="kicker">Featured</span><span class="hair"></span></div>
-    <div class="headline">Your build, <span class="warm">on a cover.</span></div>
+    <div class="rule-row"><span class="kicker">When you sell</span><span class="hair"></span></div>
+    <div class="headline">Hand over<br><span class="warm">the whole build.</span></div>
+    <div class="deck">Export the full build report, or transfer the entire car profile to its new owner.</div>
   </div>
 
+  <div class="device"><img src="raw/11-pdf.png" alt=""></div>
+
   <div class="numeral">05</div>
+  <div class="wordmark">G-Dimension</div>
 </div>
 </body>
 </html>

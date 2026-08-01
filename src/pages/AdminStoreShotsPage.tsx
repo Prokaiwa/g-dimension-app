@@ -28,12 +28,15 @@ type Panel = { n: string; title: string; line: string }
 // Kept in step with design/store-shots/panel-0*.html. The headline is repeated
 // here rather than read from the image so the list is scannable as text.
 const PANELS: Panel[] = [
-  { n: '01', title: 'Garage',     line: 'Your build has a story.' },
-  { n: '02', title: 'Build Sheet', line: 'Every part. Every cost.' },
-  { n: '03', title: 'Timeline',   line: 'It writes itself.' },
-  { n: '04', title: 'Service',    line: 'A record buyers believe.' },
-  { n: '05', title: 'Featured',   line: 'Your build, on a cover.' },
-  { n: '06', title: 'Share',      line: 'One link. The whole story.' },
+  { n: '01', title: 'Garage',      line: 'Your build has a story.' },
+  { n: '02', title: 'Build Sheet', line: 'Show the whole build.' },
+  // Service sits ahead of the Timeline on purpose: this is a service tracker
+  // first, so the record should land before the storytelling.
+  { n: '03', title: 'Service',     line: 'Every service, logged.' },
+  { n: '04', title: 'Timeline',    line: 'Your build, chronicled.' },
+  { n: '05', title: 'Sell',        line: 'Hand over the whole build.' },
+  { n: '06', title: 'Featured',    line: 'Your build, on a cover.' },
+  { n: '07', title: 'Share',       line: 'One link. The whole story.' },
 ]
 
 const src = (n: string) => `/store-shots/panel-${n}.webp`

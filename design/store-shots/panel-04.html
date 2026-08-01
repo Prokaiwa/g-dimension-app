@@ -7,14 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The strongest panel in the set is a number, not a sentence: 125 services
-     and $34,761 logged on one car. The card is cropped to the lower half of
-     the list so the app's OWN totals row is visible under the headline stat. */
+  /* "It writes itself" was too clever to parse. The deck now states the actual
+     mechanism: mods and services sync onto the timeline on their own.
+     The floating chevron and CHANGE button are removed by CROPPING rather than
+     by black rectangles, which previously read as missing image. Raised so the
+     journal entry is readable, not just the photo. */
   :root {
     --wedge-h: 560px; --wedge-rise: 34%;
-    --type-top: 380px;
-    --headline-size: 150px;
-    --dev-top: 1500px; --dev-crop: 430px;
+    --type-top: 360px;
+    --headline-size: 140px;
+    --dev-top: 880px; --dev-crop: 185px;
   }
 </style>
 </head>
@@ -24,16 +26,14 @@
   <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type">
-    <div class="rule-row"><span class="kicker">Service History</span><span class="hair"></span></div>
-    <div class="headline">A record<br><span class="warm">buyers believe.</span></div>
-    <div class="stat">
-      <div><div class="stat-num">125</div><div class="stat-lab">Services</div></div>
-      <div><div class="stat-num">$34,761</div><div class="stat-lab">Logged</div></div>
-    </div>
+    <div class="rule-row"><span class="kicker">The Timeline</span><span class="hair"></span></div>
+    <div class="headline">Your build,<br><span class="warm">chronicled.</span></div>
+    <div class="deck voice">Every mod and service lands here on its own, in the order it happened.</div>
   </div>
 
   <div class="device">
-    <img src="raw/06b-service.png" alt="">
+    <img src="raw/04-timeline.png" alt="">
+    <div class="plate" style="left:68px; top:437px; width:138px; height:92px;"></div>
   </div>
 
   <div class="numeral">04</div>

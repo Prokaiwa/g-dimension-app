@@ -7,12 +7,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Content-dense screen: the list needs to stay legible, so the screen becomes
-     a card and the type gets its own uncontested space above it. */
+  /* Card raised and cropped harder than the first pass, which stopped at the
+     air filter and half a photo. It now runs from the car summary down past
+     the wheels and coilovers, so the CHASSIS group actually reads as a group. */
   :root {
     --wedge-h: 430px; --wedge-rise: 46%;
-    --type-top: 340px;
-    --dev-top: 1200px; --dev-crop: 116px;   /* crop hides the app header */
+    --type-top: 320px;
+    --headline-size: 140px;
+    /* Card scaled DOWN (not just cropped) so the whole CHASSIS group fits:
+       at 1110px wide only ~2360 source px reach the canvas, which stopped at
+       the brake kit. 980px fits ~2680 and reaches the wheels and coilovers. */
+    --dev-top: 880px; --dev-w: 980px; --dev-left: 155px; --dev-crop: 129px;
   }
 </style>
 </head>
@@ -23,15 +28,13 @@
 
   <div class="type">
     <div class="rule-row"><span class="kicker">The Build Sheet</span><span class="hair"></span></div>
-    <div class="headline">Every part.<br><span class="warm">Every cost.</span></div>
-    <div class="deck">Part numbers, specs, receipts, and photos to prove it.</div>
+    <div class="headline">Show the<br><span class="warm">whole build.</span></div>
+    <div class="deck">Specs, receipts, and the DIY steps behind every part on the car.</div>
   </div>
 
   <div class="device">
     <img src="raw/03-buildsheet.png" alt="">
-    <!-- Plate is legible even in the small car thumbnail. Tighter blur radius
-         to suit the smaller region. -->
-    <div class="plate" style="left:78px; top:288px; width:56px; height:28px;
+    <div class="plate" style="left:70px; top:222px; width:50px; height:26px;
          backdrop-filter:blur(6px) saturate(.45); -webkit-backdrop-filter:blur(6px) saturate(.45);"></div>
   </div>
 

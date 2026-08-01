@@ -45,6 +45,9 @@ const SCREENS = [
   { name: '06b-service',    path: '/maintenance/service',           auth: true },
   { name: '06c-detailing',  path: '/maintenance/detail',            auth: true },
   { name: '07-featured',    path: '/featured',                      auth: true },
+  // The build report (Carfax-style PDF) and the ownership-transfer flow: the
+  // "when you sell" panel.
+  { name: '11-pdf',         path: '/garage/pdf',                    auth: true },
   { name: '08-garage',      path: '/garage',                        auth: true },
   { name: '09-tuning',      path: '/tuning',                        auth: true },
   { name: '10-discover',    path: '/discover',                      auth: false },
