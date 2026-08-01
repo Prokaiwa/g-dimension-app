@@ -76,13 +76,13 @@ html, body { background: #17181a; }
 
 /* ── The travelling wedge ────────────────────────────────────────────────── */
 .wedge {
-  position: absolute; left: 0; right: 0; top: 0; height: var(--wedge-h);
+  position: absolute; left: 0; right: 0; top: 0; height: var(--wedge-h); z-index: 2;
   background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 78%, #3a0709 100%);
   clip-path: polygon(0 0, 100% 0, 100% var(--wedge-rise), 0 100%);
 }
 /* Hairline along the cut so it reads as a struck edge, not a crop. */
 .wedge-edge {
-  position: absolute; left: 0; right: 0; top: 0; height: calc(var(--wedge-h) + 2px);
+  position: absolute; left: 0; right: 0; top: 0; height: calc(var(--wedge-h) + 2px); z-index: 3;
   clip-path: polygon(0 100%, 100% var(--wedge-rise),
                      100% calc(var(--wedge-rise) + 2px), 0 calc(100% + 2px));
   background: rgba(200,102,26,0.55);
@@ -194,28 +194,51 @@ html, body { background: #17181a; }
 /* Brand mark, for the corner of a panel with room for it. */
 .gmark { position: absolute; height: 64px; width: auto; display: block; }
 
-/* ── Type set INSIDE the wedge ─────────────────────────────────────────────
-   The wedge used to be empty burgundy with the type below it, which wasted the
-   biggest block of colour on the panel AND left the type competing with the
-   app screenshot for the same space (on the Timeline the card literally
-   overlapped the deck). Setting the type in the wedge gives it an uncontested
-   field and turns the wedge into a masthead.
+/* ── Type that STRADDLES the wedge ────────────────────────────────────────
+   Two corrections from owner review, both structural.
 
-   Colour changes on burgundy: COLOR_ACCENT (#c8661a) is only a few steps from
-   COLOR_BRAND (#780E12) and goes muddy on it, so the kicker and the emphasis
-   line move to a pale warm sand. White stays white. */
-.wedge-type { position: absolute; left: 96px; right: 96px; top: var(--type-top, 210px); z-index: 3; }
-.wedge-type .kicker { color: #f0c9a0; }
-.wedge-type .hair { background: rgba(245,240,228,0.30); }
-.wedge-type .headline { color: #ffffff; }
-.wedge-type .headline .warm { color: #f2c8a2; }
-.wedge-type .deck { color: rgba(245,240,228,0.80); }
-/* Cormorant on burgundy needs a touch more weight to hold up. */
-.wedge-type .deck.voice { color: rgba(245,240,228,0.90); font-weight: 600; }
+   1. The app screen is full-bleed at NATIVE scale again. Boxing each screen
+      into an inset card to make room for type shrank the product to the point
+      where you had to lean in to read it, which is the opposite of what a
+      store panel is for. The wedge now sits OVER the screen instead of
+      displacing it, and each panel uses --shift to slide the screen so its
+      most valuable content lands BELOW the type block rather than under it.
 
-/* Brand mark in the bottom-right corner, replacing the spelled-out wordmark on
-   every panel. */
+   2. The colours are back on the palette. An earlier pass invented a peach
+      (#f2c8a2) for the emphasis line, which appears nowhere in G-Dimension.
+      Warm text is COLOR_HEADER_WARM #f0e4c8 or COLOR_ACCENT_TEXT #fff5dc, and
+      COLOR_ACCENT #c8661a stays the one warm accent. The emphasis line works
+      because it sits on the DARK screen, below the cut, where amber has real
+      contrast — on burgundy it went muddy, which is what caused the invented
+      colour in the first place.
+
+   The headline is positioned so its FIRST line crosses the wedge's diagonal:
+   the left of the word sits on burgundy, the right on the dark screen. Anton
+   is heavy enough at this size to stay legible across both, and the sweep is
+   what makes the panel look designed rather than templated. */
+.type-over { position: absolute; left: 96px; right: 96px; top: var(--type-top, 300px); z-index: 4; }
+.type-over .kicker { color: #f0e4c8; }
+.type-over .hair { background: rgba(240,228,200,0.28); }
+.type-over .headline { color: #f5f5f5; text-shadow: 0 2px 22px rgba(0,0,0,0.55); }
+.type-over .headline .warm { color: #c8661a; }
+.type-over .deck { color: rgba(245,245,245,0.66); text-shadow: 0 2px 16px rgba(0,0,0,0.7); }
+.type-over .deck.voice { color: rgba(245,245,245,0.80); }
+
+/* Scrim for the region BELOW the wedge, so the emphasis line and deck hold up
+   over whatever part of the screen they land on. Sits under the type, over
+   the art. */
+.type-scrim {
+  position: absolute; left: 0; right: 0;
+  top: var(--scrim-top, 260px); height: var(--scrim-h, 1000px);
+  /* UNDER the wedge on purpose. Painted above it, the scrim greys the burgundy
+     and the diagonal stops reading as a cut at all. */
+  z-index: 1;
+  background: linear-gradient(180deg,
+    rgba(5,5,7,0.92) 0%, rgba(5,5,7,0.86) 46%, rgba(5,5,7,0.55) 76%, transparent 100%);
+}
+
+/* Brand mark, bottom-right on every panel, replacing the spelled-out wordmark. */
 .gmark-corner {
-  position: absolute; right: 96px; bottom: 84px;
-  height: 78px; width: auto; display: block;
+  position: absolute; right: 90px; bottom: 78px; z-index: 5;
+  height: 116px; width: auto; display: block;
 }

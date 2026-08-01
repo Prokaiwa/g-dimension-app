@@ -7,30 +7,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Ahead of the Timeline: a service tracker should show the record before the
-     storytelling. --dev-h ends the card just past the running total, so the
-     services count and the money are the last thing you read rather than the
-     Add Service button. */
+  /* Shift puts the dated rows AND the services / total footer below the type,
+     so the money is visible without captioning it. */
   :root {
-    --wedge-h: 1120px; --wedge-rise: 70%;
-    --type-top: 210px; --headline-size: 150px;
-    --dev-top: 1260px; --dev-w: 900px; --dev-left: 195px;
-    --dev-crop: 112px; --dev-h: 1440px;
+    --shift: -250px;
+    /* Shallower than its neighbours on purpose: the Maintenance screen has a
+       strong orange diagonal of its own, and a deep burgundy cut on top of it
+       made two diagonals fight for the same corner. */
+    --wedge-h: 520px; --wedge-rise: 46%;
+    --type-top: 320px; --headline-size: 150px;
+    --scrim-top: 260px; --scrim-h: 1120px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
+  <img class="art" src="raw/06b-service.png" alt="">
+  <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="wedge-type">
+  <div class="type-over">
     <div class="rule-row"><span class="kicker">Service History</span><span class="hair"></span></div>
     <div class="headline">Every service,<br><span class="warm">logged.</span></div>
     <div class="deck">Date, mileage, cost, and the shop. On every oil change and every repair.</div>
   </div>
 
-  <div class="device"><img src="raw/06b-service.png" alt=""></div>
-  <div class="numeral">03</div>
+  <div class="numeral" style="z-index:5">03</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>

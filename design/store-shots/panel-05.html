@@ -7,41 +7,68 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Two stacked cards: the build report, and directly under it the Transfer Car
-     action from the car edit screen — the two things that matter at the end of
-     ownership, shown in the order you would actually use them.
-     Card heights are set explicitly so the report stops on its own "Generated
-     on-device" line instead of trailing into empty grey. */
+  /* Shows the ACTUAL build report page, rendered from the real generated PDF by
+     scripts/render-build-report-page.mjs, rather than the screen you press to
+     make one. The document is the product here, so the document is the art. */
   :root {
-    --wedge-h: 1000px; --wedge-rise: 74%;
-    --type-top: 210px; --headline-size: 140px;
-    --dev-w: 900px; --dev-left: 195px;
+    --wedge-h: 620px; --wedge-rise: 36%;
+    --type-top: 340px; --headline-size: 140px;
+    --scrim-top: 250px; --scrim-h: 1060px;
   }
-  /* Second card: a window onto the bottom action row of the car edit form. */
+  /* The report page, laid on the dark field like a sheet of paper. */
+  .doc {
+    position: absolute; left: 95px; top: 950px; width: 1100px;
+    z-index: 3;
+    box-shadow: 0 -26px 70px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.07);
+  }
+  .doc img { display: block; width: 1100px; height: auto; }
+
+  /* Two privacy blurs on the document. The VIN one is not optional:
+     CLAUDE.md classifies VIN as always-private, and the report prints it in
+     full. The plate is the same treatment used on every other panel. */
+  .doc .vin {
+    position: absolute; left: 336px; top: 752px; width: 194px; height: 38px;
+    backdrop-filter: blur(9px) saturate(0.4) contrast(0.9);
+    -webkit-backdrop-filter: blur(9px) saturate(0.4) contrast(0.9);
+    -webkit-mask-image: radial-gradient(ellipse 66% 66% at center, #000 58%, transparent 100%);
+    mask-image: radial-gradient(ellipse 66% 66% at center, #000 58%, transparent 100%);
+  }
+  .doc .docplate {
+    position: absolute; left: 138px; top: 343px; width: 44px; height: 24px;
+    backdrop-filter: blur(5px) saturate(0.4);
+    -webkit-backdrop-filter: blur(5px) saturate(0.4);
+  }
+
+  /* The Transfer Car action, at native scale, directly under the report: the
+     two things that matter at the end of ownership, in the order you use them. */
   .transfer {
-    position: absolute; left: 195px; top: 2318px; width: 900px; height: 168px;
-    overflow: hidden; background: var(--cavity);
-    box-shadow: 0 -18px 44px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.05);
+    position: absolute; left: 0; right: 0; top: 2430px; height: 172px;
+    overflow: hidden; z-index: 3;
+    border-top: 1px solid rgba(255,255,255,0.10);
   }
-  .transfer img { position: absolute; left: 0; top: -1795px; width: 900px; height: auto; }
+  .transfer img { position: absolute; left: 0; top: -2606px; width: 1290px; height: auto; }
 </style>
 </head>
 <body>
 <div class="canvas">
+  <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="wedge-type">
+  <div class="doc">
+    <img src="raw/build-report-p1.png" alt="">
+    <div class="vin"></div>
+    <div class="docplate"></div>
+  </div>
+
+  <div class="transfer"><img src="raw/12-car-edit.png" alt=""></div>
+
+  <div class="type-over">
     <div class="rule-row"><span class="kicker">When you sell</span><span class="hair"></span></div>
     <div class="headline">Hand over<br><span class="warm">the whole build.</span></div>
     <div class="deck">Export the full build report, then transfer the car profile to its new owner.</div>
   </div>
 
-  <div class="device" style="--dev-top:1120px; --dev-h:1094px; --dev-crop:92px;">
-    <img src="raw/11-pdf.png" alt="">
-  </div>
-
-  <div class="transfer"><img src="raw/12-car-edit.png" alt=""></div>
-  <div class="numeral">05</div>
+  <div class="numeral" style="z-index:5">05</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>

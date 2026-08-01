@@ -7,30 +7,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Closes on the Home map. The public-profile map was too narrow to fit the
-     canvas without scaling it into a sliver, and the Home screen is the same
-     drawing at full bleed with every section on it. The wedge also takes the
-     header, which carried a real face and a real handle. */
+  /* Map shifted down so the HOME node clears the type block; all five
+     destinations stay on the panel at native scale. */
   :root {
-    /* The map is pushed down so the HOME node clears the wedge's diagonal,
-       which otherwise sliced the roof off the house and read as a mistake. */
-    --shift: 250px;
-    --wedge-h: 1000px; --wedge-rise: 70%;
-    --type-top: 210px; --headline-size: 150px;
+    --shift: 300px;
+    --wedge-h: 600px; --wedge-rise: 38%;
+    --type-top: 330px; --headline-size: 150px;
+    --scrim-top: 240px; --scrim-h: 1050px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
   <img class="art" src="raw/01-home.png" alt="">
+  <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="wedge-type">
+  <div class="type-over">
     <div class="rule-row"><span class="kicker">One place</span><span class="hair"></span></div>
     <div class="headline">All of it,<br><span class="warm">in one link.</span></div>
     <div class="deck">Garage, tuning, service, timeline and your cover. Share the whole thing.</div>
   </div>
-  <div class="numeral">07</div>
+
+  <div class="numeral" style="z-index:5">07</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>

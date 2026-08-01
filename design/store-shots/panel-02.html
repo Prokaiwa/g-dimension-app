@@ -7,29 +7,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Uses the PUBLIC build sheet. The authed one carries a "+ MODS" action
-     button, which is an editing affordance with no place in a store shot.
-     Card scaled to 900px so the whole CHASSIS group reaches the canvas: at
-     1110 the list stopped at the brake kit, short of the wheels. */
+  /* --shift slides the summary card up behind the type so the CHASSIS group,
+     the wheels and the coilovers all land below it at full size. */
   :root {
-    --wedge-h: 1120px; --wedge-rise: 72%;
-    --type-top: 210px; --headline-size: 150px;
-    --dev-top: 1150px; --dev-w: 860px; --dev-left: 215px; --dev-crop: 100px;
+    --shift: -250px;
+    --wedge-h: 630px; --wedge-rise: 36%;
+    --type-top: 340px; --headline-size: 150px;
+    --scrim-top: 250px; --scrim-h: 1120px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
+  <img class="art" src="raw/pub-buildsheet.png" alt="">
+  <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="wedge-type">
+  <div class="type-over">
     <div class="rule-row"><span class="kicker">The Build Sheet</span><span class="hair"></span></div>
     <div class="headline">Show the<br><span class="warm">whole build.</span></div>
     <div class="deck">Specs, receipts, and the DIY steps behind every part on the car.</div>
   </div>
 
-  <div class="device"><img src="raw/pub-buildsheet.png" alt=""></div>
-  <div class="numeral">02</div>
+  <div class="numeral" style="z-index:5">02</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
