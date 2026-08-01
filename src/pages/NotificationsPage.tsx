@@ -95,7 +95,17 @@ export default function NotificationsPage() {
               marginBottom: SPACE_SM,
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: SPACE_XS }}>
-                <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 14, color: CREAM, margin: 0, flex: 1 }}>
+                {/* The unread mark. The row's background wash alone was too
+                    quiet to answer "which of these is new?" at a glance, and
+                    this screen marks everything read on open — so this render
+                    is the ONLY one that ever shows it. */}
+                {!n.read_at && (
+                  <span aria-label="Unread" style={{
+                    width: 7, height: 7, borderRadius: '50%', background: COLOR_ACCENT,
+                    flexShrink: 0, alignSelf: 'center', marginRight: 1,
+                  }} />
+                )}
+                <p style={{ fontFamily: FONT_UI, fontWeight: n.read_at ? 700 : 800, fontSize: 14, color: CREAM, margin: 0, flex: 1 }}>
                   {n.title}
                 </p>
                 <span style={{ fontFamily: FONT_UI, fontSize: 10.5, color: FAINT, flexShrink: 0 }}>

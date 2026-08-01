@@ -64,7 +64,10 @@
 --     owner confirmed the queue renders "Photo · @handle" / "Timeline entry ·
 --     @handle" with links landing on the mod page and the entry.
 --
--- No migrations pending.
+-- PENDING: 096_follow_notice_copy.sql — copy-only. The follow notice title
+--   becomes "@handle followed you" with no body, instead of a neutral title
+--   with the name buried in the dimmer body line. Existing notices keep their
+--   stored wording by design (ADR-025). Trigger otherwise identical to 094.
 --
 --   - 089 (copy-only): rewrites the string literals in the four notice-writing
 --     functions. Drops "restored to exactly the visibility you had set" — the

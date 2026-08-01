@@ -143,6 +143,31 @@ function NavRow({ label, sub, onClick, trailing }: { label: string; sub?: string
 
 // Pulsing dot used by any row with something waiting. Same amber and rhythm as
 // the avatar ring in the Home header, so the two read as one system.
+// Followers / following, rendered as a number the eye lands on with a quiet
+// label beside it. Null while loading rather than 0, because flashing "0
+// followers" at someone who has twelve is worse than a beat of nothing.
+function CountPill({ n, one, many, onClick }: {
+  n: number | null; one: string; many: string; onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex', alignItems: 'baseline', gap: 5, minHeight: 32,
+        background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 15, color: '#f5f5f5' }}>
+        {n === null ? '—' : n}
+      </span>
+      <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: MUTED }}>
+        {n === 1 ? one : many}
+      </span>
+    </button>
+  )
+}
+
 function AlertDot() {
   return (
     <>
@@ -384,7 +409,40 @@ export default function ProfilePage() {
         )}
 
         {!loading && profile && (
-          <div style={{ padding: `${SPACE_XL}px ${SPACE_MD}px calc(${SPACE_XL}px + env(safe-area-inset-bottom))`, animation: `profileIn 360ms ${EASING_SETTLE} both` }}>
+          <div style={{ padding: `${SPACE_XL}px ${SPACE_MD}px calc(${SPACE_XL}px + env(safe-area-inset-bottom))`, animation: `profileIn 360ms ${EASING_SETTLE} both`, position: 'relative' }}>
+
+            {/* Notifications — a bell in the corner rather than a row in a list
+                you have to scroll to. An inbox is somewhere you GO when
+                something is waiting, and the dot is what tells you. As a nav row
+                it sat below the fold, which is the one place a notification
+                indicator is useless. */}
+            <button
+              onClick={() => navigate('/notifications')}
+              aria-label={attention.notices > 0 ? `Notifications, ${attention.notices} unread` : 'Notifications'}
+              style={{
+                position: 'absolute', top: SPACE_SM, right: SPACE_MD, zIndex: 3,
+                width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ position: 'relative', display: 'inline-flex' }}>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+                     stroke={attention.notices > 0 ? COLOR_ACCENT : MUTED}
+                     strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {attention.notices > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -1, right: -2,
+                    width: 9, height: 9, borderRadius: '50%',
+                    background: COLOR_ACCENT,
+                    boxShadow: '0 0 0 2px #0d0d0f',
+                  }} />
+                )}
+              </span>
+            </button>
 
             {/* Hero — avatar + identity */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
@@ -430,6 +488,18 @@ export default function ProfilePage() {
               <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: COLOR_ACCENT, letterSpacing: '0.02em', margin: `${SPACE_XS}px 0 0` }}>
                 @{profile.username}
               </p>
+
+              {/* Followers / following, as a glanceable pair rather than two
+                  nav rows buried below the fold. These are the community
+                  numbers — the thing you check, not a place you navigate to on
+                  purpose — and as rows they were both low-value and invisible.
+                  Mirrors the public profile permit, which already reads this
+                  way, so the same two facts look the same in both places. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: SPACE_MD, marginTop: SPACE_SM }}>
+                <CountPill n={followerCount} one="follower" many="followers" onClick={() => navigate('/followers')} />
+                <span aria-hidden style={{ width: 1, height: 13, background: 'rgba(240,228,200,0.14)' }} />
+                <CountPill n={followingCount} one="following" many="following" onClick={() => navigate('/following')} />
+              </div>
 
               {(location || isPro) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: SPACE_SM, marginTop: SPACE_SM, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -549,14 +619,6 @@ export default function ProfilePage() {
                   </button>
                 }
               />
-              <NavRow
-                label="Notifications"
-                sub={attention.notices > 0
-                  ? `${attention.notices} unread`
-                  : 'Updates about your account and builds'}
-                onClick={() => navigate('/notifications')}
-                trailing={attention.notices > 0 ? <AlertDot /> : undefined}
-              />
               {isAdminUser && (
                 <NavRow
                   label="Admin"
@@ -568,8 +630,6 @@ export default function ProfilePage() {
                 />
               )}
               <NavRow label="Discover" sub="Find builds and people by car or handle" onClick={() => navigate('/discover')} />
-              <NavRow label="Followers" sub={followerCount === null ? 'People following your builds' : `${followerCount} ${followerCount === 1 ? 'person is' : 'people are'} following your builds`} onClick={() => navigate('/followers')} />
-              <NavRow label="Following" sub={followingCount === null ? 'Builds you keep an eye on' : `${followingCount} ${followingCount === 1 ? 'build' : 'builds'} you keep an eye on`} onClick={() => navigate('/following')} />
               <NavRow label="Settings" sub="Units, preferences, archived cars" onClick={() => navigate('/settings')} />
             </div>
 
