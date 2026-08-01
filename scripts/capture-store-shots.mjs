@@ -46,9 +46,11 @@ const SCREENS = [
   { name: '10-discover',    path: '/discover',                      auth: false },
 ]
 
-// Public fallbacks, usable with no credentials at all.
-const PUBLIC_SCREENS = (u) => [
-  { name: `pub-garage`,     path: `/builds/${u}/garage` },
+// Public fallbacks, usable with no credentials at all. GDIM_CAR deep-links the
+// garage carousel to a specific car so the hero build is deterministic rather
+// than whichever car happens to sort first.
+const PUBLIC_SCREENS = (u, car) => [
+  { name: `pub-garage`,     path: `/builds/${u}/garage${car ? `?car=${car}` : ''}` },
   { name: `pub-buildsheet`, path: `/builds/${u}/buildsheet` },
   { name: `pub-timeline`,   path: `/builds/${u}/timeline` },
   { name: `pub-featured`,   path: `/builds/${u}/featured` },
@@ -147,7 +149,7 @@ locale: 'en-US',
 
   const list = signedIn
     ? SCREENS
-    : PUBLIC_SCREENS(publicUser || 'dscan007')
+    : PUBLIC_SCREENS(publicUser || 'dscan007', process.env.GDIM_CAR)
 
   for (const screen of list) {
     if (screen.auth && !signedIn) continue
