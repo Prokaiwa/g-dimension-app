@@ -552,9 +552,23 @@ export default function ProfilePage() {
                 </p>
                 <p style={{ fontFamily: FONT_UI, fontSize: 12.5, color: 'rgba(240,228,200,0.72)', margin: `${SPACE_XS}px 0 0`, lineHeight: 1.55 }}>
                   Your profile and builds are hidden from the public. Nothing has been
-                  deleted, and everything here is still yours. See Notifications for
-                  the details, or reply to the address in our Terms to appeal.
+                  deleted, and everything here is still yours. Reply to the address in
+                  our Terms to appeal.
                 </p>
+                {/* This used to say "See Notifications for the details" as plain
+                    prose. When notifications moved from a nav row to the bell,
+                    that sentence started naming a screen with no route to it —
+                    on the one banner where a suspended person most needs to be
+                    able to follow the instruction. Now it opens the sheet. */}
+                <button
+                  onClick={() => setNoticesOpen(true)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, marginTop: SPACE_XS,
+                    cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 700, fontSize: 12,
+                    color: COLOR_ACCENT, WebkitTapHighlightColor: 'transparent',
+                  }}>
+                  Read the details
+                </button>
               </div>
             )}
 
