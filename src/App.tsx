@@ -111,6 +111,7 @@ const AdminSuspendedPage   = lazyWithRetry(() => import('./pages/AdminSuspendedP
 const AdminReviewPage      = lazyWithRetry(() => import('./pages/AdminReviewPage'))
 const AdminStoreShotsPage  = lazyWithRetry(() => import('./pages/AdminStoreShotsPage'))
 const DiscoverPage         = lazyWithRetry(() => import('./pages/DiscoverPage'))
+const NotFoundPage         = lazyWithRetry(() => import('./pages/NotFoundPage'))
 
 // Legal (public)
 const TermsPage = lazyWithRetry(() => import('./pages/TermsPage'))
@@ -463,6 +464,10 @@ export default function App() {
       <Route path="/sound-test" element={<ProtectedRoute><AdminOnly><SoundTestPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/dev/trading-cards" element={<ProtectedRoute><AdminOnly><DevTradingCardsPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/license-preview" element={<ProtectedRoute><AdminOnly><LicensePreviewPage /></AdminOnly></ProtectedRoute>} />
+      {/* Catch-all. Must stay LAST: React Router picks the best match, but an
+          unknown path previously matched nothing and rendered an empty document
+          with no way back. Public on purpose. */}
+      <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
     </TourProvider>

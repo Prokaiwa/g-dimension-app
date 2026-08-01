@@ -107,7 +107,7 @@ These are enforced decisions. Do not deviate without explicit instruction.
 
 **Navigation:**
 - No persistent tab bars anywhere
-- Every sub-screen has `‹` back chevron top-left — **exception**: Timeline and Photos both have NO header (floating amber-gold `‹` only)
+- Every sub-screen has `‹` back chevron top-left — **exception**: Timeline has NO header (floating amber-gold `‹` only)
 - Car name in every header: informational only, **never tappable**
 - Avatar → `/profile`. Settings inside Profile.
 - Back navigation is always linear
@@ -325,7 +325,7 @@ scripts/test-specs.mjs              — Node.js CLI version of spec insert test
 
 ## What's Built / What's Next
 
-All primary routes are implemented (Auth, Home, Garage, Tuning, Maintenance, Timeline, Photos, Profile/Settings, Public Profile).
+All primary routes are implemented (Auth, Home, Garage, Tuning, Maintenance, Timeline, Profile/Settings, Discover, Public Profile). **There is no `/photos` route** — this doc claimed one for months and none was ever built; the masonry gallery idea lives on only in MASTER_ARCHITECTURE. Unknown paths now hit `NotFoundPage` (`path="*"`, public) instead of rendering an empty document.
 
 **Full feature-by-feature build state, per-section design decisions, and the "what's next" backlog live in `BUILD_NOTES.md`.** Read the relevant section there before working on a specific area (grouped mod installs, Parts Bin, photo carousel, job links, spec system, Maintenance section, etc.). Don't load it for general work — only when touching that feature.
 
