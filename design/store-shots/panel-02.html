@@ -7,39 +7,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Card raised and cropped harder than the first pass, which stopped at the
-     air filter and half a photo. It now runs from the car summary down past
-     the wheels and coilovers, so the CHASSIS group actually reads as a group. */
+  /* Uses the PUBLIC build sheet. The authed one carries a "+ MODS" action
+     button, which is an editing affordance with no place in a store shot.
+     Card scaled to 900px so the whole CHASSIS group reaches the canvas: at
+     1110 the list stopped at the brake kit, short of the wheels. */
   :root {
-    --wedge-h: 430px; --wedge-rise: 46%;
-    --type-top: 320px;
-    --headline-size: 140px;
-    /* Card scaled DOWN (not just cropped) so the whole CHASSIS group fits:
-       at 1110px wide only ~2360 source px reach the canvas, which stopped at
-       the brake kit. 980px fits ~2680 and reaches the wheels and coilovers. */
-    --dev-top: 880px; --dev-w: 980px; --dev-left: 155px; --dev-crop: 129px;
+    --wedge-h: 1120px; --wedge-rise: 72%;
+    --type-top: 210px; --headline-size: 150px;
+    --dev-top: 1150px; --dev-w: 860px; --dev-left: 215px; --dev-crop: 100px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type">
+  <div class="wedge-type">
     <div class="rule-row"><span class="kicker">The Build Sheet</span><span class="hair"></span></div>
     <div class="headline">Show the<br><span class="warm">whole build.</span></div>
     <div class="deck">Specs, receipts, and the DIY steps behind every part on the car.</div>
   </div>
 
-  <div class="device">
-    <img src="raw/03-buildsheet.png" alt="">
-    <div class="plate" style="left:70px; top:222px; width:50px; height:26px;
-         backdrop-filter:blur(6px) saturate(.45); -webkit-backdrop-filter:blur(6px) saturate(.45);"></div>
-  </div>
-
+  <div class="device"><img src="raw/pub-buildsheet.png" alt=""></div>
   <div class="numeral">02</div>
-  <div class="wordmark">G-Dimension</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>

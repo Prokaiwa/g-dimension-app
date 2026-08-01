@@ -7,14 +7,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The cover is finished work, so this panel stays out of its way.
-     The dead band between the photo and the cover's own headline is now doing
-     a job: it carries the line that says what the feature actually IS, which
-     the cover alone never explains. */
+  /* The deliberate exception in the run. The Featured cover is finished work
+     that fills the canvas, so a full-height wedge would bury it; this panel
+     keeps the small wedge and sets its one line in the cover's own dead band
+     between photo and headline. */
   :root {
     --wedge-h: 348px; --wedge-rise: 74%;
-    --type-top: 418px;
-    --headline-size: 104px;
+    --type-top: 418px; --headline-size: 104px;
     --deck-top: 1735px;
   }
 </style>
@@ -32,8 +31,8 @@
   </div>
 
   <div class="deck-float">The app writes you a magazine cover from your own photos and specs.</div>
-
   <div class="numeral">06</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>

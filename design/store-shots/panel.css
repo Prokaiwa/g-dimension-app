@@ -193,3 +193,29 @@ html, body { background: #17181a; }
 
 /* Brand mark, for the corner of a panel with room for it. */
 .gmark { position: absolute; height: 64px; width: auto; display: block; }
+
+/* ── Type set INSIDE the wedge ─────────────────────────────────────────────
+   The wedge used to be empty burgundy with the type below it, which wasted the
+   biggest block of colour on the panel AND left the type competing with the
+   app screenshot for the same space (on the Timeline the card literally
+   overlapped the deck). Setting the type in the wedge gives it an uncontested
+   field and turns the wedge into a masthead.
+
+   Colour changes on burgundy: COLOR_ACCENT (#c8661a) is only a few steps from
+   COLOR_BRAND (#780E12) and goes muddy on it, so the kicker and the emphasis
+   line move to a pale warm sand. White stays white. */
+.wedge-type { position: absolute; left: 96px; right: 96px; top: var(--type-top, 210px); z-index: 3; }
+.wedge-type .kicker { color: #f0c9a0; }
+.wedge-type .hair { background: rgba(245,240,228,0.30); }
+.wedge-type .headline { color: #ffffff; }
+.wedge-type .headline .warm { color: #f2c8a2; }
+.wedge-type .deck { color: rgba(245,240,228,0.80); }
+/* Cormorant on burgundy needs a touch more weight to hold up. */
+.wedge-type .deck.voice { color: rgba(245,240,228,0.90); font-weight: 600; }
+
+/* Brand mark in the bottom-right corner, replacing the spelled-out wordmark on
+   every panel. */
+.gmark-corner {
+  position: absolute; right: 96px; bottom: 84px;
+  height: 78px; width: auto; display: block;
+}

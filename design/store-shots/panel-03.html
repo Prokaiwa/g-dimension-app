@@ -7,33 +7,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Moved ahead of the Timeline: this is a service tracker first, so the
-     service record should land before the storytelling.
-     The big stat block is gone. The app's OWN list already shows dates,
-     mileage, cost and the running total, and showing it beats captioning it. */
+  /* Ahead of the Timeline: a service tracker should show the record before the
+     storytelling. --dev-h ends the card just past the running total, so the
+     services count and the money are the last thing you read rather than the
+     Add Service button. */
   :root {
-    --wedge-h: 500px; --wedge-rise: 40%;
-    --type-top: 340px;
-    --headline-size: 140px;
-    --dev-top: 880px; --dev-crop: 155px;
+    --wedge-h: 1120px; --wedge-rise: 70%;
+    --type-top: 210px; --headline-size: 150px;
+    --dev-top: 1260px; --dev-w: 900px; --dev-left: 195px;
+    --dev-crop: 112px; --dev-h: 1440px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type">
+  <div class="wedge-type">
     <div class="rule-row"><span class="kicker">Service History</span><span class="hair"></span></div>
     <div class="headline">Every service,<br><span class="warm">logged.</span></div>
     <div class="deck">Date, mileage, cost, and the shop. On every oil change and every repair.</div>
   </div>
 
   <div class="device"><img src="raw/06b-service.png" alt=""></div>
-
   <div class="numeral">03</div>
-  <div class="wordmark">G-Dimension</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>

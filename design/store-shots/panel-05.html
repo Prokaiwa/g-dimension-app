@@ -7,35 +7,42 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The panel that was missing. Two features that only matter at the end of
-     ownership, and together they are the strongest argument for logging
-     anything at all: a full build report, and handing the entire car profile
-     to whoever buys it.
-     Card is sized to end exactly at the canvas bottom (--dev-h) so it stops on
-     the "Generated on-device" line instead of trailing into empty grey. */
+  /* Two stacked cards: the build report, and directly under it the Transfer Car
+     action from the car edit screen — the two things that matter at the end of
+     ownership, shown in the order you would actually use them.
+     Card heights are set explicitly so the report stops on its own "Generated
+     on-device" line instead of trailing into empty grey. */
   :root {
-    --wedge-h: 470px; --wedge-rise: 44%;
-    --type-top: 330px;
-    --headline-size: 140px;
-    --dev-top: 1420px; --dev-h: 1376px; --dev-crop: 116px;
+    --wedge-h: 1000px; --wedge-rise: 74%;
+    --type-top: 210px; --headline-size: 140px;
+    --dev-w: 900px; --dev-left: 195px;
   }
+  /* Second card: a window onto the bottom action row of the car edit form. */
+  .transfer {
+    position: absolute; left: 195px; top: 2318px; width: 900px; height: 168px;
+    overflow: hidden; background: var(--cavity);
+    box-shadow: 0 -18px 44px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.05);
+  }
+  .transfer img { position: absolute; left: 0; top: -1795px; width: 900px; height: auto; }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type">
+  <div class="wedge-type">
     <div class="rule-row"><span class="kicker">When you sell</span><span class="hair"></span></div>
     <div class="headline">Hand over<br><span class="warm">the whole build.</span></div>
-    <div class="deck">Export the full build report, or transfer the entire car profile to its new owner.</div>
+    <div class="deck">Export the full build report, then transfer the car profile to its new owner.</div>
   </div>
 
-  <div class="device"><img src="raw/11-pdf.png" alt=""></div>
+  <div class="device" style="--dev-top:1120px; --dev-h:1094px; --dev-crop:92px;">
+    <img src="raw/11-pdf.png" alt="">
+  </div>
 
+  <div class="transfer"><img src="raw/12-car-edit.png" alt=""></div>
   <div class="numeral">05</div>
-  <div class="wordmark">G-Dimension</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>

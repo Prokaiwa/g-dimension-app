@@ -7,35 +7,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Closes the set by mirroring panel 01's shallow wedge.
-     Card scaled down (--dev-w) so the WHOLE map fits: all four nodes and the
-     road between them. Cropping it to fit lost Featured and half the route,
-     which is the one thing this panel exists to show. Header kept — "Visiting
-     @scantee" is the proof that this is someone else's build being viewed. */
+  /* Closes on the Home map. The public-profile map was too narrow to fit the
+     canvas without scaling it into a sliver, and the Home screen is the same
+     drawing at full bleed with every section on it. The wedge also takes the
+     header, which carried a real face and a real handle. */
   :root {
-    --wedge-h: 300px; --wedge-rise: 66%;
-    --type-top: 400px;
-    --headline-size: 140px;
-    --dev-left: 195px; --dev-top: 812px;
-    --dev-w: 900px; --dev-h: 1951px; --dev-crop: 0px;
+    /* The map is pushed down so the HOME node clears the wedge's diagonal,
+       which otherwise sliced the roof off the house and read as a mistake. */
+    --shift: 250px;
+    --wedge-h: 1000px; --wedge-rise: 70%;
+    --type-top: 210px; --headline-size: 150px;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
+  <img class="art" src="raw/01-home.png" alt="">
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type">
-    <div class="rule-row"><span class="kicker">Share</span><span class="hair"></span></div>
-    <div class="headline">One link.<br><span class="warm">The whole story.</span></div>
-    <div class="deck">Garage, build sheet, timeline and cover. Anywhere you can paste a link.</div>
+  <div class="wedge-type">
+    <div class="rule-row"><span class="kicker">One place</span><span class="hair"></span></div>
+    <div class="headline">All of it,<br><span class="warm">in one link.</span></div>
+    <div class="deck">Garage, tuning, service, timeline and your cover. Share the whole thing.</div>
   </div>
-
-  <div class="device"><img src="raw/pub-profile.png" alt=""></div>
-
   <div class="numeral">07</div>
-  <div class="wordmark">G-Dimension</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>

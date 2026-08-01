@@ -51,7 +51,7 @@ const PANELS: Panel[] = [
   { n: '04', title: 'Timeline',    line: 'Your build, chronicled.' },
   { n: '05', title: 'Sell',        line: 'Hand over the whole build.' },
   { n: '06', title: 'Featured',    line: 'Your build, on a cover.' },
-  { n: '07', title: 'Share',       line: 'One link. The whole story.' },
+  { n: '07', title: 'One place',   line: 'All of it, in one link.' },
 ]
 
 const SOURCES: Record<string, string> = {

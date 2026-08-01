@@ -48,6 +48,9 @@ const SCREENS = [
   // The build report (Carfax-style PDF) and the ownership-transfer flow: the
   // "when you sell" panel.
   { name: '11-pdf',         path: '/garage/pdf',                    auth: true },
+  // The Transfer-ownership row lives on the car edit form; it pairs with the
+  // build report on the "when you sell" panel.
+  { name: '12-car-edit',    path: `/garage/cars/${process.env.GDIM_CAR}/edit`, auth: true },
   { name: '08-garage',      path: '/garage',                        auth: true },
   { name: '09-tuning',      path: '/tuning',                        auth: true },
   { name: '10-discover',    path: '/discover',                      auth: false },
@@ -58,7 +61,9 @@ const SCREENS = [
 // than whichever car happens to sort first.
 const PUBLIC_SCREENS = (u, car) => [
   { name: `pub-garage`,     path: `/builds/${u}/garage${car ? `?car=${car}` : ''}` },
-  { name: `pub-buildsheet`, path: `/builds/${u}/buildsheet` },
+  // The PUBLIC build sheet, which is what a store panel should show: the authed
+  // one carries an "+ MODS" action button that has no business in a screenshot.
+  { name: `pub-buildsheet`, path: `/builds/${u}/buildsheet${car ? `?car=${car}` : ''}` },
   { name: `pub-timeline`,   path: `/builds/${u}/timeline` },
   { name: `pub-featured`,   path: `/builds/${u}/featured` },
   { name: `pub-profile`,    path: `/builds/${u}` },

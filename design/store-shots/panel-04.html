@@ -7,25 +7,23 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* "It writes itself" was too clever to parse. The deck now states the actual
-     mechanism: mods and services sync onto the timeline on their own.
-     The floating chevron and CHANGE button are removed by CROPPING rather than
-     by black rectangles, which previously read as missing image. Raised so the
-     journal entry is readable, not just the photo. */
+  /* "It writes itself" was too clever to parse; the deck states the mechanism.
+     line-height is raised on this headline only: at 0.90 the comma in
+     "Your build," collided with the D of "chronicled" on the line below. */
   :root {
-    --wedge-h: 560px; --wedge-rise: 34%;
-    --type-top: 360px;
-    --headline-size: 140px;
-    --dev-top: 880px; --dev-crop: 185px;
+    --wedge-h: 1120px; --wedge-rise: 68%;
+    --type-top: 210px; --headline-size: 150px;
+    --dev-top: 1260px; --dev-w: 900px; --dev-left: 195px;
+    --dev-crop: 129px; --dev-h: 1440px;
   }
+  .wedge-type .headline { line-height: 1.02; }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <div class="bloom"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type">
+  <div class="wedge-type">
     <div class="rule-row"><span class="kicker">The Timeline</span><span class="hair"></span></div>
     <div class="headline">Your build,<br><span class="warm">chronicled.</span></div>
     <div class="deck voice">Every mod and service lands here on its own, in the order it happened.</div>
@@ -33,11 +31,10 @@
 
   <div class="device">
     <img src="raw/04-timeline.png" alt="">
-    <div class="plate" style="left:68px; top:437px; width:138px; height:92px;"></div>
+    <div class="plate" style="left:55px; top:374px; width:112px; height:78px;"></div>
   </div>
-
   <div class="numeral">04</div>
-  <div class="wordmark">G-Dimension</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
 </body>
 </html>
