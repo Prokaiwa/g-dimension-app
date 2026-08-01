@@ -6,109 +6,172 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <style>
-  /* ── App Store 6.9" canvas. Exact export pixels, no scaling at capture. ──
+  /* ── App Store 6.9" canvas (1290 × 2796). Exact export pixels. ──
      Tokens mirrored from src/tokens/index.ts:
        COLOR_ACCENT #c8661a · COLOR_BRAND #780E12 · COLOR_CAVITY_BG #050507
        COLOR_TEXT_PRIMARY #f5f5f5 (never pure white in body)
      Type: FONT_MASTHEAD Anton + FONT_DECK Oswald, borrowed from the Featured
-     magazine island because store screenshots are the same register. */
+     magazine island because store screenshots sit in the same register. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #17181a; }
 
+  :root {
+    /* How far the captured screen is pulled up. This does three jobs at once:
+       it lifts the car (headless Chromium reports zero safe-area insets, so
+       the flex:1 stage renders taller than on a real phone and CarStage's
+       paddingBottom:27% drops the car lower than the owner sees it), it takes
+       the app header off-canvas, and it leaves a footer band to mask the
+       CHOOSE / DETAILS row into. */
+    --shift: -150px;
+    /* Everything below this is masked to flat cavity black: the skeuomorphic
+       action row and the carousel dots. The info strip above it survives —
+       real trim and mileage are the most persuasive pixels on the panel. */
+    --footer-top: 2268px;
+  }
+
   .canvas {
     position: relative;
-    width: 1290px;
-    height: 2796px;
+    width: 1290px; height: 2796px;
     overflow: hidden;
     background: #050507;
   }
 
-  /* ── The app screen, full-bleed at native 1:1. No crop, no upscale: the
-        capture is already exactly the canvas. Keeping the real header is
-        deliberate — it is the one signal in an otherwise poster-like panel
-        that this is a running app, and the type sits in the garage stage's
-        own darkness below it. ── */
-  .art {
-    position: absolute;
-    inset: 0;
-    width: 1290px;
-    height: 2796px;
+  .art { position: absolute; left: 0; top: var(--shift); width: 1290px; height: 2796px; }
+
+  /* ── Trademark + privacy masks ────────────────────────────────────────────
+     Two separate exposures on a store listing, both handled as design, not as
+     an apology:
+       1. The manufacturer wordmark in the app's model bar (LEXUS here). The
+          shift already carries most of it off-canvas; this wedge takes the
+          remainder and doubles as the first frame of the burgundy wedge that
+          should travel across the whole panel set.
+       2. The car's own licence plate, which is legible in the cutout. Blanking
+          a plate is standard practice in car media and reads as professional
+          rather than censored, provided the mark looks deliberate. ── */
+  .wedge-top {
+    position: absolute; left: 0; right: 0; top: 0; height: 344px;
+    background: linear-gradient(160deg, #780E12 0%, #4a0a0c 78%, #3a0709 100%);
+    /* Angular lower edge, low on the left and rising to the right. */
+    clip-path: polygon(0 0, 100% 0, 100% 54%, 0 100%);
+  }
+  /* Hairline along the cut so it reads as a struck edge, not a crop. Kept thin
+     and part-transparent — at 3px opaque amber it read as a stray rule. */
+  .wedge-top-edge {
+    position: absolute; left: 0; right: 0; top: 0; height: 346px;
+    clip-path: polygon(0 100%, 100% 54%, 100% calc(54% + 2px), 0 calc(100% + 2px));
+    background: rgba(200,102,26,0.55);
   }
 
-  /* Scrim: guarantees headline legibility over the stage without flattening
-     the garage's own falloff. Dies out well above the car's roofline, and
-     starts BELOW the app header so the real chrome stays crisp and unclouded. */
+  /* Plate blade — skewed to echo CAST_SHADOW_TRANSFORM's skewX(-14deg), the
+     Garage world's own geometry, so the mark belongs to the design system.
+     Deliberately DARK rather than brand burgundy: a saturated red block over
+     the car's nose pulls the eye straight to the thing being hidden. */
+  .plate {
+    position: absolute; left: 172px; top: calc(1752px + var(--shift));
+    width: 152px; height: 62px;
+    background: linear-gradient(180deg, #1c0508 0%, #120405 100%);
+    transform: skewX(-14deg);
+    box-shadow: inset 0 0 0 2px rgba(200,102,26,0.45);
+  }
+
+  /* ── Footer mask: flattens the action row away and gives the composition a
+        base to sit on, rather than ending on cropped UI furniture. ── */
+  .footer { position: absolute; left: 0; right: 0; top: var(--footer-top); bottom: 0; background: #050507; }
+  .footer-rule { position: absolute; left: 0; right: 0; top: var(--footer-top); height: 1px; background: rgba(255,255,255,0.07); }
+
+  /* Scrim behind the headline. Starts below the wedge so the cut stays crisp. */
   .scrim {
-    position: absolute; left: 0; right: 0; top: 200px; height: 1500px;
+    position: absolute; left: 0; right: 0; top: 320px; height: 1250px;
     background: linear-gradient(180deg,
-      rgba(5,5,7,0.0) 0%,
-      rgba(5,5,7,0.86) 12%,
-      rgba(5,5,7,0.88) 46%,
-      rgba(5,5,7,0.40) 74%,
-      transparent 100%);
+      rgba(5,5,7,0.0) 0%, rgba(5,5,7,0.88) 10%, rgba(5,5,7,0.90) 44%,
+      rgba(5,5,7,0.42) 74%, transparent 100%);
   }
 
-  /* The burgundy wedge seed. Panel 01 is nearly all black on purpose; the
-     wedge enters properly at panel 03 and peaks around 05-06. This is just
-     the first hint of it, high on the left edge where it meets only the scrim.
-     It must never sit OVER the app UI — on the first pass it was low-left and
-     tinted the CHOOSE keys red, which read as a colour-management bug. */
-  .wedge-seed {
-    position: absolute; left: -720px; top: 100px;
+  /* Burgundy bloom bleeding in from the left edge — the wedge's atmosphere. */
+  .bloom {
+    position: absolute; left: -720px; top: 160px;
     width: 1340px; height: 1560px;
-    background: radial-gradient(ellipse at center, rgba(120,14,18,0.62) 0%, rgba(120,14,18,0.16) 48%, transparent 72%);
+    background: radial-gradient(ellipse at center, rgba(120,14,18,0.55) 0%, rgba(120,14,18,0.14) 48%, transparent 72%);
   }
 
-  /* ── Type block ── */
+  /* ── Type ── */
   .type { position: absolute; left: 96px; right: 96px; top: 430px; }
-
-  /* Magazine device: kicker, hairline, page numeral on one baseline. */
   .rule-row { display: flex; align-items: center; gap: 28px; }
   .kicker {
-    font-family: 'Oswald', sans-serif; font-weight: 500;
-    font-size: 30px; letter-spacing: 0.34em; text-transform: uppercase;
-    color: #c8661a; white-space: nowrap;
+    font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 30px;
+    letter-spacing: 0.34em; text-transform: uppercase; color: #c8661a; white-space: nowrap;
   }
   .hair { flex: 1; height: 1px; background: rgba(245,245,245,0.22); }
-  .numeral {
-    font-family: 'Oswald', sans-serif; font-weight: 400;
-    font-size: 28px; letter-spacing: 0.18em;
-    color: rgba(245,245,245,0.42);
-  }
 
   .headline {
     margin-top: 58px;
-    font-family: 'Anton', sans-serif; font-weight: 400;
-    font-size: 172px; line-height: 0.90; letter-spacing: -0.005em;
-    text-transform: uppercase; color: #f5f5f5;
+    font-family: 'Anton', sans-serif; font-size: 172px; line-height: 0.90;
+    letter-spacing: -0.005em; text-transform: uppercase; color: #f5f5f5;
   }
-  /* Second line drops to the accent — the promise lands on the brand color. */
   .headline .warm { color: #c8661a; }
 
   .deck {
     margin-top: 46px;
-    font-family: 'Oswald', sans-serif; font-weight: 300;
-    font-size: 50px; line-height: 1.32; letter-spacing: 0.005em;
-    color: rgba(245,245,245,0.60);
-    max-width: 900px;
+    font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 50px;
+    line-height: 1.32; color: rgba(245,245,245,0.60); max-width: 900px;
   }
+
+  /* Page numeral lives in the footer now — it collided with the app's own
+     "01 / 14" carousel counter when it sat on the kicker rule. */
+  .numeral {
+    position: absolute; left: 96px; bottom: 96px;
+    font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 28px;
+    letter-spacing: 0.18em; color: rgba(245,245,245,0.38);
+  }
+  .wordmark {
+    position: absolute; right: 96px; bottom: 96px;
+    font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
+    font-size: 34px; letter-spacing: -0.06em; color: rgba(245,245,245,0.55);
+  }
+
+  /* The footer exists because masking the action row leaves a band. Give it a
+     job rather than letting it read as dead space: the three things the app
+     actually keeps, which is also the rest of the panel set in one line. */
+  .footer-line {
+    position: absolute; left: 96px; right: 96px; top: calc(var(--footer-top) + 150px);
+    display: flex; align-items: center; justify-content: center; gap: 34px;
+    font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 30px;
+    letter-spacing: 0.26em; text-transform: uppercase; color: rgba(245,245,245,0.42);
+  }
+  .footer-line .dot { width: 5px; height: 5px; background: #c8661a; flex-shrink: 0; }
 </style>
 </head>
 <body>
   <div class="canvas">
     <img class="art" src="raw/pub-garage.png" alt="">
+    <div class="plate"></div>
+
+    <div class="footer"></div>
+    <div class="footer-rule"></div>
+
     <div class="scrim"></div>
-    <div class="wedge-seed"></div>
+    <div class="bloom"></div>
+
+    <div class="wedge-top"></div>
+    <div class="wedge-top-edge"></div>
 
     <div class="type">
       <div class="rule-row">
         <span class="kicker">The Garage</span>
         <span class="hair"></span>
-        <span class="numeral">01</span>
       </div>
       <div class="headline">Your build<br><span class="warm">has a story.</span></div>
       <div class="deck">Every car you have owned, in one permanent place.</div>
     </div>
+
+    <div class="footer-line">
+      <span>Modifications</span><span class="dot"></span>
+      <span>Service</span><span class="dot"></span>
+      <span>Timeline</span>
+    </div>
+
+    <div class="numeral">01</div>
+    <div class="wordmark">G-Dimension</div>
   </div>
 </body>
 </html>
