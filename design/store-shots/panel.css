@@ -1,0 +1,183 @@
+/* ═══ Shared store-shot panel system ═══════════════════════════════════════
+   One stylesheet for all six panels so type scale, wedge geometry and masking
+   cannot drift between them. Values mirror src/tokens/index.ts:
+
+     COLOR_BRAND      #780E12     COLOR_BRAND_DARK #4a0a0c
+     COLOR_ACCENT     #c8661a     COLOR_CAVITY_BG  #050507
+     COLOR_TEXT_PRIMARY #f5f5f5   (never pure white in body copy)
+     FONT_MASTHEAD    Anton       FONT_DECK        Oswald
+     CAST_SHADOW_TRANSFORM  rotate(25deg) skewX(-14deg), opacity .42, blur 4px
+
+   Anton + Oswald come from the Featured magazine island rather than the app's
+   Hanken UI face, because a store listing is marketing, the same register as
+   Featured. Cormorant appears on exactly one panel (the Timeline), matching
+   the app's own rule that Cormorant carries the personal voice.
+
+   THE SPREAD: the burgundy wedge is not decoration, it travels. Each panel
+   sets --wedge-h and --wedge-rise so the cut walks down and across the set,
+   entering shallow on 01 and peaking mid-run. Viewed as a filmstrip the six
+   panels read as one continuous artwork rather than six posters.
+   ════════════════════════════════════════════════════════════════════════ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: #17181a; }
+
+:root {
+  --brand: #780E12;
+  --brand-dark: #4a0a0c;
+  --accent: #c8661a;
+  --cavity: #050507;
+  --ink: #f5f5f5;
+
+  /* Per-panel overrides. Defaults suit a full-bleed panel. */
+  --shift: 0px;         /* vertical pull on the captured screen */
+  --wedge-h: 344px;     /* wedge height at the LEFT edge */
+  --wedge-rise: 54%;    /* where the cut meets the RIGHT edge */
+}
+
+.canvas {
+  position: relative;
+  width: 1290px; height: 2796px;
+  overflow: hidden;
+  background: var(--cavity);
+  font-synthesis-weight: none;
+}
+
+/* ── The captured app screen ─────────────────────────────────────────────── */
+
+/* Full-bleed: the capture IS the canvas, 1:1, no upscale. */
+.art { position: absolute; left: 0; top: var(--shift); width: 1290px; height: 2796px; }
+
+/* Inset "device": the screen as a floating card for content-dense panels
+   (lists, spreads) where type needs its own uncontested space above.
+   --dev-crop hides the app header inside the card's own overflow. */
+.device {
+  position: absolute; left: 90px; top: var(--dev-top, 1120px);
+  width: 1110px; height: calc(2796px - var(--dev-top, 1120px) + 120px);
+  overflow: hidden;
+  background: var(--cavity);
+}
+.device img {
+  position: absolute; left: 0; top: calc(-1 * var(--dev-crop, 116px));
+  width: 1110px; height: 2406px;  /* 1290x2796 scaled by 1110/1290 */
+}
+/* Top highlight so the card has an edge instead of dissolving into the field. */
+.device::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: rgba(245,245,245,0.16);
+}
+/* Elevation. NOT the Garage world's 25deg cast shadow: that transform is built
+   for small icons, and rotating an 1110px card by 25deg throws the shadow
+   clean off the canvas. A straight lift reads correctly at this scale. */
+.device {
+  box-shadow: 0 -24px 70px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+/* ── The travelling wedge ────────────────────────────────────────────────── */
+.wedge {
+  position: absolute; left: 0; right: 0; top: 0; height: var(--wedge-h);
+  background: linear-gradient(160deg, var(--brand) 0%, var(--brand-dark) 78%, #3a0709 100%);
+  clip-path: polygon(0 0, 100% 0, 100% var(--wedge-rise), 0 100%);
+}
+/* Hairline along the cut so it reads as a struck edge, not a crop. */
+.wedge-edge {
+  position: absolute; left: 0; right: 0; top: 0; height: calc(var(--wedge-h) + 2px);
+  clip-path: polygon(0 100%, 100% var(--wedge-rise),
+                     100% calc(var(--wedge-rise) + 2px), 0 calc(100% + 2px));
+  background: rgba(200,102,26,0.55);
+}
+
+/* Legibility scrim under the type. Starts below the wedge so the cut stays
+   crisp against the art. */
+.scrim {
+  position: absolute; left: 0; right: 0;
+  top: calc(var(--wedge-h) - 24px); height: 1250px;
+  background: linear-gradient(180deg,
+    rgba(5,5,7,0.0) 0%, rgba(5,5,7,0.88) 10%, rgba(5,5,7,0.90) 44%,
+    rgba(5,5,7,0.42) 74%, transparent 100%);
+}
+
+/* Ambient edge bloom. Deliberately NEUTRAL: a burgundy glow under a burgundy
+   wedge read as colour bleed rather than light, and fought the amber headline. */
+.bloom {
+  position: absolute; left: -760px; top: 300px;
+  width: 1300px; height: 1500px;
+  background: radial-gradient(ellipse at center,
+    rgba(196,204,212,0.11) 0%, rgba(160,170,180,0.04) 46%, transparent 72%);
+}
+
+/* ── Privacy ─────────────────────────────────────────────────────────────── */
+/* Optical blur of the plate, feathered. A solid blade reads as a redaction bar
+   and draws the eye to exactly what it hides; smearing the characters leaves
+   the plate looking like a plate and the car untouched. Positioned per panel. */
+.plate {
+  position: absolute;
+  backdrop-filter: blur(13px) saturate(0.45) contrast(0.88);
+  -webkit-backdrop-filter: blur(13px) saturate(0.45) contrast(0.88);
+  -webkit-mask-image: radial-gradient(ellipse 62% 62% at center, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 62% 62% at center, #000 55%, transparent 100%);
+}
+
+/* ── Masks ───────────────────────────────────────────────────────────────── */
+.footer { position: absolute; left: 0; right: 0; top: var(--footer-top); bottom: 0; background: var(--cavity); }
+.footer-rule { position: absolute; left: 0; right: 0; top: var(--footer-top); height: 1px; background: rgba(255,255,255,0.07); }
+/* Generic black-out for stray app chrome (share buttons, toasts, FABs). */
+.mask { position: absolute; background: var(--cavity); }
+
+/* ── Type ────────────────────────────────────────────────────────────────── */
+.type { position: absolute; left: 96px; right: 96px; top: var(--type-top, 430px); }
+
+.rule-row { display: flex; align-items: center; gap: 28px; }
+.kicker {
+  font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 30px;
+  letter-spacing: 0.34em; text-transform: uppercase; color: var(--accent); white-space: nowrap;
+}
+.hair { flex: 1; height: 1px; background: rgba(245,245,245,0.22); }
+
+.headline {
+  margin-top: 58px;
+  font-family: 'Anton', sans-serif; font-size: var(--headline-size, 172px);
+  line-height: 0.90; letter-spacing: -0.005em; text-transform: uppercase; color: var(--ink);
+}
+.headline .warm { color: var(--accent); }
+
+.deck {
+  margin-top: 46px;
+  font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 50px;
+  line-height: 1.32; color: rgba(245,245,245,0.60); max-width: 940px;
+}
+/* Timeline panel only — Cormorant is the app's personal voice. */
+.deck.voice {
+  font-family: 'Cormorant Garamond', serif; font-style: italic; font-weight: 500;
+  font-size: 62px; line-height: 1.28; color: rgba(245,245,245,0.72);
+}
+
+/* Big stat, used where a real number outsells a sentence. */
+.stat { margin-top: 54px; display: flex; align-items: baseline; gap: 46px; }
+.stat-num {
+  font-family: 'Anton', sans-serif; font-size: 118px; line-height: 1;
+  color: var(--ink); letter-spacing: -0.01em;
+}
+.stat-lab {
+  font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 26px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: rgba(245,245,245,0.45);
+}
+
+/* ── Furniture ───────────────────────────────────────────────────────────── */
+.numeral {
+  position: absolute; left: 96px; bottom: 96px;
+  font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 28px;
+  letter-spacing: 0.18em; color: rgba(245,245,245,0.38);
+}
+.wordmark {
+  position: absolute; right: 96px; bottom: 96px;
+  font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
+  font-size: 34px; letter-spacing: -0.06em; color: rgba(245,245,245,0.55);
+}
+.footer-line {
+  position: absolute; left: 96px; right: 96px; top: calc(var(--footer-top) + 150px);
+  display: flex; align-items: center; justify-content: center; gap: 34px;
+  font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 30px;
+  letter-spacing: 0.26em; text-transform: uppercase; color: rgba(245,245,245,0.42);
+}
+.footer-line .dot { width: 5px; height: 5px; background: var(--accent); flex-shrink: 0; }

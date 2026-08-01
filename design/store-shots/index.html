@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>G-Dimension — store screenshots</title>
+<style>
+  /* Contact sheet. Open this file in a browser to see all six panels at once,
+     in order, as the store shows them: a horizontal swipe.
+     Run scripts/render-all-panels.mjs first so the PNGs exist.
+
+     This is also how you check THE SPREAD — the burgundy wedge should walk
+     down and across the run (shallow on 01, peaking around 04, receding by
+     06) so the six read as one continuous artwork rather than six posters.
+     If a panel's wedge looks out of step, it will be obvious here and
+     invisible when viewing panels one at a time. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0b0c0d;
+    font-family: 'Hanken Grotesk', system-ui, sans-serif;
+    color: #f5f5f5;
+    padding: 48px 40px 64px;
+  }
+  h1 {
+    font-size: 22px; font-weight: 700; font-style: italic;
+    letter-spacing: -0.04em; margin-bottom: 6px;
+  }
+  .sub { font-size: 13px; color: rgba(245,245,245,0.45); margin-bottom: 34px; }
+  .sub b { color: #c8661a; font-weight: 600; }
+
+  /* The strip. Panels sit edge to edge with only a hairline between them, so
+     the wedge's travel across the set is readable. */
+  .strip { display: flex; gap: 2px; align-items: flex-start; }
+  figure { width: 300px; flex-shrink: 0; }
+  figure img {
+    display: block; width: 100%; height: auto;
+    background: #050507;
+  }
+  figcaption {
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(245,245,245,0.38); padding-top: 10px; text-align: center;
+  }
+  @media (max-width: 1900px) { figure { width: 220px; } }
+</style>
+</head>
+<body>
+  <h1>G-Dimension — App Store / Play Store screenshots</h1>
+  <p class="sub">
+    Six panels, 1290 &times; 2796 (Apple 6.9&Prime;). Read left to right, the way the store swipes.
+    <b>Check the wedge travels</b> — shallow on 01, peaking around 04, receding by 06.
+  </p>
+
+  <div class="strip">
+    <figure><img src="panel-01.png" alt=""><figcaption>01 &middot; Garage</figcaption></figure>
+    <figure><img src="panel-02.png" alt=""><figcaption>02 &middot; Build Sheet</figcaption></figure>
+    <figure><img src="panel-03.png" alt=""><figcaption>03 &middot; Timeline</figcaption></figure>
+    <figure><img src="panel-04.png" alt=""><figcaption>04 &middot; Service</figcaption></figure>
+    <figure><img src="panel-05.png" alt=""><figcaption>05 &middot; Featured</figcaption></figure>
+    <figure><img src="panel-06.png" alt=""><figcaption>06 &middot; Share</figcaption></figure>
+  </div>
+</body>
+</html>

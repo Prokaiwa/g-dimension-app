@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="panel.css">
+<style>
+  /* The Featured cover is already a finished poster, so this panel gets out of
+     its way: one line of type, and a wedge sized purely to swallow the app
+     chrome sitting on the masthead (back chevron, SHARE, the PUBLISHED toast).
+     Masking those individually would have cut into the masthead itself. */
+  :root {
+    --wedge-h: 348px; --wedge-rise: 74%;
+    --type-top: 418px;
+    --headline-size: 104px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <img class="art" src="raw/07-featured.png" alt="">
+  <div class="plate" style="left:246px; top:1300px; width:98px; height:44px;"></div>
+
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="type">
+    <div class="rule-row"><span class="kicker">Featured</span><span class="hair"></span></div>
+    <div class="headline">Your build, <span class="warm">on a cover.</span></div>
+  </div>
+
+  <div class="numeral">05</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="panel.css">
+<style>
+  /* Closes the set by mirroring panel 01's shallow wedge, so the run reads as
+     a loop rather than stopping mid-thought. The public build map is the
+     second light surface and shows all four sections at once, which is the
+     whole pitch in one image. */
+  :root {
+    --wedge-h: 300px; --wedge-rise: 66%;
+    --type-top: 400px;
+    --headline-size: 150px;
+    --dev-top: 1240px; --dev-crop: 116px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="bloom"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="type">
+    <div class="rule-row"><span class="kicker">Share</span><span class="hair"></span></div>
+    <div class="headline">One link.<br><span class="warm">The whole story.</span></div>
+    <div class="deck">They see the build. They never see your receipts.</div>
+  </div>
+
+  <div class="device">
+    <img src="raw/pub-profile.png" alt="">
+  </div>
+
+  <div class="numeral">06</div>
+  <div class="wordmark">G-Dimension</div>
+</div>
+</body>
+</html>

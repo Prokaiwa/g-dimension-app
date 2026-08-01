@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="panel.css">
+<style>
+  /* Content-dense screen: the list needs to stay legible, so the screen becomes
+     a card and the type gets its own uncontested space above it. */
+  :root {
+    --wedge-h: 430px; --wedge-rise: 46%;
+    --type-top: 340px;
+    --dev-top: 1200px; --dev-crop: 116px;   /* crop hides the app header */
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="bloom"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="type">
+    <div class="rule-row"><span class="kicker">The Build Sheet</span><span class="hair"></span></div>
+    <div class="headline">Every part.<br><span class="warm">Every cost.</span></div>
+    <div class="deck">Part numbers, specs, receipts, and photos to prove it.</div>
+  </div>
+
+  <div class="device">
+    <img src="raw/03-buildsheet.png" alt="">
+    <!-- Plate is legible even in the small car thumbnail. Tighter blur radius
+         to suit the smaller region. -->
+    <div class="plate" style="left:78px; top:288px; width:56px; height:28px;
+         backdrop-filter:blur(6px) saturate(.45); -webkit-backdrop-filter:blur(6px) saturate(.45);"></div>
+  </div>
+
+  <div class="numeral">02</div>
+  <div class="wordmark">G-Dimension</div>
+</div>
+</body>
+</html>
