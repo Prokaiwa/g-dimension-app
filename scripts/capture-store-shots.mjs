@@ -125,10 +125,20 @@ async function main() {
 locale: 'en-US',
   })
   await installRelay(ctx)
-  // The cold-launch splash blocks every route until tapped.
-  await ctx.addInitScript(() => {
+  // The cold-launch splash blocks every route until tapped. Seed the flag it
+  // checks before the app boots.
+  //
+  // GDIM_CAR also pins the active car, so every authed screen (Build Sheet,
+  // Timeline, Maintenance, Featured) reports on the SAME build rather than
+  // whatever this account last opened. CLAUDE.md reserves the active-car key
+  // to lib/activeCar.ts and the constitution enforces that over src/ — this is
+  // external capture tooling, not app code, and it has no module to import
+  // from, so it writes the key directly and deliberately.
+  const activeCar = process.env.GDIM_CAR
+  await ctx.addInitScript((carId) => {
     sessionStorage.setItem('gdim_splash_seen', '1')
-  })
+    if (carId) localStorage.setItem('gdim_chosen_car_id', carId)
+  }, activeCar)
 
   const page = await ctx.newPage()
   page.on('console', (m) => m.type() === 'error' && console.log('  [console]', m.text().slice(0, 200)))
@@ -137,9 +147,11 @@ locale: 'en-US',
   if (email && password) {
     console.log('Signing in...')
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' })
-    await page.getByPlaceholder(/email/i).fill(email)
-    await page.getByPlaceholder(/password/i).fill(password)
-    await page.getByRole('button', { name: /log in|sign in/i }).click()
+    // Select by input type: the fields are a custom ConcretePanelInput with a
+    // `label` prop, so there is no placeholder to match on.
+    await page.locator('input[type="email"]').fill(email)
+    await page.locator('input[type="password"]').fill(password)
+    await page.locator('form button[type="submit"]').click()
     await page.waitForURL((u) => !/\/login$/.test(u.pathname), { timeout: 20_000 })
     signedIn = true
     console.log(`  signed in, landed on ${new URL(page.url()).pathname}`)
