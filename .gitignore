@@ -38,5 +38,11 @@ playwright-report/
 # scripts/render-store-panel.mjs. The composition SOURCE (*.html) is tracked;
 # the PNGs are not, because they are re-rendered on every iteration and would
 # add a fresh multi-MB blob to history each time.
-design/store-shots/raw/
+design/store-shots/raw/*
 design/store-shots/*.png
+# ...EXCEPT the device screenshots. Every other file under raw/ is produced by
+# scripts/capture-store-shots.mjs and can be regenerated at will; these two come
+# off a real iPhone because the screens they show carry a fractal-noise texture
+# that Blink renders as per-pixel speckle and WebKit renders as tone. No script
+# can reproduce them, so losing them would break the panels that use them.
+!design/store-shots/raw/*-device.png

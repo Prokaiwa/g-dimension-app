@@ -11,14 +11,19 @@
      The old version showed Home and claimed you share "garage, tuning, service,
      timeline and cover" — but service is never public. The public profile shows
      exactly the four destinations a visitor actually gets, so the picture and
-     the claim now agree without anyone having to take the copy on trust. */
+     the claim now agree without anyone having to take the copy on trust.
+
+     The art is a REAL DEVICE screenshot. This screen carries its own
+     fractal-noise grain, and like the Home map it comes out speckled from a
+     headless capture because Blink resolves feTurbulence per device pixel where
+     WebKit resolves it into tone. The iOS status bar and the app header are
+     cropped off in the source file. */
   :root {
     /* The map's own span from the Garage node to the Featured label is ~1800px
-       and the canvas has almost exactly that below the type, so the shift and
-       the type block are tuned against each other: raise the type, shorten the
+       and the canvas has almost exactly that below the type, so the art offset
+       and the type block are tuned against each other: raise the type, keep the
        deck to two lines, and all four nodes fit without the last one falling
        off the bottom edge. */
-    --shift: 310px;
     --type-top: 240px; --headline-size: 150px;
     --scrim-top: 0px; --scrim-h: 1180px;
   }
@@ -26,11 +31,8 @@
 </head>
 <body>
 <div class="canvas">
-  <img class="art" src="raw/pub-profile.png" alt="">
-  <!-- The shift carries the app header ("Leave", avatar, "Visiting @…") down
-       past the wedge's right edge, where it would show as a bright bar. It also
-       carried a real face onto a store listing. -->
-  <div class="mask" style="left:0; right:0; top:222px; height:290px; z-index:1;"></div>
+  <img src="raw/pub-profile-device.png" alt=""
+       style="position:absolute; left:0; top:540px; width:1290px; height:auto; z-index:1;">
 
   <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
