@@ -49,9 +49,9 @@ const PANELS: Panel[] = [
   // first, so the record should land before the storytelling.
   { n: '03', title: 'Service',     line: 'Every service, logged.' },
   { n: '04', title: 'Timeline',    line: 'Your build, chronicled.' },
-  { n: '05', title: 'Sell',        line: 'Hand over the whole build.' },
+  { n: '05', title: 'Sell',        line: 'The record goes with it.' },
   { n: '06', title: 'Featured',    line: 'Your build, on a cover.' },
-  { n: '07', title: 'One place',   line: 'All of it, in one link.' },
+  { n: '07', title: 'Community',   line: 'Your car. Your world.' },
 ]
 
 const SOURCES: Record<string, string> = {

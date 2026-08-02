@@ -245,5 +245,5 @@ html, body { background: #17181a; }
 /* Brand mark, bottom-right on every panel, replacing the spelled-out wordmark. */
 .gmark-corner {
   position: absolute; right: 90px; bottom: 78px; z-index: 5;
-  height: 116px; width: auto; display: block;
+  height: 152px; width: auto; display: block;
 }

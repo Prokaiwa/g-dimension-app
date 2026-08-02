@@ -12,7 +12,11 @@
   :root {
     --shift: 0px;
     --type-top: 350px; --headline-size: 150px;
-    --scrim-top: 270px; --scrim-h: 1150px;
+    /* Scrim starts at 0, not below the wedge. The wedge's right edge is at
+       37% of its height, so between that edge and the old scrim top a sliver
+       of bare parchment showed through as a bright wedge of white. The scrim
+       sits UNDER the wedge (z-index 1), so starting it at 0 costs nothing. */
+    --scrim-top: 0px; --scrim-h: 1420px;
   }
   .type-over .headline { line-height: 1.02; }
 </style>
