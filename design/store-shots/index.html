@@ -40,14 +40,24 @@
     color: rgba(245,245,245,0.38); padding-top: 10px; text-align: center;
   }
   @media (max-width: 2100px) { figure { width: 200px; } }
+
+  h2 {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+    color: #c8661a; margin: 40px 0 14px;
+  }
+  h2:first-of-type { margin-top: 0; }
+  .fg img { display: block; width: 1024px; max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
   <h1>G-Dimension — App Store / Play Store screenshots</h1>
   <p class="sub">
-    Seven panels, 1290 &times; 2796 (Apple 6.9&Prime;). Read left to right, the way the store swipes.
-    <b>Check the wedge travels</b> — shallow on 01, peaking around 04, receding by 07.
+    Every deliverable, at every size. Read each strip left to right, the way the store swipes.
+    <b>Play is a re-layout, not a resize</b> — 1.78:1 against Apple's 2.17:1, so a scaled
+    Apple panel loses its bottom fifth.
   </p>
+
+  <h2>App Store &middot; 1290 &times; 2796</h2>
 
   <div class="strip">
     <figure><img src="panel-01.png" alt=""><figcaption>01 &middot; Garage</figcaption></figure>
@@ -58,5 +68,19 @@
     <figure><img src="panel-06.png" alt=""><figcaption>06 &middot; Featured</figcaption></figure>
     <figure><img src="panel-07.png" alt=""><figcaption>07 &middot; Community</figcaption></figure>
   </div>
+
+  <h2>Play Store &middot; 1080 &times; 1920</h2>
+  <div class="strip">
+    <figure><img src="play-01.png" alt=""><figcaption>01 &middot; Garage</figcaption></figure>
+    <figure><img src="play-02.png" alt=""><figcaption>02 &middot; Build Sheet</figcaption></figure>
+    <figure><img src="play-03.png" alt=""><figcaption>03 &middot; Service</figcaption></figure>
+    <figure><img src="play-04.png" alt=""><figcaption>04 &middot; Timeline</figcaption></figure>
+    <figure><img src="play-05.png" alt=""><figcaption>05 &middot; Sell / Transfer</figcaption></figure>
+    <figure><img src="play-06.png" alt=""><figcaption>06 &middot; Featured</figcaption></figure>
+    <figure><img src="play-07.png" alt=""><figcaption>07 &middot; Community</figcaption></figure>
+  </div>
+
+  <h2>Play feature graphic &middot; 1024 &times; 500</h2>
+  <div class="fg"><img src="feature-graphic.png" alt=""></div>
 </body>
 </html>

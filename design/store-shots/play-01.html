@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="play.css">
+<style>
+  :root {
+    --shift: -430px;
+    --type-top: 200px; --headline-size: 132px;
+    --scrim-top: 160px; --scrim-h: 900px;
+    --footer-top: 1596px;
+  }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <img class="art" src="raw/pub-garage.png" alt="">
+  <div class="plate" style="left:147px; top:calc(1470px + var(--shift)); width:122px; height:47px; z-index:3;"></div>
+  <div class="footer" style="z-index:3"></div><div class="footer-rule" style="z-index:3"></div>
+  <div class="type-scrim"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="type-over">
+    <div class="rule-row"><span class="kicker">The Garage</span><span class="hair"></span></div>
+    <div class="headline">Your build<br><span class="warm">has a story.</span></div>
+    <div class="deck">Receipts, documents, shop numbers and service reminders. All under one roof.</div>
+  </div>
+
+  <div class="numeral" style="z-index:5">01</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
+</div>
+</body>
+</html>

@@ -26,12 +26,20 @@ const OUT = path.resolve('src/assets/store-shots')
 
 // 860px wide is ~2x a phone's rendered width for this gallery, so the preview
 // still looks sharp when tapped to full screen, at roughly a tenth the bytes.
-const WIDTH = 860
+// The Play set is a secondary review surface (the Apple panels are the ones
+// being designed; Play is a re-layout of the same decisions), so it gets a
+// smaller preview to keep the committed bytes down.
 const QUALITY = 80
+const WIDTHS = [
+  { glob: /^panel-\d+\.png$/,      width: 860 },
+  { glob: /^play-\d+\.png$/,       width: 620 },
+  { glob: /^feature-graphic\.png$/, width: 1024 },
+]
 
 mkdirSync(OUT, { recursive: true })
 
-const panels = readdirSync(SRC).filter((f) => /^panel-\d+\.png$/.test(f)).sort()
+const all = readdirSync(SRC).filter((f) => f.endsWith('.png')).sort()
+const panels = all.filter((f) => WIDTHS.some((w) => w.glob.test(f)))
 if (panels.length === 0) {
   console.error('No rendered panels found. Run scripts/render-all-panels.mjs first.')
   process.exit(1)
@@ -39,9 +47,10 @@ if (panels.length === 0) {
 
 let total = 0
 for (const file of panels) {
+  const width = WIDTHS.find((w) => w.glob.test(file)).width
   const from = path.join(SRC, file)
   const to = path.join(OUT, file.replace(/\.png$/, '.webp'))
-  await sharp(from).resize({ width: WIDTH }).webp({ quality: QUALITY }).toFile(to)
+  await sharp(from).resize({ width }).webp({ quality: QUALITY }).toFile(to)
   const kb = Math.round(statSync(to).size / 1024)
   total += kb
   console.log(`  ${file} -> ${path.basename(to)}  ${kb}KB`)

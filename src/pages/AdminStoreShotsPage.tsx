@@ -29,6 +29,14 @@ import panel04 from '../assets/store-shots/panel-04.webp'
 import panel05 from '../assets/store-shots/panel-05.webp'
 import panel06 from '../assets/store-shots/panel-06.webp'
 import panel07 from '../assets/store-shots/panel-07.webp'
+import play01 from '../assets/store-shots/play-01.webp'
+import play02 from '../assets/store-shots/play-02.webp'
+import play03 from '../assets/store-shots/play-03.webp'
+import play04 from '../assets/store-shots/play-04.webp'
+import play05 from '../assets/store-shots/play-05.webp'
+import play06 from '../assets/store-shots/play-06.webp'
+import play07 from '../assets/store-shots/play-07.webp'
+import featureGraphic from '../assets/store-shots/feature-graphic.webp'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
   FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL,
@@ -39,6 +47,7 @@ const MUTED = 'rgba(240,228,200,0.5)'
 const FAINT = 'rgba(240,228,200,0.32)'
 
 type Panel = { n: string; title: string; line: string }
+type Zoomed = Panel & { src: string }
 
 // Kept in step with design/store-shots/panel-0*.html. The headline is repeated
 // here rather than read from the image so the list is scannable as text.
@@ -54,15 +63,66 @@ const PANELS: Panel[] = [
   { n: '07', title: 'Community',   line: 'Your car. Your world.' },
 ]
 
-const SOURCES: Record<string, string> = {
+const APPLE: Record<string, string> = {
   '01': panel01, '02': panel02, '03': panel03, '04': panel04,
   '05': panel05, '06': panel06, '07': panel07,
 }
-const src = (n: string) => SOURCES[n]
+// Play is a re-LAYOUT, not a resize: 1080x1920 is 1.78:1 against Apple's
+// 2.17:1, so a scaled Apple panel loses its bottom fifth — which on this set is
+// where the payload lives (the info strip, the running total, the transfer row,
+// the Featured node). Worth being able to compare the two side by side here.
+const PLAY: Record<string, string> = {
+  '01': play01, '02': play02, '03': play03, '04': play04,
+  '05': play05, '06': play06, '07': play07,
+}
+
+function Strip({ set, onZoom }: { set: Record<string, string>; onZoom: (z: Zoomed) => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex', gap: SPACE_SM, overflowX: 'auto', scrollSnapType: 'x mandatory',
+        WebkitOverflowScrolling: 'touch', padding: `0 ${SPACE_MD}px ${SPACE_SM}px`,
+        scrollbarWidth: 'none',
+      }}
+    >
+      {PANELS.map(p => (
+        <div key={p.n} style={{ flexShrink: 0, scrollSnapAlign: 'center' }}>
+          <button
+            onClick={() => onZoom({ ...p, src: set[p.n] })}
+            aria-label={`${p.title}, panel ${p.n}`}
+            style={{
+              display: 'block', padding: 0, border: '1px solid rgba(240,228,200,0.10)',
+              background: '#050507', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <img src={set[p.n]} alt="" style={{ display: 'block', width: 208, height: 'auto' }} />
+          </button>
+          <p style={{
+            fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM,
+            margin: `${SPACE_SM}px 0 0`, lineHeight: 1.2,
+          }}>
+            <span style={{ color: COLOR_ACCENT }}>{p.n}</span>&nbsp; {p.title}
+          </p>
+          <p style={{
+            fontFamily: FONT_UI, fontSize: 11, color: MUTED, margin: '2px 0 0',
+            lineHeight: 1.35, maxWidth: 208,
+          }}>
+            {p.line}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const label: React.CSSProperties = {
+  fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em',
+  textTransform: 'uppercase', color: FAINT,
+}
 
 export default function AdminStoreShotsPage() {
   const navigate = useNavigate()
-  const [zoomed, setZoomed] = useState<Panel | null>(null)
+  const [zoomed, setZoomed] = useState<Zoomed | null>(null)
 
   return (
     <div style={{
@@ -84,59 +144,45 @@ export default function AdminStoreShotsPage() {
       </div>
 
       <div style={{ padding: `${SPACE_LG}px 0 0` }}>
-        <p style={{
-          fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em',
-          textTransform: 'uppercase', color: FAINT, margin: `0 ${SPACE_MD}px ${SPACE_XS}px`,
-        }}>
-          The set, in order
-        </p>
+        <p style={{ ...label, margin: `0 ${SPACE_MD}px ${SPACE_XS}px` }}>App Store · 1290 × 2796</p>
         <p style={{
           fontFamily: FONT_UI, fontSize: 11.5, color: FAINT, lineHeight: 1.55,
           margin: `0 ${SPACE_MD}px ${SPACE_MD}px`,
         }}>
-          Swipe sideways, the way the store presents them. The burgundy wedge is meant to
-          travel across the seven: shallow at the start, steepest around the Timeline,
-          easing off by the end. Tap any panel to fill the screen.
+          Swipe sideways, the way the store presents them. Tap any panel to fill the screen.
         </p>
+        <Strip set={APPLE} onZoom={setZoomed} />
 
-        {/* The strip. scroll-snap so each swipe lands on exactly one panel. */}
-        <div
-          style={{
-            display: 'flex', gap: SPACE_SM, overflowX: 'auto', scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch', padding: `0 ${SPACE_MD}px ${SPACE_SM}px`,
-            scrollbarWidth: 'none',
-          }}
-        >
-          {PANELS.map(p => (
-            <div key={p.n} style={{ flexShrink: 0, scrollSnapAlign: 'center' }}>
-              <button
-                onClick={() => setZoomed(p)}
-                aria-label={`${p.title}, panel ${p.n}`}
-                style={{
-                  display: 'block', padding: 0, border: '1px solid rgba(240,228,200,0.10)',
-                  background: '#050507', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <img
-                  src={src(p.n)}
-                  alt=""
-                  style={{ display: 'block', width: 208, height: 'auto' }}
-                />
-              </button>
-              <p style={{
-                fontFamily: FONT_UI, fontWeight: 700, fontSize: 12, color: CREAM,
-                margin: `${SPACE_SM}px 0 0`, lineHeight: 1.2,
-              }}>
-                <span style={{ color: COLOR_ACCENT }}>{p.n}</span>&nbsp; {p.title}
-              </p>
-              <p style={{
-                fontFamily: FONT_UI, fontSize: 11, color: MUTED, margin: '2px 0 0',
-                lineHeight: 1.35, maxWidth: 208,
-              }}>
-                {p.line}
-              </p>
-            </div>
-          ))}
+        <p style={{ ...label, margin: `${SPACE_XL}px ${SPACE_MD}px ${SPACE_XS}px` }}>Play Store · 1080 × 1920</p>
+        <p style={{
+          fontFamily: FONT_UI, fontSize: 11.5, color: FAINT, lineHeight: 1.55,
+          margin: `0 ${SPACE_MD}px ${SPACE_MD}px`,
+        }}>
+          A re-layout, not a resize. Play is 1.78:1 against Apple’s 2.17:1, so a scaled
+          Apple panel would lose its bottom fifth — which is where the info strip, the
+          running total, the transfer row and the Featured node all live.
+        </p>
+        <Strip set={PLAY} onZoom={setZoomed} />
+
+        <p style={{ ...label, margin: `${SPACE_XL}px ${SPACE_MD}px ${SPACE_XS}px` }}>Feature graphic · 1024 × 500</p>
+        <p style={{
+          fontFamily: FONT_UI, fontSize: 11.5, color: FAINT, lineHeight: 1.55,
+          margin: `0 ${SPACE_MD}px ${SPACE_MD}px`,
+        }}>
+          Required by Play and the most-seen asset on the listing. Not a screenshot: at
+          500px tall a portrait screen would be a postage stamp, and Play re-crops this
+          for different placements, so everything that matters sits well inside.
+        </p>
+        <div style={{ padding: `0 ${SPACE_MD}px` }}>
+          <button
+            onClick={() => setZoomed({ n: 'FG', title: 'Feature graphic', line: '', src: featureGraphic })}
+            style={{
+              display: 'block', width: '100%', padding: 0, border: '1px solid rgba(240,228,200,0.10)',
+              background: '#050507', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <img src={featureGraphic} alt="" style={{ display: 'block', width: '100%', height: 'auto' }} />
+          </button>
         </div>
 
         {/* Facts worth having on the phone while judging the set. */}
@@ -188,7 +234,7 @@ export default function AdminStoreShotsPage() {
           }}
         >
           <img
-            src={src(zoomed.n)}
+            src={zoomed.src}
             alt=""
             style={{ maxWidth: '100%', maxHeight: '86dvh', objectFit: 'contain', display: 'block' }}
           />

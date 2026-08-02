@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="play.css">
+<style>
+  :root {
+    --type-top: 200px; --headline-size: 120px;
+    --scrim-top: 170px; --scrim-h: 850px;
+  }
+  .doc {
+    position: absolute; left: 105px; top: 700px; width: 870px;
+    /* Clipped: at natural height the page ran on past 1826px and slid under the
+       transfer strip. On the Apple canvas there was room for the whole page. */
+    height: 950px; overflow: hidden; z-index: 3;
+    box-shadow: 0 -22px 58px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.07);
+  }
+  .doc img { display: block; width: 870px; height: auto; }
+  .doc .vin {
+    position: absolute; left: 266px; top: 595px; width: 154px; height: 30px;
+    backdrop-filter: blur(8px) saturate(0.4) contrast(0.9);
+    -webkit-backdrop-filter: blur(8px) saturate(0.4) contrast(0.9);
+    -webkit-mask-image: radial-gradient(ellipse 66% 66% at center, #000 58%, transparent 100%);
+    mask-image: radial-gradient(ellipse 66% 66% at center, #000 58%, transparent 100%);
+  }
+  .transfer {
+    position: absolute; left: 0; right: 0; top: 1700px; height: 144px;
+    overflow: hidden; z-index: 3; border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .transfer img { position: absolute; left: 0; top: -2182px; width: 1080px; height: auto; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="type-scrim"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="doc">
+    <img src="raw/build-report-p1.png" alt="">
+    <div class="vin"></div>
+  </div>
+  <div class="transfer"><img src="raw/12-car-edit.png" alt=""></div>
+
+  <div class="type-over">
+    <div class="rule-row"><span class="kicker">When you sell</span><span class="hair"></span></div>
+    <div class="headline">The record<br><span class="warm">goes with it.</span></div>
+    <div class="deck">Export the full build report before you sell. Then hand the car profile to its new owner.</div>
+  </div>
+
+  <div class="numeral" style="z-index:5">05</div>
+  <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
+</div>
+</body>
+</html>

@@ -11,6 +11,15 @@ import { readdirSync } from 'node:fs'
 import path from 'node:path'
 
 const DIR = path.resolve('design/store-shots')
+
+// Every deliverable size. Apple 6.9" and Play phone are different LAYOUTS, not
+// different scales of one layout — Play is 1.78:1 against Apple's 2.17:1, so a
+// scaled Apple panel loses its bottom fifth. See play.css.
+const TARGETS = [
+  { glob: /^panel-\d+\.html$/,     w: 1290, h: 2796, label: 'Apple 6.9"' },
+  { glob: /^play-\d+\.html$/,      w: 1080, h: 1920, label: 'Play phone' },
+  { glob: /^feature-graphic\.html$/, w: 1024, h: 500,  label: 'Play feature graphic' },
+]
 const CANVAS = { width: 1290, height: 2796 }
 
 async function installFontRelay(ctx) {
@@ -37,23 +46,30 @@ const browser = await chromium.launch({
   executablePath: process.env.GDIM_CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
 })
 
-// ── Panels ────────────────────────────────────────────────────────────────
-const panels = readdirSync(DIR).filter((f) => /^panel-\d+\.html$/.test(f)).sort()
-const ctx = await browser.newContext({ viewport: CANVAS, deviceScaleFactor: 1 })
-await installFontRelay(ctx)
-const page = await ctx.newPage()
-
-for (const file of panels) {
-  const abs = path.join(DIR, file)
-  await page.goto(`file://${abs}`, { waitUntil: 'networkidle' })
-  await page.evaluate(() => document.fonts.ready)
-  await page.waitForTimeout(500)
-  const el = await page.$('.canvas')
-  const out = abs.replace(/\.html$/, '.png')
-  await el.screenshot({ path: out })
-  console.log(`  ${file} -> ${path.basename(out)}  ${CANVAS.width}x${CANVAS.height}`)
+// ── Panels, at every target size ──────────────────────────────────────────
+let panels = []
+for (const target of TARGETS) {
+  const files = readdirSync(DIR).filter((f) => target.glob.test(f)).sort()
+  if (files.length === 0) continue
+  console.log(`\n${target.label} — ${target.w}x${target.h}`)
+  const ctx = await browser.newContext({
+    viewport: { width: target.w, height: target.h }, deviceScaleFactor: 1,
+  })
+  await installFontRelay(ctx)
+  const page = await ctx.newPage()
+  for (const file of files) {
+    const abs = path.join(DIR, file)
+    await page.goto(`file://${abs}`, { waitUntil: 'networkidle' })
+    await page.evaluate(() => document.fonts.ready)
+    await page.waitForTimeout(500)
+    const el = await page.$('.canvas')
+    const out = abs.replace(/\.html$/, '.png')
+    await el.screenshot({ path: out })
+    console.log(`  ${file} -> ${path.basename(out)}  ${target.w}x${target.h}`)
+  }
+  await ctx.close()
+  panels = panels.concat(files)
 }
-await ctx.close()
 
 // ── Contact sheet ─────────────────────────────────────────────────────────
 // Rendered wide and full-page so the whole strip lands in one image.
