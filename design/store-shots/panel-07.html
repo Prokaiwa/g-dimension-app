@@ -7,28 +7,36 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* Map shifted down so the HOME node clears the type block; all five
-     destinations stay on the panel at native scale. */
+  /* Closes the set on the Home map.
+     The art here is a REAL DEVICE screenshot, not a headless capture. The map
+     carries a fractal-noise texture that WebKit resolves into smooth tone and
+     Blink resolves into per-pixel speckle, so every Chromium capture came out
+     visibly grainy. Supersampling could not help (the grain is a fixed 240px
+     CSS tile, so it scales with the capture), median and blur could not remove
+     it, and stripping the noise layer exposed the tiled seams underneath that
+     it exists to hide. A device screenshot sidesteps all of it.
+     The iOS status bar and the app header are cropped off in
+     scripts (see raw/01-home-device.png), so the art starts at the map. */
   :root {
-    --shift: 250px;
-    --type-top: 330px; --headline-size: 150px;
-    --scrim-top: 240px; --scrim-h: 1050px;
+    --type-top: 285px; --headline-size: 150px;
+    --scrim-top: 250px; --scrim-h: 900px;
+  }
+  .art-device {
+    position: absolute; left: 0; top: 900px; width: 1290px; height: auto; z-index: 1;
   }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <img class="art" src="raw/01-home.png" alt="">
-  <!-- App header, which sits below the wedge's right edge and read as a bright
-       bar. z-index 1 keeps it behind the wedge on the left. -->
-  <div class="mask" style="left:0; right:0; top:222px; height:200px; z-index:1;"></div>
+  <img class="art-device" src="raw/01-home-device.png" alt="">
+
   <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type-over">
-    <div class="rule-row"><span class="kicker">One place</span><span class="hair"></span></div>
-    <div class="headline">All of it,<br><span class="warm">in one link.</span></div>
-    <div class="deck">Garage, tuning, service, timeline and your cover. Share the whole thing.</div>
+    <div class="rule-row"><span class="kicker">Everything</span><span class="hair"></span></div>
+    <div class="headline">One car.<br><span class="warm">One record.</span></div>
+    <div class="deck">Garage, tuning, service, timeline and cover. Share all of it with one link.</div>
   </div>
 
   <div class="numeral" style="z-index:5">07</div>

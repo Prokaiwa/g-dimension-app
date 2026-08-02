@@ -7,39 +7,51 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="panel.css">
 <style>
-  /* The cover fills the canvas and is already designed, so this panel keeps the
-     smallest wedge in the run and sets its one line in the cover's own dead
-     band between photo and headline. */
+  /* Featured is built from TWO SLICES of the cover rather than the whole thing.
+     The cover is a full-height design: masthead, photo, a deliberate ~460px of
+     dead band, then its own headline block. At full bleed that band opened a
+     hole between the car and the feature deck, and there was no room left for
+     type at the same size as the rest of the set — so this panel used a smaller
+     headline and deck, which made it the odd one out.
+     Slicing the band out solves both: the photo and the cover's headline block
+     sit together, and the type above them matches every other panel. */
   :root {
-    /* Nudged UP, not down. Pushing the cover down put its cream masthead below
-       the wedge's right-hand edge, where it poked out as a bright band. At -40
-       the masthead sits entirely under the wedge and the black gap above the
-       photo is free for the explanatory line. */
-    --shift: -40px;
-    --type-top: 285px; --headline-size: 92px;
-    --deck-top: 470px;
+    --type-top: 285px; --headline-size: 150px;
+    --scrim-top: 250px; --scrim-h: 900px;
   }
-  /* One line only, and smaller: the gap between the headline and the top of the
-     cover photo is ~110px and a two-line deck ran straight through it. */
-  .deck-float { font-size: 40px; }
-  /* This panel's bottom-right corner is already occupied by the cover's own
-     INSIDE button and barcode, so the brand mark moves up out of them. */
-  .gmark-corner { bottom: 300px; }
+  .slice { position: absolute; left: 0; right: 0; overflow: hidden; z-index: 1; }
+  .slice img { position: absolute; left: 0; width: 1290px; height: auto; }
+
+  /* The cover photo. */
+  .slice-photo { top: 830px; height: 995px; }
+  .slice-photo img { top: -630px; }
+
+  /* The cover's own headline block + barcode, butted straight up against it. */
+  .slice-deck { top: 1825px; height: 806px; }
+  .slice-deck img { top: -1990px; }
+
+  /* The cover's bottom-right corner carries its own INSIDE button and barcode,
+     so the brand mark drops below them. */
+  .gmark-corner { bottom: 34px; }
 </style>
 </head>
 <body>
 <div class="canvas">
-  <img class="art" src="raw/07-featured.png" alt="">
-  <div class="plate" style="left:246px; top:1260px; width:98px; height:44px; z-index:3;"></div>
+  <div class="slice slice-photo">
+    <img src="raw/07-featured.png" alt="">
+    <div class="plate" style="left:246px; top:670px; width:98px; height:44px;"></div>
+  </div>
+  <div class="slice slice-deck"><img src="raw/07-featured.png" alt=""></div>
 
+  <div class="type-scrim"></div>
   <div class="wedge"></div><div class="wedge-edge"></div>
 
-  <div class="type" style="z-index:4">
-    <div class="rule-row"><span class="kicker" style="color:#f0e4c8">Featured</span><span class="hair"></span></div>
-    <div class="headline">Your build, <span class="warm">on a cover.</span></div>
+  <div class="type-over">
+    <div class="rule-row"><span class="kicker">Featured</span><span class="hair"></span></div>
+    <div class="headline">Your build,<br><span class="warm">on a cover.</span></div>
+    <div class="deck">A magazine cover, written from your own photos and specs.</div>
   </div>
 
-  <div class="deck-float" style="z-index:4">A magazine cover, written from your own photos and specs.</div>
   <div class="numeral" style="z-index:5">06</div>
   <img class="gmark-corner" src="../../src/assets/logo/gdimensionG.webp" alt="">
 </div>
