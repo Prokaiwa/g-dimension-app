@@ -67,19 +67,26 @@
       linear-gradient(270deg, #050507 0%, rgba(5,5,7,0) 10%);
   }
 
-  /* ── The spine ───────────────────────────────────────────────────────────
-     The panels' wedge is a burgundy band whose cut rises left to right. Rotated
-     into the vertical it becomes a band wider at the top, narrowing downward —
-     the family resemblance without eating the canvas. */
-  .spine {
-    position: absolute; left: 0; top: 0; width: 150px; height: 500px; z-index: 3;
-    background: linear-gradient(170deg, #780E12 0%, #4a0a0c 74%, #3a0709 100%);
-    clip-path: polygon(0 0, 100% 0, 58% 100%, 0 100%);
+  /* ── The wedge ───────────────────────────────────────────────────────────
+     A corner wedge rather than a full-height spine: it meets the left edge
+     halfway down and runs two thirds of the way along the top, so the cut is a
+     single long diagonal across the top-left. That is much closer to the phone
+     panels, where the burgundy is a top band with an angled lower edge, and it
+     leaves the bottom-left of the canvas clear for the signature.
+
+     The headline is positioned to STRADDLE this cut, the same move the panels
+     make: the first line starts on burgundy and crosses onto the dark field.
+     White holds up on both, which is why the emphasis line (amber) is the one
+     that sits fully on the dark. */
+  .wedge {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 3;
+    background: linear-gradient(145deg, #780E12 0%, #5c0c10 58%, #3a0709 100%);
+    clip-path: polygon(0 0, 66.7% 0, 0 50%);
   }
   /* The amber hairline the panels put on their cut. */
-  .spine-edge {
-    position: absolute; left: 0; top: 0; width: 153px; height: 500px; z-index: 4;
-    clip-path: polygon(100% 0, calc(100% + 3px) 0, calc(58% + 3px) 100%, 58% 100%);
+  .wedge-edge {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 4;
+    clip-path: polygon(0 50%, 66.7% 0, 67.5% 0, 0 calc(50% + 4px));
     background: rgba(200,102,26,0.55);
   }
 
@@ -115,7 +122,7 @@
   <div class="car-plate"></div>
   <div class="car-fade"></div>
 
-  <div class="spine"></div><div class="spine-edge"></div>
+  <div class="wedge"></div><div class="wedge-edge"></div>
 
   <div class="type">
     <div class="headline">Your build<br><span class="warm">has a story.</span></div>
