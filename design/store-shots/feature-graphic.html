@@ -6,91 +6,106 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:ital,wght@0,700;1,700;1,800&display=swap" rel="stylesheet">
 <style>
-  /* Play Store feature graphic — 1024 × 500, and required.
-     It is the most-seen asset on a Play listing and the one people forget.
-     Deliberately NOT a phone screenshot: at 500px tall a portrait screen would
-     be a postage stamp, and Play crops this asset for different placements, so
-     everything that matters stays well inside the middle.
-     Same language as the panels — burgundy wedge cut on the diagonal, Anton
-     masthead, one amber line, the car on the dark side. */
+  /* Play Store feature graphic — 1024 × 500, and required. The most-seen asset
+     on a Play listing and the one people forget.
+
+     LAYOUT NOTE. The first version filled the left 62% with burgundy and put the
+     lockup on it. Two things were wrong with that:
+
+       1. Every shield asset in this repo draws the shield in BURGUNDY, so on a
+          burgundy field it vanished. Patching that with the app-icon tile made
+          it worse: an app icon is a PRODUCT asset that carries its own container
+          (rounded square, own background) because it has to sit on a home
+          screen. Dropping that container into a marketing composition reads as a
+          sticker pasted on.
+       2. A burgundy half-field is a lot of flat colour on an asset this small,
+          and it boxed the car into the remaining third.
+
+     So the burgundy is now a narrow SPINE down the left edge — the panels' angled
+     cut rotated into the vertical — and the field is the brand's actual home,
+     near-black. That gives the bare shield the contrast it needs with no new
+     assets, and lets the car run across the width.
+
+     HIERARCHY is the classic ad structure: hook, payoff, signature.
+       headline    — the emotional hook, the same line as panel 01
+       catchphrase — the site's own three-beat line, small and tracked
+       lockup      — the brand signing off, muted, at the foot
+     Play shows the app icon and name beside this graphic in most placements, so
+     it does not need to shout the name. It needs to sell.
+
+     Play re-crops this asset for different placements, so everything that
+     matters sits well inside the middle and the art fades at every edge. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #17181a; }
 
   .canvas {
     position: relative; width: 1024px; height: 500px;
-    overflow: hidden; background: #050507;
+    overflow: hidden;
+    background: radial-gradient(ellipse 70% 120% at 32% 45%, #16171a 0%, #050507 72%);
     font-synthesis-weight: none;
   }
 
-  /* The car, pre-cropped off the garage stage (raw/car-crop.png) so no info
-     strip or header comes with it. Positioned by left/top rather than
-     right/bottom so the plate blur below can be placed deterministically. */
-  .car {
-    position: absolute; left: 440px; top: -40px;
-    width: 820px; height: auto; z-index: 1;
-  }
-  /* The licence plate, blurred as on every panel. */
+  /* ── The car ─────────────────────────────────────────────────────────────
+     Pre-cropped off the garage stage (raw/car-crop.png) with plenty of dark
+     around it, so its own edges dissolve instead of ending on a box. */
+  .car { position: absolute; left: 480px; top: -30px; width: 820px; height: auto; z-index: 1; }
   .car-plate {
-    position: absolute; left: 548px; top: 347px; width: 78px; height: 48px; z-index: 2;
+    position: absolute; left: 587px; top: 356px; width: 78px; height: 46px; z-index: 2;
     backdrop-filter: blur(7px) saturate(0.45) contrast(0.88);
     -webkit-backdrop-filter: blur(7px) saturate(0.45) contrast(0.88);
     -webkit-mask-image: radial-gradient(ellipse 64% 64% at center, #000 55%, transparent 100%);
     mask-image: radial-gradient(ellipse 64% 64% at center, #000 55%, transparent 100%);
   }
-  /* Falloff so the crop's edges dissolve into the field instead of ending on a
-     visible seam. Play crops this asset for different placements, so the art
-     has to survive losing its edges. */
   .car-fade {
     position: absolute; inset: 0; z-index: 2;
     background:
-      linear-gradient(90deg, #050507 30%, rgba(5,5,7,0.6) 40%, rgba(5,5,7,0) 52%),
-      linear-gradient(0deg, #050507 0%, rgba(5,5,7,0) 16%),
-      linear-gradient(180deg, #050507 0%, rgba(5,5,7,0) 14%);
+      /* Deep enough that the car ghosts away behind the type column rather than
+         running its grille through the catchphrase. */
+      linear-gradient(90deg, #050507 46%, rgba(5,5,7,0.72) 56%, rgba(5,5,7,0) 72%),
+      linear-gradient(0deg, #050507 0%, rgba(5,5,7,0) 20%),
+      linear-gradient(180deg, #050507 0%, rgba(5,5,7,0) 16%),
+      linear-gradient(270deg, #050507 0%, rgba(5,5,7,0) 10%);
   }
 
-  /* The wedge, angled the same way as every panel. */
-  .wedge {
-    position: absolute; left: 0; top: 0; width: 640px; height: 500px; z-index: 3;
-    background: linear-gradient(160deg, #780E12 0%, #4a0a0c 78%, #3a0709 100%);
-    clip-path: polygon(0 0, 100% 0, 62% 100%, 0 100%);
+  /* ── The spine ───────────────────────────────────────────────────────────
+     The panels' wedge is a burgundy band whose cut rises left to right. Rotated
+     into the vertical it becomes a band wider at the top, narrowing downward —
+     the family resemblance without eating the canvas. */
+  .spine {
+    position: absolute; left: 0; top: 0; width: 150px; height: 500px; z-index: 3;
+    background: linear-gradient(170deg, #780E12 0%, #4a0a0c 74%, #3a0709 100%);
+    clip-path: polygon(0 0, 100% 0, 58% 100%, 0 100%);
   }
-  .wedge-edge {
-    position: absolute; left: 0; top: 0; width: 644px; height: 500px; z-index: 4;
-    clip-path: polygon(100% 0, calc(100% + 3px) 0, calc(62% + 3px) 100%, 62% 100%);
+  /* The amber hairline the panels put on their cut. */
+  .spine-edge {
+    position: absolute; left: 0; top: 0; width: 153px; height: 500px; z-index: 4;
+    clip-path: polygon(100% 0, calc(100% + 3px) 0, calc(58% + 3px) 100%, 58% 100%);
     background: rgba(200,102,26,0.55);
   }
 
-  .type { position: absolute; left: 64px; top: 116px; z-index: 5; width: 520px; }
-  .mark { display: flex; align-items: center; gap: 18px; }
-  /* The app icon tile, not the bare badge. Every shield asset in the repo is
-     burgundy, so on the burgundy wedge the shield vanished and only the white G
-     was left floating. The icon already ships the shield on its own near-black
-     field, which is exactly the contrast this needs — and it is literally the
-     mark people will tap on their home screen. */
-  .mark img {
-    height: 74px; width: 74px; display: block;
-    border-radius: 17px;
-  }
-  /* Canonical wordmark styling, matching StartSplash and the trading cards:
-     Hanken Grotesk italic 700 at -0.085em. The tight tracking is the whole
-     character of it. */
-  .mark span {
-    font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
-    font-size: 42px; letter-spacing: -0.085em; color: #f5f5f5;
-  }
+  /* ── Type ────────────────────────────────────────────────────────────────── */
+  .type { position: absolute; left: 208px; top: 112px; z-index: 5; width: 470px; }
+
   .headline {
-    margin-top: 34px;
-    font-family: 'Anton', sans-serif; font-size: 74px; line-height: 0.92;
+    font-family: 'Anton', sans-serif; font-size: 76px; line-height: 0.92;
     text-transform: uppercase; color: #f5f5f5; letter-spacing: -0.005em;
   }
   .headline .warm { color: #c8661a; }
-  /* The site's own catchphrase (public/marketing.html), set with the spacing a
-     three-beat line wants. */
-  .deck {
-    margin-top: 22px;
-    font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 27px;
-    letter-spacing: 0.10em; text-transform: uppercase;
-    color: rgba(240,228,200,0.82);
+
+  .catchphrase {
+    margin-top: 26px;
+    font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 24px;
+    letter-spacing: 0.20em; text-transform: uppercase;
+    color: rgba(240,228,200,0.72);
+  }
+
+  /* The signature. Bare shield on the dark field, where it actually reads, with
+     the wordmark at its canonical Hanken italic and -0.085em tracking. */
+  .lockup { margin-top: 40px; display: flex; align-items: center; gap: 15px; }
+  .lockup img { height: 44px; width: auto; display: block; }
+  .lockup span {
+    font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
+    font-size: 32px; letter-spacing: -0.085em; color: rgba(245,245,245,0.92);
   }
 </style>
 </head>
@@ -99,15 +114,16 @@
   <img class="car" src="raw/car-crop.png" alt="">
   <div class="car-plate"></div>
   <div class="car-fade"></div>
-  <div class="wedge"></div><div class="wedge-edge"></div>
+
+  <div class="spine"></div><div class="spine-edge"></div>
 
   <div class="type">
-    <div class="mark">
-      <img src="../../public/icon-512.png" alt="">
+    <div class="headline">Your build<br><span class="warm">has a story.</span></div>
+    <div class="catchphrase">Build it. &nbsp;Log it. &nbsp;Own it.</div>
+    <div class="lockup">
+      <img src="raw/g-shield.png" alt="">
       <span>G-Dimension</span>
     </div>
-    <div class="headline">Your build<br><span class="warm">has a story.</span></div>
-    <div class="deck">Build it. &nbsp;Log it. &nbsp;Own it.</div>
   </div>
 </div>
 </body>
