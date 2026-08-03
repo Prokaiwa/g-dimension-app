@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@200;300;400;500;600&family=Hanken+Grotesk:ital,wght@0,700;1,700;1,800&display=swap" rel="stylesheet">
 <style>
   /* Play Store feature graphic — 1024 × 500, and required.
      It is the most-seen asset on a Play listing and the one people forget.
@@ -62,10 +62,21 @@
 
   .type { position: absolute; left: 64px; top: 116px; z-index: 5; width: 520px; }
   .mark { display: flex; align-items: center; gap: 18px; }
-  .mark img { height: 62px; width: auto; display: block; }
+  /* The app icon tile, not the bare badge. Every shield asset in the repo is
+     burgundy, so on the burgundy wedge the shield vanished and only the white G
+     was left floating. The icon already ships the shield on its own near-black
+     field, which is exactly the contrast this needs — and it is literally the
+     mark people will tap on their home screen. */
+  .mark img {
+    height: 74px; width: 74px; display: block;
+    border-radius: 17px;
+  }
+  /* Canonical wordmark styling, matching StartSplash and the trading cards:
+     Hanken Grotesk italic 700 at -0.085em. The tight tracking is the whole
+     character of it. */
   .mark span {
     font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
-    font-size: 40px; letter-spacing: -0.06em; color: #f5f5f5;
+    font-size: 42px; letter-spacing: -0.085em; color: #f5f5f5;
   }
   .headline {
     margin-top: 34px;
@@ -73,10 +84,13 @@
     text-transform: uppercase; color: #f5f5f5; letter-spacing: -0.005em;
   }
   .headline .warm { color: #c8661a; }
+  /* The site's own catchphrase (public/marketing.html), set with the spacing a
+     three-beat line wants. */
   .deck {
-    margin-top: 20px;
-    font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 25px;
-    letter-spacing: 0.02em; color: rgba(240,228,200,0.75);
+    margin-top: 22px;
+    font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 27px;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    color: rgba(240,228,200,0.82);
   }
 </style>
 </head>
@@ -89,11 +103,11 @@
 
   <div class="type">
     <div class="mark">
-      <img src="../../src/assets/logo/gdimensionG.webp" alt="">
+      <img src="../../public/icon-512.png" alt="">
       <span>G-Dimension</span>
     </div>
     <div class="headline">Your build<br><span class="warm">has a story.</span></div>
-    <div class="deck">Mods, service and receipts. Kept for good.</div>
+    <div class="deck">Build it. &nbsp;Log it. &nbsp;Own it.</div>
   </div>
 </div>
 </body>

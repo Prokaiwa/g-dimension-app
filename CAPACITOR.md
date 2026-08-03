@@ -64,6 +64,34 @@ store submission. Confirm it before that day.
 
 ---
 
+## iOS ships iPhone-only (for now)
+
+`TARGETED_DEVICE_FAMILY` in `ios/App/App.xcodeproj/project.pbxproj` is **`"1"`**
+(iPhone), set in both build configurations. Capacitor's default is `"1,2"`, which
+declares iPad support, and that default was changed deliberately on 2026-08-03.
+
+Two reasons:
+
+- **App Store Connect requires a separate iPad screenshot set** for any app that
+  declares iPad support. That is real work for a device the app is not designed
+  for yet.
+- **Apple review runs the app on an iPad.** G-Dimension is phone-first in ways
+  that are structural, not cosmetic: `100dvh` stages, the Garage carousel
+  geometry, bottom sheets sized to phone widths, and `CarStage`'s fixed 200px car
+  against a `flex: 1` stage. On a 13" screen that is stretched, not adapted — a
+  genuine rejection risk under the design guidelines, and a poor first impression
+  even if it passes.
+
+The cost is close to zero: **an iPhone-only app still installs and runs on iPad**
+in compatibility mode, letterboxed. iPad owners are not excluded; they get the
+phone layout in a window, which is roughly what they would have got anyway.
+
+**Doing iPad properly is app work, not a store-listing task** — real breakpoints
+for the Garage carousel, a two-column Build Sheet, Featured as an actual
+magazine spread. When that happens, flip this back to `"1,2"` and add the 13"
+screenshot set (the panel system in `design/store-shots/` takes a new target
+size cleanly — see `scripts/render-all-panels.mjs`).
+
 ## Native features
 
 ### 1. Recurring service reminders — SHIPPED

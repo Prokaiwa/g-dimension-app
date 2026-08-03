@@ -178,7 +178,7 @@ html, body { background: #17181a; }
 .wordmark {
   position: absolute; right: 96px; bottom: 96px;
   font-family: 'Hanken Grotesk', sans-serif; font-style: italic; font-weight: 700;
-  font-size: 34px; letter-spacing: -0.06em; color: rgba(245,245,245,0.55);
+  font-size: 34px; letter-spacing: -0.085em; color: rgba(245,245,245,0.55);
 }
 .footer-line {
   position: absolute; left: 96px; right: 96px; top: calc(var(--footer-top) + 150px);
