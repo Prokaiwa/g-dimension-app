@@ -303,10 +303,15 @@ than emoji.
 ## 8. Recommendation
 
 **Add fuel logging before the second release.** It is the one gap that shows up
-in every competitor and in the search terms for the whole category, and it is
-modest work: a `fuel_entries` table, a form, and a stat on the maintenance
-screen. Without it, G-Dimension is invisible to anyone searching "fuel log" or
-"MPG tracker", which is a large share of the traffic.
+in every competitor and in the search terms for the whole category. Without it,
+G-Dimension is invisible to anyone searching "fuel log" or "MPG tracker", which
+is a large share of the traffic.
+
+It is less trivial than it looks: fuel economy is computed between two FULL
+fills, so partial and missed fill-ups need real handling or every number comes
+out quietly wrong. Field-level research into how Fuelly, Fuelio, Drivvo and
+Simply Auto do it, and what it would take here, is in
+[`FUEL_LOG_RESEARCH.md`](./FUEL_LOG_RESEARCH.md).
 
 **Lead the listing on transfer.** It is the only thing here nobody else does.
 Everyone exports a PDF. Only G-Dimension hands over the car.
