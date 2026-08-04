@@ -17,32 +17,51 @@
   /* The stop sits ON the bottom road, between Featured and Maintenance. That
      stretch is the quietest part of the loop: no road label runs through it, and
      it reads as somewhere you pass rather than somewhere you go. */
-  /* Sized against the Maintenance node, not against the phone. The oil bottle
-     stands about 190px tall here; the pump is held to about 70% of that so it
-     reads as scenery beside a destination even though a real pump is the taller
-     object. Its own aspect (730x1250 after the cutout) sets the width. */
-  .stop { position:absolute; left:561px; top:1727px; width:79px; z-index:3; }
-  .stop img { display:block; width:79px; height:auto; }
+  /* SIZE. Held to the destinations, not below them. The first pass ran it at
+     about 70% of a node on the theory that scenery should be smaller than a
+     place you go, and it just read as a mistake — a toy dropped between two
+     full-size objects. The oil bottle measures 214px tall here and the magazine
+     234px, so the pump takes 222px and its own aspect (730x1250 after the
+     cutout) sets the width. What separates a stop from a destination is now the
+     LABEL, not the scale: small, dim, and not in the destinations' caps.
+
+     PLACEMENT. Base on the road, the way every node straddles it, rather than
+     hovering above it. The road's centre line measures y=1889 at this x, so the
+     base lands just past it at 1897. Nudged to x=570 rather than dead centre of
+     the gap, to sit evenly BETWEEN the two nodes. Centring on the gap in the
+     road put it visibly closer to Featured, because the magazine is the wider
+     object; x=598 splits the two clearances instead, and still leaves the small
+     caption clear of the MAINTENANCE caption, which starts further left than the
+     bottle above it. */
+  .stop { position:absolute; left:533px; top:1616px; width:130px; z-index:3; }
+  .stop img { display:block; width:130px; height:auto; }
 
   /* The 25deg cast shadow the Garage world uses, so the object sits on the
      ground plane like every other node. */
   .stop::after {
-    content:''; position:absolute; left:8px; bottom:-7px; width:64px; height:13px;
-    background:#000; opacity:0.34; filter:blur(5px); border-radius:50%;
+    content:''; position:absolute; left:14px; bottom:-10px; width:104px; height:20px;
+    background:#000; opacity:0.36; filter:blur(7px); border-radius:50%;
   }
 
+  /* Same baseline as FEATURED and MAINTENANCE, two thirds their size and dimmer.
+     This is what says "you pass this" while the object itself keeps the world's
+     scale. */
   .stop-label {
-    position:absolute; left:508px; top:1876px; width:184px; text-align:center; z-index:3;
-    font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:19px;
-    letter-spacing:0.16em; color:rgba(228,232,236,0.62);
+    position:absolute; left:506px; top:1908px; width:184px; text-align:center; z-index:3;
+    font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:27px;
+    letter-spacing:0.16em; color:rgba(228,232,236,0.55);
   }
 
   /* Stale state: the readout warms to the brand amber and the sign picks up a
      soft halo. Same idea as a low-fuel light, but it belongs to the world
      instead of being HUD chrome laid over it. */
+  /* Scaled with the object. At the old node size the halo was a small tight
+     ellipse; on a 130x222 pump the same inset left a faintly boxy edge and read
+     as a wash rather than a light. */
   .stale .stop::before {
-    content:''; position:absolute; left:-26px; top:-14px; right:-26px; bottom:-14px;
-    background:radial-gradient(ellipse at center, rgba(200,102,26,0.34) 0%, rgba(200,102,26,0) 68%);
+    content:''; position:absolute; left:-70px; top:-46px; right:-70px; bottom:-46px;
+    background:radial-gradient(ellipse 52% 52% at 50% 52%,
+      rgba(200,102,26,0.38) 0%, rgba(200,102,26,0.14) 46%, rgba(200,102,26,0) 76%);
   }
   .stale .stop-label { color:rgba(200,102,26,0.92); }
 </style></head>
