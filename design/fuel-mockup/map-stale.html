@@ -14,26 +14,33 @@
      source screenshot. The 60px this opens at the bottom is already black. */
   .map { position:absolute; left:0; top:-60px; width:1170px; height:2317px; }
 
-  /* The stop sits ON the bottom road, between Featured and Maintenance. That
-     stretch is the quietest part of the loop: no road label runs through it, and
-     it reads as somewhere you pass rather than somewhere you go. */
   /* SIZE. Held to the destinations, not below them. The first pass ran it at
      about 70% of a node on the theory that scenery should be smaller than a
-     place you go, and it just read as a mistake — a toy dropped between two
+     place you go, and it just read as a mistake: a toy dropped between two
      full-size objects. The oil bottle measures 214px tall here and the magazine
      234px, so the pump takes 222px and its own aspect (730x1250 after the
-     cutout) sets the width. What separates a stop from a destination is now the
+     cutout) sets the width. What separates a stop from a destination is the
      LABEL, not the scale: small, dim, and not in the destinations' caps.
 
-     PLACEMENT. Base on the road, the way every node straddles it, rather than
-     hovering above it. The road's centre line measures y=1889 at this x, so the
-     base lands just past it at 1897. Nudged to x=570 rather than dead centre of
-     the gap, to sit evenly BETWEEN the two nodes. Centring on the gap in the
-     road put it visibly closer to Featured, because the magazine is the wider
-     object; x=598 splits the two clearances instead, and still leaves the small
-     caption clear of the MAINTENANCE caption, which starts further left than the
-     bottle above it. */
-  .stop { position:absolute; left:533px; top:1616px; width:130px; z-index:3; }
+     PLACEMENT. Inside the loop, in the open pocket between HOME and TIMELINE,
+     and deliberately OFF the road.
+
+     It used to sit on the bottom road between Featured and Maintenance. That is
+     the narratively obvious spot and it was a hit-target trap: at world scale the
+     pump left only about 27pt of clear space to the magazine on one side and the
+     oil bottle on the other, and a node's tap area is always larger than its art.
+     Three targets that close on a map navigated by thumb means mis-taps into a
+     whole section.
+
+     The pocket here measures roughly 244 x 360 and holds nothing but faint grid.
+     Clearances at these coordinates: 90px down from the HOME caption, 24px right
+     of the Timeline wrench, and about 170px clear of the Home-to-Timeline road,
+     which also keeps it off the "To Timeline" script.
+
+     Being off the road is not a compromise. A station set back from the highway
+     is how they actually sit, and it draws the line this needs: the five nodes
+     are places on the route, and this is a thing you pull over for. */
+  .stop { position:absolute; left:410px; top:913px; width:130px; z-index:3; }
   .stop img { display:block; width:130px; height:auto; }
 
   /* The 25deg cast shadow the Garage world uses, so the object sits on the
@@ -43,11 +50,10 @@
     background:#000; opacity:0.36; filter:blur(7px); border-radius:50%;
   }
 
-  /* Same baseline as FEATURED and MAINTENANCE, two thirds their size and dimmer.
-     This is what says "you pass this" while the object itself keeps the world's
-     scale. */
+  /* Two thirds the size of a destination caption and dimmer. This is what says
+     "you pull over here" while the object itself keeps the world's scale. */
   .stop-label {
-    position:absolute; left:506px; top:1908px; width:184px; text-align:center; z-index:3;
+    position:absolute; left:383px; top:1206px; width:184px; text-align:center; z-index:3;
     font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:27px;
     letter-spacing:0.16em; color:rgba(228,232,236,0.55);
   }
