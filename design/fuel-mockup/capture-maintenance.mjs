@@ -38,7 +38,7 @@ const VIEWPORT = { width: 430, height: 932 }
 const LAYOUT = [
   null,                        // Detailing, untouched
   null,                        // Service, untouched
-  { left: 282, bottom: 200 },  // Fuel (new)
+  { left: 282, bottom: 272 },  // Fuel (new)
 ]
 
 const pump = await readFile(path.join(OUT, 'pump-node.png'))
