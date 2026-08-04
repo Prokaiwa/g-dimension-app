@@ -6,8 +6,7 @@
 <style>
   /* MOCKUP ONLY. Composites a proposed roadside fuel stop onto a real Home-map
      screenshot so placement and weight can be judged before any code is written.
-     The pump is drawn as SVG here; shipping it would want a rendered 3D asset in
-     the same style as the house, wrench and oil bottle. */
+     The pump is the owner's own rendered node, background-cut by cutout.mjs. */
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { background:#050507; }
   .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; }
@@ -18,18 +17,22 @@
   /* The stop sits ON the bottom road, between Featured and Maintenance. That
      stretch is the quietest part of the loop: no road label runs through it, and
      it reads as somewhere you pass rather than somewhere you go. */
-  .stop { position:absolute; left:548px; top:1732px; width:104px; z-index:3; }
-  .stop img { display:block; width:104px; height:auto; }
+  /* Sized against the Maintenance node, not against the phone. The oil bottle
+     stands about 190px tall here; the pump is held to about 70% of that so it
+     reads as scenery beside a destination even though a real pump is the taller
+     object. Its own aspect (730x1250 after the cutout) sets the width. */
+  .stop { position:absolute; left:561px; top:1727px; width:79px; z-index:3; }
+  .stop img { display:block; width:79px; height:auto; }
 
   /* The 25deg cast shadow the Garage world uses, so the object sits on the
      ground plane like every other node. */
   .stop::after {
-    content:''; position:absolute; left:14px; bottom:-9px; width:74px; height:15px;
+    content:''; position:absolute; left:8px; bottom:-7px; width:64px; height:13px;
     background:#000; opacity:0.34; filter:blur(5px); border-radius:50%;
   }
 
   .stop-label {
-    position:absolute; left:508px; top:1866px; width:184px; text-align:center; z-index:3;
+    position:absolute; left:508px; top:1876px; width:184px; text-align:center; z-index:3;
     font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:19px;
     letter-spacing:0.16em; color:rgba(228,232,236,0.62);
   }
@@ -46,7 +49,7 @@
 <body>
 <div class="canvas stale">
   <img class="map" src="home-map.png" alt="">
-  <div class="stop"><img src="pump.svg" alt=""></div>
+  <div class="stop"><img src="pump-node.png" alt=""></div>
   <div class="stop-label">FUEL</div>
 </div>
 </body></html>

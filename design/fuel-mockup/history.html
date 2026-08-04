@@ -1,0 +1,225 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* MOCKUP ONLY. /fuel — the page behind "View fuel history" on the fill-up
+     sheet. Drawn at 3x (1170 = 390pt) so it can be read at phone scale.
+
+     THE ARGUMENT THIS PAGE MAKES. Every competitor's fuel section is a silo: a
+     table of purchases with an MPG average on top. G-Dimension already knows
+     what the mods cost and what the service cost, so it is the only one that
+     can put fuel in the same frame and answer "what has this car actually cost
+     me". That is why the cost-of-ownership block sits above the log rather than
+     buried at the bottom of a stats tab: it is the reason the feature exists
+     here rather than in Fuelly.
+
+     House rules followed: radius 0 on every panel, cell and bar; Hanken for all
+     UI with Cormorant italic reserved for the header title (matching
+     GarageRemindersPage); COLOR_ACCENT as the only warm colour; text capped at
+     #f5f5f5, never pure white; 44pt tap targets on the rows; no em dashes. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#050507; font-family:'Hanken Grotesk',sans-serif; }
+  .canvas {
+    position:relative; width:1170px; height:2317px; overflow:hidden;
+    background:radial-gradient(ellipse at center, #202224 0%, #050505 100%);
+  }
+
+  /* ── Header ── 44pt, matching GarageRemindersPage exactly. */
+  .hdr {
+    height:132px; background:#111111; display:flex; align-items:center;
+    justify-content:space-between; padding:0 42px 0 30px;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+  }
+  .hdr-l { display:flex; align-items:center; gap:12px; }
+  .chev { color:#f0e4c8; font-size:66px; font-weight:300; line-height:1; margin-top:-6px; }
+  .hdr-title {
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600;
+    font-size:66px; color:#ffffff; letter-spacing:0.01em;
+  }
+  /* Informational only, never tappable. */
+  .hdr-car { font-size:33px; font-weight:700; color:#f0e4c8; letter-spacing:0.04em; opacity:0.75; }
+
+  .body { padding:0 48px; }
+
+  /* ── Hero ──────────────────────────────────────────────────────────────
+     One number, big. Everything else on the page qualifies it. */
+  .kicker {
+    font-size:19px; font-weight:800; letter-spacing:0.18em; text-transform:uppercase;
+    color:rgba(245,245,245,0.38);
+  }
+  .hero { padding:56px 0 0; }
+  .hero-num { display:flex; align-items:baseline; gap:16px; margin-top:18px; }
+  .hero-num b { font-size:132px; font-weight:800; color:#f5f5f5; letter-spacing:-0.035em; line-height:0.9; }
+  .hero-num span { font-size:42px; font-weight:700; color:rgba(245,245,245,0.44); }
+  .hero-sub { margin-top:16px; font-size:25px; font-weight:500; color:rgba(245,245,245,0.44); }
+
+  /* Three cells, hairline-separated. Cost per mile leads because it is the one
+     that talks to the rest of the app. */
+  .stats { display:flex; margin-top:44px; border-top:1px solid rgba(245,245,245,0.10); border-bottom:1px solid rgba(245,245,245,0.10); }
+  .stat { flex:1; padding:26px 0 28px; }
+  .stat + .stat { border-left:1px solid rgba(245,245,245,0.10); padding-left:28px; }
+  .stat b { display:block; font-size:44px; font-weight:800; color:#c8661a; letter-spacing:-0.02em; }
+  .stat i { display:block; font-style:normal; margin-top:9px; font-size:18px; font-weight:800;
+            letter-spacing:0.15em; text-transform:uppercase; color:rgba(245,245,245,0.38); }
+
+  /* ── Chart ─────────────────────────────────────────────────────────────
+     One bar per tank, oldest left. No axis box, no gridlines except the
+     average, no labels the shape already gives you. */
+  .sec { margin-top:64px; }
+  .chart { margin-top:30px; position:relative; height:250px; display:flex; align-items:flex-end; gap:26px; }
+  .bar { flex:1; background:rgba(200,102,26,0.34); }
+  .bar.now { background:#c8661a; }
+  /* A partial fill produces NO economy figure, so it gets no bar. The gap is
+     the point: it shows the user why the chain matters. */
+  .bar.none { background:rgba(245,245,245,0.07); height:10px; }
+  .avg { position:absolute; left:0; right:0; bottom:148px; border-top:1px dashed rgba(245,245,245,0.26); }
+  /* Left, not right: on the right it lands on top of the newest bar, which is
+     the one bar that has to stay readable. */
+  .avg span {
+    position:absolute; left:0; top:-32px; font-size:19px; font-weight:800;
+    letter-spacing:0.12em; color:rgba(245,245,245,0.44);
+  }
+  .chart-x { display:flex; justify-content:space-between; margin-top:16px;
+             font-size:20px; font-weight:600; color:rgba(245,245,245,0.30); }
+
+  /* ── True cost ─────────────────────────────────────────────────────────
+     The block no competitor can build. Colours are all existing tokens:
+     COLOR_BRAND for mods, COLOR_WORLD_LOW for service, COLOR_ACCENT for fuel. */
+  .split { margin-top:30px; display:flex; height:34px; }
+  .split .mods { background:#780E12; }
+  .split .svc  { background:#6a737a; }
+  .split .fuel { background:#c8661a; }
+  .legend { display:flex; gap:40px; margin-top:24px; }
+  .leg { display:flex; align-items:center; gap:12px; }
+  .swatch { width:20px; height:20px; }
+  .leg span { font-size:24px; font-weight:600; color:rgba(245,245,245,0.60); }
+  .leg b { font-size:24px; font-weight:800; color:#f5f5f5; }
+  .verdict { margin-top:26px; font-size:27px; font-weight:600; color:rgba(245,245,245,0.72); line-height:1.35; }
+  .verdict b { color:#c8661a; font-weight:800; }
+
+  /* ── Log ───────────────────────────────────────────────────────────────── */
+  .log { margin-top:60px; }
+  .row {
+    display:flex; align-items:center; justify-content:space-between; height:132px;
+    border-top:1px solid rgba(245,245,245,0.08);
+  }
+  .row .when b { display:block; font-size:28px; font-weight:700; color:#f5f5f5; letter-spacing:0.01em; }
+  .row .when i { display:block; font-style:normal; margin-top:7px; font-size:21px; font-weight:600; color:rgba(245,245,245,0.38); }
+  .row .amt { text-align:right; }
+  .row .amt b { display:block; font-size:28px; font-weight:700; color:#f5f5f5; }
+  .row .amt i { display:block; font-style:normal; margin-top:7px; font-size:21px; font-weight:600; color:rgba(245,245,245,0.38); }
+  .row .mpg { width:230px; text-align:right; font-size:32px; font-weight:800; color:#c8661a; letter-spacing:-0.01em; }
+  /* Honest about the rule instead of inventing a number: economy is only
+     defined between two full tanks. */
+  .row .mpg.partial { font-size:19px; font-weight:800; letter-spacing:0.14em;
+                      color:rgba(245,245,245,0.32); }
+
+  /* The pump on the map is the main way in, but a page you can reach and not
+     act on is a dead end. Rounded rectangle, not a pill, per the house rule. */
+  .fab {
+    position:absolute; right:48px; bottom:56px; z-index:3;
+    background:#c8661a; border-radius:10px; padding:26px 40px;
+    font-size:27px; font-weight:800; letter-spacing:0.10em; text-transform:uppercase;
+    color:#fff5dc; box-shadow:0 10px 26px rgba(0,0,0,0.55);
+  }
+
+  .fade { position:absolute; left:0; right:0; bottom:0; height:210px;
+          background:linear-gradient(180deg, rgba(5,5,7,0) 0%, #050507 78%); }
+</style></head>
+<body>
+<div class="canvas">
+
+  <div class="hdr">
+    <div class="hdr-l"><span class="chev">&lsaquo;</span><span class="hdr-title">Fuel</span></div>
+    <span class="hdr-car">2006 LS 430</span>
+  </div>
+
+  <div class="body">
+    <div class="hero">
+      <div class="kicker">Average economy</div>
+      <div class="hero-num"><b>23.5</b><span>mpg</span></div>
+      <div class="hero-sub">11 full tanks &middot; best 24.8 &middot; worst 21.8</div>
+
+      <div class="stats">
+        <div class="stat"><b>$0.18</b><i>Per mile</i></div>
+        <div class="stat"><b>$4.19</b><i>Avg per gal</i></div>
+        <div class="stat"><b>$1,284</b><i>Fuel to date</i></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="kicker">Economy per tank</div>
+      <div class="chart">
+        <div class="bar" style="height:108px"></div>
+        <div class="bar" style="height:134px"></div>
+        <div class="bar" style="height:86px"></div>
+        <div class="bar" style="height:167px"></div>
+        <div class="bar" style="height:152px"></div>
+        <div class="bar" style="height:126px"></div>
+        <div class="bar none"></div>
+        <div class="bar" style="height:145px"></div>
+        <div class="bar" style="height:196px"></div>
+        <div class="bar" style="height:137px"></div>
+        <div class="bar" style="height:152px"></div>
+        <div class="bar now" style="height:170px"></div>
+        <div class="avg"><span>AVG 23.5</span></div>
+      </div>
+      <div class="chart-x"><span>Feb</span><span>Jul</span></div>
+    </div>
+
+    <div class="sec">
+      <div class="kicker">What this car has cost you</div>
+      <div class="split">
+        <div class="mods" style="width:77%"></div>
+        <div class="svc"  style="width:17.6%"></div>
+        <div class="fuel" style="width:5.4%"></div>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="swatch mods" style="background:#780E12"></div><span>Mods</span><b>$18,400</b></div>
+        <div class="leg"><div class="swatch" style="background:#6a737a"></div><span>Service</span><b>$4,210</b></div>
+        <div class="leg"><div class="swatch" style="background:#c8661a"></div><span>Fuel</span><b>$1,284</b></div>
+      </div>
+      <div class="verdict">Fuel is <b>5%</b> of what this car has cost you, and it carries into the build report with the rest.</div>
+    </div>
+
+    <div class="log">
+      <div class="kicker">Fill-ups</div>
+      <div class="row">
+        <div class="when"><b>Jul 28</b><i>112,812 mi</i></div>
+        <div class="amt"><b>$59.47</b><i>14.2 gal</i></div>
+        <div class="mpg">24.1 mpg</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>Jul 14</b><i>112,470 mi</i></div>
+        <div class="amt"><b>$57.10</b><i>13.8 gal</i></div>
+        <div class="mpg">23.6 mpg</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>Jul 02</b><i>112,144 mi</i></div>
+        <div class="amt"><b>$25.60</b><i>6.1 gal</i></div>
+        <div class="mpg partial">Partial</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>Jun 21</b><i>111,802 mi</i></div>
+        <div class="amt"><b>$61.32</b><i>14.9 gal</i></div>
+        <div class="mpg">23.2 mpg</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>Jun 09</b><i>111,456 mi</i></div>
+        <div class="amt"><b>$58.94</b><i>14.1 gal</i></div>
+        <div class="mpg">24.8 mpg</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>May 27</b><i>111,106 mi</i></div>
+        <div class="amt"><b>$60.15</b><i>14.6 gal</i></div>
+        <div class="mpg">23.4 mpg</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fade"></div>
+  <div class="fab">+ Fill-up</div>
+</div>
+</body></html>
