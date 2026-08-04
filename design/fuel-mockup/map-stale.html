@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* MOCKUP ONLY. Composites a proposed roadside fuel stop onto a real Home-map
+     screenshot so placement and weight can be judged before any code is written.
+     The pump is drawn as SVG here; shipping it would want a rendered 3D asset in
+     the same style as the house, wrench and oil bottle. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#050507; }
+  .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; }
+  /* Shifted up 60px to drop the sliver of the app header left by the crop of the
+     source screenshot. The 60px this opens at the bottom is already black. */
+  .map { position:absolute; left:0; top:-60px; width:1170px; height:2317px; }
+
+  /* The stop sits ON the bottom road, between Featured and Maintenance. That
+     stretch is the quietest part of the loop: no road label runs through it, and
+     it reads as somewhere you pass rather than somewhere you go. */
+  .stop { position:absolute; left:548px; top:1732px; width:104px; z-index:3; }
+  .stop img { display:block; width:104px; height:auto; }
+
+  /* The 25deg cast shadow the Garage world uses, so the object sits on the
+     ground plane like every other node. */
+  .stop::after {
+    content:''; position:absolute; left:14px; bottom:-9px; width:74px; height:15px;
+    background:#000; opacity:0.34; filter:blur(5px); border-radius:50%;
+  }
+
+  .stop-label {
+    position:absolute; left:508px; top:1866px; width:184px; text-align:center; z-index:3;
+    font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:19px;
+    letter-spacing:0.16em; color:rgba(228,232,236,0.62);
+  }
+
+  /* Stale state: the readout warms to the brand amber and the sign picks up a
+     soft halo. Same idea as a low-fuel light, but it belongs to the world
+     instead of being HUD chrome laid over it. */
+  .stale .stop::before {
+    content:''; position:absolute; left:-26px; top:-14px; right:-26px; bottom:-14px;
+    background:radial-gradient(ellipse at center, rgba(200,102,26,0.34) 0%, rgba(200,102,26,0) 68%);
+  }
+  .stale .stop-label { color:rgba(200,102,26,0.92); }
+</style></head>
+<body>
+<div class="canvas stale">
+  <img class="map" src="home-map.png" alt="">
+  <div class="stop"><img src="pump.svg" alt=""></div>
+  <div class="stop-label">FUEL</div>
+</div>
+</body></html>

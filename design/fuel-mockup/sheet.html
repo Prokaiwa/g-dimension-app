@@ -1,0 +1,123 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* MOCKUP ONLY. The fill-up capture sheet, opened from the roadside stop.
+     Deliberately a SHEET, not a route: it ships with Home, so there is no lazy
+     chunk to fetch and no navigation. That is the whole reason it can be a
+     ten-second job on a bad connection at a pump.
+
+     Follows the house rules: radius 0 on inputs and panels, RADIUS_BUTTON 10px
+     on the action, 12px only on the sheet's top corners, Hanken throughout,
+     COLOR_ACCENT as the single warm colour, no pure white, no em dashes. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#050507; font-family:'Hanken Grotesk',sans-serif; }
+  .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; }
+  /* Shifted up 60px to drop the sliver of the app header left by the crop of the
+     source screenshot. The 60px this opens at the bottom is already black. */
+  .map { position:absolute; left:0; top:-60px; width:1170px; height:2317px; }
+  .backdrop { position:absolute; inset:0; background:rgba(5,5,7,0.72); }
+
+  .sheet {
+    position:absolute; left:0; right:0; bottom:0; height:1010px;
+    background:#0d0e10; border-radius:12px 12px 0 0;
+    border-top:1px solid rgba(245,245,245,0.09);
+    padding:0 52px;
+  }
+  .grip { width:112px; height:5px; background:rgba(245,245,245,0.22); margin:22px auto 0; }
+
+  .head { display:flex; align-items:baseline; justify-content:space-between; margin-top:34px; }
+  .title { font-size:44px; font-weight:800; color:#f5f5f5; letter-spacing:-0.02em; }
+  .car { font-size:24px; font-weight:600; color:rgba(245,245,245,0.42); }
+
+  /* The one line that makes this feel like a record rather than a form. */
+  .context {
+    margin-top:14px; font-size:24px; font-weight:500; color:rgba(200,102,26,0.92);
+    letter-spacing:0.01em;
+  }
+
+  .label {
+    font-size:17px; font-weight:800; letter-spacing:0.16em; text-transform:uppercase;
+    color:rgba(245,245,245,0.42); margin:38px 0 12px;
+  }
+  /* Concrete panel inputs, the app's existing form surface. */
+  .field {
+    background:linear-gradient(180deg,#e6e6e8 0%,#d8d8da 45%,#c4c4c6 100%);
+    border-bottom:2px solid #6a6a6c; padding:20px 22px;
+    display:flex; align-items:baseline; justify-content:space-between;
+  }
+  .field .val { font-size:42px; font-weight:700; color:#2a2a2c; letter-spacing:-0.01em; }
+  .field .unit { font-size:22px; font-weight:700; color:#6a6a6c; }
+  .row { display:flex; gap:22px; }
+  .row > div { flex:1; }
+
+  /* Derived, never typed. Entering any two of volume, total and price gives the
+     third, which is the trick Fuelly uses to kill arithmetic at the pump. */
+  .derived {
+    margin-top:14px; font-size:23px; font-weight:600; color:rgba(245,245,245,0.5);
+  }
+
+  .toggle {
+    margin-top:38px; display:flex; align-items:center; justify-content:space-between;
+    padding:24px 0; border-top:1px solid rgba(245,245,245,0.09);
+    border-bottom:1px solid rgba(245,245,245,0.09);
+  }
+  .toggle-text { font-size:27px; font-weight:600; color:#f5f5f5; }
+  .toggle-sub { font-size:20px; font-weight:500; color:rgba(245,245,245,0.40); margin-top:5px; }
+  .switch { width:84px; height:46px; border-radius:9999px; background:#c8661a; position:relative; flex-shrink:0; }
+  .switch::after { content:''; position:absolute; right:5px; top:5px; width:36px; height:36px; border-radius:50%; background:#fff5dc; }
+
+  .save {
+    margin-top:44px; height:104px; border-radius:10px; background:#c8661a;
+    display:flex; align-items:center; justify-content:center;
+    font-size:29px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#fff5dc;
+  }
+  .history {
+    margin-top:28px; text-align:center; font-size:24px; font-weight:600;
+    color:rgba(245,245,245,0.46);
+  }
+</style></head>
+<body>
+<div class="canvas">
+  <img class="map" src="home-map.png" alt="">
+  <div class="backdrop"></div>
+
+  <div class="sheet">
+    <div class="grip"></div>
+
+    <div class="head">
+      <span class="title">Fill-up</span>
+      <span class="car">2006 LS 430</span>
+    </div>
+    <div class="context">Last fill 412 mi ago &middot; 24.1 mpg</div>
+
+    <div class="label">Odometer</div>
+    <div class="field"><span class="val">112,812</span><span class="unit">MI</span></div>
+
+    <div class="row">
+      <div>
+        <div class="label">Gallons</div>
+        <div class="field"><span class="val">14.2</span><span class="unit">GAL</span></div>
+      </div>
+      <div>
+        <div class="label">Total</div>
+        <div class="field"><span class="val">59.47</span><span class="unit">USD</span></div>
+      </div>
+    </div>
+    <div class="derived">$4.19 per gallon</div>
+
+    <div class="toggle">
+      <div>
+        <div class="toggle-text">Filled the tank</div>
+        <div class="toggle-sub">Turn off for a partial fill</div>
+      </div>
+      <div class="switch"></div>
+    </div>
+
+    <div class="save">Save fill-up</div>
+    <div class="history">View fuel history</div>
+  </div>
+</div>
+</body></html>

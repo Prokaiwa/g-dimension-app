@@ -46,3 +46,11 @@ design/store-shots/*.png
 # that Blink renders as per-pixel speckle and WebKit renders as tone. No script
 # can reproduce them, so losing them would break the panels that use them.
 !design/store-shots/raw/*-device.png
+
+# Fuel-feature mockup renders — same deal. render.mjs rebuilds every PNG here
+# from the *.html sources, EXCEPT home-map.png, which is a cropped real-device
+# Home screenshot (the map's noise texture does not survive a headless render)
+# and is the backdrop everything else composites onto. Losing it would break the
+# mockups with no way to rebuild it.
+design/fuel-mockup/*.png
+!design/fuel-mockup/home-map.png
