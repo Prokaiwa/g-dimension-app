@@ -8,13 +8,18 @@
 // whether the diagonal still reads with three objects on it. A composited
 // approximation would beg exactly that question.
 //
-// WHY THE EXISTING TWO TILES MOVE. MaintenancePage.tsx:21-24 hand-places them
-// at left 48 / 218 with a +170 horizontal step. A third point on that line
-// lands at left 388, and 388 + 126 = 514 on a 430-wide screen, so it is off the
-// edge. There is no room to APPEND to this diagonal; it has to be re-spaced.
-// Step compressed to 136 (14 / 150 / 286, the last ending at 412 with an 18px
-// margin) and the +42 vertical rise kept exactly, so the line's angle is
-// unchanged and only its spacing tightens.
+// THE EXISTING TWO TILES DO NOT MOVE. An earlier pass re-spaced all three onto
+// one line, because MaintenancePage.tsx:21-24 places Detailing and Service at
+// left 48 / 218 with a +170 step, and a third point on that line lands at 388,
+// where 388 + 126 = 514 runs off a 430-wide screen. Re-spacing worked but it
+// edited a screen that was already right.
+//
+// Instead Fuel goes ABOVE and to the right of Service, at left 282 / bottom 200.
+// It clears the right edge by 22px and clears Service's icon box vertically, so
+// the two never collide even though they overlap horizontally. The arrangement
+// reads as a rising staircase rather than a row, which is what the existing pair
+// was already doing with its +42 rise. Bottom 246 was the first try and left a
+// visible hole between Service and Fuel; 200 closes it without crowding.
 //
 // Container notes are the same as scripts/capture-store-shots.mjs: Chromium
 // cannot egress through the sandbox proxy, so every Supabase and Google Fonts
@@ -31,9 +36,9 @@ const VIEWPORT = { width: 430, height: 932 }
 // left / bottom for the re-spaced diagonal, in CSS px, matching the shape of
 // the TILES array the page already uses.
 const LAYOUT = [
-  { left: 14, bottom: 54 },    // Detailing
-  { left: 150, bottom: 96 },   // Service
-  { left: 286, bottom: 138 },  // Fuel (new)
+  null,                        // Detailing, untouched
+  null,                        // Service, untouched
+  { left: 282, bottom: 200 },  // Fuel (new)
 ]
 
 const pump = await readFile(path.join(OUT, 'pump-node.png'))
@@ -83,8 +88,6 @@ await page.screenshot({ path: path.join(OUT, 'maintenance-before.png') })
 const injected = await page.evaluate(({ pumpSrc, LAYOUT }) => {
   const tiles = [...document.querySelectorAll('.mnt-tile')]
   if (tiles.length < 2) return { ok: false, found: tiles.length }
-  tiles.forEach((t, i) => { t.style.left = LAYOUT[i].left + 'px'; t.style.bottom = LAYOUT[i].bottom + 'px' })
-
   // Clone Service rather than hand-building markup, so the new tile inherits
   // the exact press transform, drop shadow, caption metrics and entry
   // animation the other two use. Anything hand-written would differ subtly and

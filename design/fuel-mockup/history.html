@@ -2,296 +2,277 @@
 <html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,600&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  /* MOCKUP ONLY. /fuel — the page behind "View fuel history". 3x (1170 = 390pt).
+  /* MOCKUP ONLY. /fuel, the page behind the fill-up sheet. 3x (1170 = 390pt).
 
-     ── WHY THIS LOOKS LIKE THIS ────────────────────────────────────────────
-     The first pass was a competent data page and that was the problem: it could
-     have belonged to any of the four apps in the research. G-Dimension does not
-     do neutral. Parts Bin is kraft paper, Featured is a magazine, a service
-     session is an invoice, Timeline is parchment, Reminders is an instrument
-     cluster. Fuel now gets the same treatment, and it is a deliberate aesthetic
-     ISLAND in the sense MASTER_ARCHITECTURE allows.
+     ── THE AESTHETIC ───────────────────────────────────────────────────────
+     Fuel now lives under Maintenance, so it wears Maintenance's clothes: the
+     same S-curve cut, a hero photo tinted golden on the left and a solid amber
+     panel on the right. The clip path is lifted verbatim from
+     MaintenancePage.tsx:59-66 so the curve is the same curve, not a lookalike.
 
-     The place is A PUMP AT NIGHT. Near-black cabinet steel, brushed vertically,
-     with the forecourt canopy light pooling from above. Every number on the page
-     is a readout on that cabinet.
+     What survives from the previous pass is THE ODOMETER. Mechanical drums,
+     cream numerals, and a tenths drum in dark-on-amber exactly as a real trip
+     meter marks its tenths. On the amber field it now reads as a pump's own
+     totaliser rather than a stat, which is better than it was on black.
 
-     THE HERO IS AN ODOMETER, not a statistic. Mechanical drums, cream numerals,
-     cylinder shading, the newest digit caught mid-roll. The tenths drum is amber
-     with dark numerals, which is exactly how a real trip meter marks its tenths
-     and puts COLOR_ACCENT precisely where the eye already goes. It also says the
-     quiet part out loud: the reason this feature exists is to keep the odometer
-     current, because every mileage reminder in the app reads off that number.
+     The photo here is a STAND-IN (the Maintenance shop hero). It marks the
+     space and the tint; the real one is someone filling up.
 
-     Rules kept even here: radius 0 everywhere, Hanken for all UI with Cormorant
-     italic only in the header, no colour outside the tokens, text capped at
-     #f5f5f5, 44pt rows, no em dashes.
-     ───────────────────────────────────────────────────────────────────────── */
+     WHY THE PAGE DARKENS. Maintenance is a hub: two objects and a lot of air,
+     so it can be amber wall to wall. This page carries a chart and a log, and
+     amber under a data table is unreadable and loud. The curve stays, the field
+     under it resolves to the app's near-black, and the numbers live there. The
+     hero is the amber moment; the record is the quiet one.
+
+     House rules: radius 0 everywhere, Hanken throughout, no colour outside the
+     tokens, text capped at #f5f5f5, 44pt rows, no em dashes. */
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { background:#050507; font-family:'Hanken Grotesk',sans-serif; }
   .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; background:#08090a; }
 
-  /* ── The cabinet ───────────────────────────────────────────────────────── */
-  .brushed {
-    position:absolute; inset:0; z-index:0;
-    background:repeating-linear-gradient(90deg,
-      rgba(255,255,255,0.016) 0 2px, rgba(0,0,0,0.03) 2px 4px, transparent 4px 7px);
+  /* ── The cut ─────────────────────────────────────────────────────────────
+     Applied to the top 1080px rather than the whole page, so the S-curve
+     resolves inside the hero and the record below stays dark. */
+  .hero { position:absolute; left:0; top:0; width:1170px; height:1150px; overflow:hidden; }
+  .hero img {
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; object-position:center 30%;
+    clip-path:url(#fuelLeftPanel); opacity:0.55;
   }
-  /* Forecourt canopy light. The whole page is lit from one source, above and
-     slightly forward, which is what makes it a place rather than a background. */
-  .canopy {
-    position:absolute; left:0; right:0; top:0; height:1150px; z-index:0;
-    background:radial-gradient(ellipse 66% 100% at 50% -14%,
-      rgba(200,102,26,0.20) 0%, rgba(200,102,26,0.07) 40%, rgba(200,102,26,0) 72%);
+  .hero .tint {
+    position:absolute; inset:0; clip-path:url(#fuelLeftPanel);
+    background:linear-gradient(160deg, rgba(200,140,8,0.82) 0%, rgba(130,75,10,0.70) 50%, rgba(0,0,0,0) 100%);
   }
-  .vignette {
-    position:absolute; inset:0; z-index:0;
-    background:radial-gradient(ellipse 90% 62% at 50% 34%, transparent 0%, rgba(0,0,0,0.62) 100%);
+  .hero .amber {
+    position:absolute; inset:0; clip-path:url(#fuelAmberPanel);
+    background:linear-gradient(155deg, #c47818 0%, #d48828 40%, #b86818 75%, #9a5812 100%);
   }
-  .wrap { position:relative; z-index:2; }
+  /* The grain Maintenance carries, same values. */
+  .grain { position:absolute; inset:0; opacity:0.035; mix-blend-mode:overlay; }
+  /* Resolve the hero into the dark field the record sits on. */
+  .settle {
+    position:absolute; left:0; top:760px; width:1170px; height:480px; z-index:2;
+    background:linear-gradient(180deg, rgba(8,9,10,0) 0%, rgba(8,9,10,0.72) 58%, #08090a 100%);
+  }
 
-  /* ── Header ── unchanged app grammar. */
+  /* ── Header ── the app's burgundy bar, unchanged. */
   .hdr {
-    height:132px; background:#111111; display:flex; align-items:center;
-    justify-content:space-between; padding:0 42px 0 30px;
-    border-bottom:1px solid rgba(255,255,255,0.05);
+    position:relative; z-index:6; height:132px;
+    display:flex; align-items:center; justify-content:space-between; padding:0 42px 0 30px;
+    background:linear-gradient(90deg, #6e281e 0%, #4a1410 55%, #2a0a06 100%);
   }
   .hdr-l { display:flex; align-items:center; gap:12px; }
   .chev { color:#f0e4c8; font-size:66px; font-weight:300; line-height:1; margin-top:-6px; }
-  .hdr-title { font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:600;
-               font-size:66px; color:#ffffff; letter-spacing:0.01em; }
+  .hdr-title { font-style:italic; font-weight:800; font-size:48px; color:#ffffff; letter-spacing:-0.03em; }
   .hdr-car { font-size:33px; font-weight:700; color:#f0e4c8; letter-spacing:0.04em; opacity:0.75; }
 
-  .body { padding:0 48px; }
+  .body { position:relative; z-index:5; padding:0 48px; }
 
-  /* Etched into the cabinet: dark text with a light bottom edge, the way a
-     stamped legend catches the light from above. */
   .etch {
     font-size:19px; font-weight:800; letter-spacing:0.22em; text-transform:uppercase;
     color:rgba(240,228,200,0.34); text-shadow:0 1px 0 rgba(0,0,0,0.9);
   }
 
-  /* ── The readout ───────────────────────────────────────────────────────── */
-  .readout {
-    margin-top:52px; padding:38px 40px 42px;
-    background:linear-gradient(180deg, #131416 0%, #0b0c0d 100%);
-    border-top:1px solid rgba(240,228,200,0.09);
-    border-bottom:1px solid rgba(0,0,0,0.9);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.05), 0 24px 44px rgba(0,0,0,0.6);
-  }
-  .drums { display:flex; align-items:flex-end; justify-content:center; gap:11px; margin-top:30px; }
-  /* One digit, one drum. Vertical cylinder shading because the axis is
-     horizontal and the numerals roll up past the window. */
+  /* ── The readout ─────────────────────────────────────────────────────────
+     Low in the hero, and centred. The S-curve puts the photo across the whole
+     TOP of the panel (the boundary sits at 0.66 of the width at y=0, and bulges
+     to 0.92 just below) and only opens up as it descends, reaching x=0 at
+     y=0.86. So there is no room for a 400px-wide readout near the top; at 560px
+     down there is room for it anywhere. That also gives the photo the entire top
+     of the screen, which is what it deserves. */
+  .readout { margin-top:560px; text-align:center; }
+  .drums { display:flex; align-items:flex-end; justify-content:center; gap:11px; margin-top:26px; }
   .drum {
-    position:relative; width:132px; height:200px; overflow:hidden; flex-shrink:0;
+    position:relative; width:126px; height:190px; overflow:hidden; flex-shrink:0;
     background:linear-gradient(180deg, #000 0%, #16171a 20%, #2b2d30 50%, #16171a 80%, #000 100%);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 3px 8px rgba(0,0,0,0.75);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 3px 8px rgba(0,0,0,0.75),
+               0 10px 24px rgba(60,26,0,0.45);
   }
   .drum u {
-    position:absolute; left:0; right:0; text-decoration:none; text-align:center;
-    font-size:138px; font-weight:700; line-height:200px; color:#f0e4c8;
+    position:absolute; left:0; right:0; top:0; text-decoration:none; text-align:center;
+    font-size:132px; font-weight:700; line-height:190px; color:#f0e4c8;
     letter-spacing:-0.02em; text-shadow:0 2px 3px rgba(0,0,0,0.8);
   }
-  .drum u.n  { top:0; }
-  /* The neighbouring digits sit exactly one drum away, i.e. out of frame. An
-     earlier pass caught the tenths drum MID-ROLL, which is a lovely idea and
-     unusable at this size: to show any of the next glyph the current one has to
-     drop far enough to lose its own bottom, and a headline number you cannot
-     read is not a headline. Crisp wins. The cylinder shading already says drum.*/
-  .drum u.up { top:-200px; }
-  .drum u.dn { top:200px; }
-  /* Tenths drum: amber face, dark numerals. Real trip meters do this, and it
-     lands the accent colour exactly where the eye stops. */
-  .drum.tenth {
-    background:linear-gradient(180deg, #5c2f0b 0%, #a35314 20%, #c8661a 50%, #a35314 80%, #5c2f0b 100%);
-  }
+  /* Tenths drum: amber face, dark numerals, exactly as a trip meter does it. */
+  .drum.tenth { background:linear-gradient(180deg, #5c2f0b 0%, #a35314 20%, #c8661a 50%, #a35314 80%, #5c2f0b 100%); }
   .drum.tenth u { color:#1a0f04; text-shadow:0 1px 0 rgba(255,220,170,0.28); }
-  /* Glass over the whole set: one specular streak, nothing more. */
-  .glass {
-    position:absolute; inset:0; pointer-events:none;
-    background:linear-gradient(104deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 34%);
-  }
-  .unit { font-size:46px; font-weight:800; color:rgba(240,228,200,0.46);
-          letter-spacing:0.14em; margin-left:26px; padding-bottom:18px; }
-  .readout-sub { margin-top:30px; text-align:center; font-size:24px; font-weight:600; color:rgba(245,245,245,0.40); }
+  .unit { font-size:44px; font-weight:800; color:rgba(240,228,200,0.46); letter-spacing:0.14em;
+          margin-left:24px; padding-bottom:16px; }
+  .readout-sub { margin-top:24px; font-size:24px; font-weight:600; color:rgba(245,245,245,0.42); }
 
-  /* ── Three windows ──── the pump's own three-panel arrangement. */
-  .windows { display:flex; gap:14px; margin-top:14px; }
+  /* ── Three windows ── recessed instruments, now on the settling field. */
+  .windows { display:flex; gap:14px; margin-top:60px; }
   .win {
-    flex:1; padding:28px 24px 26px; text-align:center;
-    background:linear-gradient(180deg, #0d0e10 0%, #08090a 100%);
+    flex:1; padding:28px 20px 26px; text-align:center;
+    background:linear-gradient(180deg, rgba(13,14,16,0.92) 0%, rgba(8,9,10,0.96) 100%);
     box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 2px 6px rgba(0,0,0,0.7);
-    border-top:1px solid rgba(240,228,200,0.07);
+    border-top:1px solid rgba(240,228,200,0.09);
   }
-  .win b { display:block; font-size:46px; font-weight:800; color:#c8661a;
+  .win b { display:block; font-size:44px; font-weight:800; color:#c8661a;
            letter-spacing:-0.02em; text-shadow:0 0 22px rgba(200,102,26,0.45); }
-  .win i { display:block; font-style:normal; margin-top:12px; font-size:17px; font-weight:800;
-           letter-spacing:0.18em; text-transform:uppercase; color:rgba(240,228,200,0.32); }
+  .win i { display:block; font-style:normal; margin-top:11px; font-size:16px; font-weight:800;
+           letter-spacing:0.17em; text-transform:uppercase; color:rgba(240,228,200,0.32); }
 
-  /* ── Chart ── segmented columns, like a dashboard bar graph rather than a
-     business chart. The segmentation is the whole difference. */
-  .sec { margin-top:66px; }
+  /* ── Chart ── segmented columns, a dashboard graph rather than a business one. */
+  .sec { margin-top:58px; }
   .well {
-    margin-top:24px; padding:30px 28px 22px; position:relative;
+    margin-top:22px; padding:28px 26px 20px; position:relative;
     background:linear-gradient(180deg, #0b0c0d 0%, #101113 100%);
     box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9), inset 0 3px 9px rgba(0,0,0,0.7);
   }
-  .chart { position:relative; height:236px; display:flex; align-items:flex-end; gap:22px; }
-  .bar {
-    flex:1;
-    background:repeating-linear-gradient(to top,
-      rgba(200,102,26,0.42) 0 14px, transparent 14px 20px);
-  }
-  .bar.now {
-    background:repeating-linear-gradient(to top, #c8661a 0 14px, transparent 14px 20px);
-    filter:drop-shadow(0 0 14px rgba(200,102,26,0.55));
-  }
+  .chart { position:relative; height:212px; display:flex; align-items:flex-end; gap:22px; }
+  .bar { flex:1; background:repeating-linear-gradient(to top, rgba(200,102,26,0.42) 0 13px, transparent 13px 19px); }
+  .bar.now { background:repeating-linear-gradient(to top, #c8661a 0 13px, transparent 13px 19px);
+             filter:drop-shadow(0 0 14px rgba(200,102,26,0.55)); }
   /* A partial fill yields no economy, so it gets no column. The gap teaches the
      rule instead of a fabricated number filling it. */
   .bar.none { height:8px; background:rgba(240,228,200,0.10); }
-  .avg { position:absolute; left:0; right:0; bottom:148px; border-top:1px dashed rgba(240,228,200,0.28); }
-  .avg span { position:absolute; left:0; top:-30px; font-size:18px; font-weight:800;
+  .avg { position:absolute; left:0; right:0; bottom:132px; border-top:1px dashed rgba(240,228,200,0.28); }
+  .avg span { position:absolute; left:0; top:-28px; font-size:17px; font-weight:800;
               letter-spacing:0.16em; color:rgba(240,228,200,0.40); }
-  .chart-x { display:flex; justify-content:space-between; margin-top:18px;
-             font-size:19px; font-weight:700; letter-spacing:0.12em;
-             color:rgba(240,228,200,0.26); }
+  .chart-x { display:flex; justify-content:space-between; margin-top:15px;
+             font-size:18px; font-weight:700; letter-spacing:0.12em; color:rgba(240,228,200,0.26); }
 
-  /* ── True cost ── the block no competitor can build, so it gets the same
-     recessed-instrument treatment as the readouts rather than being a chart. */
-  .split { display:flex; height:36px; margin-top:4px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9); }
+  /* ── True cost ── the block no competitor can build. */
+  .split { display:flex; height:34px; box-shadow:inset 0 0 0 1px rgba(0,0,0,0.9); }
   .split div { box-shadow:inset 0 2px 5px rgba(0,0,0,0.45); }
-  .legend { display:flex; gap:38px; margin-top:26px; padding-bottom:6px; }
-  .leg { display:flex; align-items:center; gap:12px; }
+  .legend { display:flex; gap:34px; margin-top:24px; padding-bottom:4px; }
+  .leg { display:flex; align-items:center; gap:11px; }
   .swatch { width:18px; height:18px; }
-  .leg span { font-size:23px; font-weight:600; color:rgba(245,245,245,0.55); }
-  .leg b { font-size:23px; font-weight:800; color:#f0e4c8; }
-  .verdict { margin-top:26px; font-size:27px; font-weight:600; color:rgba(245,245,245,0.70); line-height:1.35; }
+  .leg span { font-size:22px; font-weight:600; color:rgba(245,245,245,0.55); }
+  .leg b { font-size:22px; font-weight:800; color:#f0e4c8; }
+  .verdict { margin-top:24px; font-size:26px; font-weight:600; color:rgba(245,245,245,0.70); line-height:1.35; }
   .verdict b { color:#c8661a; font-weight:800; }
 
-  /* ── Log ── quiet on purpose. The top of the page carries the character; if
-     every row shouted too, none of it would read. */
-  .log { margin-top:58px; }
-  .row { display:flex; align-items:center; justify-content:space-between; height:130px;
+  /* ── Log ── quiet on purpose; the hero carries the character. */
+  .log { margin-top:54px; }
+  .row { display:flex; align-items:center; justify-content:space-between; height:126px;
          border-top:1px solid rgba(240,228,200,0.08); }
-  .row .when b { display:block; font-size:28px; font-weight:700; color:#f5f5f5; }
-  .row .when i { display:block; font-style:normal; margin-top:7px; font-size:21px; font-weight:600;
-                 color:rgba(240,228,200,0.38); }
+  .row .when b { display:block; font-size:27px; font-weight:700; color:#f5f5f5; }
+  .row .when i { display:block; font-style:normal; margin-top:6px; font-size:20px; font-weight:600; color:rgba(240,228,200,0.38); }
   .row .amt { text-align:right; }
-  .row .amt b { display:block; font-size:28px; font-weight:700; color:#f5f5f5; }
-  .row .amt i { display:block; font-style:normal; margin-top:7px; font-size:21px; font-weight:600;
-                color:rgba(240,228,200,0.38); }
-  .row .mpg { width:220px; text-align:right; font-size:31px; font-weight:800; color:#c8661a; }
-  .row .mpg.partial { font-size:18px; font-weight:800; letter-spacing:0.16em;
-                      color:rgba(240,228,200,0.30); }
+  .row .amt b { display:block; font-size:27px; font-weight:700; color:#f5f5f5; }
+  .row .amt i { display:block; font-style:normal; margin-top:6px; font-size:20px; font-weight:600; color:rgba(240,228,200,0.38); }
+  .row .mpg { width:210px; text-align:right; font-size:30px; font-weight:800; color:#c8661a; }
+  .row .mpg.partial { font-size:17px; font-weight:800; letter-spacing:0.16em; color:rgba(240,228,200,0.30); }
 
   .fab {
-    position:absolute; right:48px; bottom:56px; z-index:4;
-    background:#c8661a; border-radius:10px; padding:26px 40px;
-    font-size:27px; font-weight:800; letter-spacing:0.10em; text-transform:uppercase;
+    position:absolute; right:48px; bottom:54px; z-index:8;
+    background:#c8661a; border-radius:10px; padding:24px 38px;
+    font-size:26px; font-weight:800; letter-spacing:0.10em; text-transform:uppercase;
     color:#fff5dc; box-shadow:0 12px 30px rgba(0,0,0,0.7), 0 0 34px rgba(200,102,26,0.28);
   }
-  .fade { position:absolute; left:0; right:0; bottom:0; height:220px; z-index:3;
+  .fade { position:absolute; left:0; right:0; bottom:0; height:210px; z-index:7;
           background:linear-gradient(180deg, rgba(8,9,10,0) 0%, #08090a 76%); }
 </style></head>
 <body>
 <div class="canvas">
-  <div class="brushed"></div>
-  <div class="canopy"></div>
-  <div class="vignette"></div>
 
-  <div class="wrap">
-    <div class="hdr">
-      <div class="hdr-l"><span class="chev">&lsaquo;</span><span class="hdr-title">Fuel</span></div>
-      <span class="hdr-car">2006 LS 430</span>
+  <!-- The clip paths, lifted verbatim from MaintenancePage.tsx so the curve is
+       the same curve rather than an approximation of it. -->
+  <svg style="position:absolute;width:0;height:0" aria-hidden>
+    <defs>
+      <clipPath id="fuelLeftPanel" clipPathUnits="objectBoundingBox">
+        <path d="M 0,0 L 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 Z" />
+      </clipPath>
+      <clipPath id="fuelAmberPanel" clipPathUnits="objectBoundingBox">
+        <path d="M 0.66,0 C 0.92,0.22 0.20,0.72 0.0,0.86 L 0,1 L 1,1 L 1,0 Z" />
+      </clipPath>
+      <filter id="fuelGrain">
+        <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/>
+        <feColorMatrix type="saturate" values="0"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="hero">
+    <img src="_hero-placeholder.webp" alt="">
+    <div class="tint"></div>
+    <div class="amber"></div>
+    <svg class="grain"><rect width="100%" height="100%" filter="url(#fuelGrain)"/></svg>
+  </div>
+  <div class="settle"></div>
+
+  <div class="hdr">
+    <div class="hdr-l"><span class="chev">&lsaquo;</span><span class="hdr-title">Fuel</span></div>
+    <span class="hdr-car">2006 LS 430</span>
+  </div>
+
+  <div class="body">
+    <div class="readout">
+      <div class="etch">Average economy</div>
+      <div class="drums">
+        <div class="drum"><u>2</u></div>
+        <div class="drum"><u>3</u></div>
+        <div class="drum tenth"><u>5</u></div>
+        <span class="unit">MPG</span>
+      </div>
+      <div class="readout-sub">11 full tanks &middot; best 24.8 &middot; worst 21.8</div>
     </div>
 
-    <div class="body">
-      <div class="readout">
-        <div class="etch">Average economy</div>
-        <div class="drums">
-          <div class="drum"><u class="up">1</u><u class="n">2</u><u class="dn">3</u></div>
-          <div class="drum"><u class="up">2</u><u class="n">3</u><u class="dn">4</u></div>
-          <div class="drum tenth"><u class="up">4</u><u class="n">5</u><u class="dn">6</u></div>
-          <span class="unit">MPG</span>
-          <div class="glass"></div>
-        </div>
-        <div class="readout-sub">11 full tanks &middot; best 24.8 &middot; worst 21.8</div>
-      </div>
+    <div class="windows">
+      <div class="win"><b>$0.18</b><i>Per mile</i></div>
+      <div class="win"><b>$4.19</b><i>Per gallon</i></div>
+      <div class="win"><b>$1,284</b><i>Fuel to date</i></div>
+    </div>
 
-      <div class="windows">
-        <div class="win"><b>$0.18</b><i>Per mile</i></div>
-        <div class="win"><b>$4.19</b><i>Per gallon</i></div>
-        <div class="win"><b>$1,284</b><i>Fuel to date</i></div>
+    <div class="sec">
+      <div class="etch">Economy per tank</div>
+      <div class="well">
+        <div class="chart">
+          <div class="bar" style="height:96px"></div>
+          <div class="bar" style="height:120px"></div>
+          <div class="bar" style="height:76px"></div>
+          <div class="bar" style="height:149px"></div>
+          <div class="bar" style="height:136px"></div>
+          <div class="bar" style="height:112px"></div>
+          <div class="bar none"></div>
+          <div class="bar" style="height:129px"></div>
+          <div class="bar" style="height:175px"></div>
+          <div class="bar" style="height:122px"></div>
+          <div class="bar" style="height:136px"></div>
+          <div class="bar now" style="height:152px"></div>
+          <div class="avg"><span>AVG 23.5</span></div>
+        </div>
+        <div class="chart-x"><span>Feb</span><span>Jul</span></div>
       </div>
+    </div>
 
-      <div class="sec">
-        <div class="etch">Economy per tank</div>
-        <div class="well">
-          <div class="chart">
-            <div class="bar" style="height:108px"></div>
-            <div class="bar" style="height:134px"></div>
-            <div class="bar" style="height:86px"></div>
-            <div class="bar" style="height:167px"></div>
-            <div class="bar" style="height:152px"></div>
-            <div class="bar" style="height:126px"></div>
-            <div class="bar none"></div>
-            <div class="bar" style="height:145px"></div>
-            <div class="bar" style="height:196px"></div>
-            <div class="bar" style="height:137px"></div>
-            <div class="bar" style="height:152px"></div>
-            <div class="bar now" style="height:170px"></div>
-            <div class="avg"><span>AVG 23.5</span></div>
-          </div>
-          <div class="chart-x"><span>Feb</span><span>Jul</span></div>
+    <div class="sec">
+      <div class="etch">What this car has cost you</div>
+      <div class="well">
+        <div class="split">
+          <div style="width:77%;background:#780E12"></div>
+          <div style="width:17.6%;background:#6a737a"></div>
+          <div style="width:5.4%;background:#c8661a"></div>
+        </div>
+        <div class="legend">
+          <div class="leg"><div class="swatch" style="background:#780E12"></div><span>Mods</span><b>$18,400</b></div>
+          <div class="leg"><div class="swatch" style="background:#6a737a"></div><span>Service</span><b>$4,210</b></div>
+          <div class="leg"><div class="swatch" style="background:#c8661a"></div><span>Fuel</span><b>$1,284</b></div>
         </div>
       </div>
+      <div class="verdict">Fuel is <b>5%</b> of what this car has cost you, and it carries into the build report with the rest.</div>
+    </div>
 
-      <div class="sec">
-        <div class="etch">What this car has cost you</div>
-        <div class="well">
-          <div class="split">
-            <div style="width:77%;background:#780E12"></div>
-            <div style="width:17.6%;background:#6a737a"></div>
-            <div style="width:5.4%;background:#c8661a"></div>
-          </div>
-          <div class="legend">
-            <div class="leg"><div class="swatch" style="background:#780E12"></div><span>Mods</span><b>$18,400</b></div>
-            <div class="leg"><div class="swatch" style="background:#6a737a"></div><span>Service</span><b>$4,210</b></div>
-            <div class="leg"><div class="swatch" style="background:#c8661a"></div><span>Fuel</span><b>$1,284</b></div>
-          </div>
-        </div>
-        <div class="verdict">Fuel is <b>5%</b> of what this car has cost you, and it carries into the build report with the rest.</div>
+    <div class="log">
+      <div class="etch">Fill-ups</div>
+      <div class="row">
+        <div class="when"><b>Jul 28</b><i>112,812 mi</i></div>
+        <div class="amt"><b>$59.47</b><i>14.2 gal</i></div>
+        <div class="mpg">24.1 mpg</div>
       </div>
-
-      <div class="log">
-        <div class="etch">Fill-ups</div>
-        <div class="row">
-          <div class="when"><b>Jul 28</b><i>112,812 mi</i></div>
-          <div class="amt"><b>$59.47</b><i>14.2 gal</i></div>
-          <div class="mpg">24.1 mpg</div>
-        </div>
-        <div class="row">
-          <div class="when"><b>Jul 14</b><i>112,470 mi</i></div>
-          <div class="amt"><b>$57.10</b><i>13.8 gal</i></div>
-          <div class="mpg">23.6 mpg</div>
-        </div>
-        <div class="row">
-          <div class="when"><b>Jul 02</b><i>112,144 mi</i></div>
-          <div class="amt"><b>$25.60</b><i>6.1 gal</i></div>
-          <div class="mpg partial">Partial</div>
-        </div>
-        <div class="row">
-          <div class="when"><b>Jun 21</b><i>111,802 mi</i></div>
-          <div class="amt"><b>$61.32</b><i>14.9 gal</i></div>
-          <div class="mpg">23.2 mpg</div>
-        </div>
-        <div class="row">
-          <div class="when"><b>Jun 09</b><i>111,456 mi</i></div>
-          <div class="amt"><b>$58.94</b><i>14.1 gal</i></div>
-          <div class="mpg">24.8 mpg</div>
-        </div>
+      <div class="row">
+        <div class="when"><b>Jul 14</b><i>112,470 mi</i></div>
+        <div class="amt"><b>$57.10</b><i>13.8 gal</i></div>
+        <div class="mpg">23.6 mpg</div>
+      </div>
+      <div class="row">
+        <div class="when"><b>Jul 02</b><i>112,144 mi</i></div>
+        <div class="amt"><b>$25.60</b><i>6.1 gal</i></div>
+        <div class="mpg partial">Partial</div>
       </div>
     </div>
   </div>

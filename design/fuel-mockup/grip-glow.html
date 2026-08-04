@@ -1,0 +1,61 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* MOCKUP ONLY. The fill-up grip at the foot of Home, resting state.
+     Composited onto the real device Home screenshot.
+
+     THE IDEA. A bottom-sheet grip sitting under the G-DIMENSION wordmark. The
+     affordance IS the thing it opens: a grip has exactly one meaning on a phone,
+     so nothing has to be taught. Swipe it up, or tap it, and the fill-up sheet
+     rises. That replaces the long-press on the Home node, which was invisible
+     and, worse, sat on the map's most-tapped target where a drifted hold would
+     navigate to the Garage instead.
+
+     IT IS NOT ON THE MAP. The five-node composition ends at the vignette; this
+     lives below the wordmark in the foot band, on the chrome plane. Nothing in
+     the picture moves or shares space with it.
+
+     MEASURED. The wordmark occupies canvas y 2150-2185 (map y 2210-2245). Below
+     it, y 2190-2257 is empty dark field: no iOS home indicator is drawn in this
+     capture, so the band is genuinely free. The grip sits at 2212, centred,
+     120x10, which is the sheet's own grip proportions nudged up for a resting
+     element that has to be findable rather than merely present.
+
+     Radius 0, per the house rule. The sheet's grip has none either. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#050507; font-family:'Hanken Grotesk',sans-serif; }
+  .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; }
+  .map { position:absolute; left:0; top:-60px; width:1170px; height:2317px; }
+
+  .grip {
+    position:absolute; left:525px; top:2212px; width:120px; height:10px; z-index:5;
+    background:rgba(240,228,200,0.26);
+  }
+
+  /* Ten days without a fill-up. The grip warms to COLOR_ACCENT and picks up a
+     bloom. It is the only warm pixel on the screen at that moment, which is the
+     entire point: it cannot be missed and it cannot be mistaken for anything
+     else, because nothing else on Home is ever this colour.
+
+     Not a badge, not a dot, not a banner. The affordance itself changes state,
+     so the thing that catches your eye is already the thing you press. */
+  .stale .grip {
+    background:#c8661a;
+    box-shadow:0 0 26px 6px rgba(200,102,26,0.55), 0 0 8px 2px rgba(200,102,26,0.85);
+  }
+
+  .tag {
+    position:absolute; left:0; right:0; bottom:14px; text-align:center; z-index:9;
+    font-weight:700; font-size:22px; letter-spacing:0.10em; color:rgba(228,232,236,0.40);
+  }
+</style></head>
+<body>
+<div class="canvas stale">
+  <img class="map" src="home-map.png" alt="">
+  <div class="grip"></div>
+  <div class="tag">Ten days without a fill-up. Only the grip changes.</div>
+</div>
+</body></html>
