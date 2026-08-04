@@ -1,0 +1,80 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* MOCKUP ONLY. The hold on the HOME node, mid-press.
+     Composited onto the real device Home screenshot.
+
+     THE POINT OF THIS FRAME is what is NOT in it. Compare it to home-map.png
+     and the map is byte-for-byte identical: five nodes, same road, same
+     spacing, nothing added, nothing moved. Every pixel drawn here exists only
+     while a thumb is down. Let go and the screen is exactly what it was.
+
+     Geometry taken off the screenshot: the house art spans x 441-721,
+     y 512-751, so the focal wrapper centres near (581, 655) in map space.
+     ICON_WRAPPER_FOCAL is 120 CSS, and the map renders at 3x, so the wrapper is
+     360px here and the existing amber halo (SHADOW_AMBER_HALO, 200 CSS) is 600.
+
+     WHY A PROGRESS RING. A hold with no feedback is indistinguishable from a
+     tap that has not fired yet, which is how long-press features get reported
+     as broken. The ring both teaches the gesture and gives the user the one
+     thing they need: permission to keep holding. It is drawn in COLOR_ACCENT,
+     the only warm colour in the palette, and it is the same amber already
+     pulsing on this node so it introduces nothing new. */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#050507; font-family:'Hanken Grotesk',sans-serif; }
+  .canvas { position:relative; width:1170px; height:2317px; overflow:hidden; }
+  .map { position:absolute; left:0; top:-60px; width:1170px; height:2317px; }
+
+  /* The node's existing halo, driven harder while the press is held. Same
+     colour, same centre, same shape. Only the intensity is new. */
+  /* Pushed harder than the resting halo, because amber over a LIGHT grey-blue
+     field loses most of its punch. At the resting opacity it read as a smudge. */
+  .halo {
+    position:absolute; left:241px; top:272px; width:680px; height:680px; z-index:2;
+    background:radial-gradient(circle at center,
+      rgba(200,102,26,0.52) 0%, rgba(200,102,26,0.22) 38%, rgba(200,102,26,0) 66%);
+  }
+
+  /* The thumb. Mockup convention, not a shipped element. */
+  .thumb {
+    position:absolute; left:506px; top:537px; width:150px; height:150px; z-index:4;
+    border-radius:50%; background:rgba(245,245,245,0.10);
+  }
+
+  svg.ring { position:absolute; left:0; top:0; width:1170px; height:2317px; z-index:3; }
+
+  /* One line of narration, in the black band the map shift opens at the foot.
+     Not part of the design. */
+  .tag {
+    position:absolute; left:0; right:0; bottom:14px; text-align:center; z-index:9;
+    font-weight:700; font-size:22px; letter-spacing:0.10em; color:rgba(228,232,236,0.40);
+  }
+</style></head>
+<body>
+<div class="canvas">
+  <img class="map" src="home-map.png" alt="">
+
+  <div class="halo"></div>
+
+  <svg class="ring" viewBox="0 0 1170 2317">
+    <!-- Track, then the swept arc at 68%. The ring is squeezed between two
+         fixed edges: the roof peak at canvas y 452 and the HOME caption at 796.
+         That leaves r=163 about (581, 612), which clears the roof by 3px and
+         the caption by 21. r=150 cut through the roof; r=178 struck through
+         the word HOME. -->
+    <circle cx="581" cy="612" r="163" fill="none"
+            stroke="rgba(240,228,200,0.16)" stroke-width="7"/>
+    <circle cx="581" cy="612" r="163" fill="none"
+            stroke="#c8661a" stroke-width="7" stroke-linecap="butt"
+            stroke-dasharray="1024.2" stroke-dashoffset="327.7"
+            transform="rotate(-90 581 612)"/>
+  </svg>
+
+  <div class="thumb"></div>
+
+  <div class="tag">Hold the Home node. Nothing on the map has moved.</div>
+</div>
+</body></html>
