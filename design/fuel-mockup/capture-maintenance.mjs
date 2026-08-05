@@ -14,12 +14,15 @@
 // where 388 + 126 = 514 runs off a 430-wide screen. Re-spacing worked but it
 // edited a screen that was already right.
 //
-// Instead Fuel goes ABOVE and to the right of Service, at left 282 / bottom 200.
+// Instead Fuel goes ABOVE and to the right of Service, at left 282 / bottom 272.
 // It clears the right edge by 22px and clears Service's icon box vertically, so
-// the two never collide even though they overlap horizontally. The arrangement
-// reads as a rising staircase rather than a row, which is what the existing pair
-// was already doing with its +42 rise. Bottom 246 was the first try and left a
-// visible hole between Service and Fuel; 200 closes it without crowding.
+// the two never collide even though they overlap horizontally.
+//
+// The rise is set by the existing pair. Detailing to Service is a step of
+// (170, 42), a centre-to-centre distance of 175. Fuel takes the same 170 of
+// travel, spent almost entirely upward at (64, 170) because only 22px of
+// horizontal room is left, giving 182 between the two. Earlier tries at bottom
+// 200 and 246 both left Fuel tucked in behind Service rather than stepping past.
 //
 // Container notes are the same as scripts/capture-store-shots.mjs: Chromium
 // cannot egress through the sandbox proxy, so every Supabase and Google Fonts
@@ -41,8 +44,12 @@ const LAYOUT = [
   { left: 282, bottom: 272 },  // Fuel (new)
 ]
 
-const pump = await readFile(path.join(OUT, 'pump-node.png'))
-const pumpSrc = `data:image/png;base64,${pump.toString('base64')}`
+// The owner's own cutout, now a real repo asset. It opens up the window under
+// the canopy and the inside of the hose loop, which my mockup-grade matte
+// (cutout.mjs) could not do without hollowing the cabinet.
+const PUMP = path.resolve('src/assets/icons/maintenance/fuel.webp')
+const pump = await readFile(PUMP)
+const pumpSrc = `data:image/webp;base64,${pump.toString('base64')}`
 
 const browser = await chromium.launch({
   executablePath: process.env.GDIM_CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
