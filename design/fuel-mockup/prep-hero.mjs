@@ -31,12 +31,18 @@ const SRC = path.resolve('design/fuel-mockup/_hero-a.jpeg')
 const REVIEW = path.resolve('design/fuel-mockup/_hero-a-clean.jpeg')
 const SHIP = path.resolve('src/assets/backgrounds/fuel_hero.webp')
 
-// In source pixels. Measured off the 3024x4032 original: the toppers sit at
-// y 2043-2076, the price signs at 2117-2160, the right-hand business sign at
-// 2001-2040.
-const BAND = { top: 1985, height: 250 }
-const FEATHER = 70          // px of ramp at each edge of the band
-const BLUR = 14             // enough to destroy 30px lettering at full size
+// In source pixels, measured off the 3024x4032 original. The marks are spread
+// down the whole pump, not just across the toppers, which the first pass missed:
+//   business sign, right edge   2001-2040
+//   CIRCLE K toppers            2043-2076
+//   99c price signs             2117-2160
+//   ETHANOL down the flanks     2150-2303
+//   roundel + Quality Guaranteed on the pump body   2377-2477
+// So the band has to run to ~2500, not to 2235. Everything below that is
+// asphalt.
+const BAND = { top: 1975, height: 530 }
+const FEATHER = 90          // px of ramp at each edge of the band
+const BLUR = 11             // enough to destroy 30px lettering at full size
 
 const meta = await sharp(SRC).metadata()
 const W = meta.width, H = meta.height
@@ -46,18 +52,31 @@ const blurred = await sharp(original).blur(BLUR).toBuffer()
 
 // Feathered mask: opaque across the band, ramping to nothing over FEATHER px so
 // the transition never announces itself.
-const mask = Buffer.alloc(W * H)
+//
+// The mask MUST be RGBA with the value in the ALPHA channel. An earlier version
+// passed a 1-channel raw buffer and expected 'dest-in' to read it as coverage.
+// sharp treats 1-channel input as greyscale with no alpha, i.e. fully opaque
+// everywhere, so dest-in kept the blurred layer across the WHOLE frame and the
+// luminance mask was simply ignored. The band looked correct, so the bug hid:
+// the only way to catch it was to measure detail somewhere the band does not
+// reach. Sharpness in the canopy (a mean absolute Laplacian over source
+// y 1150-1650) had fallen from 18.88 to 0.76, a 96% loss.
+const mask = Buffer.alloc(W * H * 4)
 for (let y = 0; y < H; y++) {
   const d = y - BAND.top
-  let v = 0
-  if (d >= 0 && d <= BAND.height) v = 255
-  else if (d < 0 && d > -FEATHER) v = Math.round(255 * (1 + d / FEATHER))
-  else if (d > BAND.height && d < BAND.height + FEATHER) v = Math.round(255 * (1 - (d - BAND.height) / FEATHER))
-  if (v) mask.fill(v, y * W, (y + 1) * W)
+  let a = 0
+  if (d >= 0 && d <= BAND.height) a = 255
+  else if (d < 0 && d > -FEATHER) a = Math.round(255 * (1 + d / FEATHER))
+  else if (d > BAND.height && d < BAND.height + FEATHER) a = Math.round(255 * (1 - (d - BAND.height) / FEATHER))
+  if (!a) continue
+  for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4
+    mask[i] = 255; mask[i + 1] = 255; mask[i + 2] = 255; mask[i + 3] = a
+  }
 }
 const blurredWithAlpha = await sharp(blurred)
   .ensureAlpha()
-  .composite([{ input: mask, raw: { width: W, height: H, channels: 1 }, blend: 'dest-in' }])
+  .composite([{ input: mask, raw: { width: W, height: H, channels: 4 }, blend: 'dest-in' }])
   .png().toBuffer()
 
 const merged = await sharp(original).composite([{ input: blurredWithAlpha }]).toBuffer()
