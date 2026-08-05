@@ -18,7 +18,8 @@
      totaliser rather than a stat, which is better than it was on black.
 
      The photo is the owner's dusk forecourt, with its brand band blurred by
-     prep-hero.mjs. See that file for why a blur and not a clone.
+     prep-hero.mjs. See that file for why a blur and not a clone, and the tint
+     note below for why the tint alone cannot do that job.
 
      WHY THE PAGE DARKENS. Maintenance is a hub: two objects and a lot of air,
      so it can be amber wall to wall. This page carries a chart and a log, and
@@ -36,12 +37,23 @@
      Applied to the top 1080px rather than the whole page, so the S-curve
      resolves inside the hero and the record below stays dark. */
   .hero { position:absolute; left:0; top:0; width:1170px; height:1150px; overflow:hidden; }
-  /* OPACITY AND TINT DIVERGE FROM MAINTENANCE, deliberately. Its recipe (image
-     0.55 under a golden overlay 0.82) was tuned against a mid-tone shop
-     interior. Over a dusk exposure it erases the picture: the overlay is nearly
-     opaque and there is no highlight left underneath to punch through it. 0.92
-     and 0.40 bring the photo back. The cut, the curve and the grain still match,
-     so the family resemblance survives; only the exposure is re-tuned.
+  /* MATCHES THE FAMILY'S RECIPE, ONE STOP BRIGHTER, AND STILL NEEDS THE BLUR.
+     Maintenance, Service and Detailing are all identical: image at 0.55 under a
+     tint at 0.82, with only the hue changing per section.
+
+     Matching that does NOT remove the branding, which was worth testing rather
+     than assuming. Opacity and tint cut CONTRAST uniformly; text survives low
+     contrast very well, because what makes lettering readable is its edges, not
+     its amplitude. Rendered on the untouched original at 0.55/0.82, CIRCLE K,
+     99c and NON ETHANOL are all still plainly readable. Blur is a different
+     tool: it destroys the spatial detail the letterforms are made of, and it is
+     the only one of the two that works. Hence prep-hero.mjs stays.
+
+     0.85 rather than the family's 0.55, though. Their three photos are mid-tone
+     interiors that survive being buried; this one is a dusk exterior, and at
+     0.55 it stops being a gas station and becomes a warm gradient. 0.85 keeps
+     the canopy, the ridge and the pump present, and the tint scales with it
+     (0.54 / 0.46, holding the family's 1:0.85 ratio between the two stops).
 
      OBJECT-POSITION 78%, and the X axis is not a lever here. The frame is
      3024x4032 (aspect 0.750) and this box is 1170x1150 (aspect 1.017), so cover
@@ -57,11 +69,11 @@
   .hero img {
     position:absolute; inset:0; width:100%; height:100%;
     object-fit:cover; object-position:center 78%;
-    clip-path:url(#fuelLeftPanel); opacity:0.92;
+    clip-path:url(#fuelLeftPanel); opacity:0.85;
   }
   .hero .tint {
     position:absolute; inset:0; clip-path:url(#fuelLeftPanel);
-    background:linear-gradient(160deg, rgba(200,140,8,0.40) 0%, rgba(130,75,10,0.34) 50%, rgba(0,0,0,0) 100%);
+    background:linear-gradient(160deg, rgba(200,140,8,0.54) 0%, rgba(130,75,10,0.46) 50%, rgba(0,0,0,0) 100%);
   }
   .hero .amber {
     position:absolute; inset:0; clip-path:url(#fuelAmberPanel);

@@ -17,31 +17,33 @@ const DIR = path.resolve('design/fuel-mockup')
 // it over a night exposure and the photo disappears: the overlay is nearly
 // opaque and there is no highlight left underneath to punch through it. So each
 // candidate gets both the stock recipe and one opened up for a dark frame.
+// The other three heroes are IDENTICAL in recipe: image opacity 0.55 under a
+// tint at 0.82, with only the hue changing per section.
+//   Maintenance  rgba(200,140,8,.82)     golden
+//   Detailing    rgba(18,72,140,.82)     blue
+//   Service      rgba(165,180,195,.82)   cool grey
+// So the question is not whether to match them, it is whether 0.55/0.82 hides
+// the branding on its own. Opacity and tint cut CONTRAST; blur destroys detail.
+// Those are different tools and only one of them reliably kills small lettering.
+const stock = (rgb) => `
+  .hero img { opacity:0.55 !important; }
+  .hero .tint { background:linear-gradient(160deg, rgba(${rgb},0.82) 0%, rgba(130,75,10,0.70) 50%, rgba(0,0,0,0) 100%) !important; }
+`
 const OPEN_UP = `
   .hero img { opacity:0.92 !important; }
   .hero .tint { background:linear-gradient(160deg, rgba(200,140,8,0.40) 0%, rgba(130,75,10,0.34) 50%, rgba(0,0,0,0) 100%) !important; }
 `
-// The CROP is the third variable. object-position decides which band of a tall
-// photo survives, and the hero is close to square, so a 3:4 frame loses about a
-// third of its height. B's first pass landed on the canopy UNDERSIDE, which is
-// the coolest, least interesting part of that photo, so it is given two lower
-// crops to catch the car and the neon instead.
-const at = (pos) => `.hero img { object-position:${pos} !important; }`
-// A NOTE ON PANNING. object-position's X has no effect on this photo. The frame
-// is 3024x4032 (aspect 0.750) and the hero is 1170x1150 (aspect 1.017), so
-// object-fit: cover scales to WIDTH and the horizontal overflow is exactly 0.
-// The whole width is already on screen; there is nothing to pan.
-//
-// The lever is Y, and it works through the CLIP rather than through the crop.
-// The wedge is at its widest at the top (the boundary starts at 0.66 of the
-// width and bulges to 0.92) and closes to nothing by y=0.86. So whatever sits
-// high in the frame is seen almost in full, and whatever sits low is seen
-// through a slot. Raising the pump row lifts it into the wide part.
+// A ladder between the family recipe and a photo you can actually see, all on
+// the UNBLURRED original, to find where the lettering stops being legible.
+const mix = (op, tn) => `
+  .hero img { opacity:${op} !important; }
+  .hero .tint { background:linear-gradient(160deg, rgba(200,140,8,${tn}) 0%, rgba(130,75,10,${(tn*0.85).toFixed(2)}) 50%, rgba(0,0,0,0) 100%) !important; }
+`
 const CANDIDATES = [
-  { id: 'y30',  src: '_hero-a-clean.jpeg', note: 'crop 30%  (current)',  tune: OPEN_UP },
-  { id: 'y55',  src: '_hero-a-clean.jpeg', note: 'crop 55%',             tune: OPEN_UP + at('center 55%') },
-  { id: 'y78',  src: '_hero-a-clean.jpeg', note: 'crop 78%',             tune: OPEN_UP + at('center 78%') },
-  { id: 'y100', src: '_hero-a-clean.jpeg', note: 'crop 100%',            tune: OPEN_UP + at('center 100%') },
+  { id: 'm55', src: '_hero-a.jpeg', note: '0.55 / 0.82  (family recipe)', tune: mix(0.55, 0.82) },
+  { id: 'm65', src: '_hero-a.jpeg', note: '0.65 / 0.74',                  tune: mix(0.65, 0.74) },
+  { id: 'm75', src: '_hero-a.jpeg', note: '0.75 / 0.66',                  tune: mix(0.75, 0.66) },
+  { id: 'm85', src: '_hero-a.jpeg', note: '0.85 / 0.54',                  tune: mix(0.85, 0.54) },
 ]
 const src = readFileSync(path.join(DIR, 'history.html'), 'utf8')
 
@@ -64,7 +66,7 @@ const page = await ctx.newPage()
 const tiles = []
 for (const c of CANDIDATES) {
   const html = src
-    .replace('src="_hero-placeholder.webp"', `src="${c.src}"`)
+    .replace(/src="_hero-[^"]*"/, `src="${c.src}"`)   // must match whatever history.html currently points at
     .replace('</style>', `${c.tune || ''}
 .tag { position:absolute; left:0; right:0; bottom:12px; text-align:center; z-index:20;
         font-family:'Hanken Grotesk',sans-serif; font-weight:700; font-size:22px;
