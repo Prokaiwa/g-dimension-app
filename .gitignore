@@ -56,3 +56,6 @@ design/store-shots/*.png
 # raw/ stays tracked by default.
 design/fuel-mockup/*.png
 !design/fuel-mockup/home-map.png
+# Hero candidates: the ORIGINALS are tracked because prep-hero.mjs reads them and
+# nothing can regenerate a photograph, but its output can always be rebuilt.
+design/fuel-mockup/_hero-*-clean.jpeg
