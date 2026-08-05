@@ -17,8 +17,8 @@
      meter marks its tenths. On the amber field it now reads as a pump's own
      totaliser rather than a stat, which is better than it was on black.
 
-     The photo here is a STAND-IN (the Maintenance shop hero). It marks the
-     space and the tint; the real one is someone filling up.
+     The photo is the owner's dusk forecourt, with its brand band blurred by
+     prep-hero.mjs. See that file for why a blur and not a clone.
 
      WHY THE PAGE DARKENS. Maintenance is a hub: two objects and a lot of air,
      so it can be amber wall to wall. This page carries a chart and a log, and
@@ -36,14 +36,32 @@
      Applied to the top 1080px rather than the whole page, so the S-curve
      resolves inside the hero and the record below stays dark. */
   .hero { position:absolute; left:0; top:0; width:1170px; height:1150px; overflow:hidden; }
+  /* OPACITY AND TINT DIVERGE FROM MAINTENANCE, deliberately. Its recipe (image
+     0.55 under a golden overlay 0.82) was tuned against a mid-tone shop
+     interior. Over a dusk exposure it erases the picture: the overlay is nearly
+     opaque and there is no highlight left underneath to punch through it. 0.92
+     and 0.40 bring the photo back. The cut, the curve and the grain still match,
+     so the family resemblance survives; only the exposure is re-tuned.
+
+     OBJECT-POSITION 78%, and the X axis is not a lever here. The frame is
+     3024x4032 (aspect 0.750) and this box is 1170x1150 (aspect 1.017), so cover
+     scales to WIDTH and the horizontal overflow is exactly 0. The whole width is
+     already on screen; there is nothing to pan sideways.
+     Y works through the CLIP, not the crop: the wedge is widest at the top
+     (boundary at 0.66 of the width, bulging to 0.92) and closes to nothing by
+     y=0.86, so whatever sits high in the frame is seen almost in full and
+     whatever sits low is seen through a slot. 78% lifts the pump row into the
+     wide part while keeping the canopy. At 30% the pumps were below the slot; at
+     100% the pumps read but the canopy silhouette, which is what makes the shot,
+     is gone. */
   .hero img {
     position:absolute; inset:0; width:100%; height:100%;
-    object-fit:cover; object-position:center 30%;
-    clip-path:url(#fuelLeftPanel); opacity:0.55;
+    object-fit:cover; object-position:center 78%;
+    clip-path:url(#fuelLeftPanel); opacity:0.92;
   }
   .hero .tint {
     position:absolute; inset:0; clip-path:url(#fuelLeftPanel);
-    background:linear-gradient(160deg, rgba(200,140,8,0.82) 0%, rgba(130,75,10,0.70) 50%, rgba(0,0,0,0) 100%);
+    background:linear-gradient(160deg, rgba(200,140,8,0.40) 0%, rgba(130,75,10,0.34) 50%, rgba(0,0,0,0) 100%);
   }
   .hero .amber {
     position:absolute; inset:0; clip-path:url(#fuelAmberPanel);
@@ -188,7 +206,7 @@
   </svg>
 
   <div class="hero">
-    <img src="_hero-placeholder.webp" alt="">
+    <img src="_hero-a-clean.jpeg" alt="">
     <div class="tint"></div>
     <div class="amber"></div>
     <svg class="grain"><rect width="100%" height="100%" filter="url(#fuelGrain)"/></svg>

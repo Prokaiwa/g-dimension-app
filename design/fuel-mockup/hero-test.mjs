@@ -27,10 +27,21 @@ const OPEN_UP = `
 // the coolest, least interesting part of that photo, so it is given two lower
 // crops to catch the car and the neon instead.
 const at = (pos) => `.hero img { object-position:${pos} !important; }`
+// A NOTE ON PANNING. object-position's X has no effect on this photo. The frame
+// is 3024x4032 (aspect 0.750) and the hero is 1170x1150 (aspect 1.017), so
+// object-fit: cover scales to WIDTH and the horizontal overflow is exactly 0.
+// The whole width is already on screen; there is nothing to pan.
+//
+// The lever is Y, and it works through the CLIP rather than through the crop.
+// The wedge is at its widest at the top (the boundary starts at 0.66 of the
+// width and bulges to 0.92) and closes to nothing by y=0.86. So whatever sits
+// high in the frame is seen almost in full, and whatever sits low is seen
+// through a slot. Raising the pump row lifts it into the wide part.
 const CANDIDATES = [
-  { id: 'a2',    src: '_hero-a.jpeg',       note: 'A  as shot', tune: OPEN_UP },
-  { id: 'final', src: '_hero-a-clean.jpeg', note: 'A  brand band blurred', tune: OPEN_UP },
-  { id: 'b3',    src: '_hero-b.jpeg',       note: 'B  best crop (58%)', tune: OPEN_UP + at('center 58%') },
+  { id: 'y30',  src: '_hero-a-clean.jpeg', note: 'crop 30%  (current)',  tune: OPEN_UP },
+  { id: 'y55',  src: '_hero-a-clean.jpeg', note: 'crop 55%',             tune: OPEN_UP + at('center 55%') },
+  { id: 'y78',  src: '_hero-a-clean.jpeg', note: 'crop 78%',             tune: OPEN_UP + at('center 78%') },
+  { id: 'y100', src: '_hero-a-clean.jpeg', note: 'crop 100%',            tune: OPEN_UP + at('center 100%') },
 ]
 const src = readFileSync(path.join(DIR, 'history.html'), 'utf8')
 
