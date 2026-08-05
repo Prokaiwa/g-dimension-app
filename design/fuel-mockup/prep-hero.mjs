@@ -21,9 +21,16 @@
 //    straight to the thing it is hiding, and the mountain ridge sits just above
 //    it (its base measures y~2020), so an abrupt seam would cut the horizon.
 //
-// 2. SIZE IT. maintenance_hero.webp is 2048x1365 at 363 KB, so the family target
-//    is 2048 on the long edge. The source is 3024x4032, far more than any phone
-//    will ask for.
+// 2. SIZE IT. The family sits around 363 KB (maintenance_hero.webp, 2048x1365).
+//    Matching its 2048 LONG EDGE does not match its weight: this frame is
+//    PORTRAIT, so 2048 wide means 2048x2731, twice the pixels of a landscape
+//    hero, and it encoded to 892 KB — heavier than every other background in the
+//    app combined with the icon set.
+//
+//    So match the WEIGHT instead. 1600 wide lands at 329 KB, and 1600 is still
+//    more than any phone asks for: the widest supported screen is 430pt at 3x,
+//    i.e. 1290 device px, and this photo is then covered by a 0.54 tint at 0.85
+//    opacity. Quality 72 is invisible under that.
 import sharp from 'sharp'
 import path from 'node:path'
 
@@ -85,7 +92,7 @@ await sharp(merged).jpeg({ quality: 92 }).toFile(REVIEW)
 console.log(`${path.basename(REVIEW)} — ${W}x${H}, band ${BAND.top}-${BAND.top + BAND.height} blurred`)
 
 if (process.argv.includes('--ship')) {
-  await sharp(merged).resize({ width: 2048 }).webp({ quality: 82, effort: 6 }).toFile(SHIP)
+  await sharp(merged).resize({ width: 1600 }).webp({ quality: 72, effort: 6 }).toFile(SHIP)
   const m = await sharp(SHIP).metadata()
   const bytes = (await import('node:fs')).statSync(SHIP).size
   console.log(`${SHIP} — ${m.width}x${m.height}, ${bytes.toLocaleString()} bytes`)

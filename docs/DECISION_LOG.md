@@ -1254,3 +1254,75 @@ signature — at which point `following_list` can be dropped in its own migratio
 with the client fallback removed first, in that order.
 
 Source: migration 095, `src/pages/FollowersPage.tsx`.
+
+---
+
+## ADR-033 — Fuel is an odometer feature wearing a fuel feature's clothes (2026-08-05)
+
+**Decision:** add fuel logging (migration 097: `fuel_entries`, `users.volume_unit`).
+Capture is a **grip at the foot of the Home map** that opens a bottom sheet, not
+a sixth node and not a route. Browsing is **`/fuel`, a third tile inside
+Maintenance**. The economy chain lives in `src/lib/fuel.ts` as pure functions.
+
+**Context:** fuel is the biggest gap against every competitor in the category and
+the most-searched term in it (`docs/STORE_LISTING.md` §5). But the reason to
+build it now is internal. `urgencyOf()` in `GarageRemindersPage` reads
+`cars.current_mileage`; when that is null a mileage reminder never bumps past
+`upcoming`, printing "at 90,000 mi" with its telltale dark, and when it is stale
+it prints a confident "in 3,000 mi" from a months-old number. The odometer is
+written from the car edit form and from four opt-in checkboxes buried mid-form
+(the migration 041 pattern), all of which only fire when a mod or a service is
+logged. That is a few times a year. A fill-up is every ten days.
+
+**Rationale:**
+
+- **The map keeps five nodes.** A pump was mocked in four positions, on the road
+  and off it, inside the loop and outside. All four failed, and the useful
+  explanation is not proportional: the map is made of NOUNS, five places you go,
+  and a fill-up is a VERB. No amount of repositioning turns one into the other.
+  Placement on the bottom road also left about 27pt of clearance to each
+  neighbour, and a node's tap area is larger than its art.
+- **The grip is the affordance, and it carries the state.** A long-press was the
+  first answer and it is invisible; worse, it sat on the map's most-tapped target
+  where a drifted hold navigates to the Garage. A grip has exactly one meaning on
+  a phone, so nothing has to be taught, and unlike a gesture it can be DRAWN in a
+  second state: after ten days without a fill-up it warms to `COLOR_ACCENT` and
+  becomes the only warm pixel on the screen. Not a badge or a dot — the thing
+  that catches the eye is already the thing you press. It sits below the wordmark
+  in the foot band, off the composition entirely.
+- **Capture cannot be a route.** `App.tsx` prefetches the Home chunk
+  immediately; a `/fuel/new` route is in none of the prefetched chunks, so the
+  pump case would pay `RouteFallback` plus a network fetch plus `ProtectedRoute`'s
+  session round-trip. At a pump on bad signal that is the whole feature. A sheet
+  inside the already-warm Home chunk is the only genuinely fast path. Mount it as
+  a sibling of the stage: the world carries `transform`/`willChange` and the
+  stage carries `perspective`, and a `position: fixed` sheet inside either
+  anchors to it rather than the viewport.
+- **Browsing splits from capture by frequency.** A chart and a log are not a
+  ten-second job and do not belong in the sheet. Maintenance's hub is a
+  hand-placed diagonal of two objects and absorbs a third gracefully, where the
+  map's balanced five-node loop does not.
+- **Economy is computed BETWEEN two full fills, and both break flags are needed.**
+  `is_full = false` rolls volume forward; `is_missed = true` restarts the chain.
+  One boolean cannot carry both, and without the second a forgotten fill-up
+  silently reports roughly double the real economy for the tank after it. The
+  anchor of a span supplies only an ODOMETER, never its own volume — that tank
+  was burned before the span opened — which is why a full fill with unknown
+  volume can still anchor. All of it is pure and unit-tested (23 cases).
+- **`users.volume_unit` is a real column, not a display toggle.** US and imperial
+  gallons differ by about 20%, so "gallons" is not one unit. And L/100km INVERTS
+  the direction of better, which is why `higherIsBetter()` is exported as a
+  predicate rather than left for each caller to remember.
+- **Averages are total distance over total fuel**, not the mean of the per-tank
+  figures, which would weight a 90-mile tank the same as a 400-mile one. Cost per
+  mile excludes the first fill, the correction Drivvo applies, because that tank
+  was bought before the measured span opened.
+
+**Consequences:** the differentiator is not the fill-up form, which everyone has.
+It is fuel folded into the cost of ownership the app already tracks and already
+hands to the next owner. `/fuel` leads on that block for exactly that reason, and
+it should carry into the build report. Nothing here is public: no `anon` grant,
+and cost has never been inside the `/builds/*` boundary.
+
+Source: migration 097, `src/lib/fuel.ts`, `docs/FUEL_LOG_RESEARCH.md`,
+`design/fuel-mockup/`.
