@@ -81,6 +81,7 @@ const TuningPartEditPage = lazyWithRetry(() => import('./pages/TuningPartEditPag
 
 // Maintenance
 const MaintenancePage = lazyWithRetry(() => import('./pages/MaintenancePage'))
+const FuelPage = lazyWithRetry(() => import('./pages/FuelPage'))
 const MaintenanceServicePage = lazyWithRetry(() => import('./pages/MaintenanceServicePage'))
 const MaintenanceServiceNewPage = lazyWithRetry(() => import('./pages/MaintenanceServiceNewPage'))
 const MaintenanceServiceEditPage = lazyWithRetry(() => import('./pages/MaintenanceServiceEditPage'))
@@ -419,6 +420,7 @@ export default function App() {
       <Route path="/maintenance/detail" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail/new" element={<ProtectedRoute><MaintenanceDetailNewPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail/edit/:sessionId" element={<ProtectedRoute><MaintenanceDetailEditPage /></ProtectedRoute>} />
+      <Route path="/fuel" element={<ProtectedRoute><FuelPage /></ProtectedRoute>} />
       <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
 
       <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />

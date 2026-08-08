@@ -5,7 +5,19 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 095_follower_list.sql (applied 2026-08-01)
+-- Last migration applied : 097_fuel_entries.sql (applied 2026-08-05)
+--   NOTE: 096_follow_notice_copy.sql is still NOT APPLIED. 097 was run ahead of
+--   it; the two are unrelated (096 is copy-only inside the follow trigger), so
+--   the gap is deliberate rather than a skipped step.
+--   - 097 (ADR-033): fuel logging. users.volume_unit (gal_us|gal_imp|l) and a
+--     fuel_entries table. Volume is stored in US gallons and NULLABLE, because
+--     an odometer-only entry is the point of the feature: mileage reminders read
+--     cars.current_mileage and today it is only written when a mod or a service
+--     is logged. is_full and is_missed both exist because they break the
+--     economy chain for different reasons, and without the second a forgotten
+--     fill-up reports roughly double the real economy for the next tank. RLS
+--     goes through the car, not the denormalised user_id; revoke before grant;
+--     no anon grant, since cost is outside the /builds/* boundary.
 --   - 095 (ADR-032): the followers screen. follower_list(target) with
 --     follows_back + you_follow, and following_list_v2(target) with follows_you.
 --     086's following_list is LEFT IN PLACE as a client fallback, because adding

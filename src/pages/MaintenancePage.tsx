@@ -10,6 +10,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import ArrivalFade from '../components/ArrivalFade'
 import iconService    from '../assets/icons/maintenance/service.webp'
 import iconDetail     from '../assets/icons/maintenance/maintenance_detail.webp'
+import iconFuel       from '../assets/icons/maintenance/fuel.webp'
 import maintenanceHero from '../assets/backgrounds/maintenance_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
@@ -21,6 +22,16 @@ import {
 const TILES = [
   { id: 'detail',  label: 'Detailing', route: '/maintenance/detail',      src: iconDetail,  left: 48,  bottom: 60,  imgPad: 20, labelOffset: -10, labelNudgeX: 10 },
   { id: 'service', label: 'Service',   route: '/maintenance/service',     src: iconService, left: 218, bottom: 102, imgPad: 0,  labelOffset: -20, labelNudgeX: 0  },
+  // Fuel goes ABOVE and right of Service rather than continuing the row. The
+  // existing pair steps (170, 42), and a third point on that line lands at
+  // left 388, where 388 + 126 = 514 runs off a 430-wide screen. So the step is
+  // spent almost entirely upward, (64, 170), which keeps the same 175px
+  // centre-to-centre travel and reads as a staircase rather than a row.
+  // labelOffset 4 rather than Service's -20: Service pulls its caption up
+  // because its glyph is letterboxed with dead space at the foot, and the pump
+  // fills its box to the bottom edge, so the same offset lands the word on the
+  // cabinet.
+  { id: 'fuel',    label: 'Fuel',      route: '/fuel',                    src: iconFuel,    left: 282, bottom: 272, imgPad: 14, labelOffset: 4,   labelNudgeX: 0  },
 ]
 
 export default function MaintenancePage() {

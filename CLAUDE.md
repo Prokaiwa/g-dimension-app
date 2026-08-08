@@ -283,7 +283,10 @@ src/pages/TuningModEditPage.tsx     — Full mod edit form (fields + specs + pho
 src/pages/TuningPartsPage.tsx       — Parts Bin list (cardboard aesthetic; Wishlist + On Hand + In Storage). FAB → /tuning/add?dest=parts-bin (there is NO separate add-part page)
 src/pages/TuningPartDetailPage.tsx  — Part detail (kraft paper, carousel/viewer, links, Install/Sell actions)
 src/pages/TuningPartEditPage.tsx    — Part edit form (kraft paper, fields + specs + photos + links)
-src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diagonal, service history strip)
+src/pages/MaintenancePage.tsx             — Maintenance landing (GT Auto diagonal, service history strip). THREE tiles now: Detailing, Service, Fuel. Fuel sits ABOVE and right of Service, not beside it — the existing pair steps (170,42) and a third point on that line runs off a 430-wide screen, so the step is spent almost entirely upward
+src/lib/fuel.ts                           — Fuel units + the tank-to-tank economy chain (migration 097, ADR-033). Economy is computed BETWEEN two FULL fills, and the anchor of a span supplies only an ODOMETER, never its own volume; is_full rolls partial volume forward, is_missed restarts the chain. Pure, 23 unit tests. Volume base unit is US gallons; higherIsBetter() exists because L/100km inverts
+src/pages/FuelPage.tsx                    — /fuel, the fuel record. Maintenance's S-curve cut for the place, a pump LCD for the numbers. Capture is NOT here (see the sheet on Home): a route means a chunk fetch and a session round-trip, which is the whole feature at a pump on bad signal
+src/components/SevenSeg.tsx               — The pump LCD: hand-drawn seven-segment polygons + the panel. Every digit draws all seven segments and dims the unlit ones, which is what makes it read as a physical display rather than a font. Fuel is an aesthetic island; its colours are section-local and do NOT belong in src/tokens
 src/pages/MaintenanceServiceNewPage.tsx   — Add Service Session form (invoice/Courier aesthetic)
 src/pages/MaintenanceServiceEditPage.tsx  — Edit Service Session (Windows XP aesthetic, loads + UPDATEs)
 src/pages/MaintenanceSessionDetailPage.tsx — Session detail view (shared by maintenance + detail types)
