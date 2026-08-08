@@ -42,7 +42,7 @@ const CREAM = 'rgba(240,228,200,'
 /** COLOR_WORLD_LOW. Service's share of the split; the one neutral in the trio. */
 const SERVICE_GREY = '#6a737a'
 
-type Car = { year: number | null; model: string | null; mileage_unit: string | null }
+type Car = { year: number | null; model: string | null; variant: string | null; mileage_unit: string | null }
 
 export default function FuelPage() {
   const navigate = useNavigate()
@@ -61,7 +61,7 @@ export default function FuelPage() {
       if (!carId) { if (alive) setLoading(false); return }
 
       const [carRes, fuelRes, jobsRes, svcRes, meRes] = await Promise.all([
-        supabase.from('cars').select('year, model, mileage_unit').eq('id', carId).single(),
+        supabase.from('cars').select('year, model, variant, mileage_unit').eq('id', carId).single(),
         // Guarded like every other post-migration read in this codebase: before
         // 097 is applied the table does not exist and this 404s, which must
         // degrade to an empty log rather than an error screen.
@@ -85,7 +85,11 @@ export default function FuelPage() {
       setMUnit(asMileageUnit(c?.mileage_unit))
 
       const rows = (fuelRes.error ? [] : (fuelRes.data ?? [])) as unknown as FuelEntry[]
-      setSummary(summarise(rows.map(r => ({ ...r, volume: r.volume == null ? null : Number(r.volume) }))))
+      setSummary(summarise(rows.map(r => ({
+        ...r,
+        volume: r.volume == null ? null : Number(r.volume),
+        total_cost: r.total_cost == null ? null : Number(r.total_cost),
+      }))))
 
       const jobs = (jobsRes.data ?? []) as { parts_cost: number | null; labor_cost: number | null }[]
       setModSpend(jobs.reduce((s, j) => s + (j.parts_cost ?? 0) + (j.labor_cost ?? 0), 0))
@@ -102,13 +106,16 @@ export default function FuelPage() {
     return () => { alive = false }
   }, [])
 
-  const carInfo = car ? [car.year, car.model].filter(Boolean).join(' ') : ''
+  const carInfo = car ? [car.year, car.model, car.variant].filter(Boolean).join(' ') : ''
   const s = summary
 
   const fuelSpend = s?.totalSpend ?? 0
   const totalSpend = modSpend + serviceSpend + fuelSpend
   const pct = (v: number) => (totalSpend > 0 ? (v / totalSpend) * 100 : 0)
-  const fuelPct = totalSpend > 0 ? Math.round((fuelSpend / totalSpend) * 100) : 0
+  // "0%" against a five-figure build reads as a broken number rather than a
+  // small one, and the sentence it sits in is the point of the whole block.
+  const fuelPctRaw = totalSpend > 0 ? (fuelSpend / totalSpend) * 100 : 0
+  const fuelPct = fuelPctRaw > 0 && fuelPctRaw < 0.5 ? '<1%' : `${Math.round(fuelPctRaw)}%`
 
   const tanks = (s?.tanks ?? []).filter(t => t.mpg != null || t.reason === 'partial' || t.reason === 'missed')
   const mpgs = tanks.map(t => t.mpg).filter((v): v is number => v != null)
@@ -239,7 +246,11 @@ export default function FuelPage() {
           {/* ── Chart ── the bars drawn ON the glass, dark on grey-green. */}
           <Section title="Economy per tank">
             <LcdPanel style={{ padding: '9px 8px 6px' }}>
-              <div style={{ position: 'relative', height: 69, display: 'flex', alignItems: 'flex-end', gap: 4, zIndex: 2 }}>
+              {/* justify + maxWidth, not flex:1 alone: with one tank logged a
+                  lone flex:1 bar spans the whole panel and the striped fill
+                  reads as a barcode rather than a column. Capped and centred,
+                  two tanks look like two tanks and thirty still pack tight. */}
+              <div style={{ position: 'relative', height: 69, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 4, zIndex: 2 }}>
                 {tanks.length === 0 && (
                   <div style={{ margin: 'auto', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: lcdInk(0.4) }}>
                     NO TANKS YET
@@ -247,7 +258,7 @@ export default function FuelPage() {
                 )}
                 {tanks.map((t, i) => (
                   <div key={t.entry.id} style={{
-                    flex: 1,
+                    flex: '1 1 0', minWidth: 0, maxWidth: 30,
                     height: t.mpg != null ? barH(t.mpg) : 3,
                     background: t.mpg == null
                       ? lcdInk(0.16)
@@ -281,7 +292,7 @@ export default function FuelPage() {
             </div>
             {fuelSpend > 0 && (
               <div style={{ marginTop: 9, fontSize: 13, fontWeight: 600, color: 'rgba(245,245,245,0.70)', lineHeight: 1.35 }}>
-                Fuel is <b style={{ color: COLOR_ACCENT, fontWeight: 800 }}>{fuelPct}%</b> of what this car has cost you, and it carries into the build report with the rest.
+                Fuel is <b style={{ color: COLOR_ACCENT, fontWeight: 800 }}>{fuelPct}</b> of what this car has cost you, and it carries into the build report with the rest.
               </div>
             )}
           </Section>

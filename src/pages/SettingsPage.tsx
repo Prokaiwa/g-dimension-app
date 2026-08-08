@@ -1,6 +1,6 @@
 // Route: /settings — Settings, reached from within Profile (Part 10, Part 13).
-// Unit display preferences (distance / power / torque) write straight to the
-// `users` row — data is always stored in base units, this only changes display
+// Unit display preferences (distance / power / torque / volume) write straight
+// to the `users` row — data is always stored in base units, this only changes display
 // (see migration 001 / Part 16). Settings live inside Profile per CLAUDE.md.
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -9,6 +9,7 @@ import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import { isMusicEnabled, setMusicEnabled } from '../lib/music'
 import { downloadAccountExport } from '../lib/dataExport'
 import { setCachedUnitPrefs } from '../lib/unitPrefs'
+import { asVolumeUnit } from '../lib/fuel'
 import { useTour } from '../tour/TourContext'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
@@ -46,6 +47,7 @@ type UnitPrefs = {
   distance_unit: 'mi' | 'km'
   power_unit: 'hp' | 'ps' | 'kw'
   torque_unit: 'lbft' | 'nm'
+  volume_unit: 'gal_us' | 'gal_imp' | 'l'
 }
 
 const DISTANCE_OPTS = [
@@ -60,6 +62,13 @@ const POWER_OPTS = [
 const TORQUE_OPTS = [
   { value: 'lbft', label: 'lb-ft' },
   { value: 'nm', label: 'Nm' },
+] as const
+// US and imperial gallons differ by about 20%, so "gallons" is not one unit and
+// a UK owner shown US gallons gets a wrong number rather than an unfamiliar one.
+const VOLUME_OPTS = [
+  { value: 'gal_us', label: 'gal (US)' },
+  { value: 'gal_imp', label: 'gal (UK)' },
+  { value: 'l', label: 'L' },
 ] as const
 const SOUND_OPTS = [
   { value: 'off', label: 'Off' },
@@ -158,14 +167,20 @@ export default function SettingsPage() {
       const { data: auth } = await supabase.auth.getUser()
       const id = auth?.user?.id ?? null
       if (!id) { if (!cancelled) setLoading(false); return }
-      const { data } = await supabase
-        .from('users')
-        .select('distance_unit, power_unit, torque_unit')
-        .eq('id', id)
-        .single()
+      // volume_unit is fetched SEPARATELY on purpose. It arrived in 097 and its
+      // column grant only in 098, and one ungranted column 42501s the whole
+      // select — folding it in would have taken distance, power and torque down
+      // with it in the window between deploy and migration.
+      const [{ data }, { data: vol }] = await Promise.all([
+        supabase.from('users').select('distance_unit, power_unit, torque_unit').eq('id', id).single(),
+        supabase.from('users').select('volume_unit').eq('id', id).single(),
+      ])
       if (cancelled) return
       setUid(id)
-      setPrefs((data as UnitPrefs) ?? { distance_unit: 'mi', power_unit: 'hp', torque_unit: 'lbft' })
+      setPrefs({
+        ...((data as Omit<UnitPrefs, 'volume_unit'>) ?? { distance_unit: 'mi', power_unit: 'hp', torque_unit: 'lbft' }),
+        volume_unit: asVolumeUnit((vol as { volume_unit?: string } | null)?.volume_unit),
+      })
       setLoading(false)
     })()
     return () => { cancelled = true }
@@ -268,6 +283,7 @@ export default function SettingsPage() {
               <UnitRow label="Distance" sub="Default odometer unit for new cars. Each car can override this on Edit Car" value={prefs.distance_unit} options={DISTANCE_OPTS} onPick={v => update('distance_unit', v)} disabled={saving} />
               <UnitRow label="Power" sub="Horsepower figures across your builds" value={prefs.power_unit} options={POWER_OPTS} onPick={v => update('power_unit', v)} disabled={saving} />
               <UnitRow label="Torque" sub="Torque figures across your builds" value={prefs.torque_unit} options={TORQUE_OPTS} onPick={v => update('torque_unit', v)} disabled={saving} />
+              <UnitRow label="Volume" sub="Fuel volume on fill-ups and the fuel record" value={prefs.volume_unit} options={VOLUME_OPTS} onPick={v => update('volume_unit', v)} disabled={saving} />
             </div>
 
             {/* Sound */}

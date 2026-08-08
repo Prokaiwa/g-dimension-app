@@ -3,7 +3,7 @@ const MONTHS      = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_LABEL = MONTHS[_now.getMonth()]
 const DAY_LABEL   = String(_now.getDate())
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
@@ -40,6 +40,9 @@ import {
 import { useTour } from '../tour/TourContext'
 import type { TourNode } from '../tour/tourSteps'
 import PermitWatcher from '../components/PermitWatcher'
+import FuelSheet, { type FuelSheetCar } from '../components/FuelSheet'
+import { asMileageUnit } from '../lib/mileage'
+import { asVolumeUnit, type FuelEntry, type VolumeUnit } from '../lib/fuel'
 import { GRADE_RING } from '../lib/permit'
 import type { GradeId } from '../lib/license'
 
@@ -148,6 +151,37 @@ const TEXTURE_URL = `url("data:image/svg+xml,${encodeURIComponent(TEXTURE_SVG)}"
 // sequence for any press that doesn't navigate.
 const TAP_DEBUG = typeof window !== 'undefined' && window.location.search.includes('tapdebug')
 
+// ── The fill-up grip ─────────────────────────────────────────────────────────
+//
+// A bottom-sheet grip under the wordmark, on the chrome plane below the map. The
+// affordance IS the thing it opens: a grip has exactly one meaning on a phone, so
+// nothing has to be taught. It replaces the long-press on the Home node that was
+// considered first, which was invisible and sat on the map's most-tapped target,
+// where a drifted hold would have navigated to the Garage instead.
+//
+// After STALE_DAYS without a fill-up it warms to COLOR_ACCENT and blooms. It is
+// then the only warm pixel on the screen, which is the whole point: the thing
+// that catches the eye is already the thing you press. No badge, no banner.
+//
+// It does NOT glow when the log is empty. "Never logged" would glow forever for
+// anyone who does not want fuel tracking, and a permanent glow is decoration
+// rather than a state — it would burn out the one warm pixel's meaning before it
+// ever meant anything. Discovery is the resting grip's own job.
+const STALE_DAYS = 10
+const FUEL_TAIL = 8   // enough history for the context line and the live estimate
+
+function daysSince(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return 0
+  return Math.floor((Date.now() - new Date(y, m - 1, d).getTime()) / 86_400_000)
+}
+
+function onIdle(run: () => void): void {
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(run, { timeout: 2500 })
+  else window.setTimeout(run, 400)
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const { active: tourActive, step: tourStep, next: tourNext } = useTour()
@@ -181,6 +215,10 @@ export default function HomePage() {
   const [displayName, setDisplayName] = useState(() => { const c = getCachedProfile(); return c ? profileName(c) : '...' })
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => { const c = getCachedProfile(); return c ? (c.avatar_url ?? '') : null })
   const [carInfo, setCarInfo] = useState<string | null>(null)
+  const [fuelCar, setFuelCar] = useState<FuelSheetCar | null>(null)
+  const [fuelRecent, setFuelRecent] = useState<FuelEntry[]>([])
+  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('gal_us')
+  const [fuelOpen, setFuelOpen] = useState(false)
   const [_entered, setEntered] = useState(false)
   const [pressedNode, setPressedNode] = useState<string | null>(null)
   const [exiting, setExiting] = useState(false)
@@ -191,6 +229,34 @@ export default function HomePage() {
   const compassRef = useRef<HTMLDivElement>(null)
   const roadElsRef = useRef<Partial<Record<RoadId, SVGPathElement>>>({})
   const driverRef = useRef<SVGGElement>(null)
+  // A grip invites a drag, so an upward swipe opens the sheet as well as a tap.
+  // `fired` swallows the click that follows the swipe's touchend.
+  const gripRef = useRef<{ y: number; fired: boolean } | null>(null)
+
+  // The tail of the fuel log plus the user's volume unit: everything the sheet
+  // needs, so opening it costs nothing over the network at a pump. Also called
+  // after a save, so the grip cools and the context line updates in place.
+  const loadFuel = useCallback(async (carId: string) => {
+    const [fuelRes, meRes] = await Promise.all([
+      supabase.from('fuel_entries')
+        .select('id, filled_on, odometer, volume, total_cost, is_full, is_missed')
+        .eq('car_id', carId).order('odometer', { ascending: false }).limit(FUEL_TAIL),
+      supabase.auth.getUser(),
+    ])
+    // Guarded like every other post-migration read here: before 097 is applied
+    // the table does not exist and this 404s, which has to leave the grip at
+    // rest rather than take Home down with it.
+    const rows = (fuelRes.error ? [] : (fuelRes.data ?? [])) as unknown as FuelEntry[]
+    setFuelRecent([...rows].reverse().map(r => ({
+      ...r,
+      volume: r.volume == null ? null : Number(r.volume),
+      total_cost: r.total_cost == null ? null : Number(r.total_cost),
+    })))
+    const uid = meRes.data.user?.id
+    if (!uid) return
+    const { data: u } = await supabase.from('users').select('volume_unit').eq('id', uid).single()
+    setVolumeUnit(asVolumeUnit((u as { volume_unit?: string } | null)?.volume_unit))
+  }, [])
 
   useEffect(() => {
     getCurrentUserProfile().then(p => {
@@ -202,19 +268,30 @@ export default function HomePage() {
       if (!carId) return
       supabase
         .from('cars')
-        .select('year, model, variant, garage_photo_url')
+        .select('year, model, variant, garage_photo_url, current_mileage, mileage_unit')
         .eq('id', carId)
         .is('deleted_at', null)
         .single()
         .then(({ data }) => {
           if (!data) return
-          setCarInfo([data.year, data.model, data.variant].filter(Boolean).join(' '))
+          const name = [data.year, data.model, data.variant].filter(Boolean).join(' ')
+          setCarInfo(name)
+          setFuelCar({
+            id: carId,
+            name,
+            mileageUnit: asMileageUnit(data.mileage_unit),
+            currentMileage: data.current_mileage ?? null,
+          })
           // Warm the active car's cutout while Home idles, so the Garage
           // carousel's first card is a cache hit on arrival.
           preloadImagesOnIdle([data.garage_photo_url])
+          // The fuel tail is not needed for first paint: the grip renders at rest
+          // and can warm a moment later. Home is the app's most-visited screen,
+          // so two extra queries wait for idle rather than race the map in.
+          onIdle(() => { void loadFuel(carId) })
         })
     })
-  }, [])
+  }, [loadFuel])
 
   // Parallax RAF loop
   useEffect(() => {
@@ -483,6 +560,12 @@ export default function HomePage() {
     setAvatarSrc(avatarUrl)
     cacheAvatarThumb(avatarUrl)
   }, [avatarUrl])
+
+  // Staleness runs off the newest DATE, not the newest odometer: the tail is
+  // ordered by reading, and a backdated entry can sit last by mileage.
+  const lastFillIso = fuelRecent.reduce<string | null>(
+    (max, e) => (max == null || e.filled_on > max ? e.filled_on : max), null)
+  const fuelStale = lastFillIso != null && daysSince(lastFillIso) >= STALE_DAYS
 
   return (
     <div style={{ minHeight: '100dvh', background: '#050507', display: 'flex', justifyContent: 'center' }}>
@@ -1089,9 +1172,10 @@ export default function HomePage() {
           background: 'linear-gradient(0deg, rgba(5,5,7,0.45) 0%, transparent 100%)',
         }} />
 
-        {/* Footer text */}
+        {/* Footer text — lifted from 18 to make room for the grip beneath it, and
+            measured from the safe area so the pair clears the home indicator. */}
         <div style={{
-          position: 'absolute', bottom: 18, left: 0, right: 0,
+          position: 'absolute', bottom: 'calc(30px + env(safe-area-inset-bottom))', left: 0, right: 0,
           textAlign: 'center', zIndex: 5, pointerEvents: 'none',
           animation: 'footerIn 600ms 1000ms both',
         }}>
@@ -1103,7 +1187,67 @@ export default function HomePage() {
             G‑DIMENSION
           </span>
         </div>
+
+        {/* The fill-up grip. Bar is 44x4; the button around it is 40 tall so the
+            target is real without the bar having to be. */}
+        <button
+          onClick={() => {
+            if (gripRef.current?.fired) { gripRef.current = null; return }
+            setFuelOpen(true)
+          }}
+          onTouchStart={e => { gripRef.current = { y: e.touches[0].clientY, fired: false } }}
+          onTouchMove={e => {
+            const g = gripRef.current
+            if (!g || g.fired) return
+            if (g.y - e.touches[0].clientY > 22) { g.fired = true; setFuelOpen(true) }
+          }}
+          aria-label="Log a fill-up"
+          style={{
+            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+            bottom: 'calc(-4px + env(safe-area-inset-bottom))',
+            width: 96, height: 40, padding: 0, border: 'none', background: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 6, touchAction: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            animation: 'footerIn 600ms 1100ms both',
+          }}
+        >
+          <span aria-hidden style={{
+            width: 44, height: 4,
+            background: fuelStale ? COLOR_ACCENT : 'rgba(240,228,200,0.26)',
+            boxShadow: fuelStale
+              ? '0 0 9px 2px rgba(200,102,26,0.85), 0 0 26px 6px rgba(200,102,26,0.5)'
+              : 'none',
+            transition: 'background 500ms ease, box-shadow 500ms ease',
+          }} />
+        </button>
       </div>
+
+      {/* The fill-up sheet is a SIBLING of the stage, never a child of it. The
+          stage carries `perspective` and the world carries `transform` /
+          `will-change`, and any of those makes a position:fixed descendant
+          anchor to that element instead of the viewport — the sheet would render
+          somewhere below the fold with only its backdrop visible. See CLAUDE.md;
+          this has shipped broken once already. */}
+      <FuelSheet
+        open={fuelOpen}
+        onClose={() => setFuelOpen(false)}
+        car={fuelCar}
+        volumeUnit={volumeUnit}
+        recent={fuelRecent}
+        onSaved={() => {
+          if (fuelCar) {
+            // The clamp in the sheet is forward-only, so mirror it here rather
+            // than assuming the reading advanced.
+            void loadFuel(fuelCar.id)
+            supabase.from('cars').select('current_mileage').eq('id', fuelCar.id).single()
+              .then(({ data }) => {
+                const m = (data as { current_mileage: number | null } | null)?.current_mileage ?? null
+                setFuelCar(c => (c ? { ...c, currentMileage: m } : c))
+              })
+          }
+        }}
+      />
 
       {/* Tap diagnostics — only with ?tapdebug in the URL */}
       {TAP_DEBUG && (

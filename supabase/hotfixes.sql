@@ -6,6 +6,13 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 097_fuel_entries.sql (applied 2026-08-05)
+--   ⚠️ 098_users_volume_unit_grant.sql is PENDING and should be run next. Until
+--   it is, `users.volume_unit` returns 42501 to its own owner (083 replaced the
+--   table-wide select on `users` with a column-level grant, and 097 added the
+--   column without adding it there). Every read of it is guarded, so the app
+--   degrades to US gallons rather than breaking — which is exactly why the bug
+--   was invisible: a 403 and a gal_us user produce identical output. The
+--   Settings > Units > Volume control does nothing useful until 098 runs.
 --   NOTE: 096_follow_notice_copy.sql is still NOT APPLIED. 097 was run ahead of
 --   it; the two are unrelated (096 is copy-only inside the follow trigger), so
 --   the gap is deliberate rather than a skipped step.
