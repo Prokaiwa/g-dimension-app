@@ -117,8 +117,12 @@ await ctx.addInitScript((carId) => {
 
 const page = await ctx.newPage()
 const consoleErrors = []
+const failedUrls = []
 page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)) })
 page.on('pageerror', e => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`))
+// A console message for a failed request carries a status and no URL. Judging
+// "is this error expected?" needs the URL, so record responses separately.
+page.on('response', r => { if (r.status() >= 400) failedUrls.push(`${r.status()} ${r.url().replace(SB, '')}`) })
 
 try {
   await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' })
@@ -265,12 +269,18 @@ try {
   })
   ok('grip is at rest after a fresh fill', !gripColor.includes('200, 102, 26'), gripColor)
 
-  // The sandbox has no direct egress, so Sentry's own transport and any request
-  // Playwright's relay does not cover fail with ERR_TUNNEL_CONNECTION_FAILED.
-  // That is the harness, not the app, and filtering it is what keeps this
-  // assertion able to catch a real error.
-  const appErrors = consoleErrors.filter(e => !/ERR_TUNNEL_CONNECTION_FAILED|sentry/i.test(e))
+  // Two exclusions, both named rather than pattern-matched away. The sandbox has
+  // no direct egress, so Sentry's transport fails with ERR_TUNNEL_CONNECTION_FAILED
+  // — harness, not app. And supabase-js races its own Navigator Locks lock on a
+  // navigation during a token refresh; ErrorBanner's BENIGN already refuses to
+  // show that one, so this must not fail on it either.
+  const BENIGN = /ERR_TUNNEL_CONNECTION_FAILED|sentry|lock:sb-.*-auth-token|lock .* was released/i
+  const appErrors = consoleErrors.filter(e => !BENIGN.test(e) && !/Failed to load resource/.test(e))
   ok('no console errors', appErrors.length === 0, appErrors.slice(0, 3).join(' | '))
+  // The volume_unit 403 has its own assertion at the top; anything else that
+  // failed over the wire is news.
+  const unexpected = failedUrls.filter(u => !u.includes('volume_unit'))
+  ok('no unexpected failed requests', unexpected.length === 0, unexpected.slice(0, 4).join(' | '))
 } finally {
   await browser.close()
   // ── cleanup ──

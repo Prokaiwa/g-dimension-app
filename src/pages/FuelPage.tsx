@@ -229,7 +229,12 @@ export default function FuelPage() {
             {[
               { v: s?.costPerMile != null ? s.costPerMile.toFixed(2) : '-.--', cap: `$ per ${mUnit}` },
               { v: s?.avgPricePerGal != null ? s.avgPricePerGal.toFixed(2) : '-.--', cap: `$ per ${volumeLabel(vUnit)}` },
-              { v: fuelSpend > 0 ? Math.round(fuelSpend).toLocaleString('en-US') : '0', cap: '$ to date' },
+              // No thousands separator, deliberately. At this size the comma
+              // glyph is two pixels of tail away from the decimal point in the
+              // window beside it, so "2,694" read as "2.694" — a hundredfold
+              // error in the one figure people check. A pump's own totalizer
+              // does not group its digits either.
+              { v: fuelSpend > 0 ? String(Math.round(fuelSpend)) : '0', cap: '$ to date' },
             ].map((w, i) => (
               <div key={i} style={{ flex: 1 }}>
                 <LcdPanel style={{ padding: '7px 5px 6px' }}>

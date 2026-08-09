@@ -17,7 +17,7 @@
 // derived live from the odometer you are typing, by running the real chain in
 // lib/fuel rather than a second approximation of it.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import BottomSheet from './BottomSheet'
@@ -65,6 +65,18 @@ function num(s: string): number | null {
   return Number.isFinite(v) ? v : null
 }
 
+/**
+ * Typed something, and it is not a number.
+ *
+ * num() cannot answer this on its own: it collapses "empty" and "gibberish" into
+ * the same null, and null means "not entered" for the optional fields. So a
+ * fat-fingered volume used to save as an odometer-only entry — accepted,
+ * cheerful, and quietly missing the gallons the whole feature is about.
+ */
+function isJunk(s: string): boolean {
+  return s.replace(/[,\s$]/g, '') !== '' && num(s) == null
+}
+
 // Column limits from migration 097, enforced here so a real reading never turns
 // into a 400 from PostgREST. odometer is int4; volume is numeric(8,3);
 // total_cost is numeric(10,2).
@@ -95,6 +107,7 @@ export default function FuelSheet({
   const [date, setDate] = useState(todayIso())
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const savingRef = useRef(false)
 
   // Fresh every time it opens. The sheet unmounts while closed (BottomSheet
   // returns null), but the state above would survive a re-open within the same
@@ -105,6 +118,7 @@ export default function FuelSheet({
     setVol(''); setTotal('')
     setIsFull(true); setIsMissed(false)
     setDate(todayIso())
+    savingRef.current = false
     setSaving(false); setErr(null)
   }, [open, car?.currentMileage, mUnit])
 
@@ -150,9 +164,20 @@ export default function FuelSheet({
 
   const save = async () => {
     if (!car) return
+    // The `disabled` prop is not a guard: it only takes effect after a render,
+    // and two taps inside one frame both reach this function before React has
+    // painted the disabled state. A ref closes the window synchronously, which
+    // is the difference between one fill-up and two identical ones.
+    if (savingRef.current) return
     if (odoNum == null || odoNum < 0) { setErr('Enter the odometer reading.'); return }
     if (odoMi == null || odoMi > MAX_ODOMETER_MI) { setErr('That odometer reading is too high to be real.'); return }
+    if (isJunk(vol)) { setErr('That volume is not a number.'); return }
+    if (isJunk(total)) { setErr('That total is not a number.'); return }
     if (totalNum != null && (totalNum < 0 || totalNum > MAX_TOTAL)) { setErr('Check the total.'); return }
+    // A date input can be cleared, and an empty filled_on is a NOT NULL
+    // violation dressed up as a shrug. A future one is not a fill-up yet.
+    if (!date) { setErr('Pick a date.'); return }
+    if (date > todayIso()) { setErr('That date is in the future.'); return }
 
     // Rounded to what the column actually stores BEFORE the check, because
     // 0.0001 litres is a positive number that becomes 0.000 US gallons on the
@@ -163,10 +188,12 @@ export default function FuelSheet({
       setErr(`Volume has to be more than zero, or leave it empty.`); return
     }
 
+    savingRef.current = true
     setSaving(true); setErr(null)
+    const stop = () => { savingRef.current = false; setSaving(false) }
     const { data: auth } = await supabase.auth.getUser()
     const uid = auth?.user?.id
-    if (!uid) { reportActionError("Couldn't save the fill-up"); setSaving(false); return }
+    if (!uid) { reportActionError("Couldn't save the fill-up"); stop(); return }
 
     const { error } = await supabase.from('fuel_entries').insert({
       car_id: car.id,
@@ -180,7 +207,11 @@ export default function FuelSheet({
     })
     if (error) {
       reportActionError("Couldn't save the fill-up", error)
-      setSaving(false)
+      // Say it in the sheet as well as in the global banner: at a pump the
+      // banner is off the top of a sheet that covers most of the screen, and a
+      // Save button that quietly goes back to idle reads as a save.
+      setErr("Couldn't save that. Check your connection and try again.")
+      stop()
       return
     }
 
@@ -192,7 +223,7 @@ export default function FuelSheet({
     }
 
     playConfirm()
-    setSaving(false)
+    stop()
     onSaved()
     onClose()
   }
