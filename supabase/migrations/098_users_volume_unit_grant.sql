@@ -30,6 +30,15 @@
 -- The revoke comes first, per the house rule (a column-level grant layered on a
 -- table-wide one narrows nothing, and fails silently).
 --
+-- ONE CONSEQUENCE WORTH KNOWING, because it looks like a different bug. With no
+-- table-wide select on `users`, a WRITE that asks for the row back fails too: an
+-- `update(...).select()` — or a raw PostgREST `PATCH` carrying
+-- `Prefer: return=representation` — makes the server SELECT every column of the
+-- written row, hits the withheld ones, and returns `42501 permission denied for
+-- table users`. The UPDATE privilege is fine; the echo is what is refused. So
+-- always column-scope the select on a users write (ProfilePage does:
+-- `.update(payload).eq(...).select(PROFILE_COLS)`), or ask for nothing back.
+--
 -- Idempotent. Run in the Supabase SQL Editor.
 
 revoke select on public.users from authenticated;

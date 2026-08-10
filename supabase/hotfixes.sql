@@ -5,14 +5,21 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 097_fuel_entries.sql (applied 2026-08-05)
---   ⚠️ 098_users_volume_unit_grant.sql is PENDING and should be run next. Until
---   it is, `users.volume_unit` returns 42501 to its own owner (083 replaced the
---   table-wide select on `users` with a column-level grant, and 097 added the
---   column without adding it there). Every read of it is guarded, so the app
---   degrades to US gallons rather than breaking — which is exactly why the bug
---   was invisible: a 403 and a gal_us user produce identical output. The
---   Settings > Units > Volume control does nothing useful until 098 runs.
+-- Last migration applied : 098_users_volume_unit_grant.sql (applied 2026-08-10)
+--   - 098: adds `volume_unit` to the `authenticated` column-level select grant
+--     on `users`, which 097 forgot. Verified live after running: volume_unit
+--     reads, it reads alongside active_car_id in one select, the whole 083 set
+--     still reads, and `email` / `select=*` are still refused. End-to-end
+--     verified in the app too — Settings > Units > Volume persists and comes
+--     back selected, the sheet asks for LITRES, 45 L stores as 11.888 US
+--     gallons, and the same row reads back as 9.9 imperial gallons.
+--     ⚠️ Consequence worth knowing, because it looks like a different bug: with
+--     no table-wide select on `users`, a WRITE that asks for the row back fails
+--     too. `update(...).select()` — or a PostgREST PATCH carrying
+--     `Prefer: return=representation` — makes the server SELECT every column of
+--     the written row, hits the withheld ones, and returns 42501. The UPDATE
+--     privilege is fine; the echo is what is refused. Column-scope the select
+--     (ProfilePage does: `.select(PROFILE_COLS)`) or ask for nothing back.
 --   NOTE: 096_follow_notice_copy.sql is still NOT APPLIED. 097 was run ahead of
 --   it; the two are unrelated (096 is copy-only inside the follow trigger), so
 --   the gap is deliberate rather than a skipped step.

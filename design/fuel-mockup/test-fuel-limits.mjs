@@ -48,7 +48,12 @@ const rest = async (p, init = {}) => {
     ...init,
     headers: {
       apikey: KEY, authorization: `Bearer ${TOK}`, 'content-type': 'application/json',
-      Prefer: 'return=representation', ...(init.headers || {}),
+      // return=minimal, deliberately. A representation asks PostgREST to SELECT
+      // every column of the written row, and `users` has no table-wide select
+      // grant (083 withholds `email`, 098 restates the list) — so a PATCH to
+      // users with return=representation comes back 42501 and looks exactly
+      // like a broken UPDATE. Nothing here needs the row echoed back.
+      Prefer: 'return=minimal', ...(init.headers || {}),
     },
   })
   const text = await res.text()
@@ -386,15 +391,87 @@ try {
   ok('the chart says so too', empty.includes('NO TANKS YET'))
   await page.screenshot({ path: path.join(OUT, 'limit-empty.png'), fullPage: true })
 
+  // ══ 10. the volume preference, live at last ════════════════════════════════
+  //
+  // None of this could be tested before migration 098: `users.volume_unit` had
+  // no column grant, every read 42501'd, and asVolumeUnit(undefined) is 'gal_us'
+  // — so a litres user and a 403 produced byte-identical output.
+  section('Settings > Units > Volume')
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2200)
+  ok('the Volume row renders', (await bodyText(page)).includes('Fuel volume on fill-ups'))
+  await page.getByRole('button', { name: 'L', exact: true }).click()
+  await page.waitForTimeout(1400)
+  ok('picking L persists to the users row',
+    (await rest(`users?id=eq.${me}&select=volume_unit`)).body?.[0]?.volume_unit === 'l')
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(2200)
+  const litreActive = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(e => e.textContent.trim() === 'L')
+    return b ? getComputedStyle(b).backgroundColor : ''
+  })
+  ok('and comes back selected on reload', litreActive.includes('200, 102, 26'), litreActive)
+
+  section('logging a fill-up in litres')
+  // An anchor to measure the next tank against.
+  await rest('fuel_entries', {
+    method: 'POST',
+    body: JSON.stringify({ car_id: CAR, user_id: me, filled_on: iso(10), odometer: 70000, volume: 12, total_cost: 48, is_full: true, is_missed: false }),
+  })
+  await home(page)
+  await openSheet(page)
+  const sheetText = await bodyText(page)
+  ok('the field asks for litres, not gallons', sheetText.includes('LITRES') && !sheetText.includes('GALLONS'))
+  await page.getByLabel('Odometer').fill('70300')
+  await page.getByLabel('Volume').fill('45')
+  await page.getByLabel('Total cost').fill('80')
+  await page.waitForTimeout(350)
+  const litreDerived = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(e => /per litre|mpg this tank/.test(e.textContent || '') && e.children.length === 0)
+    return el ? el.textContent.trim() : ''
+  })
+  //   80 / 45 L                        = $1.78 per litre
+  //   45 L = 45 / 3.785411784          = 11.888 US gal
+  //   300 mi / 11.888 gal              = 25.2 mpg
+  ok('price is per litre, not per gallon', litreDerived.includes('$1.78 per litre'), `"${litreDerived}"`)
+  ok('economy converts through US gallons', litreDerived.includes('25.2 mpg this tank'), `"${litreDerived}"`)
+  await page.screenshot({ path: path.join(OUT, 'limit-litres-sheet.png') })
+  await saveBtn(page).click()
+  await page.waitForTimeout(2000)
+  const litreRow = ((await rest(`fuel_entries?car_id=eq.${CAR}&odometer=eq.70300&select=volume,total_cost`)).body ?? [])[0]
+  // The base-unit rule: storage is ALWAYS US gallons, conversion happens at the
+  // edges. 45 L must never land in the column as 45.
+  ok('the database stored US gallons, not litres', Number(litreRow?.volume) === 11.888,
+    `volume ${litreRow?.volume}`)
+  await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2600)
+  const litrePage = await bodyText(page)
+  ok('the record reads the litres back', litrePage.includes('45.0 L'),
+    litrePage.split('\n').find(l => l.includes(' L')) || '')
+  ok('the price window is captioned per L', litrePage.includes('$ PER L'))
+  await page.screenshot({ path: path.join(OUT, 'limit-litres-page.png'), fullPage: true })
+
+  // imperial gallons are a different unit, not a different name for the same one
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_imp' }) })
+  await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2600)
+  // 11.888 US gal = 11.888 * 3.785411784 / 4.54609 = 9.9 imperial gal
+  ok('the same row reads 9.9 in imperial gallons', (await bodyText(page)).includes('9.9 gal'),
+    (await bodyText(page)).split('\n').find(l => l.includes('gal')) || '')
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
+  await wipe(); await restoreMileage()
+
   // ══ console ════════════════════════════════════════════════════════════════
   section('console and network')
   // Only two classes of failure are allowed here, and both are named rather than
   // pattern-matched away: the volume_unit 403 that migration 098 fixes, and the
   // fuel_entries POST this test itself aborted in section 4.
-  const volumeUnit403 = session.failedUrls.filter(u => u.startsWith('403') && u.includes('volume_unit'))
-  const unexpected = session.failedUrls.filter(u =>
-    !(u.startsWith('403') && u.includes('volume_unit')) && !u.includes('fuel_entries'))
-  ok('every failed request is one of the two expected ones', unexpected.length === 0,
+  // Since 098 the volume_unit read must succeed, so its 403 is no longer
+  // excused — it is the regression check on the migration.
+  ok('volume_unit never 403s any more (migration 098)',
+    session.failedUrls.filter(u => u.startsWith('403') && u.includes('volume_unit')).length === 0)
+  const unexpected = session.failedUrls.filter(u => !u.includes('fuel_entries'))
+  ok('the only failed request is the one this test aborted', unexpected.length === 0,
     unexpected.slice(0, 4).join(' | '))
   // Same exclusion the app itself applies (ErrorBanner's BENIGN): supabase-js
   // races its own Navigator Locks lock when a tab resumes or navigates during a
@@ -403,14 +480,17 @@ try {
   const BENIGN_LOCK = /lock:sb-.*-auth-token|Navigator LocksManager|lock .* was released|lock broken/i
   const pageErrors = session.errors.filter(e => e.startsWith('pageerror') && !BENIGN_LOCK.test(e))
   ok('no page errors', pageErrors.length === 0, pageErrors[0] || '')
-  console.log(`  note  ${volumeUnit403.length} volume_unit 403s (migration 098 pending; every read is guarded, so the app degrades to gal_us)`)
 } finally {
   await browser.close()
   await wipe()
   await restoreMileage()
+  // The litres section leaves a preference behind if it throws part-way.
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
   const left = ((await rest(`fuel_entries?car_id=eq.${CAR}&select=id`)).body ?? []).length
   const odo = (await rest(`cars?id=eq.${CAR}&select=current_mileage`)).body?.[0]?.current_mileage
-  ok('account left clean', left === 0 && odo === START_MILEAGE, `${left} rows, odo ${odo}`)
+  const unit = (await rest(`users?id=eq.${me}&select=volume_unit`)).body?.[0]?.volume_unit
+  ok('account left clean', left === 0 && odo === START_MILEAGE && unit === 'gal_us',
+    `${left} rows, odo ${odo}, unit ${unit}`)
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)
