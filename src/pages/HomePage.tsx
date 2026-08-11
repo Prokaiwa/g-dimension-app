@@ -42,7 +42,9 @@ import type { TourNode } from '../tour/tourSteps'
 import PermitWatcher from '../components/PermitWatcher'
 import FuelSheet, { type FuelSheetCar } from '../components/FuelSheet'
 import { asMileageUnit } from '../lib/mileage'
-import { asVolumeUnit, type FuelEntry, type VolumeUnit } from '../lib/fuel'
+import type { FuelEntry } from '../lib/fuel'
+import { loadFuelUnits, DEFAULT_FUEL_UNITS, type FuelUnits } from '../lib/fuelUnits'
+import { loadUnitPrefs } from '../lib/unitPrefs'
 import { GRADE_RING } from '../lib/permit'
 import type { GradeId } from '../lib/license'
 
@@ -217,7 +219,7 @@ export default function HomePage() {
   const [carInfo, setCarInfo] = useState<string | null>(null)
   const [fuelCar, setFuelCar] = useState<FuelSheetCar | null>(null)
   const [fuelRecent, setFuelRecent] = useState<FuelEntry[]>([])
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('gal_us')
+  const [fuelUnits, setFuelUnits] = useState<FuelUnits>(DEFAULT_FUEL_UNITS)
   const [fuelOpen, setFuelOpen] = useState(false)
   const [_entered, setEntered] = useState(false)
   const [pressedNode, setPressedNode] = useState<string | null>(null)
@@ -254,8 +256,8 @@ export default function HomePage() {
     })))
     const uid = meRes.data.user?.id
     if (!uid) return
-    const { data: u } = await supabase.from('users').select('volume_unit').eq('id', uid).single()
-    setVolumeUnit(asVolumeUnit((u as { volume_unit?: string } | null)?.volume_unit))
+    const prefs = await loadUnitPrefs()
+    setFuelUnits(await loadFuelUnits(uid, prefs.distance_unit))
   }, [])
 
   useEffect(() => {
@@ -1203,7 +1205,14 @@ export default function HomePage() {
           }}
           aria-label="Log a fill-up"
           style={{
-            position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+            // Centred with left/right/margin, NOT left:50% + translateX(-50%).
+            // `footerIn` animates `transform`, and an animated transform REPLACES
+            // the base one for as long as it is applied — so the centring
+            // translate was dropped and the grip sat with its left edge on the
+            // midline, about half its width right of centre. Same trap as the
+            // garagePulse note in CLAUDE.md; here the fix is to need no transform
+            // at all rather than to repeat it in every keyframe.
+            position: 'absolute', left: 0, right: 0, margin: '0 auto',
             bottom: 'calc(-4px + env(safe-area-inset-bottom))',
             width: 96, height: 40, padding: 0, border: 'none', background: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1233,7 +1242,8 @@ export default function HomePage() {
         open={fuelOpen}
         onClose={() => setFuelOpen(false)}
         car={fuelCar}
-        volumeUnit={volumeUnit}
+        volumeUnit={fuelUnits.volume}
+        economyUnit={fuelUnits.economy}
         recent={fuelRecent}
         onSaved={() => {
           if (fuelCar) {

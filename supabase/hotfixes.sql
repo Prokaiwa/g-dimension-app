@@ -6,6 +6,13 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 098_users_volume_unit_grant.sql (applied 2026-08-10)
+--   ⚠️ 099_users_economy_unit.sql is PENDING and should be run next. Until it
+--   is, `users.economy_unit` does not exist and every read of it 400s. That is
+--   guarded: resolveEconomyUnit() falls back to deriving the unit from
+--   distance_unit + volume_unit, which is right for three of the four cases
+--   anyway, so the only thing that does not work is Settings > Units > Economy
+--   pinning the fourth (km + litres, where L/100km and km/L are both correct
+--   depending on the country). See ADR-034.
 --   - 098: adds `volume_unit` to the `authenticated` column-level select grant
 --     on `users`, which 097 forgot. Verified live after running: volume_unit
 --     reads, it reads alongside active_car_id in one select, the whole 083 set

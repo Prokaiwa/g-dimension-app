@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   asVolumeUnit, galToUnit, unitToGal,
-  asEconomyUnit, mpgToUnit, higherIsBetter, economyLabel,
+  asEconomyUnit, asEconomyUnitOrNull, mpgToUnit, higherIsBetter, economyLabel,
+  deriveEconomyUnit, resolveEconomyUnit, formatEconomy,
   computeTanks, summarise, pricePerUnit,
   type FuelEntry,
 } from './fuel'
@@ -61,6 +62,48 @@ describe('economy units', () => {
   it('labels correctly and falls back to mpg', () => {
     expect(economyLabel('l_100km')).toBe('L/100km')
     expect(asEconomyUnit('nonsense')).toBe('mpg_us')
+  })
+})
+
+describe('which unit a user should see', () => {
+  // The table in migration 099, one case per country that motivated it.
+  it('guesses from the units already set', () => {
+    expect(deriveEconomyUnit('mi', 'gal_us')).toBe('mpg_us')    // United States
+    expect(deriveEconomyUnit('mi', 'l')).toBe('mpg_imp')        // UK: litres in, mpg out
+    expect(deriveEconomyUnit('mi', 'gal_imp')).toBe('mpg_imp')
+    expect(deriveEconomyUnit('km', 'l')).toBe('l_100km')        // Canada, Australia, Europe
+    expect(deriveEconomyUnit('km', 'gal_us')).toBe('l_100km')
+  })
+
+  it('defaults a missing distance unit to miles rather than guessing metric', () => {
+    expect(deriveEconomyUnit(null, 'gal_us')).toBe('mpg_us')
+    expect(deriveEconomyUnit(undefined, 'gal_us')).toBe('mpg_us')
+  })
+
+  // The whole reason economy_unit is NULLABLE: a stored 'mpg_us' has to be
+  // distinguishable from nothing stored, or the guess could never improve for
+  // anyone who had already opened the app.
+  it('separates a stored preference from an absent one', () => {
+    expect(asEconomyUnitOrNull('km_l')).toBe('km_l')
+    expect(asEconomyUnitOrNull(null)).toBeNull()
+    expect(asEconomyUnitOrNull('mpg')).toBeNull()
+    expect(asEconomyUnit(null)).toBe('mpg_us')   // display-safe, not fallback-safe
+  })
+
+  it('lets an explicit choice beat the guess, in both directions', () => {
+    // A Japanese user on km + litres, who wants km/L rather than the default.
+    expect(resolveEconomyUnit('km_l', 'km', 'l')).toBe('km_l')
+    expect(resolveEconomyUnit(null, 'km', 'l')).toBe('l_100km')
+    // A US user who deliberately wants L/100km keeps it.
+    expect(resolveEconomyUnit('l_100km', 'mi', 'gal_us')).toBe('l_100km')
+    expect(resolveEconomyUnit('junk', 'mi', 'gal_us')).toBe('mpg_us')
+  })
+
+  it('formats to one decimal in every unit', () => {
+    expect(formatEconomy(30, 'mpg_us')).toBe('30.0')
+    expect(formatEconomy(30, 'mpg_imp')).toBe('36.0')
+    expect(formatEconomy(30, 'l_100km')).toBe('7.8')
+    expect(formatEconomy(30, 'km_l')).toBe('12.8')
   })
 })
 

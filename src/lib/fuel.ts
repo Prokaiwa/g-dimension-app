@@ -80,6 +80,48 @@ export function economyLabel(unit: EconomyUnit): string {
   return 'mpg'
 }
 
+/** Null for anything that is not one of the four, so a caller can tell a stored
+ *  preference from an absent one. asEconomyUnit() collapses both to 'mpg_us',
+ *  which is the right shape for display and the wrong shape for a fallback. */
+export function asEconomyUnitOrNull(v: unknown): EconomyUnit | null {
+  return v === 'mpg_us' || v === 'mpg_imp' || v === 'l_100km' || v === 'km_l' ? v : null
+}
+
+/**
+ * How this user's part of the world spells fuel economy, guessed from the units
+ * they have already set (migration 099).
+ *
+ *   miles + US gallons        -> MPG (US)         the United States
+ *   miles + litres            -> MPG (imperial)   the UK: buys litres, thinks mpg
+ *   miles + imperial gallons  -> MPG (imperial)
+ *   km    + anything          -> L/100km
+ *
+ * The last line is a guess and the only one that is: Canada, Australia, New
+ * Zealand and most of Europe say L/100km, while Japan, India and much of Latin
+ * America say km/L, off identical units. L/100km wins the default as the larger
+ * bloc, and Settings > Units > Economy exists for everyone else.
+ */
+export function deriveEconomyUnit(distanceUnit: string | null | undefined, volumeUnit: VolumeUnit): EconomyUnit {
+  if (distanceUnit === 'km') return 'l_100km'
+  return volumeUnit === 'gal_us' ? 'mpg_us' : 'mpg_imp'
+}
+
+/** The stored preference if there is one, otherwise the guess. */
+export function resolveEconomyUnit(
+  stored: unknown,
+  distanceUnit: string | null | undefined,
+  volumeUnit: VolumeUnit,
+): EconomyUnit {
+  return asEconomyUnitOrNull(stored) ?? deriveEconomyUnit(distanceUnit, volumeUnit)
+}
+
+/** How many decimals a figure in this unit conventionally carries. MPG and
+ *  L/100km are quoted to one; km/L likewise. Kept here so the page, the sheet
+ *  and the chart label can never disagree about it. */
+export function formatEconomy(mpg: number, unit: EconomyUnit): string {
+  return mpgToUnit(mpg, unit).toFixed(1)
+}
+
 // ── The chain ────────────────────────────────────────────────────────────────
 
 export type FuelEntry = {

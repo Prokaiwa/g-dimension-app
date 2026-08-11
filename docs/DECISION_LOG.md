@@ -1326,3 +1326,55 @@ and cost has never been inside the `/builds/*` boundary.
 
 Source: migration 097, `src/lib/fuel.ts`, `docs/FUEL_LOG_RESEARCH.md`,
 `design/fuel-mockup/`.
+
+---
+
+## ADR-034 — Fuel economy has four spellings, and three of them are derivable (2026-08-11)
+
+**Decision:** add `users.economy_unit` (migration 099), nullable, where **NULL
+means "derive"**. `resolveEconomyUnit()` in `src/lib/fuel.ts` falls back to a
+guess made from the distance and volume units the user has already set, and
+`Settings > Units > Economy` pins it explicitly for the one case that cannot be
+guessed.
+
+**Context:** 097 shipped `volume_unit` and the app went on showing every user US
+MPG. That is coherent right up to the moment anyone picks litres, at which point
+the sheet asks for 45 L and answers 25.2 mpg. `src/lib/fuel.ts` had carried
+`mpgToUnit`, `economyLabel` and `higherIsBetter` since day one, tested and
+entirely unused, waiting for this.
+
+**Rationale:**
+
+- **Three cases fall out of what is already known.** miles + US gallons is MPG
+  (US). miles + imperial gallons is MPG (imperial). miles + litres is *also* MPG
+  (imperial), because that combination is the UK, which buys fuel by the litre
+  and has never stopped quoting economy in gallons of its own size.
+- **The fourth does not.** km + litres is L/100km in Canada, Australia, New
+  Zealand and most of Europe, and km/L in Japan, India and much of Latin America.
+  Same distance unit, same volume unit, opposite conventions. No derivation can
+  choose, so the user does. L/100km takes the default as the larger bloc.
+- **They are not two scales of one number.** L/100km **inverts** which of two
+  figures is the better one. That is why `higherIsBetter()` is a predicate rather
+  than a comment, and why the chart on `/fuel` scales its bars by raw MPG rather
+  than by the printed figure: taller must always mean thriftier, or half the
+  world reads the chart upside down.
+- **Nullable, not defaulted to `mpg_us`.** A stored `'mpg_us'` cannot be told
+  apart from a deliberate choice of US MPG, so a default would freeze the guess
+  for everyone who had already opened the app and make it permanently
+  unimprovable. Null is the only value that means "we have not been told".
+- **The two columns are fetched in separate queries** (`src/lib/fuelUnits.ts`).
+  `users` has no table-wide select grant, and PostgREST refuses the whole row if
+  any named column is ungranted — so folding them into one select would make a
+  missing `economy_unit` take `volume_unit` down with it during the window
+  between a deploy and its migration.
+
+**Also in this change, at the owner's direction:** `/fuel` now wears the exact
+Service/Detail construction (full-bleed background, flat black header with the
+date chips) rather than its own, and the "What this car has cost you" block is
+**gone**. Splitting spend across mods, service and fuel was the one comparison no
+competitor could build, and it was still wrong in a room about fuel — being told
+what your turbo cost belongs in the build report, where the whole car is the
+subject. The fuel total survives as the third LCD window.
+
+Source: migration 099, `src/lib/fuel.ts`, `src/lib/fuelUnits.ts`,
+`src/pages/FuelPage.tsx`, `src/components/FuelSheet.tsx`.

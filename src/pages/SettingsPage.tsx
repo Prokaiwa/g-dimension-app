@@ -1,5 +1,5 @@
 // Route: /settings — Settings, reached from within Profile (Part 10, Part 13).
-// Unit display preferences (distance / power / torque / volume) write straight
+// Unit display preferences (distance / power / torque / volume / economy) write straight
 // to the `users` row — data is always stored in base units, this only changes display
 // (see migration 001 / Part 16). Settings live inside Profile per CLAUDE.md.
 import { useEffect, useState } from 'react'
@@ -9,7 +9,7 @@ import { isSoundEnabled, setSoundEnabled, playConfirm } from '../lib/sound'
 import { isMusicEnabled, setMusicEnabled } from '../lib/music'
 import { downloadAccountExport } from '../lib/dataExport'
 import { setCachedUnitPrefs } from '../lib/unitPrefs'
-import { asVolumeUnit } from '../lib/fuel'
+import { loadFuelUnits } from '../lib/fuelUnits'
 import { useTour } from '../tour/TourContext'
 import BottomSheet, { FieldLabel, sheetInput } from '../components/BottomSheet'
 import {
@@ -48,6 +48,7 @@ type UnitPrefs = {
   power_unit: 'hp' | 'ps' | 'kw'
   torque_unit: 'lbft' | 'nm'
   volume_unit: 'gal_us' | 'gal_imp' | 'l'
+  economy_unit: 'mpg_us' | 'mpg_imp' | 'l_100km' | 'km_l'
 }
 
 const DISTANCE_OPTS = [
@@ -69,6 +70,17 @@ const VOLUME_OPTS = [
   { value: 'gal_us', label: 'gal (US)' },
   { value: 'gal_imp', label: 'gal (UK)' },
   { value: 'l', label: 'L' },
+] as const
+// Four conventions, because the world genuinely has four. Until this is touched
+// the shown value is derived from Distance + Volume (see deriveEconomyUnit): the
+// only case that cannot be derived is km + litres, which is L/100km in Canada,
+// Australia and most of Europe but km/L in Japan, India and much of Latin
+// America. This row is how that half of the world says so.
+const ECONOMY_OPTS = [
+  { value: 'mpg_us', label: 'mpg (US)' },
+  { value: 'mpg_imp', label: 'mpg (UK)' },
+  { value: 'l_100km', label: 'L/100km' },
+  { value: 'km_l', label: 'km/L' },
 ] as const
 const SOUND_OPTS = [
   { value: 'off', label: 'Off' },
@@ -171,16 +183,22 @@ export default function SettingsPage() {
       // column grant only in 098, and one ungranted column 42501s the whole
       // select — folding it in would have taken distance, power and torque down
       // with it in the window between deploy and migration.
-      const [{ data }, { data: vol }] = await Promise.all([
-        supabase.from('users').select('distance_unit, power_unit, torque_unit').eq('id', id).single(),
-        supabase.from('users').select('volume_unit').eq('id', id).single(),
-      ])
+      const { data } = await supabase
+        .from('users').select('distance_unit, power_unit, torque_unit').eq('id', id).single()
+      if (cancelled) return
+      const base = (data as Omit<UnitPrefs, 'volume_unit' | 'economy_unit'>)
+        ?? { distance_unit: 'mi' as const, power_unit: 'hp' as const, torque_unit: 'lbft' as const }
+      // Fetched through loadFuelUnits, which keeps volume_unit and economy_unit
+      // in SEPARATE queries on purpose: `users` has no table-wide select grant,
+      // and PostgREST refuses the whole row if any named column is ungranted, so
+      // folding either into the select above would take distance, power and
+      // torque down with it in the window between a deploy and its migration.
+      const fuel = await loadFuelUnits(id, base.distance_unit)
       if (cancelled) return
       setUid(id)
-      setPrefs({
-        ...((data as Omit<UnitPrefs, 'volume_unit'>) ?? { distance_unit: 'mi', power_unit: 'hp', torque_unit: 'lbft' }),
-        volume_unit: asVolumeUnit((vol as { volume_unit?: string } | null)?.volume_unit),
-      })
+      // economy_unit is nullable and NULL means "derive". Showing the derived
+      // value as selected is the honest thing: it IS what the app will use.
+      setPrefs({ ...base, volume_unit: fuel.volume, economy_unit: fuel.economy })
       setLoading(false)
     })()
     return () => { cancelled = true }
@@ -284,6 +302,7 @@ export default function SettingsPage() {
               <UnitRow label="Power" sub="Horsepower figures across your builds" value={prefs.power_unit} options={POWER_OPTS} onPick={v => update('power_unit', v)} disabled={saving} />
               <UnitRow label="Torque" sub="Torque figures across your builds" value={prefs.torque_unit} options={TORQUE_OPTS} onPick={v => update('torque_unit', v)} disabled={saving} />
               <UnitRow label="Volume" sub="Fuel volume on fill-ups and the fuel record" value={prefs.volume_unit} options={VOLUME_OPTS} onPick={v => update('volume_unit', v)} disabled={saving} />
+              <UnitRow label="Economy" sub="How fuel economy is shown. Starts from your distance and volume units" value={prefs.economy_unit} options={ECONOMY_OPTS} onPick={v => update('economy_unit', v)} disabled={saving} />
             </div>
 
             {/* Sound */}

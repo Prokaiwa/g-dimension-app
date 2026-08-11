@@ -25,8 +25,8 @@ import { reportActionError } from '../lib/appError'
 import { playConfirm } from '../lib/sound'
 import { milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import {
-  computeTanks, pricePerUnit, unitToGal, volumeLabel,
-  type FuelEntry, type VolumeUnit,
+  computeTanks, pricePerUnit, unitToGal, volumeLabel, economyLabel, formatEconomy,
+  type EconomyUnit, type FuelEntry, type VolumeUnit,
 } from '../lib/fuel'
 import {
   COLOR_ACCENT, COLOR_PANEL_TEXT, FONT_UI, GRADIENT_PANEL, RADIUS_BUTTON,
@@ -84,12 +84,15 @@ const MAX_ODOMETER_MI = 9_999_999
 const MAX_TOTAL = 99_999_999.99
 
 export default function FuelSheet({
-  open, onClose, car, volumeUnit, recent, onSaved,
+  open, onClose, car, volumeUnit, economyUnit, recent, onSaved,
 }: {
   open: boolean
   onClose: () => void
   car: FuelSheetCar | null
   volumeUnit: VolumeUnit
+  /** How this user spells economy (migration 099). The sheet must use the same
+   *  unit /fuel will, or the figure it predicts is not the figure they get. */
+  economyUnit: EconomyUnit
   /** The tail of the log, oldest first. Supplies the context line and the live
    *  economy estimate; an empty array is a perfectly valid first fill-up. */
   recent: FuelEntry[]
@@ -98,6 +101,7 @@ export default function FuelSheet({
   const navigate = useNavigate()
   const mUnit = car?.mileageUnit ?? 'mi'
   const vLabel = volumeLabel(volumeUnit)
+  const eLabel = economyLabel(economyUnit)
 
   const [odo, setOdo] = useState('')
   const [vol, setVol] = useState('')
@@ -237,9 +241,9 @@ export default function FuelSheet({
           {lastEntry
             ? [
                 sinceMi != null && sinceMi > 0 ? `${sinceMi.toLocaleString()} ${mUnit} since last fill` : 'Since your last fill',
-                lastTankMpg != null ? `${lastTankMpg.toFixed(1)} mpg last tank` : null,
+                lastTankMpg != null ? `${formatEconomy(lastTankMpg, economyUnit)} ${eLabel} last tank` : null,
               ].filter(Boolean).join(' · ')
-            : 'First fill-up. The next one is where economy starts.'}
+            : 'First fill-up. Add your next one to see your fuel economy.'}
         </span>
         {car && (
           <span style={{ fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, color: `${CREAM}0.40)`, whiteSpace: 'nowrap' }}>
@@ -294,7 +298,7 @@ export default function FuelSheet({
       <div style={{ marginTop: 8, minHeight: 17, fontFamily: FONT_UI, fontWeight: 600, fontSize: 13, color: `${CREAM}0.50)` }}>
         {[
           price != null ? `$${price.toFixed(2)} per ${vLabel === 'L' ? 'litre' : 'gallon'}` : null,
-          liveMpg != null ? `${liveMpg.toFixed(1)} mpg this tank` : null,
+          liveMpg != null ? `${formatEconomy(liveMpg, economyUnit)} ${eLabel} this tank` : null,
         ].filter(Boolean).join('  ·  ')}
       </div>
 
