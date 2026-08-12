@@ -478,7 +478,115 @@ try {
   // 11.888 US gal = 11.888 * 3.785411784 / 4.54609 = 9.9 imperial gal
   ok('the same row reads 9.9 in imperial gallons', (await bodyText(page)).includes('9.9 gal'),
     (await bodyText(page)).split('\n').find(l => l.includes('gal')) || '')
-  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us', economy_unit: null }) })
+  await wipe(); await restoreMileage()
+
+  // ══ 11. economy units, live since migration 099 ════════════════════════════
+  section('the four spellings of fuel economy')
+  // Two tanks with different economies, so best and worst are distinguishable
+  // and the chart has something to rank:
+  //   1000 -> 1300 on 10 gal = 30.0 mpg
+  //   1300 -> 1500 on 10 gal = 20.0 mpg
+  //   average = 500 mi / 20 gal = 25.0 mpg   (distance over fuel, not a mean)
+  await rest('fuel_entries', {
+    method: 'POST',
+    body: JSON.stringify([
+      { car_id: CAR, user_id: me, filled_on: iso(30), odometer: 1000, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+      { car_id: CAR, user_id: me, filled_on: iso(20), odometer: 1300, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+      { car_id: CAR, user_id: me, filled_on: iso(10), odometer: 1500, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+    ]),
+  })
+
+  const readout = () => page.evaluate(() => {
+    const lcds = [...document.querySelectorAll('div[role="img"]')].map(e => e.getAttribute('aria-label'))
+    // textTransform:'uppercase' is CSS, so textContent keeps the source casing.
+    // Compare lowercased rather than asserting what the pixels look like.
+    const unitChip = [...document.querySelectorAll('span')]
+      .find(e => /^(mpg|l\/100km|km\/l)$/.test(e.textContent.trim().toLowerCase()))
+    // Bars, excluding the average line (position:absolute, full width).
+    const chart = [...document.querySelectorAll('div')].find(e => {
+      const s = getComputedStyle(e)
+      return s.display === 'flex' && s.alignItems === 'flex-end' && e.children.length > 1
+    })
+    const bars = chart
+      ? [...chart.children].filter(c => getComputedStyle(c).position !== 'absolute')
+          .map(c => Math.round(c.getBoundingClientRect().height))
+      : []
+    const line = document.body.innerText.split('\n').find(l => l.includes('full tanks')) || ''
+    return { headline: lcds[0] || '', unit: unitChip ? unitChip.textContent.trim().toLowerCase() : '', bars, line }
+  })
+
+  const showEconomy = async (stored) => {
+    await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: stored }) })
+    await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(2400)
+    return readout()
+  }
+
+  const us = await showEconomy(null)
+  ok('nothing stored derives to US mpg on miles + US gallons',
+    us.headline.startsWith('25.0') && us.unit === 'mpg', `${us.headline} / ${us.unit}`)
+  ok('best and worst are the right way round in mpg',
+    us.line.includes('best 30.0') && us.line.includes('worst 20.0'), us.line)
+
+  // 235.215 / mpg. 30 -> 7.8, 25 -> 9.4, 20 -> 11.8.
+  const metric = await showEconomy('l_100km')
+  ok('L/100km converts the headline', metric.headline.startsWith('9.4'), metric.headline)
+  ok('and relabels the panel', metric.unit === 'l/100km', metric.unit)
+  // THE INVERSION. In L/100km the better tank is the SMALLER number, so "best"
+  // must print 7.8 and "worst" 11.8 — not the other way round, and not the raw
+  // min/max of the printed figures.
+  ok('best is the SMALLEST number in L/100km, because lower is better',
+    metric.line.includes('best 7.8') && metric.line.includes('worst 11.8'), metric.line)
+  // ...and the chart must not flip: it scales by efficiency, so the 30 mpg tank
+  // stays the taller bar even though it prints the smaller figure.
+  ok('the chart still puts the thriftier tank higher',
+    metric.bars.length === 2 && metric.bars[0] > metric.bars[1], JSON.stringify(metric.bars))
+  const usBars = us.bars
+  ok('and draws exactly the same bars as mpg did',
+    JSON.stringify(metric.bars) === JSON.stringify(usBars), `${JSON.stringify(usBars)} vs ${JSON.stringify(metric.bars)}`)
+
+  // mpg * 0.42514. 30 -> 12.8, 25 -> 10.6, 20 -> 8.5.
+  const kml = await showEconomy('km_l')
+  ok('km/L converts and relabels', kml.headline.startsWith('10.6') && kml.unit === 'km/l',
+    `${kml.headline} / ${kml.unit}`)
+  ok('km/L is higher-is-better, so best is the LARGEST',
+    kml.line.includes('best 12.8') && kml.line.includes('worst 8.5'), kml.line)
+
+  const imp = await showEconomy('mpg_imp')
+  ok('imperial mpg converts', imp.headline.startsWith('30.0'), imp.headline)
+
+  // The sheet has to predict what the page will show, in the same unit.
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: 'l_100km' }) })
+  await home(page)
+  await openSheet(page)
+  await page.getByLabel('Odometer').fill('1800')
+  await page.getByLabel('Volume').fill('10')
+  await page.waitForTimeout(350)
+  const sheetLive = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(e => /this tank/.test(e.textContent || '') && e.children.length === 0)
+    return el ? el.textContent.trim() : ''
+  })
+  // 300 mi on 10 gal = 30 mpg = 7.8 L/100km
+  ok('the sheet speaks the same unit as the page', sheetLive.includes('7.8 L/100km this tank'), `"${sheetLive}"`)
+  await page.keyboard.press('Escape')
+
+  // Settings shows the stored choice, and picking one persists.
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2400)
+  const activeEco = () => page.evaluate(() => {
+    const labels = ['mpg (US)', 'mpg (UK)', 'L/100km', 'km/L']
+    const b = [...document.querySelectorAll('button')]
+      .filter(e => labels.includes(e.textContent.trim()))
+      .find(e => getComputedStyle(e).backgroundColor.includes('200, 102, 26'))
+    return b ? b.textContent.trim() : ''
+  })
+  ok('Settings shows the stored unit', await activeEco() === 'L/100km', await activeEco())
+  await page.getByRole('button', { name: 'km/L', exact: true }).click()
+  await page.waitForTimeout(1400)
+  ok('picking one persists',
+    (await rest(`users?id=eq.${me}&select=economy_unit`)).body?.[0]?.economy_unit === 'km_l')
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: null }) })
   await wipe(); await restoreMileage()
 
   // ══ console ════════════════════════════════════════════════════════════════
@@ -490,25 +598,29 @@ try {
   // excused — it is the regression check on the migration.
   ok('volume_unit never 403s any more (migration 098)',
     session.failedUrls.filter(u => u.startsWith('403') && u.includes('volume_unit')).length === 0)
-  // economy_unit until 099 lands, the fuel_entries POST this test aborted, and a
-  // webfont the sandbox relay occasionally drops. Everything else is news.
-  const eco = session.failedUrls.filter(u => u.includes('economy_unit'))
+  // Since 099 the economy_unit read must succeed too, so it joins volume_unit as
+  // a regression check on its migration rather than an excused failure.
+  ok('economy_unit never fails any more (migration 099)',
+    session.failedUrls.filter(u => u.includes('economy_unit')).length === 0,
+    session.failedUrls.filter(u => u.includes('economy_unit')).slice(0, 2).join(' | '))
+  // Left: the fuel_entries POST this test aborted on purpose, and a webfont the
+  // sandbox relay occasionally drops. Everything else is news.
   const unexpected = session.failedUrls.filter(u =>
-    !u.includes('fuel_entries') && !u.includes('economy_unit') && !u.includes('fonts.gstatic.com'))
+    !u.includes('fuel_entries') && !u.includes('fonts.gstatic.com'))
   ok('nothing failed that was not expected', unexpected.length === 0, unexpected.slice(0, 4).join(' | '))
-  if (eco.length) console.log(`  note  ${eco.length} economy_unit failures — migration 099 is not applied yet; the unit falls back to the derivation`)
   ok('no page errors', realPageErrors(session.errors).length === 0, realPageErrors(session.errors)[0] || '')
 } finally {
   await browser.close()
   await wipe()
   await restoreMileage()
   // The litres section leaves a preference behind if it throws part-way.
-  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us', economy_unit: null }) })
   const left = ((await rest(`fuel_entries?car_id=eq.${CAR}&select=id`)).body ?? []).length
   const odo = (await rest(`cars?id=eq.${CAR}&select=current_mileage`)).body?.[0]?.current_mileage
   const unit = (await rest(`users?id=eq.${me}&select=volume_unit`)).body?.[0]?.volume_unit
-  ok('account left clean', left === 0 && odo === START_MILEAGE && unit === 'gal_us',
-    `${left} rows, odo ${odo}, unit ${unit}`)
+  const eco = (await rest(`users?id=eq.${me}&select=economy_unit`)).body?.[0]?.economy_unit
+  ok('account left clean', left === 0 && odo === START_MILEAGE && unit === 'gal_us' && eco === null,
+    `${left} rows, odo ${odo}, volume ${unit}, economy ${eco}`)
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)
