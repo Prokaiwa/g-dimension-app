@@ -1,10 +1,13 @@
 // /fuel — the fuel record (ADR-033).
 //
-// Reached from the Fuel tile on the Maintenance hub. Capture does NOT live here:
-// logging a fill-up is a ten-second job at a pump and happens in a sheet on Home,
-// because a route means a chunk fetch and a session round-trip on the worst
-// connection the app ever sees. This page is the browsing half, where a chart
-// and a log are allowed to cost a moment.
+// Reached from the Fuel tile on the Maintenance hub. The primary capture path is
+// still the grip on Home — logging a fill-up is a ten-second job at a pump, which
+// is the worst connection the app ever sees, and a route there would mean a lazy
+// chunk fetch before the first field could be typed into. But the same sheet is
+// mounted HERE too, from a FAB and from any row in the log, because the forecourt
+// is not the only place people do this: the other half of the time it is an
+// evening with a stack of receipts. One sheet, so there is one form and one set
+// of rules whichever door you came through.
 //
 // AESTHETIC. This is Maintenance's third room, so it is built from the same
 // parts as the other two: MaintenanceServicePage and MaintenanceDetailPage are
@@ -43,17 +46,18 @@ import {
   type FuelEntry, type FuelSummary,
 } from '../lib/fuel'
 import { SevenSeg, LcdPanel, lcdInk } from '../components/SevenSeg'
+import FuelSheet, { type FuelSheetCar } from '../components/FuelSheet'
 import ArrivalFade from '../components/ArrivalFade'
 import fuelHero from '../assets/backgrounds/fuel_hero.webp'
 import {
   COLOR_HEADER_WARM, COLOR_HEADER_TITLE, COLOR_HEADER_BLACK, COLOR_BURGUNDY_L,
-  FONT_UI, HEADER_HEIGHT,
+  COLOR_ACCENT, FONT_UI, HEADER_HEIGHT, RADIUS_BUTTON,
 } from '../tokens'
 
 const FIELD = '#08090a'
 const CREAM = 'rgba(240,228,200,'
 
-type Car = { year: number | null; model: string | null; variant: string | null; mileage_unit: string | null }
+type Car = { year: number | null; model: string | null; variant: string | null; mileage_unit: string | null; current_mileage: number | null }
 
 export default function FuelPage() {
   const navigate = useNavigate()
@@ -63,15 +67,24 @@ export default function FuelPage() {
   const [mUnit, setMUnit] = useState<MileageUnit>('mi')
   const [units, setUnits] = useState<FuelUnits>(DEFAULT_FUEL_UNITS)
   const [summary, setSummary] = useState<FuelSummary | null>(null)
+  const [entries, setEntries] = useState<FuelEntry[]>([])
+  const [carId, setCarId] = useState<string | null>(null)
+  // Capture also lives here, not only on Home. The grip is for the forecourt;
+  // this is for the evening you sit down with a stack of receipts. Same sheet,
+  // so there is one form and one set of rules either way.
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editEntry, setEditEntry] = useState<FuelEntry | null>(null)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let alive = true
     ;(async () => {
       const carId = await getActiveCarId()
       if (!carId) { if (alive) setLoading(false); return }
+      if (alive) setCarId(carId)
 
       const [carRes, fuelRes, meRes] = await Promise.all([
-        supabase.from('cars').select('year, model, variant, mileage_unit').eq('id', carId).single(),
+        supabase.from('cars').select('year, model, variant, mileage_unit, current_mileage').eq('id', carId).single(),
         // Guarded like every other post-migration read in this codebase: before
         // 097 is applied the table does not exist and this 404s, which must
         // degrade to an empty log rather than an error screen.
@@ -86,12 +99,13 @@ export default function FuelPage() {
       setCar(c)
       setMUnit(asMileageUnit(c?.mileage_unit))
 
-      const rows = (fuelRes.error ? [] : (fuelRes.data ?? [])) as unknown as FuelEntry[]
-      setSummary(summarise(rows.map(r => ({
+      const rows = ((fuelRes.error ? [] : (fuelRes.data ?? [])) as unknown as FuelEntry[]).map(r => ({
         ...r,
         volume: r.volume == null ? null : Number(r.volume),
         total_cost: r.total_cost == null ? null : Number(r.total_cost),
-      }))))
+      }))
+      setEntries(rows)
+      setSummary(summarise(rows))
 
       const uid = meRes.data.user?.id
       if (uid) {
@@ -102,7 +116,7 @@ export default function FuelPage() {
       if (alive) setLoading(false)
     })()
     return () => { alive = false }
-  }, [])
+  }, [reload])
 
   const carInfo = car ? [car.year, car.model, car.variant].filter(Boolean).join(' ') : ''
   const s = summary
@@ -124,6 +138,10 @@ export default function FuelPage() {
 
   const money = (v: number, dp = 0) =>
     '$' + v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
+
+  const sheetCar: FuelSheetCar | null = carId && car
+    ? { id: carId, name: carInfo, mileageUnit: mUnit, currentMileage: car.current_mileage }
+    : null
 
   return (
     <div style={{ height: '100dvh', position: 'relative', overflow: 'hidden', fontFamily: FONT_UI }}>
@@ -228,7 +246,9 @@ export default function FuelPage() {
         position: 'relative', zIndex: 5,
         height: `calc(100dvh - ${HEADER_HEIGHT + 34}px)`,
         overflowY: 'auto', overscrollBehavior: 'contain',
-        padding: `0 16px calc(40px + env(safe-area-inset-bottom))`,
+        // 84 = the FAB's 28px inset + its 44px height + a gap, so the last row
+        // of the log is never parked underneath it.
+        padding: `0 16px calc(84px + env(safe-area-inset-bottom))`,
       }}>
         {/* ── The readout ── high in the frame now that the photo runs the whole
             height; the wedge is widest at the top, so a full-width panel sits
@@ -304,18 +324,31 @@ export default function FuelPage() {
             Rows carry their own semi-opaque band, the same device Service and
             Detail use, so text stays legible wherever the background is bright. */}
         <Section title="Fill-ups">
-          {!loading && tanks.length === 0 && (
+          {/* `entries`, not `tanks`. The latter is the CHART's list and filters
+              out the 'first' entry (it has no economy figure yet), so a log with
+              exactly one fill-up in it announced that it was empty — directly
+              above the fill-up. */}
+          {!loading && entries.length === 0 && (
             <div style={{ padding: '20px 14px', background: 'rgba(4,5,6,0.55)', fontSize: 13, lineHeight: 1.45, color: 'rgba(245,245,245,0.62)' }}>
-              No fill-ups yet. Tap the small bar at the bottom of the Home screen to log one.
+              No fill-ups yet. Tap Fill-up to add your first one, or use the small bar at the bottom of the Home screen.
             </div>
           )}
           {[...(s?.tanks ?? [])].reverse().map((t, i) => (
-            <div key={t.entry.id} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              height: 46, padding: '0 12px',
-              background: i % 2 === 0 ? 'rgba(4,5,6,0.62)' : 'rgba(4,5,6,0.44)',
-              borderBottom: `1px solid ${CREAM}0.06)`,
-            }}>
+            // A row is a button: tapping it edits that fill-up. Until this
+            // existed a typo'd odometer was permanent, and it poisons TWO tanks
+            // (the one it ends and the one it starts), which is the one thing
+            // this feature cannot shrug off.
+            <button
+              key={t.entry.id}
+              onClick={() => { setEditEntry(t.entry); setSheetOpen(true) }}
+              style={{
+                width: '100%', textAlign: 'left', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                height: 46, padding: '0 12px', cursor: 'pointer',
+                WebkitTapHighlightColor: 'transparent',
+                background: i % 2 === 0 ? 'rgba(4,5,6,0.62)' : 'rgba(4,5,6,0.44)',
+                borderBottom: `1px solid ${CREAM}0.06)`,
+              }}>
               <div>
                 <b style={{ display: 'block', fontSize: 15, fontWeight: 700, color: '#f5f5f5' }}>{fmtDate(t.entry.filled_on)}</b>
                 <i style={{ display: 'block', marginTop: 2, fontStyle: 'normal', fontSize: 12, fontWeight: 600, color: `${CREAM}0.44)` }}>
@@ -339,10 +372,44 @@ export default function FuelPage() {
                       {REASON_LABEL[t.reason]}
                     </span>}
               </div>
-            </div>
+            </button>
           ))}
         </Section>
       </div>
+
+      {/* ── FAB ── the family's, in this room's colour. */}
+      <button
+        onClick={() => { setEditEntry(null); setSheetOpen(true) }}
+        style={{
+          position: 'fixed', right: 20, bottom: 'calc(28px + env(safe-area-inset-bottom))',
+          height: 44, paddingLeft: 20, paddingRight: 20,
+          background: COLOR_ACCENT, border: 'none', borderRadius: RADIUS_BUTTON,
+          color: '#fff5dc', fontFamily: FONT_UI, fontWeight: 700, fontSize: 13,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          cursor: 'pointer', zIndex: 20,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.60)',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        <span style={{ fontSize: 18, fontWeight: 300, lineHeight: 1, marginTop: -1 }}>+</span>
+        Fill-up
+      </button>
+
+      {/* Safe as a child here, unlike on Home: this page has no `perspective`
+          and nothing on the way up carries a transform, so the sheet's
+          position:fixed still resolves against the viewport. */}
+      <FuelSheet
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); setEditEntry(null) }}
+        car={sheetCar}
+        volumeUnit={units.volume}
+        economyUnit={units.economy}
+        recent={entries}
+        entry={editEntry}
+        showHistoryLink={false}
+        onSaved={() => setReload(n => n + 1)}
+      />
     </div>
   )
 }

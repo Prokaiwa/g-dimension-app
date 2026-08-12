@@ -1378,3 +1378,56 @@ subject. The fuel total survives as the third LCD window.
 
 Source: migration 099, `src/lib/fuel.ts`, `src/lib/fuelUnits.ts`,
 `src/pages/FuelPage.tsx`, `src/components/FuelSheet.tsx`.
+
+---
+
+## ADR-035 — A fill-up is a cost, so it carries receipts (2026-08-12)
+
+**Decision:** fuel entries become editable and deletable, capture gets a second
+door on `/fuel`, and receipts attach to a fill-up through the **existing**
+`receipts` table (migration 100: `session_id` becomes nullable, `fuel_entry_id`
+joins it, exactly one parent enforced by CHECK).
+
+**Context:** 097 shipped fuel logging as insert-only. Every other record in the
+app — mods, parts, sessions, timeline notes — has an edit path, and fuel needed
+one more than most of them: a typo'd odometer poisons **two** tanks, the one it
+ends and the one it starts, and there was no way to correct it.
+
+**Rationale:**
+
+- **One sheet, three doors.** Edit reuses `FuelSheet` rather than getting its own
+  form. The fields, the validation, the column ceilings and the live economy
+  preview are all rules that have to stay in step with `lib/fuel`; a second form
+  would be a second copy of them, and the copies drift. The grip on Home, the FAB
+  on `/fuel`, and a tap on any row in the log all open the same component.
+- **The row being edited is excluded from its own preview.** It is already in the
+  `recent` array the sheet receives, so leaving it there would measure the draft
+  against the stored version of itself — a zero-mile span for the commonest edit,
+  which is correcting the odometer you just typed.
+- **The existing receipts table, not a new one.** `receipts` already owns the
+  PRIVATE bucket, the signed-URL rule, the owner-only RLS keyed on `car_id`, and
+  the account data export. A `fuel_entry_photos` table beside it would be a
+  second answer to a solved question, and the export would quietly miss half of
+  a user's receipts.
+- **A fill-up is not a session.** `receipts.session_id` was NOT NULL, and the
+  cheap route would have been to manufacture a `sessions` row per tank. That
+  would put a phantom entry in Maintenance every ten days, with no jobs, no shop
+  and no timeline. So the column becomes nullable and gains a sibling, which is
+  the shape `job_id` already had one level down.
+- **CASCADE, not SET NULL.** `job_id` is SET NULL because a receipt for a removed
+  part still belongs to its session. A fuel receipt has no other parent and the
+  one-parent CHECK would reject the orphan, so it goes with the entry. The app
+  deletes the storage OBJECTS first — a cascade cannot reach into the bucket, and
+  deleting the rows first would strand the files with nothing pointing at them.
+- **The car_id trigger is a security control, not a convenience.** RLS on
+  `receipts` joins `cars` on `receipts.car_id` (015), so a row with a null
+  `car_id` is invisible to everyone including its owner. The trigger now resolves
+  the car through either parent and raises rather than returning null, including
+  on the branch that the CHECK currently makes unreachable.
+
+**Also fixed here:** the `/fuel` empty state keyed off the CHART's list, which
+filters out the first entry because it has no economy figure yet — so a log with
+exactly one fill-up in it announced that it was empty, directly above the
+fill-up.
+
+Source: migration 100, `src/components/FuelSheet.tsx`, `src/pages/FuelPage.tsx`.

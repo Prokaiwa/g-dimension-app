@@ -6,6 +6,12 @@
 --
 -- LIVE DB STATE
 -- Last migration applied : 099_users_economy_unit.sql (applied 2026-08-11)
+--   ⚠️ 100_fuel_receipts.sql is PENDING and should be run next. Until it is,
+--   `receipts.fuel_entry_id` does not exist, so attaching a receipt to a
+--   fill-up 400s. Everything else about fuel works: the entry itself saves
+--   first and the receipts are best-effort afterwards, deliberately, so a
+--   failed upload can never lose the reading that was typed at a pump.
+--   See ADR-035.
 --   - 099 (ADR-034): users.economy_unit, nullable, where NULL means "derive".
 --     Verified live after running: the column reads alone and alongside
 --     volume_unit in ONE select, the whole 098 set still reads, `email` and
