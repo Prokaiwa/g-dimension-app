@@ -724,6 +724,33 @@ try {
   ok('removing it deletes the row',
     ((await rest(`receipts?fuel_entry_id=eq.${newEntry.id}&select=id`)).body ?? []).length === 0)
 
+  // GarageDocumentsPage lists EVERY receipt on the car, by car_id. Migration 100
+  // therefore put fuel receipts on a screen that had never seen one: a fill-up
+  // receipt has a null job_id, so without its own branch it lands in the Services
+  // list and renders as a "Service" receipt titled "Service".
+  await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()
+  await page.waitForTimeout(1500)
+  await page.setInputFiles('input[type="file"]', receiptPng)
+  await saveBtn(page).click()
+  await page.waitForTimeout(3000)
+  await page.goto(`${BASE}/garage/documents`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2600)
+  // The screen has two tabs and lands on Documents; receipts live on the other.
+  // The tab's accessible name is the raw value 'receipts' — the capitals are CSS.
+  await page.getByRole('button', { name: /^receipts$/i }).click()
+  await page.waitForTimeout(1800)
+  const docsText = await bodyText(page)
+  // innerText reflects text-transform (textContent would not), so the section
+  // heading comes back as "FUEL · 1".
+  ok('the receipt appears in Documents under Fuel', /fuel · 1/i.test(docsText),
+    docsText.split('\n').filter(l => /·/.test(l)).slice(0, 4).join(' | '))
+  ok('titled as a fill-up, not "Service"', docsText.includes('Fill-up'))
+  ok('with the odometer off the fill-up', docsText.includes('5,900 mi'))
+  ok('and it is NOT counted as a service receipt', !/services · /i.test(docsText))
+  await page.screenshot({ path: path.join(OUT, 'limit-fuel-receipt-docs.png') })
+  await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2400)
+
   // Attach again, then delete the whole entry: rows cascade, files are removed
   // explicitly first (a cascade cannot reach into the bucket).
   await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()

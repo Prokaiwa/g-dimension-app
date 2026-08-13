@@ -125,6 +125,10 @@ type BuildReceipt = {
   id: string
   job_id: string | null        // null = session/service-level, set = part-level
   session_id: string | null
+  // Migration 100. Set = this receipt belongs to a fill-up, and BOTH job_id and
+  // session_id are null. Without reading this the row falls through to the
+  // session branch and renders as a "Service" receipt called "Service".
+  fuel_entry_id: string | null
   file_url: string | null      // storage PATH (private `receipts` bucket)
   file_type: 'image' | 'pdf' | null
   file_name: string | null
@@ -194,6 +198,7 @@ export default function GarageDocumentsPage() {
   const [buildReceipts, setBuildReceipts] = useState<BuildReceipt[]>([])
   const [jobTitleMap, setJobTitleMap] = useState<Record<string, string>>({})
   const [sessionInfoMap, setSessionInfoMap] = useState<Record<string, { label: string; date: string | null; shop: string | null; items: string[]; notes: string | null }>>({}) // session_id → display label + date + service items
+  const [fuelInfoMap, setFuelInfoMap] = useState<Record<string, { date: string; odometer: number; total: number | null }>>({}) // fuel_entry_id → the fill-up itself
   const [thumbs, setThumbs] = useState<Record<string, string>>({})        // car_documents id → signed image URL
   const [thumbLoaded, setThumbLoaded] = useState<Set<string>>(new Set())  // ids whose thumb has finished loading
   const [loading, setLoading] = useState(true)
@@ -240,7 +245,7 @@ export default function GarageDocumentsPage() {
     const carP = supabase.from('cars').select('year, model').eq('id', id).is('deleted_at', null).single()
     const recP = supabase
       .from('receipts')
-      .select('id, job_id, session_id, file_url, file_type, file_name, amount, currency, vendor, receipt_date, created_at')
+      .select('id, job_id, session_id, fuel_entry_id, file_url, file_type, file_name, amount, currency, vendor, receipt_date, created_at')
       .eq('car_id', id)
       .order('receipt_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -493,6 +498,25 @@ export default function GarageDocumentsPage() {
     return () => { cancelled = true }
   }, [buildReceipts])
 
+  // The fill-ups behind any fuel receipts, so a row can say WHICH one it is
+  // rather than just "Receipt". Guarded: before migration 100 there is no
+  // fuel_entry_id to collect and this never runs.
+  useEffect(() => {
+    const ids = Array.from(new Set(buildReceipts.map(r => r.fuel_entry_id).filter((v): v is string => !!v)))
+    if (ids.length === 0) { setFuelInfoMap({}); return }
+    let cancelled = false
+    supabase.from('fuel_entries').select('id, filled_on, odometer, total_cost').in('id', ids)
+      .then(({ data }) => {
+        if (cancelled) return
+        const m: Record<string, { date: string; odometer: number; total: number | null }> = {}
+        for (const f of (data ?? []) as { id: string; filled_on: string; odometer: number; total_cost: number | null }[]) {
+          m[f.id] = { date: f.filled_on, odometer: f.odometer, total: f.total_cost == null ? null : Number(f.total_cost) }
+        }
+        setFuelInfoMap(m)
+      })
+    return () => { cancelled = true }
+  }, [buildReceipts])
+
   function openNewDoc(prefillType?: DocType) { setError(null); setNewExtraFiles([]); setRemovedExtraIds([]); setExtraPhotos([]); setDraft({ ...EMPTY_DOC, doc_type: prefillType ?? 'registration' }) }
   function openNewReceipt() { setError(null); setNewExtraFiles([]); setRemovedExtraIds([]); setExtraPhotos([]); setDraft({ ...EMPTY_RECEIPT }) }
   function openEdit(d: Doc) {
@@ -648,13 +672,17 @@ export default function GarageDocumentsPage() {
   const buildReceiptGroups = useMemo(() => {
     const map = new Map<string, BuildReceipt[]>()
     for (const r of buildReceipts) {
-      const key = r.job_id ?? r.session_id ?? r.id
+      const key = r.job_id ?? r.session_id ?? r.fuel_entry_id ?? r.id
       const existing = map.get(key) ?? []
       map.set(key, [...existing, r])
     }
     return Array.from(map.values())
   }, [buildReceipts])
-  const serviceGroups = useMemo(() => buildReceiptGroups.filter(g => !g[0].job_id), [buildReceiptGroups])
+  // Three kinds now, and the fuel test comes FIRST: a fill-up receipt has a null
+  // job_id, so without its own branch it would fall into the service list and
+  // render as a "Service" receipt titled "Service".
+  const fuelGroups    = useMemo(() => buildReceiptGroups.filter(g => !!g[0].fuel_entry_id), [buildReceiptGroups])
+  const serviceGroups = useMemo(() => buildReceiptGroups.filter(g => !g[0].job_id && !g[0].fuel_entry_id), [buildReceiptGroups])
   const buildGroups   = useMemo(() => buildReceiptGroups.filter(g => !!g[0].job_id), [buildReceiptGroups])
 
   const isReceiptDraft = draft?.kind === 'receipt'
@@ -954,6 +982,52 @@ export default function GarageDocumentsPage() {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {/* Fuel receipts — their own group (migration 100). Without this
+                    branch they land in Services, since job_id is null there too,
+                    and render as a "Service" receipt titled "Service". */}
+                {fuelGroups.length > 0 && (
+                  <>
+                    <p style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: DIM, margin: `0 0 ${SPACE_SM}px ${SPACE_XS}px` }}>
+                      Fuel · {fuelGroups.length}
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: SPACE_SM, marginBottom: (serviceGroups.length > 0 || buildGroups.length > 0) ? SPACE_XL : 0 }}>
+                      {fuelGroups.map((group, i) => {
+                        const r = group[0]
+                        const f = r.fuel_entry_id ? fuelInfoMap[r.fuel_entry_id] : null
+                        const displayDate = r.receipt_date ?? f?.date ?? r.created_at
+                        // The receipt's own amount if it carries one, otherwise
+                        // what the fill-up cost. They are the same number in
+                        // practice, and the fill-up is the one that was typed.
+                        const groupAmount = group.reduce((sum, x) => sum + (x.amount ?? 0), 0)
+                        const amount = group.some(x => x.amount != null) ? groupAmount : f?.total ?? null
+                        return (
+                          <button
+                            key={r.fuel_entry_id ?? r.id}
+                            onClick={() => setDetailItem({ kind: 'buildReceiptGroup', receipts: group })}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: SPACE_MD, width: '100%', textAlign: 'left',
+                              background: 'rgba(240,228,200,0.04)', border: `1px solid ${FAINT}`,
+                              padding: `${SPACE_SM}px ${SPACE_MD}px`, cursor: 'pointer',
+                              WebkitTapHighlightColor: 'transparent',
+                              animation: `docIn 420ms ${EASING_SETTLE} ${i * 40}ms both`,
+                            }}
+                          >
+                            <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: COLOR_ACCENT, border: `1px solid ${COLOR_ACCENT}`, padding: '3px 6px' }}>Fuel</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13.5, color: CREAM, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Fill-up</p>
+                              {f && <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '1px 0 0' }}>{f.odometer.toLocaleString()} mi</p>}
+                              <p style={{ fontFamily: FONT_UI, fontWeight: 500, fontSize: 11, color: DIM, margin: '2px 0 0' }}>
+                                {fmtDate(displayDate) ?? ''}{group.length > 1 ? ` · ${group.length} files` : (group[0].file_url ? ' · tap to view' : '')}
+                              </p>
+                            </div>
+                            {amount != null && <span style={{ flexShrink: 0, fontFamily: FONT_UI, fontWeight: 800, fontSize: 14, color: CREAM }}>{fmtMoney(amount, r.currency)}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
 
                 {/* Build receipts — read-only, pulled from public.receipts */}
@@ -1320,19 +1394,22 @@ export default function GarageDocumentsPage() {
                     if (lbl && lbl !== 'Service' && lbl !== 'Mod') return lbl
                     return r.vendor || 'Service'
                   })()
-                  const title = r.job_id ? (jobTitleMap[r.job_id] || r.vendor || 'Part Receipt') : serviceWhat
+                  const fuelInfo = r.fuel_entry_id ? fuelInfoMap[r.fuel_entry_id] : null
+                  const title = r.fuel_entry_id
+                    ? (fuelInfo ? `Fill-up · ${fuelInfo.odometer.toLocaleString()} mi` : 'Fill-up')
+                    : r.job_id ? (jobTitleMap[r.job_id] || r.vendor || 'Part Receipt') : serviceWhat
                   const shop = (() => {
                     if (r.job_id) return r.vendor && r.vendor !== title ? r.vendor : null
                     const s = sessionInfo?.shop
                     if (s && s !== title) return s
                     return r.vendor && r.vendor !== title ? r.vendor : null
                   })()
-                  const displayDate = r.receipt_date ?? sessionInfo?.date ?? r.created_at
+                  const displayDate = r.receipt_date ?? fuelInfo?.date ?? sessionInfo?.date ?? r.created_at
                   const totalAmount = receipts.reduce((s, x) => s + (x.amount ?? 0), 0)
                   const hasAmount = receipts.some(x => x.amount != null)
                   return (
                     <>
-                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{r.job_id ? 'Part Receipt' : 'Service Receipt'}</span>
+                      <span style={{ fontFamily: FONT_UI, fontWeight: 800, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLOR_ACCENT }}>{r.fuel_entry_id ? 'Fuel Receipt' : r.job_id ? 'Part Receipt' : 'Service Receipt'}</span>
                       <p style={{ fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600, fontSize: 26, color: CREAM, margin: '4px 0 12px', lineHeight: 1.2 }}>{title}</p>
                       {/* Multiple PDFs in the group */}
                       {pdfGroupUrls.map((p, idx) => (

@@ -1430,4 +1430,16 @@ filters out the first entry because it has no economy figure yet — so a log wi
 exactly one fill-up in it announced that it was empty, directly above the
 fill-up.
 
-Source: migration 100, `src/components/FuelSheet.tsx`, `src/pages/FuelPage.tsx`.
+**One consequence that only showed up after the migration ran:**
+`GarageDocumentsPage` lists EVERY receipt on the car, by `car_id`. Migration 100
+therefore put fuel receipts on a screen that had never seen one, and because a
+fill-up receipt has a null `job_id` it fell into the **Services** list and
+rendered as a "Service" receipt titled "Service". Fixed by giving fuel its own
+group there — "Fuel · n", titled "Fill-up" with the odometer and the fill-up's
+own date — rather than by hiding them, since the Documents screen is exactly
+where a user goes looking for a receipt. Worth remembering as a shape: adding a
+second parent to a shared table changes every screen that reads that table
+WITHOUT filtering by parent.
+
+Source: migration 100, `src/components/FuelSheet.tsx`, `src/pages/FuelPage.tsx`,
+`src/pages/GarageDocumentsPage.tsx`.

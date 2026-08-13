@@ -5,13 +5,18 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 099_users_economy_unit.sql (applied 2026-08-11)
---   ⚠️ 100_fuel_receipts.sql is PENDING and should be run next. Until it is,
---   `receipts.fuel_entry_id` does not exist, so attaching a receipt to a
---   fill-up 400s. Everything else about fuel works: the entry itself saves
---   first and the receipts are best-effort afterwards, deliberately, so a
---   failed upload can never lose the reading that was typed at a pump.
---   See ADR-035.
+-- Last migration applied : 100_fuel_receipts.sql (applied 2026-08-13)
+--   - 100 (ADR-035): receipts can hang off a fuel_entry. session_id nullable,
+--     fuel_entry_id added, XOR check, and receipts_set_car_id() rewritten to
+--     resolve the car through either parent. Verified live after running: a
+--     fuel receipt inserts and the trigger fills car_id from the fill-up; two
+--     parents, no parent and a nonexistent fill-up are all rejected; deleting
+--     the entry cascades the receipt away. AND THE REGRESSION THAT MATTERED —
+--     SESSION receipts still insert and still get car_id from the session, so
+--     the trigger rewrite did not break the four existing receipt paths.
+--     End-to-end in the app: attach on create, reload on edit through a SIGNED
+--     url, remove, re-attach, and the storage object is gone from the bucket
+--     after the entry is deleted (not merely unreferenced).
 --   - 099 (ADR-034): users.economy_unit, nullable, where NULL means "derive".
 --     Verified live after running: the column reads alone and alongside
 --     volume_unit in ONE select, the whole 098 set still reads, `email` and
