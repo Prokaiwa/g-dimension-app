@@ -195,6 +195,30 @@ export const HEADER_WEDGE_LEFT  = 'M 0 0 L 180 0 L 200 44 L 0 44 Z';
 export const HEADER_WEDGE_RIGHT = 'M 390 0 L 230 0 L 210 44 L 390 44 Z';
 export const HEADER_HEIGHT      = 44;
 
+// Safe-area insets — ADR-036. The variables are defined in src/index.css.
+//
+// SAFE_TOP is the status-bar/notch inset (0 in every desktop browser and in
+// mobile Safari; ~47-59px in the Capacitor iOS shell, because index.html sets
+// viewport-fit=cover and the webview therefore fills the physical screen).
+//
+// HEADER_HEIGHT_SAFE is what a top header bar's `height` must be. Use it WITH
+// `paddingTop: SAFE_TOP`, always as a pair:
+//
+//     height: HEADER_HEIGHT_SAFE,
+//     paddingTop: SAFE_TOP,
+//
+// Both are needed because `box-sizing: border-box` is global: padding alone
+// would eat the header's own content box instead of moving it down, and height
+// alone would grow the bar without shifting anything inside it. Together the
+// content box lands back at exactly HEADER_HEIGHT, below the status bar, with
+// the header's background filling the band above it.
+//
+// Anything positioned BELOW a header (`top`, or a `calc(100dvh - …)`) must use
+// HEADER_HEIGHT_SAFE too, or it will overlap by the inset on a notched device.
+export const SAFE_TOP           = 'var(--safe-top)';
+export const SAFE_BOTTOM        = 'var(--safe-bottom)';
+export const HEADER_HEIGHT_SAFE = `calc(${HEADER_HEIGHT}px + var(--safe-top))`;
+
 // Home map destination coordinates (center-anchored via translate(-50%,-50%)) — Part 10
 // The ROAD_* bezier endpoints in HomePage.tsx must terminate EXACTLY at these
 // centers — the map SVG stretches non-uniformly, so any offset becomes a

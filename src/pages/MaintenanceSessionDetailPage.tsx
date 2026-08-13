@@ -13,7 +13,7 @@ import carwashIcon from '../assets/icons/maintenance/carwash_icon.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_BURGUNDY_L,
-  FONT_UI, HEADER_HEIGHT,
+  FONT_UI, HEADER_HEIGHT_SAFE, SAFE_TOP,
 } from '../tokens'
 import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
 
@@ -141,7 +141,7 @@ export default function MaintenanceSessionDetailPage() {
 
   if (loading) return (
     <div style={{ height: '100dvh', background: '#f5f5f5', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
     </div>
   )
 
@@ -158,7 +158,7 @@ export default function MaintenanceSessionDetailPage() {
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: isDetail ? CW_BG : '#f0eeeb', fontFamily: FONT_UI, overflow: 'hidden' }}>
 
       {/* ── Header ── */}
-      <div style={{ height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
         <button onClick={() => navigate(backRoute)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 4px', WebkitTapHighlightColor: 'transparent' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_HEADER_TITLE, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{backLabel}</span>

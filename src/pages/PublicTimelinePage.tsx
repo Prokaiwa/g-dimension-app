@@ -28,6 +28,7 @@ import {
   COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_MOD, COLOR_TIMELINE_SERVICE,
   COLOR_TIMELINE_DETAIL, COLOR_TIMELINE_NOTE, RADIUS_TIMELINE_CARD,
   FONT_UI, FONT_TITLE, EASING_SETTLE, CANVAS_W,
+  SAFE_TOP,
 } from '../tokens'
 
 // ── Layout constants (mirror of TimelinePage) ──
@@ -480,7 +481,7 @@ export default function PublicTimelinePage() {
         // Mirrors the private TimelinePage chevron - no header here either, so
         // the safe-area inset is the only thing keeping it out from under the
         // notch (viewport-fit=cover).
-        position: 'fixed', top: 'calc(8px + env(safe-area-inset-top))', left: 8, width: 44, height: 44, zIndex: 20,
+        position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 20,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         WebkitTapHighlightColor: 'transparent',

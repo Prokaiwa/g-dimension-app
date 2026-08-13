@@ -15,7 +15,7 @@ import maintenanceHero from '../assets/backgrounds/maintenance_hero.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_BURGUNDY_M, COLOR_BURGUNDY_R,
-  FONT_UI, HEADER_HEIGHT, HEADER_WEDGE_LEFT, HEADER_WEDGE_RIGHT,
+  FONT_UI, HEADER_HEIGHT, HEADER_HEIGHT_SAFE, SAFE_TOP, HEADER_WEDGE_LEFT, HEADER_WEDGE_RIGHT,
   STAGGER_BASE_MS, STAGGER_STEP_MS, EASING_SETTLE,
 } from '../tokens'
 
@@ -107,7 +107,7 @@ export default function MaintenancePage() {
         pointerEvents: 'none',
       }} />
       {/* 5. Grain overlay */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.035, mixBlendMode: 'overlay' }} aria-hidden>
+      <svg style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT, pointerEvents: 'none', opacity: 0.035, mixBlendMode: 'overlay' }} aria-hidden>
         <filter id="mntGrain">
           <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
           <feColorMatrix type="saturate" values="0" />
@@ -118,8 +118,8 @@ export default function MaintenancePage() {
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.10) 28%, transparent 50%)', pointerEvents: 'none' }} />
 
       {/* ── Header ── */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, zIndex: 10 }}>
-        <svg viewBox="0 0 390 44" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, zIndex: 10, background: COLOR_HEADER_BLACK }}>
+        <svg viewBox="0 0 390 44" preserveAspectRatio="none" style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT }}>
           <defs>
             <linearGradient id="mntHdrGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%"   stopColor={COLOR_BURGUNDY_L} />
@@ -131,11 +131,11 @@ export default function MaintenancePage() {
           <path d={HEADER_WEDGE_LEFT}  fill="url(#mntHdrGrad)" />
           <path d={HEADER_WEDGE_RIGHT} fill="url(#mntHdrGrad)" />
         </svg>
-        <button onClick={() => navigate('/home')} style={{ position: 'absolute', left: 10, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
+        <button onClick={() => navigate('/home')} style={{ position: 'absolute', left: 10, top: SAFE_TOP, height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 20, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ color: COLOR_HEADER_TITLE, fontFamily: FONT_UI, fontStyle: 'italic', fontWeight: 800, fontSize: 16, letterSpacing: '-0.03em' }}>Maintenance &amp; Service</span>
         </button>
-        <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0 }}>
+        <div style={{ position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0 }}>
           {car && <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>{[car.year, car.model, car.variant].filter(Boolean).join(' ')}</span>}
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
           <div style={{ background: COLOR_HEADER_BLACK, color: '#fff', padding: '4px 8px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: DAY_LABEL.length === 1 ? 24 : 30 }}>{DAY_LABEL}</div>

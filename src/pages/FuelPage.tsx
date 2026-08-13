@@ -47,7 +47,7 @@ import ArrivalFade from '../components/ArrivalFade'
 import fuelHero from '../assets/backgrounds/fuel_hero.webp'
 import {
   COLOR_HEADER_WARM, COLOR_HEADER_TITLE, COLOR_HEADER_BLACK, COLOR_BURGUNDY_L,
-  FONT_UI, HEADER_HEIGHT,
+  FONT_UI, HEADER_HEIGHT_SAFE, SAFE_TOP,
 } from '../tokens'
 
 const FIELD = '#08090a'
@@ -204,7 +204,7 @@ export default function FuelPage() {
       }} />
 
       {/* ── Header ── identical to Service and Detail. */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', zIndex: 10 }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', zIndex: 10 }}>
         <button onClick={() => navigate('/maintenance')} data-sfx="back" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 4px', WebkitTapHighlightColor: 'transparent' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_HEADER_TITLE, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Maintenance</span>
@@ -226,7 +226,7 @@ export default function FuelPage() {
       {/* ── Content ── scrolls over a background that does not move. */}
       <div style={{
         position: 'relative', zIndex: 5,
-        height: `calc(100dvh - ${HEADER_HEIGHT + 34}px)`,
+        height: `calc(100dvh - 34px - ${HEADER_HEIGHT_SAFE})`,
         overflowY: 'auto', overscrollBehavior: 'contain',
         padding: `0 16px calc(40px + env(safe-area-inset-bottom))`,
       }}>

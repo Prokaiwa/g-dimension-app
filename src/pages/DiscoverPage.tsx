@@ -25,7 +25,7 @@ import { flagEmoji } from '../lib/countries'
 import garagePlaceholder from '../assets/garage_placeholder.webp'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
-  FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG,
+  FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG,
   RADIUS_BUTTON,
 } from '../tokens'
 
@@ -234,9 +234,8 @@ export default function DiscoverPage() {
       paddingBottom: `calc(${SPACE_LG}px + env(safe-area-inset-bottom))`,
     }}>
       <div style={{
-        height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
-        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 11,
-      }}>
+        height: HEADER_HEIGHT_SAFE, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
+        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 11, paddingTop: SAFE_TOP }}>
         <button onClick={() => navigate(-1)} aria-label="Back" style={{
           background: 'none', border: 'none', cursor: 'pointer', color: COLOR_HEADER_TITLE,
           fontSize: 22, lineHeight: 1, padding: 0, WebkitTapHighlightColor: 'transparent',
@@ -248,7 +247,7 @@ export default function DiscoverPage() {
 
       {/* The field stays put while results scroll under it. */}
       <div style={{
-        position: 'sticky', top: HEADER_HEIGHT, zIndex: 10,
+        position: 'sticky', top: HEADER_HEIGHT_SAFE, zIndex: 10,
         background: 'rgba(10,10,12,0.94)', backdropFilter: 'blur(8px)',
         padding: `${SPACE_SM}px ${SPACE_MD}px`, borderBottom: HAIR,
       }}>

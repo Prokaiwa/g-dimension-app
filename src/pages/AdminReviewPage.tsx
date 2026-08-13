@@ -19,7 +19,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { reviewCar, REPORT_TARGET_LABEL, type CarReview, type ReviewPhoto } from '../lib/moderation'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
-  COLOR_ERROR, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
+  COLOR_ERROR, FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG,
 } from '../tokens'
 
@@ -78,9 +78,8 @@ export default function AdminReviewPage() {
       paddingBottom: `calc(${SPACE_LG}px + env(safe-area-inset-bottom))`,
     }}>
       <div style={{
-        height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
-        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10,
-      }}>
+        height: HEADER_HEIGHT_SAFE, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
+        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10, paddingTop: SAFE_TOP }}>
         <button onClick={() => navigate('/admin/reports')} style={{
           background: 'none', border: 'none', cursor: 'pointer', color: COLOR_HEADER_TITLE,
           fontSize: 22, lineHeight: 1, padding: 0, WebkitTapHighlightColor: 'transparent',

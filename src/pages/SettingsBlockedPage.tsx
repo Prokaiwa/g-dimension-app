@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { getBlockedUsers, unblockUser, type BlockedUser } from '../lib/moderation'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
-  FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_SM, SPACE_MD, SPACE_LG, RADIUS_BUTTON,
+  FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_SM, SPACE_MD, SPACE_LG, RADIUS_BUTTON,
 } from '../tokens'
 
 const CREAM = '#f0e4c8'
@@ -29,9 +29,8 @@ export default function SettingsBlockedPage() {
   return (
     <div style={{ minHeight: '100dvh', background: GRADIENT_APP_BG }}>
       <div style={{
-        height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
-        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10,
-      }}>
+        height: HEADER_HEIGHT_SAFE, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
+        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10, paddingTop: SAFE_TOP }}>
         <button onClick={() => navigate('/settings')} style={{
           background: 'none', border: 'none', cursor: 'pointer', color: COLOR_HEADER_TITLE,
           fontSize: 22, lineHeight: 1, padding: 0, WebkitTapHighlightColor: 'transparent',

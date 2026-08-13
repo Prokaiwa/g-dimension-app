@@ -12,8 +12,7 @@ import {
   COLOR_HEADER_TITLE,
   COLOR_ACCENT,
   FONT_UI,
-  FONT_TITLE,
-  HEADER_HEIGHT,
+  FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   SPACE_MD,
   SPACE_LG,
   SPACE_XL,
@@ -114,7 +113,7 @@ export default function SoundTestPage() {
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: GRADIENT_APP_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       {/* ── Header ── */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 10, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <button onClick={() => navigate(-1)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 4px', display: 'flex', alignItems: 'center' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
         </button>

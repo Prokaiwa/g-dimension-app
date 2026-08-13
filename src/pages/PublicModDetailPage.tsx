@@ -8,7 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import ArrivalFade from '../components/ArrivalFade'
 import { useReportLongPress } from '../hooks/useReportLongPress'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT_SAFE, SAFE_TOP } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 
 const LABEL: React.CSSProperties = {
@@ -219,7 +219,7 @@ export default function PublicModDetailPage() {
 
   const sharedHeader = (
     <div style={{
-      height: HEADER_HEIGHT, flexShrink: 0,
+      height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0,
       background: COLOR_HEADER_BLACK,
       display: 'flex', alignItems: 'center',
       paddingLeft: 4, paddingRight: 16,

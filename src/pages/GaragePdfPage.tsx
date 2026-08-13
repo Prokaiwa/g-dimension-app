@@ -9,7 +9,7 @@ import { generateBuildPdf, pdfFilename, type PdfData, type PdfMod, type PdfServi
 import gLogoAsset from '../assets/logo/gdimensionG.webp'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
-  COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
+  COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   RADIUS_BUTTON,
 } from '../tokens'
 
@@ -166,7 +166,7 @@ export default function GaragePdfPage() {
     <div style={{ height:'100dvh', display:'flex', flexDirection:'column', background:BG, fontFamily:FONT_UI, overflow:'hidden' }}>
 
       {/* ── Header ── */}
-      <div style={{ position:'relative', height:HEADER_HEIGHT, background:COLOR_HEADER_BLACK, display:'flex', alignItems:'center', justifyContent:'space-between', paddingLeft:10, paddingRight:14, flexShrink:0, zIndex:10, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+      <div style={{ position:'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background:COLOR_HEADER_BLACK, display:'flex', alignItems:'center', justifyContent:'space-between', paddingLeft:10, paddingRight:14, flexShrink:0, zIndex:10, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
         <div style={{ display:'flex', alignItems:'center', gap:4 }}>
           <button onClick={() => navigate('/garage')} style={{ background:'none', border:'none', cursor:'pointer', padding:'4px 8px 4px 4px', display:'flex', alignItems:'center' }}>
             <span style={{ color:COLOR_HEADER_WARM, fontSize:22, fontWeight:300, lineHeight:1 }}>‹</span>

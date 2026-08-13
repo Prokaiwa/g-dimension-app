@@ -27,8 +27,7 @@ import {
   COLOR_BURGUNDY_R,
   COLOR_ACCENT,
   FONT_UI,
-  FONT_TITLE,
-  HEADER_HEIGHT,
+  FONT_TITLE, HEADER_HEIGHT, HEADER_HEIGHT_SAFE, SAFE_TOP,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   CAST_SHADOW_OPACITY,
@@ -132,11 +131,11 @@ export default function GaragePage() {
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, zIndex: 10 }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, flexShrink: 0, zIndex: 10 }}>
         <svg
           viewBox="0 0 390 44"
           preserveAspectRatio="none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT }}
         >
           <defs>
             <linearGradient id="garageHdrGrad" x1="0" y1="0" x2="1" y2="0">
@@ -153,7 +152,7 @@ export default function GaragePage() {
         <button
           onClick={() => navigate('/home')}
           style={{
-            position: 'absolute', left: 10, top: 0, height: '100%',
+            position: 'absolute', left: 10, top: SAFE_TOP, height: HEADER_HEIGHT,
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '4px 8px',
@@ -174,7 +173,7 @@ export default function GaragePage() {
           </span>
         </button>
 
-        <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
+        <div style={{ position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
           {carInfo && (
             <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {carInfo}

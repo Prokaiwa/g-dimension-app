@@ -36,8 +36,7 @@ import {
 import {
   COLOR_BRAND,
   COLOR_ACCENT,
-  FONT_UI,
-  HEADER_HEIGHT, SPACE_MD,
+  FONT_UI, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_MD,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   COLOR_HEADER_BLACK,
@@ -824,7 +823,7 @@ export default function PublicProfilePage() {
       {/* ── Header — graphite wedges (same shape as home), darker toward the centre V ── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
-        height: HEADER_HEIGHT, zIndex: 10, overflow: 'hidden',
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, zIndex: 10, overflow: 'hidden',
       }}>
         <svg viewBox="0 0 390 44" preserveAspectRatio="none"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
@@ -1084,7 +1083,7 @@ export default function PublicProfilePage() {
       <div
         ref={stageRef}
         style={{
-          position: 'absolute', top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0,
+          position: 'absolute', top: HEADER_HEIGHT_SAFE, left: 0, right: 0, bottom: 0,
           overflow: 'hidden', perspective: '1400px', perspectiveOrigin: '50% 42%',
           touchAction: 'none', overscrollBehavior: 'none',
         }}

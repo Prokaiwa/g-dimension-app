@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_BURGUNDY_M, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_BURGUNDY_M, HEADER_HEIGHT_SAFE, SAFE_TOP } from '../tokens'
 
 // ── DIY aesthetic ─────────────────────────────────────────────────────────────
 const BG     = '#f0efec'
@@ -146,7 +146,7 @@ export default function TuningDiyPage() {
 
   if (!guide) return (
     <div style={{ background: BG, minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14 }}>
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14 }}>
         <button onClick={() => navigate(`/tuning/mods/${modId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
         </button>
@@ -166,7 +166,7 @@ export default function TuningDiyPage() {
   return (
     <div style={{ background: BG, minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14, flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 4, paddingRight: 14, flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
         <button onClick={() => navigate(`/tuning/mods/${modId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent', minHeight: 44 }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, letterSpacing: '0.06em', color: 'rgba(245,240,228,0.5)' }}>Mod</span>

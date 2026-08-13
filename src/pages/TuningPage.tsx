@@ -21,8 +21,7 @@ import {
   COLOR_BURGUNDY_L,
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
-  FONT_UI,
-  HEADER_HEIGHT,
+  FONT_UI, HEADER_HEIGHT, HEADER_HEIGHT_SAFE, SAFE_TOP,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   STAGGER_BASE_MS,
@@ -93,11 +92,11 @@ export default function TuningPage() {
       }} />
 
       {/* ── Header ── */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, flexShrink: 0, zIndex: 10 }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, zIndex: 10, background: COLOR_HEADER_BLACK }}>
         <svg
           viewBox="0 0 390 44"
           preserveAspectRatio="none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT }}
         >
           <defs>
             <linearGradient id="tuningHdrGrad" x1="0" y1="0" x2="1" y2="0">
@@ -115,7 +114,7 @@ export default function TuningPage() {
         <button
           onClick={() => navigate('/home')}
           style={{
-            position: 'absolute', left: 10, top: 0, height: '100%',
+            position: 'absolute', left: 10, top: SAFE_TOP, height: HEADER_HEIGHT,
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '4px 8px',
@@ -136,7 +135,7 @@ export default function TuningPage() {
 
         {/* Year/model + Date chips */}
         <div style={{
-          position: 'absolute', right: 0, top: 0, height: '100%',
+          position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT,
           display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
         }}>
           {car && (

@@ -22,7 +22,7 @@ import { powerUnitOf, torqueUnitOf } from '../lib/unitPrefs'
 import { convertPower, convertTorque, powerLabel, torqueLabel } from '../lib/unitConversion'
 import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM,
-  COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT,
+  COLOR_BURGUNDY_M, COLOR_ACCENT, FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   EASING_SETTLE,
 } from '../tokens'
 
@@ -441,7 +441,7 @@ export default function PublicBuildSheetPage() {
 
         {/* ── Header ── */}
         <div style={{
-          height: HEADER_HEIGHT, flexShrink: 0,
+          height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0,
           background: COLOR_HEADER_BLACK,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           paddingLeft: 10, paddingRight: 14,

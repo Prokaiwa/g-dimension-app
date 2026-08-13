@@ -1378,3 +1378,82 @@ subject. The fuel total survives as the third LCD window.
 
 Source: migration 099, `src/lib/fuel.ts`, `src/lib/fuelUnits.ts`,
 `src/pages/FuelPage.tsx`, `src/components/FuelSheet.tsx`.
+
+---
+
+## ADR-036 — The notch is a layout constant, and it goes through a variable so it can be tested (2026-08-13)
+
+**Decision:** every top header bar grows by the top safe-area inset instead of
+sitting under it, and the inset is read through the CSS custom property
+`--safe-top` (defined once in `src/index.css` as
+`env(safe-area-inset-top, 0px)`) rather than through `env()` at each call site.
+`HEADER_HEIGHT_SAFE` and `SAFE_TOP` in `src/tokens/index.ts` are the only
+spellings the app uses. `viewport-fit=cover` **stays**.
+
+**Context:** the app ships to the App Store as a Capacitor build, and `index.html`
+sets `viewport-fit=cover`, which means the WKWebView fills the physical screen
+and CSS `y=0` is the top of the display. iOS then paints the status bar over
+whatever is there. Of 46 header bars, exactly one padded for the inset. A probe
+across 20 routes (`test-results/safearea.mjs`) found content inside the
+status-bar band on **all 20**, a tap target on **18**, and on **17 the back
+chevron was 100% covered** — the entire 44x44 target under the notch. Since the
+design has no tab bars and the `‹` chevron is the only way back, the native app
+would have been close to unnavigable.
+
+**Why it survived 845 commits:** it is invisible in every environment the project
+can actually run. Mobile Safari puts the page below the browser chrome, so the
+inset is 0. The installed PWA sets `apple-mobile-web-app-status-bar-style` to
+`black`, which keeps content clear. Both of those are true and both are
+irrelevant to Capacitor, where the `apple-mobile-web-app-*` metas are Safari
+web-clip hints that mean nothing. The one runtime that breaks is the one that
+had never been looked at, and this Mac (macOS 12) cannot build it — Capacitor 8's
+SPM iOS project needs Xcode 15+, which needs macOS 14.5+.
+
+**Rationale:**
+
+- **The header grows; it does not get padded.** `box-sizing: border-box` is
+  global, so `paddingTop` on a fixed-height header steals from its content
+  instead of moving it down. The pair is therefore
+  `height: HEADER_HEIGHT_SAFE` (= `calc(44px + var(--safe-top))`) **and**
+  `paddingTop: SAFE_TOP`, which lands the content box back at exactly 44px.
+  `LegalLayout` had the padding without the height and so was quietly squashing
+  its own header on any notched device; this fixes that too.
+- **Growing beats offsetting, because the background comes along.** The header's
+  black fills the status-bar band rather than leaving a gap above it, and the
+  full-bleed art on Maintenance/Fuel/Service is a sibling drawn *behind* the
+  header, so nothing about the edge-to-edge look changes. That is the whole
+  reason `viewport-fit=cover` stays.
+- **33 of 46 headers are in normal document flow**, so growing one reflows
+  everything below it with no arithmetic. Only 7 sites offset content by
+  `HEADER_HEIGHT` explicitly, and those take `HEADER_HEIGHT_SAFE`.
+- **A variable, not `env()`, because `env()` cannot be overridden and a variable
+  can.** This is the load-bearing part. There is no simulator here, no notched
+  device in CI, and `env(safe-area-inset-top)` resolves to 0 in every browser we
+  can drive — which is precisely how the bug got in. Routing through
+  `--safe-top` lets a test force the value to 47px and assert that nothing
+  interactive is left in the band, so the guarantee is mechanical rather than a
+  line in BUILD_NOTES asking someone to remember. A fix nobody can regression-test
+  is a fix with a shelf life.
+
+**Rejected — `@capacitor/status-bar` with `setOverlaysWebView(false)`:** five
+lines, and it only touches the runtime that is broken. But Capacitor's own docs
+do not state whether that method works on iOS (they note only that it is gone on
+Android 15+), and staking the fix on an unconfirmed API, on a machine that cannot
+build iOS to check, is the worst of both. It would also give the native app a
+solid status-bar band while the web stayed edge-to-edge — two different-looking
+products out of one codebase.
+
+**Rejected — dropping `viewport-fit=cover`:** one line, genuinely correct, and it
+fixes the notch everywhere at once. It also letterboxes every screen top and
+bottom, and turns the 47 existing `safe-area-inset-bottom` usages into no-ops.
+The full-bleed cinematic treatment is most of what stops this reading as a
+generic web app; paying for a bug fix with it is the wrong trade.
+
+**Consequence:** `--safe-bottom` is defined alongside `--safe-top` for symmetry
+but nothing is migrated to it — the 47 `safe-area-inset-bottom` call sites work
+and are not worth the churn. New bottom-anchored UI should prefer the variable.
+On-device confirmation is still owed before submission, but it is now a
+confirmation rather than a discovery.
+
+Source: `src/index.css`, `src/tokens/index.ts`, 46 header sites, 7 offset sites,
+`test-results/safearea.mjs`.

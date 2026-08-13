@@ -18,6 +18,7 @@ import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
+  SAFE_TOP,
 } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 import { generateFeature } from '../features/featured/engine/generate'
@@ -1693,7 +1694,7 @@ export default function FeaturedPage() {
     >
       <ArrivalFade />
       {/* ─── perspective stage ─── */}
-      <div style={{ position:'absolute', inset:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
+      <div style={{ position:'absolute', top:SAFE_TOP, left:0, right:0, bottom:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
 
         {pages.map((pg, i) => (
           <div key={i}
@@ -1719,7 +1720,7 @@ export default function FeaturedPage() {
 
       {/* ─── chrome (always on top) ─── */}
       <div data-sfx="back" onClick={() => navigate('/home')}
-        style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
+        style={{ position:'absolute', top:`calc(14px + ${SAFE_TOP})`, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
 
@@ -1744,7 +1745,7 @@ export default function FeaturedPage() {
           is locked until the owner unpublishes (from the spec-sheet page). */}
       {pageIdx === 0 && !isTurning && !adjusting && !editing && !isPublished && (
         <>
-          <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
+          <div style={{ position:'absolute', top:`calc(18px + ${SAFE_TOP})`, left:0, right:0, textAlign:'center', zIndex:20, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase', color:'rgba(245,245,245,0.55)', pointerEvents:'none' }}>
             Cover {coverIdx+1}/{TEMPLATES.length} · {t.name}
           </div>
           <div data-feat-noturn style={{ position:'absolute', top:48, right:12, zIndex:20, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
@@ -1791,7 +1792,7 @@ export default function FeaturedPage() {
               animation:`featCoverHint 1600ms ease 700ms both` }}>›</div>
           )}
           {isPublished && !isTurning && (
-            <div style={{ position:'absolute', top:18, left:0, right:0, textAlign:'center', zIndex:20,
+            <div style={{ position:'absolute', top:`calc(18px + ${SAFE_TOP})`, left:0, right:0, textAlign:'center', zIndex:20,
               fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.28em', textTransform:'uppercase',
               color:'rgba(245,245,245,0.5)', pointerEvents:'none' }}>
               Published · Live
@@ -1816,7 +1817,7 @@ export default function FeaturedPage() {
         >
           {/* cover-rect outline */}
           <div style={{ position:'absolute', top:'12%', left:0, right:0, height:'62%', border:`1.5px dashed ${COLOR_ACCENT}`, boxSizing:'border-box', pointerEvents:'none' }} />
-          <div style={{ position:'absolute', top:16, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
+          <div style={{ position:'absolute', top:`calc(16px + ${SAFE_TOP})`, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
             Drag to position · pinch to zoom
           </div>
           <div style={{ position:'absolute', top:36, left:0, right:0, textAlign:'center', fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.12em', color:'rgba(245,245,245,0.6)', pointerEvents:'none' }}>
@@ -1841,7 +1842,7 @@ export default function FeaturedPage() {
       {/* ── Editorial edit mode (055): inline headline/deck + suggestion adopt ── */}
       {editing && (
         <>
-          <div style={{ position:'absolute', top:16, left:0, right:0, textAlign:'center', zIndex:25, fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
+          <div style={{ position:'absolute', top:`calc(16px + ${SAFE_TOP})`, left:0, right:0, textAlign:'center', zIndex:25, fontFamily:FONT_DECK, fontWeight:600, fontSize:10, letterSpacing:'0.2em', textTransform:'uppercase', color:'#f5f5f5', textShadow:'0 1px 6px rgba(0,0,0,0.8)', pointerEvents:'none' }}>
             Tap the headline or deck to rewrite
           </div>
           {/* Suggestion adopt — only when the engine has a fresher line than the saved override */}

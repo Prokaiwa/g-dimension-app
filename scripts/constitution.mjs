@@ -224,6 +224,53 @@ section('CSP inline-script hashes')
 }
 
 // ---------------------------------------------------------------------------
+section('Safe-area insets (ADR-036)')
+{
+  // index.html sets viewport-fit=cover, so in the Capacitor iOS shell CSS y=0
+  // is the physical top of the screen and iOS paints the status bar over it. A
+  // header that does not carry the inset puts its back chevron under the notch,
+  // which is unreachable. This shipped on 45 of 46 headers and was invisible in
+  // every environment the project can run (mobile Safari and the PWA both
+  // resolve the inset to 0), so it has to be caught mechanically.
+  const offenders = []
+  const rawEnv = []
+  for (const f of srcFiles) {
+    const src = readFileSync(f, 'utf8')
+    // A raw `height: HEADER_HEIGHT` on a header no longer clears the notch —
+    // HEADER_HEIGHT_SAFE (+ paddingTop: SAFE_TOP) is the pair that does.
+    // Exception, and it is a real one: a child pinned INSIDE a grown header
+    // with `top: SAFE_TOP, height: HEADER_HEIGHT` is correct — absolutely
+    // positioned children anchor to the padding box, so they carry the inset
+    // themselves rather than inheriting the padding. Those name SAFE_TOP on
+    // the same line, which is what separates them from a bare header.
+    for (const line of src.split('\n')) {
+      if (/\bheight:\s*HEADER_HEIGHT\b(?!_)/.test(line) && !line.includes('SAFE_TOP')) {
+        offenders.push(`${readRel(f)}: ${line.trim().slice(0, 70)}`)
+      }
+    }
+    // env() cannot be overridden by a test; the variable can. Inlining env()
+    // here is what makes the regression untestable — see ADR-036.
+    if (/env\(\s*safe-area-inset-top\s*\)/.test(src)) rawEnv.push(readRel(f))
+  }
+  check(
+    'no header sizes itself with raw HEADER_HEIGHT',
+    offenders.length === 0,
+    `use HEADER_HEIGHT_SAFE with paddingTop: SAFE_TOP — ${offenders.join(', ')}`
+  )
+  check(
+    'no component inlines env(safe-area-inset-top)',
+    rawEnv.length === 0,
+    `read it through SAFE_TOP / var(--safe-top) so a test can force it — ${rawEnv.join(', ')}`
+  )
+  const css = readFileSync(join(SRC, 'index.css'), 'utf8')
+  check(
+    '--safe-top is defined once, in src/index.css',
+    /--safe-top:\s*env\(safe-area-inset-top/.test(css),
+    'src/index.css :root must define --safe-top from env(safe-area-inset-top, 0px)'
+  )
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\n${passed} passed, ${failures} failed`)
 if (failures > 0) process.exit(1)
 console.log('Constitution OK.')
