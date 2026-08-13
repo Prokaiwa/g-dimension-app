@@ -27,7 +27,7 @@ function parseSegments(body: string): { text: string; accent: boolean }[] {
 const SPOT_PAD = 8
 
 export default function TourOverlay() {
-  const { active, step, index, total, next, back, skip } = useTour()
+  const { active, suppressed, step, index, total, next, back, skip } = useTour()
 
   const segments = useMemo(() => (step ? parseSegments(step.body) : []), [step])
   const fullLen = useMemo(() => segments.reduce((n, s) => n + s.text.length, 0), [segments])
@@ -75,6 +75,9 @@ export default function TourOverlay() {
   }, [step?.id, targetKey])
 
   if (!active || !step) return null
+  // A bottom sheet is open over the tour. Paint nothing at all rather than dim
+  // it and ring an element behind it; the same step returns when it closes.
+  if (suppressed) return null
   const isNode = !!step.node
   const place = step.place ?? 'bottom'
   const onHome = step.route === '/home'

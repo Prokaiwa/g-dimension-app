@@ -186,7 +186,7 @@ function onIdle(run: () => void): void {
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { active: tourActive, step: tourStep, next: tourNext } = useTour()
+  const { active: tourActive, step: tourStep, next: tourNext, setSuppressed: setTourSuppressed } = useTour()
   // On home-map tour steps, glow the cumulative trail + pulse the target node.
   const glow = tourGlowFor(tourActive ? tourStep : null)
   const glowRef = useRef(glow); glowRef.current = glow
@@ -234,6 +234,20 @@ export default function HomePage() {
   // A grip invites a drag, so an upward swipe opens the sheet as well as a tap.
   // `fired` swallows the click that follows the swipe's touchend.
   const gripRef = useRef<{ y: number; fired: boolean } | null>(null)
+
+  // Both gestures on the grip go through here, so the tour suppression can
+  // never be attached to only one of them.
+  const openFuelSheet = useCallback(() => {
+    setFuelOpen(true)
+    setTourSuppressed(true)
+  }, [setTourSuppressed])
+  const closeFuelSheet = useCallback(() => {
+    setFuelOpen(false)
+    setTourSuppressed(false)
+  }, [setTourSuppressed])
+  // Leaving Home with the sheet open would strand the tour overlay hidden, on a
+  // step it can never leave. Unsuppress on unmount whatever happened.
+  useEffect(() => () => setTourSuppressed(false), [setTourSuppressed])
 
   // The tail of the fuel log plus the user's volume unit: everything the sheet
   // needs, so opening it costs nothing over the network at a pump. Also called
@@ -1195,13 +1209,13 @@ export default function HomePage() {
         <button
           onClick={() => {
             if (gripRef.current?.fired) { gripRef.current = null; return }
-            setFuelOpen(true)
+            openFuelSheet()
           }}
           onTouchStart={e => { gripRef.current = { y: e.touches[0].clientY, fired: false } }}
           onTouchMove={e => {
             const g = gripRef.current
             if (!g || g.fired) return
-            if (g.y - e.touches[0].clientY > 22) { g.fired = true; setFuelOpen(true) }
+            if (g.y - e.touches[0].clientY > 22) { g.fired = true; openFuelSheet() }
           }}
           aria-label="Log a fill-up"
           style={{
@@ -1221,7 +1235,11 @@ export default function HomePage() {
             animation: 'footerIn 600ms 1100ms both',
           }}
         >
-          <span aria-hidden style={{
+          {/* The tour's spotlight anchors to the BAR, not to the button around
+              it. The button is 40px tall so its box reaches up over the
+              wordmark, and the ring drew a line straight through "G-DIMENSION".
+              The bar is also the thing the copy points at. */}
+          <span aria-hidden data-tour="fuel-grip" style={{
             width: 44, height: 4,
             background: fuelStale ? COLOR_ACCENT : 'rgba(240,228,200,0.26)',
             boxShadow: fuelStale
@@ -1240,7 +1258,7 @@ export default function HomePage() {
           this has shipped broken once already. */}
       <FuelSheet
         open={fuelOpen}
-        onClose={() => setFuelOpen(false)}
+        onClose={closeFuelSheet}
         car={fuelCar}
         volumeUnit={fuelUnits.volume}
         economyUnit={fuelUnits.economy}

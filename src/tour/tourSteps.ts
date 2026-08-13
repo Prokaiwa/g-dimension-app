@@ -105,7 +105,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'maintenance',
     route: '/maintenance',
     place: 'top',
-    body: 'Log every **Service** here, from an oil change to a brake job, and every **Detail** that keeps your car looking her best.',
+    body: 'Log every **Service** here, from an oil change to a brake job, every **Detail** that keeps your car looking her best, and every tank of **Fuel**.',
   },
   {
     id: 'node-featured',
@@ -136,10 +136,24 @@ export const TOUR_STEPS: TourStep[] = [
     body: 'Every milestone, chronicled in order, from the day you brought it home to your latest win. You can add your own entries too, like a track day or a car show, so the whole journey lives in one place.',
   },
   {
+    // A `target` with NO `waitFor` is the "here it is" shape: the grip gets a
+    // spotlight and stays tappable, but the step advances on Next. Deliberate —
+    // nobody arrives at the end of a walkthrough holding a fuel receipt, and a
+    // step that demanded one would strand anyone who has nothing to enter. The
+    // grip's own amber glow after ten days is the reminder; this is the
+    // introduction.
+    id: 'fuel',
+    route: '/home',
+    target: 'fuel-grip',
+    place: 'top',
+    body: 'You’ve completed the full track. One last thing: that **small bar** at the bottom is where you log a tank of gas. Press it any time. It glows when it has been a while, so you never have to remember.',
+  },
+  {
     id: 'closing',
     route: '/home',
     place: 'center',
     voice: true,
-    body: 'That’s the lap. The garage is yours now. Go build something worth documenting, and enjoy the journey.',
+    // No longer opens with "That's the lap" — the fuel step says it now.
+    body: 'The garage is yours now. Go build something worth documenting, and enjoy the journey.',
   },
 ]
