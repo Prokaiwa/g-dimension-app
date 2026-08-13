@@ -5,14 +5,29 @@
 -- sequence. Run each block once in the Supabase SQL Editor.
 --
 -- LIVE DB STATE
--- Last migration applied : 098_users_volume_unit_grant.sql (applied 2026-08-10)
---   ⚠️ 099_users_economy_unit.sql is PENDING and should be run next. Until it
---   is, `users.economy_unit` does not exist and every read of it 400s. That is
---   guarded: resolveEconomyUnit() falls back to deriving the unit from
---   distance_unit + volume_unit, which is right for three of the four cases
---   anyway, so the only thing that does not work is Settings > Units > Economy
---   pinning the fourth (km + litres, where L/100km and km/L are both correct
---   depending on the country). See ADR-034.
+-- Last migration applied : 100_fuel_receipts.sql (applied 2026-08-13)
+--   - 100 (ADR-035): receipts can hang off a fuel_entry. session_id nullable,
+--     fuel_entry_id added, XOR check, and receipts_set_car_id() rewritten to
+--     resolve the car through either parent. Verified live after running: a
+--     fuel receipt inserts and the trigger fills car_id from the fill-up; two
+--     parents, no parent and a nonexistent fill-up are all rejected; deleting
+--     the entry cascades the receipt away. AND THE REGRESSION THAT MATTERED —
+--     SESSION receipts still insert and still get car_id from the session, so
+--     the trigger rewrite did not break the four existing receipt paths.
+--     End-to-end in the app: attach on create, reload on edit through a SIGNED
+--     url, remove, re-attach, and the storage object is gone from the bucket
+--     after the entry is deleted (not merely unreferenced).
+--   - 099 (ADR-034): users.economy_unit, nullable, where NULL means "derive".
+--     Verified live after running: the column reads alone and alongside
+--     volume_unit in ONE select, the whole 098 set still reads, `email` and
+--     `select=*` are still refused, the CHECK rejects a bad value with 23514,
+--     and all four legal values plus null round-trip. End-to-end in the app:
+--     nothing stored derives to US mpg on miles + US gallons; L/100km converts
+--     the headline to 9.4 and prints "best 7.8 / worst 11.8" (the SMALLER
+--     number is the better one); km/L prints "best 12.8 / worst 8.5"; and the
+--     chart draws byte-identical bars under both, because it scales by raw MPG
+--     rather than by the printed figure. That last one is the whole reason
+--     higherIsBetter() exists.
 --   - 098: adds `volume_unit` to the `authenticated` column-level select grant
 --     on `users`, which 097 forgot. Verified live after running: volume_unit
 --     reads, it reads alongside active_car_id in one select, the whole 083 set

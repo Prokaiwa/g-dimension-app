@@ -69,6 +69,10 @@ const START_MILEAGE = carRow.current_mileage
 console.log(`account ${process.env.GDIM_EMAIL}`)
 console.log(`car     ${carRow.year} ${carRow.make} ${carRow.model} · odo ${START_MILEAGE} ${carRow.mileage_unit}`)
 
+// Migration 100 adds receipts.fuel_entry_id. Probed rather than assumed, so the
+// suite still completes end to end on a database that has not run it yet.
+const HAS_FUEL_RECEIPTS = (await rest('receipts?select=fuel_entry_id&limit=1')).status === 200
+
 const wipe = async () => { await rest(`fuel_entries?car_id=eq.${CAR}`, { method: 'DELETE' }) }
 const restoreMileage = async () =>
   rest(`cars?id=eq.${CAR}`, { method: 'PATCH', body: JSON.stringify({ current_mileage: START_MILEAGE }) })
@@ -478,7 +482,299 @@ try {
   // 11.888 US gal = 11.888 * 3.785411784 / 4.54609 = 9.9 imperial gal
   ok('the same row reads 9.9 in imperial gallons', (await bodyText(page)).includes('9.9 gal'),
     (await bodyText(page)).split('\n').find(l => l.includes('gal')) || '')
-  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us', economy_unit: null }) })
+  await wipe(); await restoreMileage()
+
+  // ══ 11. economy units, live since migration 099 ════════════════════════════
+  section('the four spellings of fuel economy')
+  // Two tanks with different economies, so best and worst are distinguishable
+  // and the chart has something to rank:
+  //   1000 -> 1300 on 10 gal = 30.0 mpg
+  //   1300 -> 1500 on 10 gal = 20.0 mpg
+  //   average = 500 mi / 20 gal = 25.0 mpg   (distance over fuel, not a mean)
+  await rest('fuel_entries', {
+    method: 'POST',
+    body: JSON.stringify([
+      { car_id: CAR, user_id: me, filled_on: iso(30), odometer: 1000, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+      { car_id: CAR, user_id: me, filled_on: iso(20), odometer: 1300, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+      { car_id: CAR, user_id: me, filled_on: iso(10), odometer: 1500, volume: 10, total_cost: 40, is_full: true, is_missed: false },
+    ]),
+  })
+
+  const readout = () => page.evaluate(() => {
+    const lcds = [...document.querySelectorAll('div[role="img"]')].map(e => e.getAttribute('aria-label'))
+    // textTransform:'uppercase' is CSS, so textContent keeps the source casing.
+    // Compare lowercased rather than asserting what the pixels look like.
+    const unitChip = [...document.querySelectorAll('span')]
+      .find(e => /^(mpg|l\/100km|km\/l)$/.test(e.textContent.trim().toLowerCase()))
+    // Bars, excluding the average line (position:absolute, full width).
+    const chart = [...document.querySelectorAll('div')].find(e => {
+      const s = getComputedStyle(e)
+      return s.display === 'flex' && s.alignItems === 'flex-end' && e.children.length > 1
+    })
+    const bars = chart
+      ? [...chart.children].filter(c => getComputedStyle(c).position !== 'absolute')
+          .map(c => Math.round(c.getBoundingClientRect().height))
+      : []
+    const line = document.body.innerText.split('\n').find(l => l.includes('full tanks')) || ''
+    return { headline: lcds[0] || '', unit: unitChip ? unitChip.textContent.trim().toLowerCase() : '', bars, line }
+  })
+
+  const showEconomy = async (stored) => {
+    await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: stored }) })
+    await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+    await page.waitForTimeout(2400)
+    return readout()
+  }
+
+  const us = await showEconomy(null)
+  ok('nothing stored derives to US mpg on miles + US gallons',
+    us.headline.startsWith('25.0') && us.unit === 'mpg', `${us.headline} / ${us.unit}`)
+  ok('best and worst are the right way round in mpg',
+    us.line.includes('best 30.0') && us.line.includes('worst 20.0'), us.line)
+
+  // 235.215 / mpg. 30 -> 7.8, 25 -> 9.4, 20 -> 11.8.
+  const metric = await showEconomy('l_100km')
+  ok('L/100km converts the headline', metric.headline.startsWith('9.4'), metric.headline)
+  ok('and relabels the panel', metric.unit === 'l/100km', metric.unit)
+  // THE INVERSION. In L/100km the better tank is the SMALLER number, so "best"
+  // must print 7.8 and "worst" 11.8 — not the other way round, and not the raw
+  // min/max of the printed figures.
+  ok('best is the SMALLEST number in L/100km, because lower is better',
+    metric.line.includes('best 7.8') && metric.line.includes('worst 11.8'), metric.line)
+  // ...and the chart must not flip: it scales by efficiency, so the 30 mpg tank
+  // stays the taller bar even though it prints the smaller figure.
+  ok('the chart still puts the thriftier tank higher',
+    metric.bars.length === 2 && metric.bars[0] > metric.bars[1], JSON.stringify(metric.bars))
+  const usBars = us.bars
+  ok('and draws exactly the same bars as mpg did',
+    JSON.stringify(metric.bars) === JSON.stringify(usBars), `${JSON.stringify(usBars)} vs ${JSON.stringify(metric.bars)}`)
+
+  // mpg * 0.42514. 30 -> 12.8, 25 -> 10.6, 20 -> 8.5.
+  const kml = await showEconomy('km_l')
+  ok('km/L converts and relabels', kml.headline.startsWith('10.6') && kml.unit === 'km/l',
+    `${kml.headline} / ${kml.unit}`)
+  ok('km/L is higher-is-better, so best is the LARGEST',
+    kml.line.includes('best 12.8') && kml.line.includes('worst 8.5'), kml.line)
+
+  const imp = await showEconomy('mpg_imp')
+  ok('imperial mpg converts', imp.headline.startsWith('30.0'), imp.headline)
+
+  // The sheet has to predict what the page will show, in the same unit.
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: 'l_100km' }) })
+  await home(page)
+  await openSheet(page)
+  await page.getByLabel('Odometer').fill('1800')
+  await page.getByLabel('Volume').fill('10')
+  await page.waitForTimeout(350)
+  const sheetLive = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(e => /this tank/.test(e.textContent || '') && e.children.length === 0)
+    return el ? el.textContent.trim() : ''
+  })
+  // 300 mi on 10 gal = 30 mpg = 7.8 L/100km
+  ok('the sheet speaks the same unit as the page', sheetLive.includes('7.8 L/100km this tank'), `"${sheetLive}"`)
+  await page.keyboard.press('Escape')
+
+  // Settings shows the stored choice, and picking one persists.
+  await page.goto(`${BASE}/settings`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2400)
+  const activeEco = () => page.evaluate(() => {
+    const labels = ['mpg (US)', 'mpg (UK)', 'L/100km', 'km/L']
+    const b = [...document.querySelectorAll('button')]
+      .filter(e => labels.includes(e.textContent.trim()))
+      .find(e => getComputedStyle(e).backgroundColor.includes('200, 102, 26'))
+    return b ? b.textContent.trim() : ''
+  })
+  ok('Settings shows the stored unit', await activeEco() === 'L/100km', await activeEco())
+  await page.getByRole('button', { name: 'km/L', exact: true }).click()
+  await page.waitForTimeout(1400)
+  ok('picking one persists',
+    (await rest(`users?id=eq.${me}&select=economy_unit`)).body?.[0]?.economy_unit === 'km_l')
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ economy_unit: null }) })
+  await wipe(); await restoreMileage()
+
+  // ══ 12. adding, editing and deleting from /fuel ════════════════════════════
+  section('the second door: capture on /fuel')
+  await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2400)
+  const fab = page.getByRole('button', { name: /Fill-up$/ })
+  ok('the page carries an add button', await fab.count() >= 1)
+  await fab.first().click()
+  await page.waitForTimeout(700)
+  ok('it opens the same sheet', await saveBtn(page).count() === 1)
+  ok('and hides the "view history" link, being already here',
+    !(await bodyText(page)).includes('View fuel history'))
+  await page.getByLabel('Odometer').fill('5000')
+  await page.getByLabel('Volume').fill('10')
+  await page.getByLabel('Total cost').fill('40')
+  await saveBtn(page).click()
+  await page.waitForTimeout(2000)
+  let rows = (await rest(`fuel_entries?car_id=eq.${CAR}&select=id,odometer,volume,total_cost,is_full&order=odometer`)).body ?? []
+  ok('a fill-up added from /fuel reaches the database', rows.length === 1 && rows[0].odometer === 5000,
+    JSON.stringify(rows))
+  ok('the log shows it without a reload', (await bodyText(page)).includes('5,000 mi'))
+  // The chart's list filters out the 'first' entry, which has no economy figure
+  // yet. Keying the empty state off it made a one-entry log announce that it was
+  // empty, directly above the entry.
+  ok('and does not still claim the log is empty',
+    !(await bodyText(page)).includes('No fill-ups yet'))
+
+  // A second one, so there is a chain to check the edit against.
+  await fab.first().click()
+  await page.waitForTimeout(700)
+  await page.getByLabel('Odometer').fill('5300')
+  await page.getByLabel('Volume').fill('10')
+  await page.getByLabel('Total cost').fill('40')
+  await saveBtn(page).click()
+  await page.waitForTimeout(2000)
+  ok('300 miles on 10 gallons reads 30.0', (await bodyText(page)).includes('30.0 mpg'))
+
+  section('editing a fill-up')
+  // The newest row is first in the reversed log.
+  await page.locator('button').filter({ hasText: '5,300 mi' }).first().click()
+  await page.waitForTimeout(800)
+  ok('the sheet opens in edit mode', (await bodyText(page)).includes('Edit fill-up'))
+  ok('prefilled with the stored reading', await page.getByLabel('Odometer').inputValue() === '5300')
+  ok('and the stored volume', await page.getByLabel('Volume').inputValue() === '10')
+  ok('and the stored total', await page.getByLabel('Total cost').inputValue() === '40')
+  // THE ROW BEING EDITED MUST NOT ANCHOR ITSELF. With 5300 in the field the
+  // preview has to measure against 5000, not against the stored 5300 (which
+  // would be a zero-mile span). Retype the volume to make the line appear.
+  await page.getByLabel('Volume').fill('10')
+  await page.waitForTimeout(350)
+  const editLive = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('div')].find(e => /this tank/.test(e.textContent || '') && e.children.length === 0)
+    return el ? el.textContent.trim() : ''
+  })
+  ok('the preview measures against the PREVIOUS entry, not the one being edited',
+    editLive.includes('30.0 mpg this tank'), `"${editLive}"`)
+
+  // Correct the odometer: 5000 -> 5600 on 10 gal is 60.0.
+  await page.getByLabel('Odometer').fill('5600')
+  await page.waitForTimeout(300)
+  await saveBtn(page).click()
+  await page.waitForTimeout(2000)
+  rows = (await rest(`fuel_entries?car_id=eq.${CAR}&select=id,odometer&order=odometer`)).body ?? []
+  ok('the edit updated the row rather than adding one',
+    rows.length === 2 && rows[1].odometer === 5600, JSON.stringify(rows))
+  ok('and the chain recomputed', (await bodyText(page)).includes('60.0 mpg'))
+
+  section('deleting a fill-up')
+  await page.locator('button').filter({ hasText: '5,600 mi' }).first().click()
+  await page.waitForTimeout(800)
+  const del = page.getByRole('button', { name: 'Delete fill-up' })
+  ok('edit mode offers a delete', await del.count() === 1)
+  await del.click()
+  await page.waitForTimeout(300)
+  ok('which asks once before doing it',
+    await page.getByRole('button', { name: /Tap again to delete/ }).count() === 1)
+  ok('and has not deleted anything yet',
+    ((await rest(`fuel_entries?car_id=eq.${CAR}&select=id`)).body ?? []).length === 2)
+  await page.getByRole('button', { name: /Tap again to delete/ }).click()
+  await page.waitForTimeout(2000)
+  rows = (await rest(`fuel_entries?car_id=eq.${CAR}&select=id,odometer`)).body ?? []
+  ok('the second tap deletes it', rows.length === 1 && rows[0].odometer === 5000, JSON.stringify(rows))
+  ok('the sheet closed', await saveBtn(page).count() === 0)
+
+  section('receipts on a fill-up')
+  if (!HAS_FUEL_RECEIPTS) {
+    console.log('  skip  migration 100 is not applied yet (receipts.fuel_entry_id does not exist)')
+  } else {
+  const receiptPng = path.resolve(OUT, '_receipt-fixture.png')
+  if (!fs.existsSync(receiptPng)) {
+    // A tiny valid PNG, written once. No network, no binary in the repo.
+    fs.writeFileSync(receiptPng, Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAG0lEQVR4nGP8//8/AzGAiShVowZTx2AGBgYGAI0kBAOa5j9HAAAAAElFTkSuQmCC',
+      'base64'))
+  }
+  await fab.first().click()
+  await page.waitForTimeout(700)
+  await page.getByLabel('Odometer').fill('5900')
+  await page.getByLabel('Volume').fill('10')
+  await page.getByLabel('Total cost').fill('44')
+  await page.setInputFiles('input[type="file"]', receiptPng)
+  await page.waitForTimeout(400)
+  ok('the attached receipt shows before saving',
+    await page.getByRole('button', { name: /^Remove / }).count() === 1)
+  await saveBtn(page).click()
+  await page.waitForTimeout(3000)
+
+  const newEntry = ((await rest(`fuel_entries?car_id=eq.${CAR}&odometer=eq.5900&select=id`)).body ?? [])[0]
+  const rcpt = (await rest(`receipts?fuel_entry_id=eq.${newEntry?.id}&select=id,file_url,file_type,car_id,session_id`)).body ?? []
+  ok('the receipt row was written against the fill-up', rcpt.length === 1, JSON.stringify(rcpt).slice(0, 200))
+  ok('with session_id null and car_id filled in by the trigger',
+    rcpt[0]?.session_id === null && rcpt[0]?.car_id === CAR, JSON.stringify(rcpt[0] ?? {}))
+  ok('and the file landed under the entry id',
+    typeof rcpt[0]?.file_url === 'string' && rcpt[0].file_url.includes(`/${newEntry.id}/`), rcpt[0]?.file_url)
+
+  // Reopen: the stored receipt has to come back, on a SIGNED url.
+  await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()
+  await page.waitForTimeout(1800)
+  const thumbSrc = await page.evaluate(() => {
+    const img = [...document.querySelectorAll('img')].find(i => /receipts/.test(i.src))
+    return img ? img.src : ''
+  })
+  ok('the saved receipt reloads', thumbSrc.length > 0, thumbSrc.slice(0, 80))
+  ok('through a signed URL, never a public one', thumbSrc.includes('token='), thumbSrc.slice(0, 120))
+
+  // Remove it, and prove the storage object went too.
+  await page.getByRole('button', { name: /^Remove / }).first().click()
+  await saveBtn(page).click()
+  await page.waitForTimeout(2500)
+  ok('removing it deletes the row',
+    ((await rest(`receipts?fuel_entry_id=eq.${newEntry.id}&select=id`)).body ?? []).length === 0)
+
+  // GarageDocumentsPage lists EVERY receipt on the car, by car_id. Migration 100
+  // therefore put fuel receipts on a screen that had never seen one: a fill-up
+  // receipt has a null job_id, so without its own branch it lands in the Services
+  // list and renders as a "Service" receipt titled "Service".
+  await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()
+  await page.waitForTimeout(1500)
+  await page.setInputFiles('input[type="file"]', receiptPng)
+  await saveBtn(page).click()
+  await page.waitForTimeout(3000)
+  await page.goto(`${BASE}/garage/documents`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2600)
+  // The screen has two tabs and lands on Documents; receipts live on the other.
+  // The tab's accessible name is the raw value 'receipts' — the capitals are CSS.
+  await page.getByRole('button', { name: /^receipts$/i }).click()
+  await page.waitForTimeout(1800)
+  const docsText = await bodyText(page)
+  // innerText reflects text-transform (textContent would not), so the section
+  // heading comes back as "FUEL · 1".
+  ok('the receipt appears in Documents under Fuel', /fuel · 1/i.test(docsText),
+    docsText.split('\n').filter(l => /·/.test(l)).slice(0, 4).join(' | '))
+  ok('titled as a fill-up, not "Service"', docsText.includes('Fill-up'))
+  ok('with the odometer off the fill-up', docsText.includes('5,900 mi'))
+  ok('and it is NOT counted as a service receipt', !/services · /i.test(docsText))
+  await page.screenshot({ path: path.join(OUT, 'limit-fuel-receipt-docs.png') })
+  await page.goto(`${BASE}/fuel`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2400)
+
+  // Attach again, then delete the whole entry: rows cascade, files are removed
+  // explicitly first (a cascade cannot reach into the bucket).
+  await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()
+  await page.waitForTimeout(1500)
+  await page.setInputFiles('input[type="file"]', receiptPng)
+  await saveBtn(page).click()
+  await page.waitForTimeout(3000)
+  const rcpt2 = ((await rest(`receipts?fuel_entry_id=eq.${newEntry.id}&select=id,file_url`)).body ?? [])[0]
+  ok('a receipt can be added to an existing fill-up', !!rcpt2)
+  await page.locator('button').filter({ hasText: '5,900 mi' }).first().click()
+  await page.waitForTimeout(1500)
+  await page.getByRole('button', { name: 'Delete fill-up' }).click()
+  await page.waitForTimeout(300)
+  await page.getByRole('button', { name: /Tap again to delete/ }).click()
+  await page.waitForTimeout(2500)
+  ok('deleting the fill-up cascades its receipts away',
+    ((await rest(`receipts?fuel_entry_id=eq.${newEntry.id}&select=id`)).body ?? []).length === 0)
+  const orphanFile = await fetch(`${SB}/storage/v1/object/receipts/${rcpt2?.file_url}`, {
+    headers: { apikey: KEY, authorization: `Bearer ${TOK}` },
+  })
+  ok('and its file is gone from the bucket, not orphaned',
+    orphanFile.status === 400 || orphanFile.status === 404, `status ${orphanFile.status}`)
+  }
+  await page.screenshot({ path: path.join(OUT, 'limit-fuel-capture.png') })
   await wipe(); await restoreMileage()
 
   // ══ console ════════════════════════════════════════════════════════════════
@@ -490,25 +786,32 @@ try {
   // excused — it is the regression check on the migration.
   ok('volume_unit never 403s any more (migration 098)',
     session.failedUrls.filter(u => u.startsWith('403') && u.includes('volume_unit')).length === 0)
-  // economy_unit until 099 lands, the fuel_entries POST this test aborted, and a
-  // webfont the sandbox relay occasionally drops. Everything else is news.
-  const eco = session.failedUrls.filter(u => u.includes('economy_unit'))
+  // Since 099 the economy_unit read must succeed too, so it joins volume_unit as
+  // a regression check on its migration rather than an excused failure.
+  ok('economy_unit never fails any more (migration 099)',
+    session.failedUrls.filter(u => u.includes('economy_unit')).length === 0,
+    session.failedUrls.filter(u => u.includes('economy_unit')).slice(0, 2).join(' | '))
+  // Left: the fuel_entries POST this test aborted on purpose, a webfont the
+  // sandbox relay occasionally drops, and — only until migration 100 lands — the
+  // receipts reads that name a column the table does not have yet. Everything
+  // else is news.
   const unexpected = session.failedUrls.filter(u =>
-    !u.includes('fuel_entries') && !u.includes('economy_unit') && !u.includes('fonts.gstatic.com'))
+    !u.includes('fuel_entries') && !u.includes('fonts.gstatic.com')
+    && !(!HAS_FUEL_RECEIPTS && u.includes('fuel_entry_id')))
   ok('nothing failed that was not expected', unexpected.length === 0, unexpected.slice(0, 4).join(' | '))
-  if (eco.length) console.log(`  note  ${eco.length} economy_unit failures — migration 099 is not applied yet; the unit falls back to the derivation`)
   ok('no page errors', realPageErrors(session.errors).length === 0, realPageErrors(session.errors)[0] || '')
 } finally {
   await browser.close()
   await wipe()
   await restoreMileage()
   // The litres section leaves a preference behind if it throws part-way.
-  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us' }) })
+  await rest(`users?id=eq.${me}`, { method: 'PATCH', body: JSON.stringify({ volume_unit: 'gal_us', economy_unit: null }) })
   const left = ((await rest(`fuel_entries?car_id=eq.${CAR}&select=id`)).body ?? []).length
   const odo = (await rest(`cars?id=eq.${CAR}&select=current_mileage`)).body?.[0]?.current_mileage
   const unit = (await rest(`users?id=eq.${me}&select=volume_unit`)).body?.[0]?.volume_unit
-  ok('account left clean', left === 0 && odo === START_MILEAGE && unit === 'gal_us',
-    `${left} rows, odo ${odo}, unit ${unit}`)
+  const eco = (await rest(`users?id=eq.${me}&select=economy_unit`)).body?.[0]?.economy_unit
+  ok('account left clean', left === 0 && odo === START_MILEAGE && unit === 'gal_us' && eco === null,
+    `${left} rows, odo ${odo}, volume ${unit}, economy ${eco}`)
 }
 
 console.log(`\n${pass} passed, ${fail} failed`)
