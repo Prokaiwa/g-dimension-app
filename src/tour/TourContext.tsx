@@ -9,6 +9,10 @@ import { TOUR_STEPS, type TourStep } from './tourSteps'
 
 interface TourValue {
   active: boolean
+  /** True while a full-screen surface (a bottom sheet) is open over the tour.
+   *  The overlay paints nothing while set, then comes back on the same step. */
+  suppressed: boolean
+  setSuppressed: (v: boolean) => void
   step: TourStep | null
   index: number
   total: number
@@ -22,7 +26,8 @@ interface TourValue {
 
 const noop = () => {}
 const TourCtx = createContext<TourValue>({
-  active: false, step: null, index: 0, total: TOUR_STEPS.length,
+  active: false, suppressed: false, setSuppressed: noop,
+  step: null, index: 0, total: TOUR_STEPS.length,
   next: noop, back: noop, skip: noop, replay: noop, notify: noop, jump: noop,
 })
 
@@ -30,6 +35,13 @@ export const useTour = () => useContext(TourCtx)
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false)
+  // TourOverlay sits at zIndex 100000 and BottomSheet at 31, so a sheet opened
+  // during a step would come up UNDER the dim with the spotlight ring floating
+  // over it. Whoever opens the sheet raises this while it is up. Kept in the
+  // engine rather than sniffed from the DOM so the sheet stays the thing that
+  // knows it is open.
+  const [suppressed, setSuppressedState] = useState(false)
+  const setSuppressed = useCallback((v: boolean) => setSuppressedState(v), [])
   const [index, setIndex] = useState(0)
   const indexRef = useRef(0); indexRef.current = index
   const uidRef = useRef<string | null>(null)
@@ -139,7 +151,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   }, [active, index])
 
   return (
-    <TourCtx.Provider value={{ active, step, index, total: TOUR_STEPS.length, next, back, skip, replay, notify, jump }}>
+    <TourCtx.Provider value={{ active, suppressed, setSuppressed, step, index, total: TOUR_STEPS.length, next, back, skip, replay, notify, jump }}>
       {children}
     </TourCtx.Provider>
   )

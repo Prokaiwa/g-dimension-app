@@ -309,6 +309,7 @@ src/components/ImageCarouselLightbox.tsx — Full-screen image carousel viewer: 
 src/components/CameraIcon.tsx       — Shared stroked camera glyph (matches the Garage carousel camera)
 src/lib/sound.ts                    — GT-style UI sounds (playTick/playConfirm/playBack), synthesized on-device via Web Audio — no audio assets, no network. Account-synced on/off in Settings (users.sound_enabled, migration 068; localStorage 'gdim_sound_enabled' is the instant-load cache), default ON (migration 069). Audition board at /sound-test (dev route, bypasses the toggle)
 src/components/ArrivalFade.tsx      — 280ms fade-from-dark used by the five Home-map destinations (/garage /tuning /maintenance /timeline /featured) to complete the Home zoom-exit transition
+src/tour/tourSteps.ts               — The 18 walkthrough steps, pure data. A step's BEHAVIOUR is derived from which fields it carries: `node` = tap a map node; `target` + `waitFor` = spotlight, gated on a real action, no Next; `waitFor` alone = no dim at all; `target` WITHOUT `waitFor` = spotlight + Next, i.e. "here it is" rather than "do it now" (the fuel step). TourContext.suppressed hides the overlay entirely while a bottom sheet is open over it, since the overlay is zIndex 100000 and BottomSheet is 31
 src/pages/SoundTestPage.tsx         — Dev tool at /sound-test — audition board for candidate UI sounds
 src/assets/icons/maintenance/service.webp      — Service tile icon
 src/assets/icons/maintenance/maintenance_detail.webp — Detailing tile icon (transparent WebP)
