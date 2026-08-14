@@ -128,6 +128,7 @@ const PublicDiyPage = lazyWithRetry(() => import('./pages/PublicDiyPage'))
 const PublicEntryDetailPage = lazyWithRetry(() => import('./pages/PublicEntryDetailPage'))
 const PublicFeaturedPage = lazyWithRetry(() => import('./pages/PublicFeaturedPage'))
 const PublicSoldCarPage = lazyWithRetry(() => import('./pages/PublicSoldCarPage'))
+const CarPermalinkPage = lazyWithRetry(() => import('./pages/CarPermalinkPage'))
 
 // Dev tools
 const SpecTestPage = lazyWithRetry(() => import('./pages/SpecTestPage'))
@@ -243,6 +244,7 @@ export default function App() {
     const p = location.pathname
     const isPublic = p === '/' || p.startsWith('/login') || p.startsWith('/signup')
       || p.startsWith('/welcome') || p.startsWith('/auth') || p.startsWith('/builds')
+      || p.startsWith('/c/')
     setMusicAllowed(!isPublic || (p.startsWith('/builds') && hasSession))
   }, [location.pathname, hasSession])
 
@@ -328,7 +330,10 @@ export default function App() {
   // idle so subsequent navigation never shows the dark fallback. import() is
   // module-cached, so these resolve to the same chunks the routes load.
   useEffect(() => {
-    const isPublic = window.location.pathname.startsWith('/builds')
+    // /c/:carId is a public entry point too (a scanned card QR), and it always
+    // redirects into /builds/*, so warm the public world rather than Home.
+    const path = window.location.pathname
+    const isPublic = path.startsWith('/builds') || path.startsWith('/c/')
 
     if (isPublic) void import('./pages/PublicProfilePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
     else void import('./pages/HomePage').catch((e) => { if (isChunkLoadError(e)) reloadForStaleChunk() })
@@ -455,6 +460,11 @@ export default function App() {
       <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
       <Route path="/builds/:username/sold/:ghostId" element={<PublicSoldCarPage />} />
+
+      {/* Stable permalink for PRINTED QR codes (trading cards). Keyed on the
+          car's immutable UUID rather than the owner's editable handle, then
+          redirected to the canonical /builds/* URL. See CarPermalinkPage. */}
+      <Route path="/c/:carId" element={<CarPermalinkPage />} />
 
       {/* Owner-only tools, all reachable from the /admin hub rather than by
           remembering URLs. Previously these shipped to ANY signed-in user

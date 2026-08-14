@@ -1522,3 +1522,53 @@ confirmation rather than a discovery.
 
 Source: `src/index.css`, `src/tokens/index.ts`, 46 header sites, 7 offset sites,
 `test-results/safearea.mjs`.
+
+---
+
+## ADR-037 — A printed QR must not encode anything the owner can change (2026-08-14)
+
+**Decision:** printed trading-card QR codes point at `/c/:carId`, a new public
+route keyed on the car's immutable UUID that resolves the current handle and
+redirects to the canonical `/builds/:username/garage`. The card generator no
+longer prints a `/builds/*` URL directly.
+
+**Context:** `DevTradingCardsPage` encoded
+`gdimension.app/builds/{username}/garage?car={id}`. Usernames are editable in
+`ProfilePage`, behind a full availability-checking edit sheet. Physical cards
+were about to be printed and mailed.
+
+**Rationale:**
+
+- **A printed object cannot be patched.** Every other URL in the app is
+  recoverable: a broken link gets fixed on the next deploy. A QR code on a card
+  in someone's hand is permanent, so it can only encode facts that are also
+  permanent. The car UUID is; the handle is not.
+- **The failure is worse than a dead link.** A freed handle can be claimed by
+  someone else, so a stale card would not 404, it would resolve to a
+  **stranger's garage**. Silent and wrong beats loud and broken only when the
+  wrongness is harmless, and this is not.
+- **Resolution goes through `public_car_profiles`.** The same view every
+  `/builds/*` page reads, so the route cannot expose a car the public garage
+  would not. A private or deleted car resolves to nothing, which is correct.
+- **Shorter payload, better scan.** `/c/{uuid}` is roughly half the characters
+  of the old URL, so the QR drops several density versions. At the 0.4in the
+  card allows, that is the difference between scanning first time and not.
+
+**Rejected — a redirect table keyed on old handles:** keeps `/builds/*` in the
+QR and remaps historical handles. It works until someone changes their handle
+twice, or until a freed handle is reclaimed, at which point the table has to
+decide between two legitimate owners. The UUID never has that argument.
+
+**Rejected — freezing usernames once a card is printed:** solves it in the
+database and breaks a reasonable user expectation. Nobody should lose the
+ability to rename themselves because of a decision the app made about
+cardboard.
+
+**Consequence:** `/c/:carId` joins the public route family and is included in
+the two `isPublic` checks in `App.tsx` (music gating, chunk prefetch), so a
+scanned card warms the public world rather than Home. Per-car OG tags are NOT
+wired for `/c/*` yet: `api/og.js` keys on the `/builds/*` path shape, so a `/c/`
+link shared in a message shows the default card until that is extended.
+
+Source: `src/pages/CarPermalinkPage.tsx`, `src/pages/DevTradingCardsPage.tsx`,
+`src/App.tsx`.

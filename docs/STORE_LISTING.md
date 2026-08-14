@@ -149,8 +149,8 @@ Ordered by how much it matters.
 
 | Gap | Who has it | Assessment |
 |---|---|---|
-| **Fuel / MPG logging** | All three service trackers | **The biggest gap.** It is the single most searched term in the category and G-Dimension has none of it. |
-| **AI receipt scanning (OCR)** | BuildSheet | High perceived value, removes the main friction of logging. |
+| ~~**Fuel / MPG logging**~~ | All three service trackers | **CLOSED 2026-08 (migration 097, ADR-033, `/fuel`).** Was the biggest gap and the most searched term in the category. Tank-to-tank economy between full fills, with partial and missed fill-ups handled, so it is not the shallow version. The listing copy now carries `fuel` and `mpg` as keywords. |
+| **AI receipt scanning (OCR)** | BuildSheet | High perceived value, removes the main friction of logging. **Now the top remaining gap.** |
 | **Performance run logging** (dyno, 1/4 mile, 0-60) | DynoLog | Directly relevant to the tuner audience. |
 | **QR code + printable car show board** | Auto ModList, Garagelog | Cheap to build, and the show board is a real-world hook G-Dimension's public page could use. |
 | **AI mod recommendations / parts search** | BuildSheet, MotorMia | Fashionable. Unclear how much it retains. |
@@ -192,126 +192,45 @@ Nothing found in the research matches these:
 
 ## 7. The listing copy
 
-No em dashes, per the house rule in `CLAUDE.md`. Every field below was measured
-against its limit programmatically, not by eye.
+**Moved into code.** The copy now lives in [`src/lib/storeListing.ts`](../src/lib/storeListing.ts)
+and renders at **`/admin/store-shots`** with live character counts and a copy
+button per field, alongside the screenshots and the privacy answers.
 
-### App Store
+It was duplicated here and in that file for exactly one commit, which is the
+usual lifespan of a fact kept in two places. This section is now a pointer so
+the two can never disagree. What stays here is the *research* (sections 1 to 6
+and 8) that produced the words; what moved is the words themselves.
 
-**Name** (26/30)
-```
-G-Dimension: Car Build Log
-```
+Every length-capped field is asserted against its real store limit in
+`src/lib/storeListing.test.ts`, so an overrun fails `npm run verify` rather
+than failing in App Store Connect after you have pasted it.
 
-**Subtitle** (28/30)
-```
-Mod tracker & service record
-```
+**Two things changed when it moved (2026-08-14):**
 
-**Keywords** (95/100, no spaces, no words repeated from name or subtitle)
-```
-car,mods,tuning,maintenance,garage,parts,receipts,project,restoration,jdm,vehicle,history,maint
-```
-
-**Promotional text** (162/170)
-```
-New: hand your whole build to the next owner. Export a full report, or transfer the entire car profile when you sell. Every mod, service and receipt goes with it.
-```
-
-**Description** (2,529/4,000)
-```
-G-Dimension is a build journal, mod tracker and service log for people who take
-their cars seriously. Every modification, every service, every receipt, kept in
-order for as long as you own the car. And after.
-
-Your build history is worth something. Most of it disappears anyway, buried in
-forum threads, camera rolls and a glovebox full of paper. This is the logbook
-your car should have come with.
-
-THE BUILD SHEET
-Log every part with brand, part number, cost and install date. Structured specs
-for the things that matter to that part, not a free text box. Photos, receipts
-and links on every entry. Grouped into Power, Chassis, Exterior and Interior so
-the whole build reads at a glance.
-
-DIY GUIDES
-Write up how you did the install, step by step, attached to the part itself. Your
-guide stays credited to you even if the car changes hands.
-
-SERVICE HISTORY
-Date, mileage, cost, shop and receipt on every oil change, repair and inspection.
-Running totals so you always know what the car has cost you. A separate log for
-detailing, because it is not the same job.
-
-REMINDERS THAT UNDERSTAND CARS
-Due by date or by mileage, and repeating on either. Every 6 months, every 5,000
-miles, or both. Mark one done and the next one schedules itself.
-
-THE TIMELINE
-Every mod and every service lands on a timeline on its own, in the order it
-happened. Add your own entries for track days, shows, road trips or the day you
-bought it. You do not maintain it. It assembles itself.
-
-PARTS BIN
-Track what you own but have not fitted yet. Wishlist, on hand, in storage. Tyres
-know which wheels they are mounted on, so nothing gets counted twice.
-
-THE BUILD REPORT
-Export a complete PDF of the car: identity, full modification history, full
-service history, total invested. Hand it to a buyer, a tuner or an insurer.
-
-WHEN YOU SELL, THE RECORD GOES WITH IT
-Transfer the entire car profile to the new owner. Not a PDF, the whole thing,
-mods, services, photos, timeline and guides. The car keeps its history and you
-keep a record that you owned it.
-
-YOUR BUILD, ON A COVER
-G-Dimension writes your car a magazine cover from your own photos and specs.
-
-A PAGE OF YOUR OWN
-Share one link and people see your garage, build sheet, timeline and cover.
-Receipts, documents, VIN and purchase price are never public.
-
-PRIVATE BY DEFAULT
-Documents and receipts are stored privately and served over expiring links.
-Nothing about your car is published unless you publish it. Export everything you
-have logged at any time.
-
-Free to use. Built for the long haul.
-```
-
-### Play Store
-
-**Name** (26/30)
-```
-G-Dimension: Car Build Log
-```
-
-**Short description** (79/80)
-```
-Log mods, service, parts and receipts. Your whole build, kept and transferable.
-```
-
-**Full description**
-
-Same body as the App Store description above. Play indexes it, so keep the
-category words in the first paragraph ("build journal, mod tracker and service
-log") exactly as written, and keep the section headers as plain words rather
-than emoji.
-
----
+- **`car` was dropped from the Apple keywords.** This document claimed the
+  keyword list repeated no word from the name or subtitle. It did: the app name
+  is "G-Dimension: Car Build Log". Words in the name are indexed anyway, so the
+  repeat was four wasted characters. The test now enforces the claim.
+- **`fuel` and `mpg` were added, and a FUEL LOG block was added to the
+  description.** Section 5 called fuel logging the single biggest gap in the
+  product, and section 8 recommended building it before the second release. It
+  shipped (migration 097, ADR-033, `/fuel`), so the listing should say so. This
+  was the most-searched term in the category and the listing was silent on it.
 
 ## 8. Recommendation
 
-**Add fuel logging before the second release.** It is the one gap that shows up
-in every competitor and in the search terms for the whole category. Without it,
-G-Dimension is invisible to anyone searching "fuel log" or "MPG tracker", which
-is a large share of the traffic.
-
-It is less trivial than it looks: fuel economy is computed between two FULL
-fills, so partial and missed fill-ups need real handling or every number comes
-out quietly wrong. Field-level research into how Fuelly, Fuelio, Drivvo and
-Simply Auto do it, and what it would take here, is in
+**~~Add fuel logging before the second release.~~ DONE, and it landed before the
+FIRST release.** This was the one gap showing up in every competitor and across
+the category's search terms, and without it the app was invisible to anyone
+searching "fuel log" or "MPG tracker". It shipped properly rather than
+shallowly: economy is computed between two FULL fills, with partial and missed
+fill-ups handled, so the numbers do not come out quietly wrong. See migration
+097, ADR-033, and the field research in
 [`FUEL_LOG_RESEARCH.md`](./FUEL_LOG_RESEARCH.md).
+
+**Next gap worth closing: receipt OCR.** With fuel done, the remaining item that
+both removes real friction and reads well on a listing is scanning a receipt
+into a mod or service record. It is the version of "AI" that earns its place.
 
 **Lead the listing on transfer.** It is the only thing here nobody else does.
 Everyone exports a PDF. Only G-Dimension hands over the car.
