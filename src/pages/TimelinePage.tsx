@@ -32,6 +32,7 @@ import {
   COLOR_TIMELINE_DETAIL, COLOR_TIMELINE_NOTE, RADIUS_TIMELINE_CARD, RADIUS_BUTTON,
   FONT_UI, FONT_TITLE, EASING_SETTLE, CANVAS_W, COLOR_ERROR,
   COLOR_ACCENT, COLOR_ACCENT_TEXT,
+  SAFE_TOP,
 } from '../tokens'
 
 // ── Layout constants ──
@@ -579,7 +580,7 @@ export default function TimelinePage() {
         // sets viewport-fit=cover, so the webview really does extend under the
         // status bar in the native build - without the inset this sits behind
         // it on any notched iPhone.
-        position: 'fixed', top: 'calc(8px + env(safe-area-inset-top))', left: 8, width: 44, height: 44, zIndex: 20,
+        position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 20,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
         WebkitTapHighlightColor: 'transparent',

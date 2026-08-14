@@ -39,7 +39,7 @@ import play07 from '../assets/store-shots/play-07.webp'
 import featureGraphic from '../assets/store-shots/feature-graphic.webp'
 import {
   GRADIENT_APP_BG, COLOR_HEADER_BLACK, COLOR_HEADER_TITLE, COLOR_ACCENT,
-  FONT_UI, FONT_TITLE, HEADER_HEIGHT, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL,
+  FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_XS, SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL,
 } from '../tokens'
 
 const CREAM = '#f0e4c8'
@@ -131,9 +131,8 @@ export default function AdminStoreShotsPage() {
     }}>
       {/* Header */}
       <div style={{
-        height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
-        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10,
-      }}>
+        height: HEADER_HEIGHT_SAFE, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center',
+        padding: `0 ${SPACE_MD}px`, gap: SPACE_SM, position: 'sticky', top: 0, zIndex: 10, paddingTop: SAFE_TOP }}>
         <button onClick={() => navigate('/admin')} aria-label="Back" style={{
           background: 'none', border: 'none', cursor: 'pointer', color: COLOR_HEADER_TITLE,
           fontSize: 22, lineHeight: 1, padding: 0, WebkitTapHighlightColor: 'transparent',

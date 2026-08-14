@@ -30,8 +30,7 @@ import {
   COLOR_TEXT_SECONDARY,
   COLOR_ACCENT,
   FONT_UI,
-  FONT_TITLE,
-  HEADER_HEIGHT,
+  FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   SPACE_XS,
   SPACE_SM,
   SPACE_MD,
@@ -313,7 +312,7 @@ export default function PublicGaragePage() {
 
       {/* ── Header — graphite bar + "Garage" (Cormorant italic), date chip ── */}
       <div style={{
-        position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK,
+        position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10,
         borderBottom: '1px solid rgba(255,255,255,0.04)',

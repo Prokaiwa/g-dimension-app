@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { SIGNED_URL_TTL } from '../lib/signedUrls'
 import { getActiveCarId } from '../lib/activeCar'
 import { CATEGORY_TO_GROUP, GROUP_PHOTO_COL } from '../lib/buildGroups'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT_SAFE, SAFE_TOP } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 import { asMileageUnit, formatMiles, type MileageUnit } from '../lib/mileage'
 import ImageCarouselLightbox from '../components/ImageCarouselLightbox'
@@ -388,7 +388,7 @@ export default function TuningModDetailPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 5, pointerEvents: 'none', background: ['radial-gradient(ellipse 70% 48% at 90% 94%, rgba(245,232,195,0.065) 0%, rgba(245,232,195,0.025) 48%, transparent 72%)', 'radial-gradient(ellipse 55% 30% at 10% 6%, rgba(175,195,215,0.04) 0%, transparent 60%)'].join(', ') }} />
         <div style={{ position: 'fixed', inset: 0, zIndex: 4, pointerEvents: 'none', backgroundImage: NOISE_SVG, backgroundSize: '220px 220px', opacity: 0.028, mixBlendMode: 'screen' }} />
         {/* Functional header — back button works during load */}
-        <div style={{ height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 16, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
+        <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 16, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
           <button onClick={() => navigate('/tuning/build-sheet')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 12px 4px 8px', WebkitTapHighlightColor: 'transparent' }}>
             <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
             <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 15, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(245,240,228,0.5)' }}>Build Sheet</span>
@@ -434,7 +434,7 @@ export default function TuningModDetailPage() {
 
       {/* ── Header ── */}
       <div style={{
-        height: HEADER_HEIGHT, flexShrink: 0,
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0,
         background: COLOR_HEADER_BLACK,
         display: 'flex', alignItems: 'center',
         paddingLeft: 4, paddingRight: 16,

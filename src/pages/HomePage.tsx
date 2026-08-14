@@ -21,8 +21,7 @@ import {
   COLOR_BURGUNDY_L,
   COLOR_BURGUNDY_M,
   COLOR_BURGUNDY_R,
-  FONT_UI,
-  HEADER_HEIGHT,
+  FONT_UI, HEADER_HEIGHT, HEADER_HEIGHT_SAFE, SAFE_TOP,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   SHADOW_AMBER_HALO,
@@ -690,13 +689,13 @@ export default function HomePage() {
       {/* ── Header ── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
-        height: HEADER_HEIGHT, zIndex: 10,
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, zIndex: 10,
         overflow: 'hidden',
       }}>
         <svg
           viewBox="0 0 390 44"
           preserveAspectRatio="none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT }}
         >
           <defs>
             <linearGradient id="hdrGrad" x1="0" y1="0" x2="1" y2="0">
@@ -711,7 +710,7 @@ export default function HomePage() {
         </svg>
 
         {/* Right: car info + date */}
-        <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
+        <div style={{ position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
           {carInfo && (
             <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}>
               {carInfo}
@@ -741,7 +740,7 @@ export default function HomePage() {
             navigate('/profile')
           }}
           style={{
-            position: 'absolute', left: 10, top: 0, height: '100%',
+            position: 'absolute', left: 10, top: SAFE_TOP, height: HEADER_HEIGHT,
             display: 'flex', alignItems: 'center', gap: 8,
             cursor: 'pointer', padding: '4px 6px',
           }}
@@ -824,7 +823,7 @@ export default function HomePage() {
         ref={stageRef}
         style={{
           position: 'absolute',
-          top: HEADER_HEIGHT, left: 0, right: 0, bottom: 0,
+          top: HEADER_HEIGHT_SAFE, left: 0, right: 0, bottom: 0,
           overflow: 'hidden',
           perspective: '1400px',
           perspectiveOrigin: '50% 40%',

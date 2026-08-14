@@ -5,7 +5,7 @@ import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { asMileageUnit, milesToUnit, unitToMiles, type MileageUnit } from '../lib/mileage'
 import { SIGNED_URL_TTL } from '../lib/signedUrls'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, HEADER_HEIGHT_SAFE, SAFE_TOP } from '../tokens'
 import { getYouTubeId, getYouTubeThumbnail, type JobLink } from '../lib/links'
 import { TITLE_PLACEHOLDER, TITLE_FALLBACK, brandPlaceholder } from '../lib/tuningExamples'
 import LinkOutIcon from '../components/LinkOutIcon'
@@ -592,7 +592,7 @@ export default function TuningModEditPage() {
 
       {/* Header */}
       <div style={{
-        height: HEADER_HEIGHT, flexShrink: 0,
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0,
         background: COLOR_HEADER_BLACK,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingLeft: 4, paddingRight: 16,

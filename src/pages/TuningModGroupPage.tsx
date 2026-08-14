@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabase'
 import {
   FONT_UI, COLOR_ACCENT,
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
-  COLOR_BURGUNDY_M, HEADER_HEIGHT, EASING_SETTLE,
+  COLOR_BURGUNDY_M, HEADER_HEIGHT_SAFE, SAFE_TOP, EASING_SETTLE,
 } from '../tokens'
 
 const NOISE_SVG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`
@@ -113,7 +113,7 @@ export default function TuningModGroupPage() {
 
       {/* ── Header ── */}
       <div style={{
-        height: HEADER_HEIGHT, flexShrink: 0,
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0,
         background: COLOR_HEADER_BLACK,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         paddingLeft: 10, paddingRight: 14,

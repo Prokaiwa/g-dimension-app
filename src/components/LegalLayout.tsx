@@ -15,7 +15,8 @@ import {
   COLOR_ACCENT,
   FONT_UI,
   FONT_TITLE,
-  HEADER_HEIGHT,
+  HEADER_HEIGHT_SAFE,
+  SAFE_TOP,
   SPACE_MD,
   SPACE_LG,
   SPACE_XL,
@@ -26,7 +27,7 @@ export function LegalLayout({ title, updated, children }: { title: string; updat
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: GRADIENT_APP_BG, backgroundColor: COLOR_CAVITY_BG, fontFamily: FONT_UI, overflow: 'hidden' }}>
       {/* Header */}
-      <div style={{ position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)', paddingTop: 'env(safe-area-inset-top)' }}>
+      <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)', paddingTop: SAFE_TOP }}>
         <button onClick={() => navigate(-1)} aria-label="Back" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 4px', display: 'flex', alignItems: 'center' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
         </button>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isChunkLoadError } from '../lib/chunkReload'
-import { COLOR_BRAND, COLOR_ACCENT_TEXT, FONT_UI, SPACE_SM } from '../tokens'
+import { COLOR_BRAND, COLOR_ACCENT_TEXT, FONT_UI, SAFE_TOP, SPACE_SM } from '../tokens'
 
 // Lightweight on-device error surface for phone testing. Catches uncaught
 // errors and unhandled promise rejections and shows a dismissible banner, so
@@ -61,7 +61,7 @@ export default function ErrorBanner() {
   if (errors.length === 0) return null
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 1, paddingTop: 'env(safe-area-inset-top)' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 1, paddingTop: SAFE_TOP }}>
       {errors.map((msg, i) => (
         <div key={`${i}-${msg}`} style={{ background: COLOR_BRAND, color: COLOR_ACCENT_TEXT, fontFamily: FONT_UI, fontWeight: 600, fontSize: 12, lineHeight: 1.45, padding: `${SPACE_SM}px 12px`, display: 'flex', alignItems: 'flex-start', gap: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }}>
           <span style={{ flex: 1, wordBreak: 'break-word' }}>{msg}</span>

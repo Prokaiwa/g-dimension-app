@@ -34,8 +34,7 @@ import {
   COLOR_PANEL_LINE,
   COLOR_TEXT_SECONDARY,
   FONT_UI,
-  FONT_TITLE,
-  HEADER_HEIGHT,
+  FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP,
   SPACE_XS,
   SPACE_SM,
   SPACE_MD,
@@ -289,7 +288,7 @@ const YEAR_LIST = Array.from({ length: CURRENT_YEAR - 1949 }, (_, i) => String(C
 function YearPickerSheet({ value, onSelect, onClose }: { value: string; onSelect: (v: string) => void; onClose: () => void }) {
   const [local, setLocal] = useState(value || String(CURRENT_YEAR))
   return (
-    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT_SAFE, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: `0 ${SPACE_XL}px` }}>
         <WheelPicker items={YEAR_LIST} value={local} onChange={setLocal} />
       </div>
@@ -393,7 +392,7 @@ function MakePickerSheet({
   }
 
   return (
-    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT_SAFE, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
       <div style={{ padding: `${SPACE_SM}px ${SPACE_MD}px`, background: '#0a0a0c', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <input
           type="text"
@@ -455,7 +454,7 @@ function ModelPickerSheet({
   }
 
   return (
-    <div style={{ position: 'absolute', top: HEADER_HEIGHT, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
+    <div style={{ position: 'absolute', top: HEADER_HEIGHT_SAFE, bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', flexDirection: 'column', background: COLOR_CAVITY_BG }}>
       <div style={{ padding: `${SPACE_SM}px ${SPACE_MD}px`, background: '#0a0a0c', borderBottom: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
         <input
           type="text"
@@ -499,7 +498,7 @@ export function GarageBg() {
 // ── Shared header ── (exported for the Edit Car route to match the garage chrome)
 export function GarageHeader({ onBack, subtitle }: { onBack: () => void; subtitle?: string }) {
   return (
-    <div style={{ position: 'relative', height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+    <div style={{ position: 'relative', height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, flexShrink: 0, zIndex: 10, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px 4px 4px', display: 'flex', alignItems: 'center' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>

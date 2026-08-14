@@ -9,7 +9,7 @@ import {
   COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_HEADER_TITLE,
   COLOR_BURGUNDY_L, COLOR_TIMELINE_DETAIL,
   COLOR_DETAIL_BG, COLOR_DETAIL_INK, COLOR_DETAIL_INK_DIM, COLOR_DETAIL_RULE,
-  FONT_UI, HEADER_HEIGHT,
+  FONT_UI, HEADER_HEIGHT_SAFE, SAFE_TOP,
 } from '../tokens'
 
 const MONTHS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -321,7 +321,7 @@ export default function MaintenanceDetailEditPage() {
 
   if (loading) return (
     <div style={{ height: '100dvh', background: BG, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK }} />
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK }} />
     </div>
   )
 
@@ -337,7 +337,7 @@ export default function MaintenanceDetailEditPage() {
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ height: HEADER_HEIGHT, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
+      <div style={{ height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, flexShrink: 0, background: COLOR_HEADER_BLACK, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10, paddingRight: 14, borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative', zIndex: 10 }}>
         <button onClick={() => navigate(detailRoute)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px 4px 4px', WebkitTapHighlightColor: 'transparent' }}>
           <span style={{ color: COLOR_HEADER_WARM, fontSize: 22, fontWeight: 300, lineHeight: 1 }}>‹</span>
           <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 13, color: COLOR_HEADER_TITLE, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Detailing</span>

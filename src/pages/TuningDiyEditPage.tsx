@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import imageCompression from 'browser-image-compression'
 import { supabase } from '../lib/supabase'
 import { getYouTubeId, getYouTubeThumbnail } from '../lib/links'
-import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, HEADER_HEIGHT, RADIUS_BUTTON } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, HEADER_HEIGHT_SAFE, SAFE_TOP, RADIUS_BUTTON } from '../tokens'
 
 // ── DIY aesthetic tokens ───────────────────────────────────────────────────
 const BG = '#f0efec'
@@ -570,7 +570,7 @@ export default function TuningDiyEditPage() {
     <div style={{ background: BG, minHeight: '100vh', paddingBottom: 40 }}>
       {/* Header */}
       <div style={{
-        height: HEADER_HEIGHT, background: COLOR_HEADER_BLACK,
+        height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, background: COLOR_HEADER_BLACK,
         display: 'flex', alignItems: 'center', paddingLeft: 4, paddingRight: 16,
         position: 'sticky', top: 0, zIndex: 50,
       }}>

@@ -8,6 +8,7 @@ import { getActiveCarId } from '../lib/activeCar'
 import {
   FONT_HANDWRITTEN, FONT_STAMP,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
+  SAFE_TOP,
 } from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ export default function TuningPartsPage() {
       <div style={{ position: 'relative', zIndex: 2, paddingBottom: 100 }}>
 
         {/* ── Top bar ── */}
-        <div style={{ padding: '16px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: `calc(16px + ${SAFE_TOP}) 20px 0`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             onClick={() => navigate('/tuning')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 4, WebkitTapHighlightColor: 'transparent' }}
