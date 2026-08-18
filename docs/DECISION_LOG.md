@@ -1566,9 +1566,22 @@ cardboard.
 
 **Consequence:** `/c/:carId` joins the public route family and is included in
 the two `isPublic` checks in `App.tsx` (music gating, chunk prefetch), so a
-scanned card warms the public world rather than Home. Per-car OG tags are NOT
-wired for `/c/*` yet: `api/og.js` keys on the `/builds/*` path shape, so a `/c/`
-link shared in a message shows the default card until that is extended.
+scanned card warms the public world rather than Home.
+
+It also carries the **per-car link preview**, which matters because a card URL
+gets pasted into messages and for-sale listings, not only scanned. `vercel.json`
+rewrites `^/c/([^/?]+)` to `api/og?carid=$1`, and `resolveCarById()` looks the
+car up by id through the same `public_car_profiles` view and the same
+`CAR_SELECT` column list as the handle-based lookup, extracted to a shared
+constant so the two cannot drift into selecting different things.
+
+The `/c/` branch deliberately emits **no `#root` block and no JSON-LD**, unlike
+every `/builds/*` room. The route redirects client-side, and injecting indexable
+content into a page that immediately bounces reads as cloaking. Its canonical
+points at `/builds/:username/garage` instead, so search consolidates on the real
+room and the permalink never competes with it. An unresolvable id falls back to
+the generic preview with a canonical of `/`, so a mistyped or private card
+unfurls as G-Dimension rather than as an error.
 
 Source: `src/pages/CarPermalinkPage.tsx`, `src/pages/DevTradingCardsPage.tsx`,
-`src/App.tsx`.
+`src/App.tsx`, `api/og.js`, `vercel.json`.

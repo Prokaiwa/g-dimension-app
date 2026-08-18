@@ -108,26 +108,28 @@ async function fetchIndexHtml(host) {
   return res.text()
 }
 
+// Public columns only, shared by BOTH car lookups (by handle, and by id for the
+// /c/ permalink) so the two can never drift into selecting different things.
+// Everything here is already anon-readable through the public_car_profiles
+// view; there is deliberately no VIN, plate, purchase price or cost column.
+const CAR_SELECT =
+  'id,year,make,model,trim,variant,nickname,username,display_name,' +
+  'original_photo_url,showcase_photo_url,garage_photo_url,active_car_id,created_at,' +
+  'show_buildsheet_publicly,show_timeline_publicly,show_featured_publicly,' +
+  'chassis_code,color,engine_type,engine_origin,forced_induction,transmission,drivetrain,' +
+  'horsepower,torque,current_mileage,weight_lbs,usage_type,' +
+  'bio,city,country,purchase_story,featured_story,' +
+  'power_unit,torque_unit,distance_unit,mileage_unit'
+
 // Resolve username -> the car to feature. Mirrors PublicProfilePage: prefer the
 // visitor-selected ?car, then the owner's active car, then the newest public
 // car. Returns null for private/missing (caller falls back to generic OG).
 async function resolveCar(username, carParam) {
   if (!username || !SUPABASE_ANON_KEY) return null
-  // Public columns only. Everything here is already anon-readable through the
-  // public_car_profiles view; there is deliberately no VIN, plate, purchase
-  // price or cost column in this list.
-  const select =
-    'id,year,make,model,trim,variant,nickname,username,display_name,' +
-    'original_photo_url,showcase_photo_url,garage_photo_url,active_car_id,created_at,' +
-    'show_buildsheet_publicly,show_timeline_publicly,show_featured_publicly,' +
-    'chassis_code,color,engine_type,engine_origin,forced_induction,transmission,drivetrain,' +
-    'horsepower,torque,current_mileage,weight_lbs,usage_type,' +
-    'bio,city,country,purchase_story,featured_story,' +
-    'power_unit,torque_unit,distance_unit,mileage_unit'
   const url =
     `${SUPABASE_URL}/rest/v1/public_car_profiles` +
     `?username=eq.${encodeURIComponent(username)}` +
-    `&select=${encodeURIComponent(select)}` +
+    `&select=${encodeURIComponent(CAR_SELECT)}` +
     `&order=created_at.desc`
   const res = await fetch(url, {
     headers: {
@@ -145,6 +147,28 @@ async function resolveCar(username, carParam) {
     rows[0] ||
     null
   )
+}
+
+// Resolve a car by its own id, for the /c/:carId permalink that printed
+// trading-card QR codes carry (ADR-037). Same view, same public columns as
+// resolveCar; only the lookup key differs, because a card cannot encode a
+// handle that its owner is free to change afterwards.
+async function resolveCarById(carId) {
+  if (!carId || !SUPABASE_ANON_KEY) return null
+  const url =
+    `${SUPABASE_URL}/rest/v1/public_car_profiles` +
+    `?id=eq.${encodeURIComponent(carId)}` +
+    `&select=${encodeURIComponent(CAR_SELECT)}` +
+    `&limit=1`
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  })
+  // A malformed id makes PostgREST reject the uuid cast, which lands here as
+  // !ok and falls through to the generic preview. That is the right outcome:
+  // a bad card should unfurl as G-Dimension, not as an error.
+  if (!res.ok) return null
+  const rows = await res.json()
+  return Array.isArray(rows) && rows.length ? rows[0] : null
 }
 
 // Self/consolidated canonical for a /builds/* path. The room landing pages
@@ -460,6 +484,10 @@ export default async function handler(req, res) {
   const room = decodeURIComponent(segs[1] || '')
   // /builds/:username/sold/:ghostId → a sold-car unfurl.
   const soldId = room === 'sold' ? decodeURIComponent(segs[2] || '') : null
+  // /c/:carId → the printed-card permalink (ADR-037). Rewritten here as ?carid
+  // so a scanned or pasted card link unfurls with that car's photo instead of
+  // the generic default.
+  const carIdParam = parsed.searchParams.get('carid')
   // Crawlable HTML injected into #root; null keeps #root empty (private /
   // missing builds, and the thin per-record detail routes).
   let rootBlock = null
@@ -489,7 +517,31 @@ export default async function handler(req, res) {
     try { sold = await resolveSoldCar(soldId) } catch { sold = null }
   }
 
-  if (sold) {
+  // The /c/ permalink. Handled before the handle-based lookup because it has no
+  // handle to look up: the whole point of the route is that the URL survives a
+  // rename. Deliberately NO rootBlock and NO JSON-LD here: this route redirects
+  // client-side to /builds/*, and injecting indexable content into a page that
+  // immediately bounces reads as cloaking. The canonical points at the garage
+  // room instead, so search consolidates there and /c/ never competes with it.
+  let permalinkCar = null
+  if (carIdParam) {
+    try { permalinkCar = await resolveCarById(carIdParam) } catch { permalinkCar = null }
+  }
+
+  if (carIdParam) {
+    if (permalinkCar) {
+      const name = carName(permalinkCar)
+      const owner = permalinkCar.display_name || `@${permalinkCar.username}`
+      title = `${name} · G-Dimension`
+      description = `${name}, a build by ${owner} on G-Dimension.`
+      image = carImage(permalinkCar)
+      canonical = roomCanonical(permalinkCar.username, 'garage')
+    } else {
+      // Private, deleted, or a mistyped id. Generic preview, no leak, and a
+      // canonical that does not pretend a build page exists.
+      canonical = `${SITE}/`
+    }
+  } else if (sold) {
     const name = soldName(sold)
     title = `${name} — Sold · G-Dimension`
     description = sold.buyer_username
