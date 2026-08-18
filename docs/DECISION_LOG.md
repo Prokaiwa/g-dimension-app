@@ -1585,3 +1585,63 @@ unfurls as G-Dimension rather than as an error.
 
 Source: `src/pages/CarPermalinkPage.tsx`, `src/pages/DevTradingCardsPage.tsx`,
 `src/App.tsx`, `api/og.js`, `vercel.json`.
+
+---
+
+## ADR-038 — A route param that is an id gets checked for shape before it becomes a query (2026-08-17)
+
+**Decision:** every route whose path carries a UUID param is wrapped in
+`<RequireUuid params={[...]}>`, which renders `NotFoundPage` when the param is
+not a well-formed UUID. The pattern lives once, in `src/lib/uuid.ts`.
+
+**Context:** found by accident. A test harness used `/maintenance/detailing`
+where the real route is `/maintenance/detail`, and instead of a 404 it produced
+three failing Supabase requests. React Router v6 has no way to constrain a path
+segment, so `/maintenance/:sessionId` is a catch-all for **one segment**: it
+matched the word "detailing" and handed it to `MaintenanceSessionDetailPage`,
+which did what it always does and queried `sessions?id=eq.detailing`.
+
+**Rationale:**
+
+- **A malformed id is a 400, not an empty result.** `id` is a Postgres `uuid`,
+  so a non-uuid string fails at the type level with `22P02` before RLS is even
+  consulted. PostgREST returns 400, and `reportActionError` mirrors it to
+  Sentry. Three requests per hit, on a free-tier quota, for an address that was
+  never valid.
+- **The designed 404 was unreachable.** `path="*"` only runs when nothing
+  matched, and something did match. The user got the page's own not-found
+  branch instead: on `/maintenance/*` that is a near-blank screen with a bare
+  `← Back`, which is not the "Wrong turn." screen anyone designed.
+- **Guarded at the route, not in each page.** One rule beside the routes it
+  governs, and no page's loading/error logic changes. 18 routes were affected;
+  patching 18 pages would have meant 18 chances to get a page's own states
+  subtly wrong.
+- **Inside `ProtectedRoute`, never outside.** A signed-out visitor with a
+  malformed id should still be sent to login. Auth first, then shape. Same for
+  `AdminOnly` on `/admin/review/:carId`: the admin gate resolves before the id
+  is inspected, so the ordering of those two checks can never be probed.
+- **`:username` is not an id.** Handles are user-chosen text and are excluded
+  deliberately; the public profile pages already resolve a missing handle
+  through the view.
+
+**Rejected — validating inside each page:** it is where the query is, but it
+puts the same four lines in 18 files and mixes "this address is malformed" into
+loading state that already means "this record does not exist". Those are
+different answers and only one of them is a 404.
+
+**Exception — `/c/:carId` keeps its own handling.** That id came off a
+**printed** QR code, which cannot be corrected once mailed. "Not public." with a
+route onward to Discover is both kinder and more accurate than a bare 404, and
+the page already distinguishes a backend failure from a private build. It uses
+the same `isUuid` helper, just not the same response.
+
+**Consequence:** a new id route must be added to the guard. The pattern being
+single-source is enforced by `scripts/constitution.mjs`; the wrapping is not,
+and cannot easily be — a route that forgets it degrades to the old behaviour
+rather than breaking, which is the right failure direction but is silent.
+`test-results/uuid-routes.mjs` checks all 18 both ways (junk → 404 with zero
+requests; well-formed → passes through to the page), because a guard that
+rejects everything is the easy mistake here.
+
+Source: `src/lib/uuid.ts`, `src/lib/uuid.test.ts`, `RequireUuid` in
+`src/App.tsx`, `src/pages/CarPermalinkPage.tsx`.

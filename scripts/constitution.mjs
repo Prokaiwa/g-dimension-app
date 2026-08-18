@@ -112,6 +112,20 @@ section('Single sources of truth')
     `found in: ${kmCheck.extra.join(', ')} — import KM_PER_MI from src/lib/unitConversion.ts so one physical constant can never drift`
   )
 
+  // The UUID pattern. Every id in the schema is a Postgres uuid, and `.eq()` on
+  // a uuid column with a non-uuid string is a 22P02 error surfacing as a 400 —
+  // not an empty result. React Router cannot constrain a path segment, so the
+  // shape has to be checked in app code, and a second copy of the pattern is a
+  // second thing to get subtly wrong (case sensitivity, anchoring, the version
+  // nibble). Route guarding lives in <RequireUuid> in App.tsx.
+  const uuidHits = filesMatching(/\[0-9a-f\]\{8\}-|\[0-9a-fA-F\]\{8\}-/)
+  const uuidCheck = onlyIn(uuidHits, ['src/lib/uuid.ts'])
+  check(
+    'UUID pattern defined only in lib/uuid.ts',
+    uuidCheck.extra.length === 0,
+    `found in: ${uuidCheck.extra.join(', ')} — import isUuid/UUID_RE from src/lib/uuid.ts`
+  )
+
   // The active-car localStorage key must never be referenced outside the helper.
   const keyHits = filesMatching(/gdim_chosen_car_id/)
   const keyCheck = onlyIn(keyHits, ['src/lib/activeCar.ts'])

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense, type ComponentType } from 'react'
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './lib/supabase'
@@ -16,6 +16,7 @@ import { prewarmSfx, syncSoundPrefFromServer } from './lib/sound'
 import { setErrorTrackingUser } from './lib/errorTracking'
 import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
+import { isUuid } from './lib/uuid'
 import { Analytics } from '@vercel/analytics/react'
 
 // Eager — the app shell that must always be present (no route chunk of its own).
@@ -176,6 +177,26 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (state === 'anon') return <Navigate to="/login" replace />
   if (state === 'onboarding') return <Navigate to="/welcome" replace />
   return <>{children}</>
+}
+
+// Route guard: a malformed id renders the 404 instead of reaching a query.
+//
+// React Router v6 cannot constrain a path segment, so `/maintenance/:sessionId`
+// is a catch-all for ONE segment — it matches `/maintenance/detailing` and
+// passes the literal word to a `.eq()` on a uuid column. Postgres rejects that
+// with 22P02, PostgREST returns 400, and the page's not-found branch renders a
+// near-blank screen, having first fired three failing requests that Sentry then
+// records. And because the route DID match, `path="*"` never runs, so the
+// designed NotFoundPage is never reached. Guarding at the route keeps the rule
+// in one place and leaves every page's own loading/error logic untouched.
+//
+// Always nested INSIDE ProtectedRoute, never outside: a signed-out visitor with
+// a malformed id should still get the login redirect. Auth first, then shape.
+//
+// `:username` is a handle, not an id, so it is never listed here.
+function RequireUuid({ params, children }: { params: string[]; children: React.ReactNode }) {
+  const p = useParams()
+  return params.every((name) => isUuid(p[name])) ? <>{children}</> : <NotFoundPage />
 }
 
 // The /welcome claim screen: needs a session, but is only reachable while
@@ -399,7 +420,7 @@ export default function App() {
 
       <Route path="/garage" element={<ProtectedRoute><GaragePage /></ProtectedRoute>} />
       <Route path="/garage/cars" element={<ProtectedRoute><GarageCarsPage /></ProtectedRoute>} />
-      <Route path="/garage/cars/:carId/edit" element={<ProtectedRoute><GarageCarsEditPage /></ProtectedRoute>} />
+      <Route path="/garage/cars/:carId/edit" element={<ProtectedRoute><RequireUuid params={['carId']}><GarageCarsEditPage /></RequireUuid></ProtectedRoute>} />
       <Route path="/garage/snapshot" element={<ProtectedRoute><GarageSnapshotPage /></ProtectedRoute>} />
       <Route path="/garage/documents" element={<ProtectedRoute><GarageDocumentsPage /></ProtectedRoute>} />
       <Route path="/garage/contacts" element={<ProtectedRoute><GarageContactsPage /></ProtectedRoute>} />
@@ -409,29 +430,29 @@ export default function App() {
       <Route path="/tuning" element={<ProtectedRoute><TuningPage /></ProtectedRoute>} />
       <Route path="/tuning/build-sheet" element={<ProtectedRoute><TuningBuildSheetPage /></ProtectedRoute>} />
       <Route path="/tuning/parts-bin" element={<ProtectedRoute><TuningPartsPage /></ProtectedRoute>} />
-      <Route path="/tuning/parts-bin/:partId" element={<ProtectedRoute><TuningPartDetailPage /></ProtectedRoute>} />
-      <Route path="/tuning/parts-bin/:partId/edit" element={<ProtectedRoute><TuningPartEditPage /></ProtectedRoute>} />
+      <Route path="/tuning/parts-bin/:partId" element={<ProtectedRoute><RequireUuid params={['partId']}><TuningPartDetailPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/tuning/parts-bin/:partId/edit" element={<ProtectedRoute><RequireUuid params={['partId']}><TuningPartEditPage /></RequireUuid></ProtectedRoute>} />
       <Route path="/tuning/add" element={<ProtectedRoute><TuningAddPage /></ProtectedRoute>} />
-      <Route path="/tuning/mod-group/:sessionId" element={<ProtectedRoute><TuningModGroupPage /></ProtectedRoute>} />
-      <Route path="/tuning/mods/:modId" element={<ProtectedRoute><TuningModDetailPage /></ProtectedRoute>} />
-      <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><TuningModEditPage /></ProtectedRoute>} />
-      <Route path="/tuning/mods/:modId/diy" element={<ProtectedRoute><TuningDiyPage /></ProtectedRoute>} />
-      <Route path="/tuning/mods/:modId/diy/edit" element={<ProtectedRoute><TuningDiyEditPage /></ProtectedRoute>} />
+      <Route path="/tuning/mod-group/:sessionId" element={<ProtectedRoute><RequireUuid params={['sessionId']}><TuningModGroupPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId" element={<ProtectedRoute><RequireUuid params={['modId']}><TuningModDetailPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/edit" element={<ProtectedRoute><RequireUuid params={['modId']}><TuningModEditPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/diy" element={<ProtectedRoute><RequireUuid params={['modId']}><TuningDiyPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/tuning/mods/:modId/diy/edit" element={<ProtectedRoute><RequireUuid params={['modId']}><TuningDiyEditPage /></RequireUuid></ProtectedRoute>} />
 
       <Route path="/maintenance" element={<ProtectedRoute><MaintenancePage /></ProtectedRoute>} />
       <Route path="/maintenance/service" element={<ProtectedRoute><MaintenanceServicePage /></ProtectedRoute>} />
       <Route path="/maintenance/service/new" element={<ProtectedRoute><MaintenanceServiceNewPage /></ProtectedRoute>} />
-      <Route path="/maintenance/service/edit/:sessionId" element={<ProtectedRoute><MaintenanceServiceEditPage /></ProtectedRoute>} />
+      <Route path="/maintenance/service/edit/:sessionId" element={<ProtectedRoute><RequireUuid params={['sessionId']}><MaintenanceServiceEditPage /></RequireUuid></ProtectedRoute>} />
       <Route path="/maintenance/detail" element={<ProtectedRoute><MaintenanceDetailPage /></ProtectedRoute>} />
       <Route path="/maintenance/detail/new" element={<ProtectedRoute><MaintenanceDetailNewPage /></ProtectedRoute>} />
-      <Route path="/maintenance/detail/edit/:sessionId" element={<ProtectedRoute><MaintenanceDetailEditPage /></ProtectedRoute>} />
+      <Route path="/maintenance/detail/edit/:sessionId" element={<ProtectedRoute><RequireUuid params={['sessionId']}><MaintenanceDetailEditPage /></RequireUuid></ProtectedRoute>} />
       <Route path="/fuel" element={<ProtectedRoute><FuelPage /></ProtectedRoute>} />
-      <Route path="/maintenance/:sessionId" element={<ProtectedRoute><MaintenanceSessionDetailPage /></ProtectedRoute>} />
+      <Route path="/maintenance/:sessionId" element={<ProtectedRoute><RequireUuid params={['sessionId']}><MaintenanceSessionDetailPage /></RequireUuid></ProtectedRoute>} />
 
       <Route path="/timeline" element={<ProtectedRoute><TimelinePage /></ProtectedRoute>} />
       <Route path="/timeline/new" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
-      <Route path="/timeline/entry/:entryId/edit" element={<ProtectedRoute><TimelineEntryNewPage /></ProtectedRoute>} />
-      <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><EntryDetailPage /></ProtectedRoute>} />
+      <Route path="/timeline/entry/:entryId/edit" element={<ProtectedRoute><RequireUuid params={['entryId']}><TimelineEntryNewPage /></RequireUuid></ProtectedRoute>} />
+      <Route path="/timeline/entry/:entryId" element={<ProtectedRoute><RequireUuid params={['entryId']}><EntryDetailPage /></RequireUuid></ProtectedRoute>} />
 
       <Route path="/featured" element={<ProtectedRoute><FeaturedPage /></ProtectedRoute>} />
 
@@ -446,7 +467,7 @@ export default function App() {
           the `admin` user_flag server-side regardless (ADR-023). */}
       <Route path="/admin/reports" element={<ProtectedRoute><AdminOnly><AdminReportsPage /></AdminOnly></ProtectedRoute>} />
       <Route path="/admin/suspended" element={<ProtectedRoute><AdminOnly><AdminSuspendedPage /></AdminOnly></ProtectedRoute>} />
-      <Route path="/admin/review/:carId" element={<ProtectedRoute><AdminOnly><AdminReviewPage /></AdminOnly></ProtectedRoute>} />
+      <Route path="/admin/review/:carId" element={<ProtectedRoute><AdminOnly><RequireUuid params={['carId']}><AdminReviewPage /></RequireUuid></AdminOnly></ProtectedRoute>} />
       <Route path="/admin/store-shots" element={<ProtectedRoute><AdminOnly><AdminStoreShotsPage /></AdminOnly></ProtectedRoute>} />
 
       {/* Non-authenticated public routes — Part 13 */}
@@ -455,11 +476,11 @@ export default function App() {
       <Route path="/builds/:username/garage" element={<PublicGaragePage />} />
       <Route path="/builds/:username/timeline" element={<PublicTimelinePage />} />
       <Route path="/builds/:username/buildsheet" element={<PublicBuildSheetPage />} />
-      <Route path="/builds/:username/mods/:modId" element={<PublicModDetailPage />} />
-      <Route path="/builds/:username/mods/:modId/diy" element={<PublicDiyPage />} />
-      <Route path="/builds/:username/timeline/entry/:entryId" element={<PublicEntryDetailPage />} />
+      <Route path="/builds/:username/mods/:modId" element={<RequireUuid params={['modId']}><PublicModDetailPage /></RequireUuid>} />
+      <Route path="/builds/:username/mods/:modId/diy" element={<RequireUuid params={['modId']}><PublicDiyPage /></RequireUuid>} />
+      <Route path="/builds/:username/timeline/entry/:entryId" element={<RequireUuid params={['entryId']}><PublicEntryDetailPage /></RequireUuid>} />
       <Route path="/builds/:username/featured" element={<PublicFeaturedPage />} />
-      <Route path="/builds/:username/sold/:ghostId" element={<PublicSoldCarPage />} />
+      <Route path="/builds/:username/sold/:ghostId" element={<RequireUuid params={['ghostId']}><PublicSoldCarPage /></RequireUuid>} />
 
       {/* Stable permalink for PRINTED QR codes (trading cards). Keyed on the
           car's immutable UUID rather than the owner's editable handle, then

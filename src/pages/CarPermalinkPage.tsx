@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { isUuid } from '../lib/uuid'
 import {
   GRADIENT_APP_BG, COLOR_ACCENT, FONT_UI, FONT_TITLE,
   SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL, RADIUS_BUTTON,
@@ -27,7 +28,11 @@ const MUTED = 'rgba(240,228,200,0.5)'
 // Validated before the query, not after. `.eq()` on a uuid column with a
 // non-uuid string is a Postgres 22P02 error, which would surface as "something
 // went wrong" when the truth is simply that the address is malformed.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+//
+// This page keeps its own handling rather than using the <RequireUuid> route
+// guard the other id routes take: a garbled id here came off a PRINTED card,
+// so "Not public." with a way onward to Discover is a kinder and more accurate
+// answer than a bare 404.
 
 export default function CarPermalinkPage() {
   const { carId } = useParams()
@@ -38,7 +43,7 @@ export default function CarPermalinkPage() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      if (!carId || !UUID_RE.test(carId)) { setState('missing'); return }
+      if (!isUuid(carId)) { setState('missing'); return }
 
       const { data, error } = await supabase
         .from('public_car_profiles')

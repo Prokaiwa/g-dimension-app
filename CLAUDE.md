@@ -114,6 +114,8 @@ These are enforced decisions. Do not deviate without explicit instruction.
 
 **Tap targets:** 44×44px minimum
 
+**Route params that are ids must be UUID-guarded (ADR-038).** React Router v6 cannot constrain a path segment, so `/maintenance/:sessionId` is a catch-all for ONE segment: `/maintenance/detailing` matches it, and the literal word reaches a `.eq()` on a uuid column, which is a Postgres `22P02` → PostgREST 400, not an empty result. Because the route *did* match, `path="*"` never runs and the designed `NotFoundPage` is never reached. Every id route is therefore wrapped in `<RequireUuid params={[...]}>` (defined in `App.tsx` beside `ProtectedRoute`), **nested inside `ProtectedRoute`/`AdminOnly`** so auth and admin still resolve first. `:username` is a handle, not an id, and is never listed. The pattern itself lives only in `src/lib/uuid.ts` (`isUuid`), enforced by `npm run constitution`. `/c/:carId` deliberately keeps its own handling — a garbled id there came off a printed card, so "Not public." with a way onward beats a bare 404.
+
 **Safe-area insets (ADR-036) — every top header carries the notch inset:**
 - Headers use the **pair** `height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP` from `src/tokens`. Both are required: `box-sizing: border-box` is global, so padding alone steals from the header's own content box and height alone grows the bar without moving anything inside it.
 - Anything positioned **below** a header (`top:`, or a `calc(100dvh - …)`) uses `HEADER_HEIGHT_SAFE` too, or it overlaps by exactly the inset on a device.
