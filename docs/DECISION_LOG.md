@@ -1459,7 +1459,7 @@ spellings the app uses. `viewport-fit=cover` **stays**.
 sets `viewport-fit=cover`, which means the WKWebView fills the physical screen
 and CSS `y=0` is the top of the display. iOS then paints the status bar over
 whatever is there. Of 46 header bars, exactly one padded for the inset. A probe
-across 20 routes (`test-results/safearea.mjs`) found content inside the
+across 20 routes (`scripts/safe-area-check.mjs`) found content inside the
 status-bar band on **all 20**, a tap target on **18**, and on **17 the back
 chevron was 100% covered** — the entire 44x44 target under the notch. Since the
 design has no tab bars and the `‹` chevron is the only way back, the native app
@@ -1521,7 +1521,7 @@ On-device confirmation is still owed before submission, but it is now a
 confirmation rather than a discovery.
 
 Source: `src/index.css`, `src/tokens/index.ts`, 46 header sites, 7 offset sites,
-`test-results/safearea.mjs`.
+`scripts/safe-area-check.mjs`.
 
 ---
 
@@ -1639,7 +1639,7 @@ the same `isUuid` helper, just not the same response.
 single-source is enforced by `scripts/constitution.mjs`; the wrapping is not,
 and cannot easily be — a route that forgets it degrades to the old behaviour
 rather than breaking, which is the right failure direction but is silent.
-`test-results/uuid-routes.mjs` checks all 18 both ways (junk → 404 with zero
+`scripts/uuid-routes-check.mjs` checks all 18 both ways (junk → 404 with zero
 requests; well-formed → passes through to the page), because a guard that
 rejects everything is the easy mistake here.
 

@@ -18,7 +18,7 @@
    The indirection is deliberate and load-bearing: env() cannot be overridden,
    a custom property can. It resolves to 0 in every browser this project can
    drive, which is exactly how the notch bug went unnoticed for 845 commits --
-   so test-results/safearea.mjs forces --safe-top to a real device value and
+   so scripts/safe-area-check.mjs forces --safe-top to a real device value and
    asserts nothing interactive is left in the band. Never go back to inlining
    env() in a component; it takes the guarantee away. */
 :root {

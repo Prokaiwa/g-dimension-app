@@ -12,6 +12,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --noEmit",
     "constitution": "node scripts/constitution.mjs",
+    "check:safe-area": "GD_FORCE_INSET=1 node scripts/safe-area-check.mjs",
+    "check:uuid-routes": "node scripts/uuid-routes-check.mjs",
     "verify": "npm run lint && npm run typecheck && npm run constitution && npm run test",
     "verify:full": "npm run verify && npm run build",
     "preview": "vite preview"
