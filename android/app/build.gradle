@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// Release signing. The key itself and its passwords live in
+// android/keystore.properties, which is GITIGNORED — see keystore.properties.example
+// for the shape and README-SIGNING.md for how to generate the key.
+//
+// The hasSigning guard is load-bearing: without it, a fresh clone or a CI runner
+// with no keystore fails at CONFIGURATION time, so even `./gradlew tasks` and every
+// debug build break for anyone who does not hold the key. With it, only release
+// signing is missing, which is the only thing that actually needs the key.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasSigning = keystorePropertiesFile.exists()
+if (hasSigning) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "app.gdimension.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +31,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasSigning) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -99,3 +99,10 @@ app/src/main/assets/public
 app/src/main/assets/capacitor.config.json
 app/src/main/assets/capacitor.plugins.json
 app/src/main/res/xml/config.xml
+
+# Release signing — NEVER commit these.
+# The upload key and its passwords stay on the machine that builds releases.
+# See README-SIGNING.md; keystore.properties.example shows the expected shape.
+keystore.properties
+*.jks
+*.keystore
