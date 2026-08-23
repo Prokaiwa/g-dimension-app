@@ -1645,3 +1645,73 @@ rejects everything is the easy mistake here.
 
 Source: `src/lib/uuid.ts`, `src/lib/uuid.test.ts`, `RequireUuid` in
 `src/App.tsx`, `src/pages/CarPermalinkPage.tsx`.
+
+---
+
+## ADR-039 — A scanned QR code is an arrival, and the app says so out loud (2026-08-23)
+
+**Decision:** `/c/:carId` records that this tab began at a printed QR code
+(sessionStorage, `gdim_qr_scan`). The public Garage reads that flag to halo the
+**Choose** button and caption what it does; the public map welcomes a
+first-time anonymous visitor once per profile (localStorage,
+`gdim_pub_welcomed`) and carries a quiet "Start your own" chip opposite the
+compass while signed out. All of it lives in `src/lib/visitorIntro.ts`; nothing
+else touches either key.
+
+**Context:** trading cards for the LS430 are in people's hands. Watching a real
+scan, the failure is not technical: `/c/:carId` resolves correctly and lands the
+visitor on the car carousel, which is the right place, and then the visit ends.
+They see a car and two icons. Nothing on that screen suggests a build sits
+behind it, and "Choose" is a word written for the owner, where it means "make
+this my active car". To a stranger holding a card it means nothing at all.
+
+**Rationale:**
+
+- **The carousel stays the landing.** The car is what they scanned for, and
+  swapping the destination to the map would trade the payoff shot for an
+  explanation. The fix is a door, not a different room.
+- **The flag is set by `/c/:carId` and nowhere else.** That route is only ever
+  reached by scanning, so it is the one place that can claim a scan with
+  certainty. Deriving it downstream from a referrer or a query param would let
+  a shared link forge it.
+- **Session scoped for the arrival, device scoped for the welcome.** They
+  answer different questions. "This tab began at a QR code" must not still be
+  true tomorrow; "this device has met @user's map" must survive the tab, or a
+  second scan of the same card re-explains itself.
+- **Welcomed per username, not once globally.** Being shown around one
+  builder's garage tells a visitor nothing about the next one.
+- **Anonymous only.** A signed-in visitor knows what a build map is. Explaining
+  it to them, and pitching them an account they already have, is an ad.
+- **The chip is a ghost, and it lives inside the map world.** This page is
+  someone's build, not a funnel: a solid amber CTA over it would be an ad on
+  their wall. It sits inside `worldRef` so it leans with the gyro like the
+  compass and the destination nodes, rather than reading as browser chrome
+  dropped on top. The amber breathe runs on a 9s cycle and is amber for about
+  one of those seconds, which is a thing you notice on a second pass rather
+  than something that pulses at you.
+- **The halo needed a caption.** A pulsing icon with no words is decoration.
+  The one line under it ("Tap **Choose** to explore @user's build") is the part
+  that actually answers "what do I do next", and it is the reason the glow
+  works at all.
+
+**Rejected — renaming "Choose" for visitors.** It is the honest fix to the
+wrong word, and it is still on the table, but it changes an established label
+for every public visitor including signed-in ones browsing normally, and the
+caption solves the comprehension problem without touching the shared control.
+Worth revisiting if the caption is not enough.
+
+**Rejected — pinning the chip to the stage instead of the world.** It would sit
+perfectly still, and that stillness is exactly what would make it read as an
+overlay bolted onto someone else's page.
+
+**Consequence:** the welcome is one-shot per device per profile and there is no
+UI to replay it, which makes it awkward to demo. Clearing
+`localStorage.gdim_pub_welcomed` is the way back. The glow depends on
+sessionStorage surviving the `/c/:carId` → `/builds/…/garage` hop, which it
+does because that redirect is client-side; a future change that made it a
+server redirect through a fresh document would keep the flag (same origin) but
+is worth remembering.
+
+Source: `src/lib/visitorIntro.ts`, `src/lib/visitorIntro.test.ts`,
+`src/pages/CarPermalinkPage.tsx`, `src/pages/PublicGaragePage.tsx`,
+`src/pages/PublicProfilePage.tsx`.

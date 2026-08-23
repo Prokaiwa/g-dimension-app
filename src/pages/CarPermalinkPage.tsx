@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { isUuid } from '../lib/uuid'
+import { markScanArrival } from '../lib/visitorIntro'
 import {
   GRADIENT_APP_BG, COLOR_ACCENT, FONT_UI, FONT_TITLE,
   SPACE_SM, SPACE_MD, SPACE_LG, SPACE_XL, RADIUS_BUTTON,
@@ -58,6 +59,12 @@ export default function CarPermalinkPage() {
       if (error) { setState('error'); return }
       if (!data?.username) { setState('missing'); return }
 
+      // This route is only ever reached by scanning a printed QR code, so it
+      // is the one place that can say so with certainty. The flag it leaves is
+      // what makes the garage point onward to the map, and the map introduce
+      // itself. Set here rather than sniffed downstream from a referrer or a
+      // query param, either of which a shared link could forge.
+      markScanArrival(data.id)
       setTarget(`/builds/${encodeURIComponent(data.username)}/garage?car=${data.id}`)
     })()
     return () => { cancelled = true }

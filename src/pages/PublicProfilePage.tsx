@@ -29,6 +29,7 @@ import {
   getFollowCounts, isFollowing, followUser, unfollowUser,
   setPendingFollow, formatCount, type FollowCounts,
 } from '../lib/follows'
+import { shouldWelcome, markWelcomed, clearScanArrival } from '../lib/visitorIntro'
 import { codeForCountry, flagEmoji } from '../lib/countries'
 import {
   ICON_HOME, ICON_TUNING, ICON_TIMELINE, ICON_FEATURED,
@@ -36,7 +37,7 @@ import {
 import {
   COLOR_BRAND,
   COLOR_ACCENT,
-  FONT_UI, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_MD,
+  FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_MD,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   COLOR_HEADER_BLACK,
@@ -46,6 +47,13 @@ import {
   FOCAL_UNDERLINE_H,
   GRADIENT_HEADER_SHADOW,
   EASING_SETTLE,
+  COLOR_CAVITY_BG,
+  COLOR_TEXT_PRIMARY,
+  COLOR_TEXT_SECONDARY,
+  COLOR_ACCENT_TEXT,
+  RADIUS_BUTTON,
+  SPACE_SM,
+  SPACE_LG,
 } from '../tokens'
 
 const _now        = new Date()
@@ -291,6 +299,12 @@ export default function PublicProfilePage() {
   const [tune, setTune] = useState<TuneState | null>(null)
   const [tuneCollapsed, setTuneCollapsed] = useState(false)
   const [introPhase, setIntroPhase] = useState<'in' | 'fade' | 'out'>('in')
+  // First-time welcome. Decided once, when the map is ready and we know whether
+  // the visitor is signed in, then latched: shouldWelcome() flips to false the
+  // moment we mark it, and re-reading it during render would tear the bubble
+  // down mid-animation.
+  const [welcome, setWelcome] = useState(false)
+  const welcomeDecided = useRef(false)
   const introRef = useRef({ minReady: false, dataReady: false, exited: false })
   const [exiting, setExiting] = useState(false)
 
@@ -704,6 +718,29 @@ export default function PublicProfilePage() {
     else navigate('/')
   }
 
+  // ── First-time welcome ──
+  // Held until the intro is fully out, so the bubble lands on a map that has
+  // finished drawing itself rather than fighting the road animation for
+  // attention. `isAnon` is already settled by the time state flips to 'ready'
+  // (the session check runs before the profile query in the fetch effect), so
+  // no separate "auth resolved" signal is needed.
+  //
+  // Anonymous only. A signed-in visitor knows what a build map is, and an
+  // explanation of it plus a pitch to sign up would read as an ad.
+  useEffect(() => {
+    if (welcomeDecided.current) return
+    if (state !== 'ready' || introPhase !== 'out') return
+    welcomeDecided.current = true
+    if (!isAnon) return
+    if (!shouldWelcome(username)) return
+    markWelcomed(username)
+    // The scan flag has done its job by the time someone is standing on the
+    // map; spending it here keeps the garage halo from pulsing at them again
+    // if they navigate back to the carousel.
+    clearScanArrival()
+    setWelcome(true)
+  }, [state, introPhase, isAnon, username])
+
   // ── Intro timing ──
   // tryExitIntro is a plain function (reads from ref, no stale-closure risk).
   // Both triggers call it; the exited flag ensures a single fire.
@@ -817,6 +854,25 @@ export default function PublicProfilePage() {
         @keyframes pubGlintC { 0%,91%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
         @keyframes pubGlintD { 0%,93%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
         @keyframes pubGlintE { 0%,94%{transform:translateX(-160%) skewX(-18deg)} 100%{transform:translateX(400%) skewX(-18deg)} }
+        /* Start-your-own chip. Ink and surface are the MAP's, not the app's:
+           this page is a light cool-grey world, so the chip is a pale card with
+           dark ink, the way the road labels and the compass are. */
+        .pub-join {
+          background: rgba(238,240,244,0.78);
+          border: 1px solid rgba(30,40,55,0.16);
+          color: rgba(30,40,55,0.82);
+          backdrop-filter: blur(6px);
+          box-shadow: 0 2px 8px rgba(30,40,55,0.10);
+          animation: pubJoinBreathe 9s ease-in-out 3.2s infinite;
+        }
+        /* Nine seconds, amber for about one of them. Long enough that it never
+           reads as a pulsing ad, present enough that a second glance catches it. */
+        @keyframes pubJoinBreathe {
+          0%, 82%, 100% { border-color: rgba(30,40,55,0.16); box-shadow: 0 2px 8px rgba(30,40,55,0.10); }
+          91%           { border-color: rgba(200,102,26,0.72); box-shadow: 0 2px 14px rgba(200,102,26,0.34); }
+        }
+        @keyframes pubWelcomeIn { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:none} }
+        @keyframes pubScrimIn { from{opacity:0} to{opacity:1} }
         @media (prefers-reduced-motion: reduce){ .pub-amb{animation:none !important} }
       `}</style>
 
@@ -916,6 +972,76 @@ export default function PublicProfilePage() {
           }}>{DAY_LABEL}</div>
         </div>
       </div>
+
+      {/* ── First-time welcome ── Mounted HERE, as a sibling of the page shell
+           and well outside `worldRef`, for the reason in CLAUDE.md: the world
+           carries a live transform, and a position:fixed child of it anchors to
+           that box rather than the viewport. The driver card above is fixed for
+           the same reason and sits in the same place. ── */}
+      {welcome && (
+        <>
+          <div onClick={() => setWelcome(false)} style={{
+            position: 'fixed', inset: 0, zIndex: 60,
+            background: 'rgba(6,8,12,0.5)', backdropFilter: 'blur(2px)',
+            animation: 'pubScrimIn 220ms ease both',
+          }} />
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 61, pointerEvents: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: SPACE_MD,
+          }}>
+            <div style={{
+              pointerEvents: 'auto', width: '100%', maxWidth: 330,
+              background: COLOR_CAVITY_BG, border: '1px solid rgba(245,240,228,0.1)',
+              boxShadow: '0 18px 48px rgba(0,0,0,0.55)',
+              padding: `${SPACE_LG}px ${SPACE_MD}px ${SPACE_MD}px`,
+              animation: `pubWelcomeIn 300ms ${EASING_SETTLE} both`,
+            }}>
+              {/* Same voice as the walkthrough's own opening beat: Cormorant for
+                  the welcome, Hanken for the instruction underneath. */}
+              <p style={{
+                fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 500, fontSize: 21,
+                lineHeight: 1.3, color: COLOR_TEXT_PRIMARY, margin: 0,
+              }}>
+                Welcome to @{username}&rsquo;s garage.
+              </p>
+              <p style={{
+                fontFamily: FONT_UI, fontWeight: 400, fontSize: 13.5, lineHeight: 1.65,
+                color: COLOR_TEXT_SECONDARY, margin: `${SPACE_SM}px 0 0`,
+              }}>
+                This map is the whole build. Follow the roads to the{' '}
+                <span style={{ color: COLOR_ACCENT, fontWeight: 700 }}>Build Sheet</span> for every
+                mod, or the <span style={{ color: COLOR_ACCENT, fontWeight: 700 }}>Timeline</span> for
+                the story so far. Tap anything you like.
+              </p>
+
+              <div style={{ display: 'flex', gap: SPACE_SM, marginTop: SPACE_LG }}>
+                <button
+                  onClick={() => setWelcome(false)}
+                  style={{
+                    flex: 1, minHeight: 44, borderRadius: RADIUS_BUTTON,
+                    background: COLOR_ACCENT, border: 'none', cursor: 'pointer',
+                    color: COLOR_ACCENT_TEXT, fontFamily: FONT_UI, fontWeight: 800,
+                    fontSize: 11.5, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>
+                  Look around
+                </button>
+                <button
+                  onClick={() => { setWelcome(false); navigate('/signup?ref=welcome') }}
+                  style={{
+                    flex: 1, minHeight: 44, borderRadius: RADIUS_BUTTON,
+                    background: 'none', border: `1px solid rgba(245,240,228,0.22)`, cursor: 'pointer',
+                    color: 'rgba(245,240,228,0.75)', fontFamily: FONT_UI, fontWeight: 700,
+                    fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>
+                  Start yours
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Driver card — the builder's identity, dropped down from the header
            chip. Light surface matching the visitor re-skin; game-flavored
@@ -1184,6 +1310,49 @@ export default function PublicProfilePage() {
               </g>
             )}
           </svg>
+
+          {/* Start-your-own — top-LEFT, mirroring the compass across the map.
+              Deliberately inside `worldRef` rather than pinned to the stage: the
+              world tilts a few degrees with the gyro, and a CTA that stayed
+              stock-still while the compass beside it leaned would read as
+              browser chrome dropped on top of someone's build. In here it is
+              part of the map, like the destination nodes.
+
+              Anonymous visitors only. A ghost chip, not a filled button: this
+              page belongs to the builder, and a solid amber CTA over their work
+              would be an ad on their wall. The amber breathe is slow (9s, and a
+              long way from its own peak most of that time) so it catches the eye
+              on a second pass without ever pulsing at anyone. */}
+          {isAnon && (
+            <Link
+              to="/signup?ref=public_map"
+              draggable={false}
+              onDragStart={(e: ReactDragEvent) => e.preventDefault()}
+              style={{
+                // 44px tall and transparent, with the visible chip drawn by the
+                // inner span. The chip reads at 30px, which is the right weight
+                // for a corner of someone else's map, but a 30px tap target is
+                // below the floor, so the hit area is padded out around it.
+                // Centred on y=35 to match the compass across the map.
+                position: 'absolute', top: 13, left: 14, zIndex: 6, height: 44,
+                display: 'inline-flex', alignItems: 'center',
+                textDecoration: 'none', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span className="pub-amb pub-join" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 30, padding: '0 12px', borderRadius: RADIUS_BUTTON,
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                letterSpacing: '0.04em', whiteSpace: 'nowrap',
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: COLOR_ACCENT, flexShrink: 0,
+                }} />
+                Start your own
+              </span>
+            </Link>
+          )}
 
           {/* Compass — top-right, leans with gyro/mouse like the Home screen */}
           <div ref={compassRef} style={{

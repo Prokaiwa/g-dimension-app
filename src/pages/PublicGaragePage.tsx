@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { getPublicSoldCars, soldCarName, type PublicSoldCar } from '../lib/carTransfers'
 import { asMileageUnit, milesToUnit } from '../lib/mileage'
 import { preloadImagesOnIdle } from '../lib/preloadImages'
+import { isScanArrival, clearScanArrival } from '../lib/visitorIntro'
 import { useReportLongPress, NO_CALLOUT, type PressHandlers } from '../hooks/useReportLongPress'
 import ArrivalFade from '../components/ArrivalFade'
 import GarageStageBackdrop from '../components/GarageStageBackdrop'
@@ -165,6 +166,10 @@ export default function PublicGaragePage() {
   const [showHints, setShowHints]     = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [pressedAction, setPressedAction] = useState<string | null>(null)
+  // Arrived by scanning a printed QR code and hasn't been shown the way in yet.
+  // Read once into state rather than called during render: the flag is cleared
+  // on tap, and a render-time read would make the halo vanish mid-transition.
+  const [scanned, setScanned] = useState(() => isScanArrival())
   const [sheetDragY, setSheetDragY]   = useState(0)
   const [sheetDragging, setSheetDragging] = useState(false)
   const sheetRef        = useRef<HTMLDivElement>(null)
@@ -303,6 +308,8 @@ export default function PublicGaragePage() {
         @keyframes hintPulse { 0%,100%{opacity:0} 30%,70%{opacity:0.6} }
         @keyframes sheetSkeleton { 0%,100%{opacity:0.5} 50%{opacity:1} }
         @keyframes showroomSweep { 0%,88%{transform:translateX(-160%) skewX(-14deg)} 100%{transform:translateX(420%) skewX(-14deg)} }
+        @keyframes scanHalo { 0%,100%{transform:scale(0.82);opacity:0.18} 50%{transform:scale(1.06);opacity:0.5} }
+        @keyframes scanHint { 0%{opacity:0;transform:translateY(4px)} 100%{opacity:1;transform:none} }
         @media (prefers-reduced-motion: reduce){ .gdim-ambient{animation:none !important} }
         .hide-scrollbar{scrollbar-width:none}
         .hide-scrollbar::-webkit-scrollbar{display:none}
@@ -395,7 +402,7 @@ export default function PublicGaragePage() {
                   {/* Actions */}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     {([
-                      { src: iconChoose, label: 'Choose', onPress: () => navigate(`/builds/${username}?car=${cars[activeIdx].id}`) },
+                      { src: iconChoose, label: 'Choose', onPress: () => { clearScanArrival(); setScanned(false); navigate(`/builds/${username}?car=${cars[activeIdx].id}`) } },
                       { src: iconDetails, label: 'Details', onPress: () => { setSheetDragY(0); setSheetDragging(false); setShowDetails(true) } },
                     ] as const).map(({ src, label, onPress }) => (
                       <button key={label} onClick={onPress}
@@ -411,6 +418,19 @@ export default function PublicGaragePage() {
                           transition: pressedAction === label ? 'transform 80ms ease-out' : 'transform 200ms cubic-bezier(0.22,1,0.36,1)',
                         }}>
                         <div style={{ position: 'relative', width: 101, height: 101 }}>
+                          {/* Scan halo — behind the icon, never over it, so the
+                              glyph itself is untouched. Only on Choose, and only
+                              for a QR arrival: a signed-in visitor browsing
+                              builds needs no help finding this. */}
+                          {scanned && label === 'Choose' && (
+                            <div className="gdim-ambient" aria-hidden style={{
+                              position: 'absolute', top: 6, left: 6, width: 89, height: 89,
+                              borderRadius: '50%', pointerEvents: 'none',
+                              background: `radial-gradient(circle, ${COLOR_ACCENT} 0%, rgba(200,102,26,0.35) 45%, transparent 70%)`,
+                              filter: 'blur(6px)',
+                              animation: 'scanHalo 2.6s ease-in-out infinite',
+                            }} />
+                          )}
                           <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: CAST_SHADOW_TRANSFORM, background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
                           <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain', pointerEvents: 'none' }} />
                         </div>
@@ -418,6 +438,25 @@ export default function PublicGaragePage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* The glow says "here"; this says what happens. A stranger
+                      holding a printed card has no idea that "Choose" means
+                      "open this build", and a pulsing icon with no caption is
+                      just decoration. Shown only on a QR arrival, and it takes
+                      no vertical space otherwise. */}
+                  {scanned && (
+                    <div style={{
+                      padding: `0 ${SPACE_MD}px ${SPACE_SM}px`, textAlign: 'center',
+                      animation: `scanHint 500ms ${EASING_SETTLE} 700ms both`,
+                    }}>
+                      <span style={{
+                        fontFamily: FONT_UI, fontWeight: 600, fontSize: 12,
+                        color: 'rgba(245,240,228,0.55)', letterSpacing: '0.02em',
+                      }}>
+                        Tap <span style={{ color: COLOR_ACCENT, fontWeight: 800 }}>Choose</span> to explore @{username}&rsquo;s build
+                      </span>
+                    </div>
+                  )}
                 </div>
 
               </div>
