@@ -1715,3 +1715,36 @@ is worth remembering.
 Source: `src/lib/visitorIntro.ts`, `src/lib/visitorIntro.test.ts`,
 `src/pages/CarPermalinkPage.tsx`, `src/pages/PublicGaragePage.tsx`,
 `src/pages/PublicProfilePage.tsx`.
+
+### ADR-039 amendment — "Choose" became "Enter Build" on the public carousel (2026-08-25)
+
+ADR-039 rejected renaming the action and leaned on the caption instead. That
+was wrong, and one round of real testing showed it: the owner scanned a card
+and reported seeing nothing happen. Two of the three causes were about
+visibility rules working as designed (the welcome and the chip are anonymous
+only, and the halo needs the `/c/:carId` route), but the third was real. The
+halo was an 89px disc sitting *behind* a 101px glyph, so its brightest point
+was hidden under the densest part of the artwork.
+
+Rebuilt as a ring: transparent centre, amber band, pushed out past the icon
+bounds, peaking at 0.52 rather than 0.5 of a much weaker gradient. Checked
+against a rendered screenshot at 360px and 390px rather than reasoned about,
+which is what should have happened the first time. A first attempt at the
+larger halo filled the circle instead of ringing it and buried the keys in
+orange; that is why the gradient now has an explicitly transparent core.
+
+And the label changed. The original rejection reasoned that renaming touched a
+control shared with signed-in visitors browsing normally, which is true and
+still costs nothing: **on the public carousel the action navigates to the map**,
+so "Enter Build" is simply what it does, for every visitor, signed in or not.
+"Choose" only ever meant something on the owner's own carousel, where it still
+lives unchanged. The caption stopped repeating the button and now spends its
+words on the reason to tap ("Tap to see the mods, timeline and story"), which
+fits one line down to a 360px screen.
+
+**Worth remembering for the next "I tested it and nothing happened":**
+`index.html` is precached by the service worker with `registerType: 'autoUpdate'`,
+so the first load after a deploy commonly serves the previous build and the new
+one lands on the load after that.
+
+Source: `src/pages/PublicGaragePage.tsx`.

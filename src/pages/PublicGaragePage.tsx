@@ -308,7 +308,7 @@ export default function PublicGaragePage() {
         @keyframes hintPulse { 0%,100%{opacity:0} 30%,70%{opacity:0.6} }
         @keyframes sheetSkeleton { 0%,100%{opacity:0.5} 50%{opacity:1} }
         @keyframes showroomSweep { 0%,88%{transform:translateX(-160%) skewX(-14deg)} 100%{transform:translateX(420%) skewX(-14deg)} }
-        @keyframes scanHalo { 0%,100%{transform:scale(0.82);opacity:0.18} 50%{transform:scale(1.06);opacity:0.5} }
+        @keyframes scanHalo { 0%,100%{transform:scale(0.9);opacity:0.2} 50%{transform:scale(1.03);opacity:0.52} }
         @keyframes scanHint { 0%{opacity:0;transform:translateY(4px)} 100%{opacity:1;transform:none} }
         @media (prefers-reduced-motion: reduce){ .gdim-ambient{animation:none !important} }
         .hide-scrollbar{scrollbar-width:none}
@@ -402,7 +402,7 @@ export default function PublicGaragePage() {
                   {/* Actions */}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: SPACE_XL * 2, padding: `${SPACE_XS}px ${SPACE_MD}px ${SPACE_MD}px`, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                     {([
-                      { src: iconChoose, label: 'Choose', onPress: () => { clearScanArrival(); setScanned(false); navigate(`/builds/${username}?car=${cars[activeIdx].id}`) } },
+                      { src: iconChoose, label: 'Enter Build', onPress: () => { clearScanArrival(); setScanned(false); navigate(`/builds/${username}?car=${cars[activeIdx].id}`) } },
                       { src: iconDetails, label: 'Details', onPress: () => { setSheetDragY(0); setSheetDragging(false); setShowDetails(true) } },
                     ] as const).map(({ src, label, onPress }) => (
                       <button key={label} onClick={onPress}
@@ -422,19 +422,24 @@ export default function PublicGaragePage() {
                               glyph itself is untouched. Only on Choose, and only
                               for a QR arrival: a signed-in visitor browsing
                               builds needs no help finding this. */}
-                          {scanned && label === 'Choose' && (
+                          {scanned && label === 'Enter Build' && (
                             <div className="gdim-ambient" aria-hidden style={{
-                              position: 'absolute', top: 6, left: 6, width: 89, height: 89,
+                              position: 'absolute', top: -11, left: -11, width: 123, height: 123,
                               borderRadius: '50%', pointerEvents: 'none',
-                              background: `radial-gradient(circle, ${COLOR_ACCENT} 0%, rgba(200,102,26,0.35) 45%, transparent 70%)`,
-                              filter: 'blur(6px)',
+                              // A RING, not a disc. The first attempt filled the
+                              // circle and buried the glyph in orange, which read
+                              // as a rendering fault rather than a nudge. The
+                              // centre is transparent so the artwork stays the
+                              // brightest thing in the frame.
+                              background: 'radial-gradient(circle, transparent 0%, transparent 36%, rgba(200,102,26,0.9) 52%, transparent 74%)',
+                              filter: 'blur(7px)',
                               animation: 'scanHalo 2.6s ease-in-out infinite',
                             }} />
                           )}
                           <div style={{ position: 'absolute', top: 74, left: 50, width: 57, height: 50, transform: CAST_SHADOW_TRANSFORM, background: 'rgba(0,0,0,1)', opacity: 0.65, filter: 'blur(4px)' }} />
                           <img src={src} alt={label} draggable={false} style={{ position: 'absolute', top: 0, left: 0, width: 101, height: 101, objectFit: 'contain', pointerEvents: 'none' }} />
                         </div>
-                        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1 }}>{label}</span>
+                        <span style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: 'rgba(245,245,245,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: -14, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>{label}</span>
                       </button>
                     ))}
                   </div>
@@ -453,7 +458,7 @@ export default function PublicGaragePage() {
                         fontFamily: FONT_UI, fontWeight: 600, fontSize: 12,
                         color: 'rgba(245,240,228,0.55)', letterSpacing: '0.02em',
                       }}>
-                        Tap <span style={{ color: COLOR_ACCENT, fontWeight: 800 }}>Choose</span> to explore @{username}&rsquo;s build
+                        Tap to see the mods, timeline and story
                       </span>
                     </div>
                   )}
