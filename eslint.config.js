@@ -10,7 +10,9 @@ import tseslint from 'typescript-eslint'
 // casts, leading-underscore throwaways, inline styles), so the noisiest rules are
 // relaxed to warnings/off rather than rewriting working code to satisfy a linter.
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'supabase', 'public'] },
+  // ios/ and android/ hold native projects plus build output and copies of dist/,
+  // none of it authored JS.
+  { ignores: ['dist', 'node_modules', 'supabase', 'public', 'ios', 'android'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
