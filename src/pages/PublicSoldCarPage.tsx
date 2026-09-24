@@ -51,7 +51,7 @@ export default function PublicSoldCarPage() {
 
   async function onShare() {
     if (!ghost) return
-    const url = `${window.location.origin}/builds/${ghost.seller_username ?? username}/sold/${ghost.id}`
+    const url = `https://gdimension.app/builds/${ghost.seller_username ?? username}/sold/${ghost.id}`
     const name = soldCarName(ghost)
     const res = await shareLink({
       url,

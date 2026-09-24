@@ -17,6 +17,8 @@ import { setErrorTrackingUser } from './lib/errorTracking'
 import { initUiSfx } from './lib/uiSfx'
 import { isChunkLoadError, reloadForStaleChunk } from './lib/chunkReload'
 import { isUuid } from './lib/uuid'
+import { listenForNativeAuthRedirect } from './lib/nativeAuth'
+import { reportActionError } from './lib/appError'
 import { Analytics } from '@vercel/analytics/react'
 
 // Eager — the app shell that must always be present (no route chunk of its own).
@@ -279,6 +281,14 @@ export default function App() {
     const handle = takePendingFollow()
     if (handle) navigate(`/builds/${encodeURIComponent(handle)}?follow=1`, { replace: true })
   }, [hasSession, location.pathname, navigate])
+
+  // Native app only: Google sign-in finishes in the system browser sheet and
+  // comes back as an app.gdimension.mobile:// deep link (see lib/nativeAuth.ts).
+  // Once the session is set, /auth/callback routes to /welcome or /home.
+  useEffect(() => listenForNativeAuthRedirect(
+    () => navigate('/auth/callback', { replace: true }),
+    (message) => reportActionError("Couldn't finish signing in", { message }),
+  ), [navigate])
 
   useEffect(() => {
     // Seed localStorage from server on every sign-in and on page load

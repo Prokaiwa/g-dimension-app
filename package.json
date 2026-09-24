@@ -19,8 +19,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.4.1",
     "@capacitor/local-notifications": "^8.2.1",
+    "@capawesome/capacitor-apple-sign-in": "^0.1.4",
     "@huggingface/transformers": "^4.2.0",
     "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "^2.105.1",

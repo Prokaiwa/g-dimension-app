@@ -684,7 +684,7 @@ export default function GarageCarsPage() {
     const seller = pub?.seller_username ?? ''
     const name = soldCarName(ghost)
     await shareLink({
-      url: `${window.location.origin}/builds/${seller}/sold/${ghost.id}`,
+      url: `https://gdimension.app/builds/${seller}/sold/${ghost.id}`,
       title: `${name} — sold on G-Dimension`,
       text: ghost.buyer_username ? `${name} was sold to @${ghost.buyer_username}.` : `${name} was sold.`,
     })

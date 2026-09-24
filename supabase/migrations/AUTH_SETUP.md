@@ -1,8 +1,9 @@
 # G-Dimension — Auth & Transactional Email Setup
 
 **Status: Email/Password + Google OAuth are LIVE in production (confirmed working
-end-to-end 2026-07-01).** Apple OAuth is NOT set up — deferred until an actual
-App Store submission (native app scope only; not needed for the web PWA).
+end-to-end 2026-07-01).** The native app's sign-in differs from the web's:
+see **§5 Native app sign-in** (Google via the system browser, Sign in with Apple
+on iOS; ADR-040).
 
 This file records the **actual configuration**, including the exact gotchas hit
 setting it up, so a future session doesn't have to rediscover them. It replaces
@@ -213,7 +214,7 @@ await supabase.auth.signInWithOAuth({
 | Setting | Value |
 |---|---|
 | Site URL | `https://gdimension.app` |
-| Redirect URLs | `https://gdimension.app/**`, `https://gdimension.app/auth/callback`, `https://www.gdimension.app/**`, `http://localhost:5173/**`, `http://localhost:5173/auth/callback` |
+| Redirect URLs | `https://gdimension.app/**`, `https://gdimension.app/auth/callback`, `https://www.gdimension.app/**`, `http://localhost:5173/**`, `http://localhost:5173/auth/callback`, `app.gdimension.mobile://**` (native app, §5; pending, see checklist) |
 
 **The `www` entry matters — don't remove it.** See the domain-canonicalization
 gotcha below for why both host variants need to be listed even though `www`
@@ -266,21 +267,33 @@ Domains level only.
 
 ---
 
-## 5. Apple OAuth (NOT set up — future, App Store only)
+## 5. Native app sign-in (ADR-040)
 
-Deferred until an actual native app / App Store submission. Apple Sign In is
-mandatory for any iOS app offering third-party social login, but the current
-G-Dimension surface is a web PWA, so this isn't blocking anything today.
-When it's time:
+Code: `src/lib/nativeAuth.ts`, `src/components/SocialSignIn.tsx`.
 
-1. `developer.apple.com` → Certificates, Identifiers & Profiles
-2. Register an App ID with **Sign In with Apple** enabled
-3. Create a **Services ID**, configure it with the primary App ID, the
-   `gdimension.app` domain, and a return URL of
-   `https://uxqoernfrtgclpneirvc.supabase.co/auth/v1/callback`
-4. Create a Sign In with Apple key, download the `.p8` file
-5. Supabase → Authentication → Providers → Apple: Service ID, Team ID, Key ID,
-   and the `.p8` key contents
+**Google.** Google refuses OAuth inside the app's WebView, so on native the
+OAuth URL opens in the system browser sheet and Supabase redirects to
+`app.gdimension.mobile://auth/callback`. The scheme is registered in
+`ios/App/App/Info.plist` (`CFBundleURLTypes`) and
+`android/app/src/main/AndroidManifest.xml`. Needs `app.gdimension.mobile://**`
+in the Redirect URL allowlist (§3); nothing changes in Google Cloud, because
+Google still only ever redirects to Supabase.
+
+**Apple (iOS only).** Required by App Store Guideline 4.8 once Google is
+offered. Native Apple sheet → `signInWithIdToken`, so there is **no Services ID
+and no client-secret JWT** to rotate. Setup, once the Apple Developer account
+is active:
+1. developer.apple.com → Identifiers → `app.gdimension.mobile` → enable
+   **Sign in with Apple**.
+2. Xcode → App target → Signing & Capabilities → **+ Capability → Sign in with
+   Apple** (adds `App.entitlements`).
+3. Supabase → Authentication → Providers → **Apple** → enable, and put
+   `app.gdimension.mobile` in **Client IDs**. Leave the secret key empty: it is
+   only for the web OAuth flow, which this app does not use.
+
+**Email links on native** (confirmation, password reset) point at
+`https://gdimension.app`, because they open in the phone's mail client, where
+`capacitor://localhost` means nothing.
 
 ---
 
@@ -326,6 +339,8 @@ import scripts.
 - [x] Domain canonicalization fixed at the Vercel Domains level
 - [x] `handle_new_user` trigger verified working (real signups create
       `public.users` rows, land on `/welcome`, claim a handle, reach `/home`)
-- [ ] Apple OAuth (deferred — App Store submission only)
+- [x] Native Google sign-in code (system browser + deep link, ADR-040)
+- [ ] `app.gdimension.mobile://**` added to Supabase Redirect URLs
+- [ ] Sign in with Apple: App ID capability, Xcode capability, Supabase Apple provider (§5)
 - [ ] RLS policies re-verified for the auth surface specifically (general RLS
       is covered elsewhere; not re-audited as part of this auth setup pass)

@@ -1748,3 +1748,43 @@ so the first load after a deploy commonly serves the previous build and the new
 one lands on the load after that.
 
 Source: `src/pages/PublicGaragePage.tsx`.
+
+## ADR-040 — In the native app, Google sign-in leaves the WebView, and Apple sign-in joins it (2026-09-24)
+
+**Decision:** On native, Google OAuth opens in the system browser sheet
+(`@capacitor/browser`: SFSafariViewController on iOS, Custom Tabs on Android)
+with `redirectTo: app.gdimension.mobile://auth/callback`; the app's
+`appUrlOpen` listener lifts the session out of that deep link and routes to
+`/auth/callback`. The iOS app also offers **Sign in with Apple**, native sheet
+plus `signInWithIdToken` (`@capawesome/capacitor-apple-sign-in`). Email
+confirmation and password-reset links point at `https://gdimension.app` on
+native. The website's flows are unchanged. All of it lives in
+`src/lib/nativeAuth.ts` and `src/components/SocialSignIn.tsx`.
+
+**Context:** the web flow, dropped into Capacitor unchanged, fails twice.
+Google returns 403 `disallowed_useragent` to OAuth inside an embedded WebView,
+and `window.location.origin` is `capacitor://localhost`, which is neither an
+allowlisted redirect nor a link that means anything in a mail client. Separately,
+App Store Guideline 4.8 requires Sign in with Apple (or an equivalent) in any
+app that offers a third-party login. At the time, 8 of 29 accounts had a Google
+identity and 7 of those had no password, so hiding Google in the app would have
+locked real users out of it.
+
+**Rejected:**
+- *Email-only in the app for v1.* Fastest to ship, but the 7 Google-only users
+  could not sign in, which is a bad first impression for the people most
+  likely to install it.
+- *Native Google SDK* (`@capgo/capacitor-social-login`). Pulls the Facebook and
+  Google iOS SDKs and Alamofire into the build and needs a separate iOS OAuth
+  client. The browser sheet is what Google recommends for this case anyway.
+- *`@capacitor-community/apple-sign-in`.* Its `Package.swift` pins
+  `capacitor-swift-pm` to `from: "7.0.0"`, which SPM reads as `<8.0.0`, so it
+  cannot resolve against Capacitor 8.
+- *Apple via the web OAuth redirect.* Needs a Services ID and a client-secret
+  JWT that expires every six months. The native flow needs neither.
+
+**Consequence:** Supabase's Redirect URL allowlist must include
+`app.gdimension.mobile://**`, and the Apple provider must be enabled with the
+bundle id as an authorized client id (see `supabase/migrations/AUTH_SETUP.md`).
+Apple sign-in is iOS-only; adding it to the website would need the Services ID
+setup rejected above.
