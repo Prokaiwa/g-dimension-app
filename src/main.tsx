@@ -6,6 +6,7 @@ import App from './App'
 import AppErrorBoundary from './components/AppErrorBoundary'
 import { installChunkReloadGuard } from './lib/chunkReload'
 import { installKeyboardScroll } from './lib/keyboardScroll'
+import { installNativeLinks } from './lib/nativeLinks'
 import { initErrorTracking } from './lib/errorTracking'
 import { registerSW } from 'virtual:pwa-register'
 
@@ -16,6 +17,10 @@ installChunkReloadGuard()
 // Keep a focused text field clear of the on-screen keyboard (Android especially;
 // see keyboardScroll.ts). Global listeners, so it covers every form.
 installKeyboardScroll()
+
+// Native app only: website links open in the in-app browser sheet instead of
+// leaving the app (see nativeLinks.ts). A no-op on the web.
+installNativeLinks()
 
 // Register the PWA service worker (config in vite.config.ts). autoUpdate: a new
 // deploy's SW takes over and refreshes the cached shell on next load. Registered

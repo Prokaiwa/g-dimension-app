@@ -3,7 +3,17 @@
   "outputDirectory": "dist",
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "^/yt\\.html$",
+      "headers": {
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; frame-src https://www.youtube.com; base-uri 'none'; form-action 'none'; frame-ancestors 'self' capacitor://localhost https://localhost"
+      },
+      "continue": true
+    },
+    {
+      "src": "/((?!yt\\.html$).*)",
       "headers": {
         "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
         "X-Frame-Options": "DENY",

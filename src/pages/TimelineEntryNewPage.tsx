@@ -232,27 +232,29 @@ export default function TimelineEntryNewPage() {
     <div style={{ minHeight: '100dvh', background: COLOR_TIMELINE_BG, fontFamily: FONT_UI }}>
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPick} style={{ display: 'none' }} />
 
-      {/* Floating amber-gold chevron */}
-      <button
-        onClick={() => navigate(backTo)}
-        aria-label="Back"
-        style={{
-          position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 20,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
-        <span style={{ color: COLOR_TIMELINE_CHEVRON, fontSize: 30, fontWeight: 300, lineHeight: 1 }}>‹</span>
-      </button>
-
-      <div style={{ maxWidth: 390, margin: '0 auto', padding: '60px 20px 120px' }}>
-        <h1 style={{
-          margin: '0 0 4px', fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
-          fontSize: 30, color: COLOR_TIMELINE_TEXT, lineHeight: 1.1,
-        }}>
-          {isEdit ? 'Edit entry' : 'New entry'}
-        </h1>
+      <div style={{ maxWidth: 390, margin: '0 auto', padding: `calc(12px + ${SAFE_TOP}) 20px 120px` }}>
+        {/* Back chevron inline with the title, so the two read as one header
+            rather than a floating button stacked above the heading. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, margin: '0 0 4px -14px' }}>
+          <button
+            onClick={() => navigate(backTo)}
+            aria-label="Back"
+            style={{
+              width: 44, height: 44, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <span style={{ color: COLOR_TIMELINE_CHEVRON, fontSize: 30, fontWeight: 300, lineHeight: 1 }}>‹</span>
+          </button>
+          <h1 style={{
+            margin: 0, fontFamily: FONT_TITLE, fontStyle: 'italic', fontWeight: 600,
+            fontSize: 30, color: COLOR_TIMELINE_TEXT, lineHeight: 1.1,
+          }}>
+            {isEdit ? 'Edit entry' : 'New entry'}
+          </h1>
+        </div>
         <p style={{ margin: '0 0 26px', fontFamily: FONT_UI, fontSize: 12, color: COLOR_TIMELINE_MUTED, lineHeight: 1.5 }}>
           A moment in the story: a track day, a show, a drive worth remembering.
         </p>

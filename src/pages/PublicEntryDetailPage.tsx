@@ -263,11 +263,13 @@ export default function PublicEntryDetailPage() {
       style={{
         position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 30,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(245,242,238,0.6)', backdropFilter: 'blur(4px)', borderRadius: '50%',
+        background: 'none',
         border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent',
       }}
     >
-      <span style={{ color: COLOR_TIMELINE_CHEVRON, fontSize: 30, fontWeight: 300, lineHeight: 1 }}>‹</span>
+      {/* Same bare floating chevron as the Timeline itself. Over a hero photo it
+          gets a soft shadow so it still reads; on parchment it needs none. */}
+      <span style={{ color: COLOR_TIMELINE_CHEVRON, fontSize: 30, fontWeight: 300, lineHeight: 1, textShadow: photos.length > 0 ? '0 1px 3px rgba(0,0,0,0.75), 0 0 12px rgba(0,0,0,0.5)' : 'none' }}>‹</span>
     </button>
   )
 
@@ -339,7 +341,7 @@ export default function PublicEntryDetailPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 390, margin: '0 auto', padding: photos.length > 0 ? '22px 20px 0' : '64px 20px 0' }}>
+      <div style={{ maxWidth: 390, margin: '0 auto', padding: photos.length > 0 ? '22px 20px 0' : `calc(60px + ${SAFE_TOP}) 20px 0` }}>
         {/* Type + date */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <span style={{ width: 18, height: 3, background: meta.color, borderRadius: 2, display: 'inline-block' }} />

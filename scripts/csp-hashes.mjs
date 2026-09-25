@@ -71,7 +71,9 @@ export function computeCspReport() {
   }
 
   const vercel = readFileSync(join(ROOT, 'vercel.json'), 'utf8')
-  const scriptSrc = vercel.match(/script-src ([^;]*)/)?.[1] ?? ''
+  // Every script-src in the file, not just the first: public/yt.html carries its
+  // own policy (ADR-041), and it is listed before the site-wide one.
+  const scriptSrc = [...vercel.matchAll(/script-src ([^;"]*)/g)].map((x) => x[1]).join(' ')
   const cspHashes = [...scriptSrc.matchAll(/'(sha256-[A-Za-z0-9+/=]+)'/g)].map((x) => x[1])
 
   const missing = scripts.filter((s) => !cspHashes.includes(s.hash))

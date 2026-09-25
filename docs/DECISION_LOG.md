@@ -1788,3 +1788,33 @@ locked real users out of it.
 bundle id as an authorized client id (see `supabase/migrations/AUTH_SETUP.md`).
 Apple sign-in is iOS-only; adding it to the website would need the Services ID
 setup rejected above.
+
+## ADR-041 — YouTube plays inline in the native app through a relay page on the site (2026-09-25)
+
+**Decision:** In the native app, `YouTubeEmbed` frames
+`https://gdimension.app/yt.html?v=<id>`, a static page whose script embeds that
+one video. `vercel.json` exempts `/yt.html` from the site-wide headers
+(`X-Frame-Options: DENY`, `frame-ancestors 'none'`) and gives it its own policy:
+`default-src 'none'`, scripts from self only, frames from `www.youtube.com`
+only, and `frame-ancestors 'self' capacitor://localhost https://localhost`. The
+web still embeds YouTube directly.
+
+**Context:** YouTube's embedded player refuses to run without an HTTP Referer
+(its "Video player configuration error"), and the app's pages come from
+`capacitor://localhost`, which sends none. The first fix opened the video in
+the in-app browser sheet, which works but takes the person off the page; the
+owner asked for playback in place with an option to enlarge. A page on the real
+site is the only thing that can hand YouTube a referrer it accepts.
+
+**Rejected:**
+- *Browser sheet only.* Worked, but the video leaves the page it belongs to.
+- *A different app scheme or hostname.* iOS reserves `http`/`https` for
+  WKWebView, so Capacitor cannot serve the app from an origin YouTube accepts.
+- *Loosening framing site-wide.* Only this one file, which renders nothing but
+  a YouTube player and reads nothing but an 11-character id, is framable, and
+  only by the app's own origins.
+
+**Consequence:** the relay only exists once deployed, so a native build
+exercised against an undeployed branch shows a blank box. `scripts/csp-hashes.mjs`
+now reads every `script-src` in `vercel.json`, since the relay's policy is
+listed before the site-wide one.
