@@ -954,13 +954,30 @@ export default function PublicProfilePage() {
                   </span>}
             </button>
           )}
-          <span style={{
-            paddingRight: 10,
-            fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
-            color: 'rgba(196,206,224,0.75)', letterSpacing: '0.04em',
-          }}>
-            Visiting @{username}
-          </span>
+          {/* The handle opens the same driver card as the chip beside it: it is
+              the bigger target, and it is what people reach for. Plain text when
+              there is no card to show. */}
+          {car && (car.display_name || car.avatar_url || car.bio || car.city) ? (
+            <button
+              onClick={() => setCardOpen(o => !o)}
+              style={{
+                height: '100%', padding: '0 10px 0 0', background: 'none', border: 'none',
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+                color: 'rgba(196,206,224,0.75)', letterSpacing: '0.04em',
+              }}
+            >
+              Visiting @{username}
+            </button>
+          ) : (
+            <span style={{
+              paddingRight: 10,
+              fontFamily: FONT_UI, fontWeight: 700, fontSize: 11,
+              color: 'rgba(196,206,224,0.75)', letterSpacing: '0.04em',
+            }}>
+              Visiting @{username}
+            </span>
+          )}
           <div style={{
             background: 'rgba(226,231,240,0.94)', color: '#0d0d0d',
             padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11,
