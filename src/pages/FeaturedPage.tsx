@@ -19,6 +19,7 @@ import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
   SAFE_TOP,
+  SAFE_BOTTOM,
 } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 import { generateFeature } from '../features/featured/engine/generate'
@@ -1588,12 +1589,12 @@ export default function FeaturedPage() {
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
-            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }),
+            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:`calc(16px + ${SAFE_BOTTOM})` } : { right:12, bottom:`calc(16px + ${SAFE_BOTTOM})` }),
               transform:'scale(0.72)', transformOrigin: coverIdx % 2 === 0 ? 'bottom left' : 'bottom right' }}>
               <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={false} />
             </div>
 
-            <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
+            <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:`calc(12px + ${SAFE_BOTTOM})`, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
 
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(120% 60% at 75% 8%, rgba(255,255,255,0.16) 0%, transparent 42%)', mixBlendMode:'screen' }} />
             {/* one-time gloss sweep on cover mount (re-runs per template flip) */}
@@ -2218,7 +2219,7 @@ function Folio({ theme, pageNum, dots, backLabel, nextLabel, onBack, onNext, sho
   const showBack = showNavChips && !!onBack
   const showNext = showNavChips && !!onNext
   return (
-    <div style={{ padding:'0 10px', height:44, display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
+    <div style={{ padding:'0 10px', paddingBottom:SAFE_BOTTOM, height:`calc(44px + ${SAFE_BOTTOM})`, display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
       {showBack
         ? <button onClick={onBack} data-feat-noturn
             style={{ fontFamily:FONT_MASTHEAD, fontStyle:'italic', fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:theme.subInk, background:'none', border:'none', cursor:'pointer', padding:'0 6px', height:44, WebkitTapHighlightColor:'transparent', flexShrink:0 }}>‹ {backLabel ?? 'PREV'}</button>

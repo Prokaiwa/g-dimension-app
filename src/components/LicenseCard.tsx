@@ -435,8 +435,10 @@ export function PermitMini({ grade, driver, handle, location, bio, avatarUrl, fo
   )
 }
 
-/** Ink colors for actions rendered into PermitMini's `footer`, per grade. */
-export function permitInk(grade: Grade | null): { ink: string; dim: string; hair: string; wash: string } {
+/** Ink colors for actions rendered with a permit, per grade. `wash` is a tint
+ *  for use ON the card's material; `surface` is that material itself, for an
+ *  actions panel that sits outside the card and must not show what's behind it. */
+export function permitInk(grade: Grade | null): { ink: string; dim: string; hair: string; wash: string; surface: React.CSSProperties } {
   const m = MATERIALS[(grade ?? GRADES[0]).material]
   const dark = m.grid === '#fff'
   return {
@@ -444,6 +446,7 @@ export function permitInk(grade: Grade | null): { ink: string; dim: string; hair
     dim: m.inkDim,
     hair: dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)',
     wash: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+    surface: m.bg,
   }
 }
 

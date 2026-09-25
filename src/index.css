@@ -26,6 +26,20 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* iOS WebKit gives date/time inputs an intrinsic minimum width and ignores
+   width: 100%, so inside a narrow sheet they poke past the edge and make the
+   whole sheet scroll sideways. Let them shrink like any other input. Scoped to
+   iOS WebKit (the only engine with -webkit-touch-callout) so desktop browsers
+   keep their native date picker styling. */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
+    min-width: 0;
+    max-width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
+
 /* Base app shell — Part 3 */
 html, body, #root {
   height: 100%;

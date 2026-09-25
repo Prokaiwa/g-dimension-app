@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getActiveCarId } from '../lib/activeCar'
 import { getCarPrivate } from '../lib/carPrivate'
+import { shareFileNative } from '../lib/nativeShare'
 import { generateBuildPdf, pdfFilename, type PdfData, type PdfMod, type PdfService } from '../lib/buildPdf'
 import gLogoAsset from '../assets/logo/gdimensionG.webp'
 import {
@@ -145,6 +146,9 @@ export default function GaragePdfPage() {
     try {
       const doc = await generateBuildPdf({ ...pdfData, includePricing })
       const name = pdfFilename(pdfData.car)
+      // Native app: there is no downloads folder, so both buttons open the
+      // share sheet, which previews the PDF and offers Save to Files.
+      if (await shareFileNative(doc.output('blob'), name, `${carTitle} — Build Report`) !== 'unsupported') return
       if (share && canShare) {
         const blob = doc.output('blob')
         const file = new File([blob], name, { type:'application/pdf' })

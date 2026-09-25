@@ -37,7 +37,7 @@ import {
 import {
   COLOR_BRAND,
   COLOR_ACCENT,
-  FONT_UI, FONT_TITLE, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_MD,
+  FONT_UI, FONT_TITLE, HEADER_HEIGHT, HEADER_HEIGHT_SAFE, SAFE_TOP, SPACE_MD,
   HEADER_WEDGE_LEFT,
   HEADER_WEDGE_RIGHT,
   COLOR_HEADER_BLACK,
@@ -880,9 +880,12 @@ export default function PublicProfilePage() {
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0,
         height: HEADER_HEIGHT_SAFE, paddingTop: SAFE_TOP, zIndex: 10, overflow: 'hidden',
+        background: COLOR_HEADER_BLACK,
       }}>
+        {/* Absolute children anchor to the padding box, so each one is placed
+            at top: SAFE_TOP explicitly (ADR-036), exactly like HomePage. */}
         <svg viewBox="0 0 390 44" preserveAspectRatio="none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+          style={{ position: 'absolute', top: SAFE_TOP, left: 0, width: '100%', height: HEADER_HEIGHT }}>
           <defs>
             {/* Left wedge: lighter at the outer edge → darker toward the centre V */}
             <linearGradient id="pubHdrL" x1="0" y1="0" x2="1" y2="0">
@@ -911,7 +914,7 @@ export default function PublicProfilePage() {
 
         {/* Leave — top-left, same position as the back chevron on sub-screens */}
         <div onClick={leave} style={{
-          position: 'absolute', left: 6, top: 0, height: '100%',
+          position: 'absolute', left: 6, top: SAFE_TOP, height: HEADER_HEIGHT,
           display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px',
           cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
         }}>
@@ -927,7 +930,7 @@ export default function PublicProfilePage() {
 
         {/* Right: "Visiting @username" + date chip (mirrors the owner's header) */}
         <div style={{
-          position: 'absolute', right: 0, top: 0, height: '100%',
+          position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT,
           display: 'flex', alignItems: 'center', paddingRight: 14, gap: 0,
         }}>
           {/* Driver-card chip — the builder's identity, one tap away. Only shown
@@ -1108,7 +1111,7 @@ export default function PublicProfilePage() {
                     surface so the permit keeps its shape. */}
                 <div style={{
                   marginTop: 10, overflow: 'hidden',
-                  background: ink.wash, border: `1px solid ${ink.hair}`,
+                  ...ink.surface, border: `1px solid ${ink.hair}`,
                   boxShadow: '0 16px 44px rgba(0,0,0,0.5)',
                 }}>
                       {/* Follower / following counts — public, so anon sees them too. */}

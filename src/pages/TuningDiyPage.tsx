@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
+import YouTubeEmbed from '../components/YouTubeEmbed'
 import { FONT_UI, COLOR_ACCENT, COLOR_HEADER_BLACK, COLOR_HEADER_WARM, COLOR_BURGUNDY_M, HEADER_HEIGHT_SAFE, SAFE_TOP } from '../tokens'
 
 // ── DIY aesthetic ─────────────────────────────────────────────────────────────
@@ -211,15 +212,7 @@ export default function TuningDiyPage() {
         {ytId && (
           <div style={{ padding: '20px 20px 0' }}>
             <p style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: MID, marginBottom: 10 }}>Tutorial Video</p>
-            <div style={{ width: '100%', aspectRatio: '16/9', background: DARK, overflow: 'hidden' }}>
-              <iframe
-                src={`https://www.youtube.com/embed/${ytId}`}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="Tutorial video"
-              />
-            </div>
+            <YouTubeEmbed videoId={ytId} title="Tutorial video" background={DARK} />
           </div>
         )}
 

@@ -21,6 +21,7 @@ import {
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_YEAR,
   COLOR_TIMELINE_MOD, COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_TIMELINE_NOTE,
   RADIUS_TIMELINE_CARD, RADIUS_BUTTON, FONT_UI, FONT_TITLE, COLOR_ACCENT, COLOR_ERROR,
+  SAFE_TOP,
 } from '../tokens'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -260,7 +261,7 @@ export default function EntryDetailPage() {
       onClick={() => navigate('/timeline')}
       aria-label="Back to timeline"
       style={{
-        position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 30,
+        position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 30,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(245,242,238,0.6)', backdropFilter: 'blur(4px)', borderRadius: '50%',
         border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent',
@@ -522,7 +523,7 @@ export default function EntryDetailPage() {
             </div>
           </div>
           <div ref={chromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            <button onClick={closeViewer} style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}>
+            <button onClick={closeViewer} style={{ position: 'absolute', top: `calc(16px + ${SAFE_TOP})`, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}>
               <span style={{ color: COLOR_ACCENT, fontSize: 20, lineHeight: 1 }}>×</span>
             </button>
             <p style={{ position: 'absolute', left: 0, right: 0, bottom: 20, textAlign: 'center', fontFamily: FONT_UI, fontSize: 11, letterSpacing: '0.08em', color: 'rgba(245,240,228,0.45)', margin: 0 }}>

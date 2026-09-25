@@ -16,6 +16,9 @@
 // Google Fonts both send ACAO:*), so no cross-origin pixel ever taints the
 // canvas. Loaded dynamically — nothing on the boot path.
 
+import { Capacitor } from '@capacitor/core'
+import { shareFileNative } from './nativeShare'
+
 const STORY_W = 1080
 const STORY_H = 1920
 
@@ -76,6 +79,11 @@ export function canShareFile(file: File): boolean {
 
 /** Fallback when the native share sheet isn't available: save the image. */
 export function downloadFile(file: File): void {
+  if (Capacitor.isNativePlatform()) {
+    // No downloads folder in the app; the share sheet offers Save Image.
+    void shareFileNative(file, file.name, file.name)
+    return
+  }
   const url = URL.createObjectURL(file)
   const a = document.createElement('a')
   a.href = url

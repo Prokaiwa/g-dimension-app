@@ -5,8 +5,9 @@ import { supabase } from '../lib/supabase'
 import { getYouTubeId } from '../lib/links'
 import { getDiyAuthorHandle } from '../lib/diyAuthor'
 import ImageLightbox from '../components/ImageLightbox'
+import YouTubeEmbed from '../components/YouTubeEmbed'
 import { useReportLongPress, NO_CALLOUT } from '../hooks/useReportLongPress'
-import { FONT_UI, COLOR_ACCENT, COLOR_BRAND } from '../tokens'
+import { FONT_UI, COLOR_ACCENT, COLOR_BRAND, SAFE_TOP } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 
 const BG     = '#f0efec'
@@ -193,7 +194,7 @@ export default function PublicDiyPage() {
     <div style={{ minHeight: '100dvh', background: BG, fontFamily: FONT_UI }}>
 
       {/* ── Masthead header ────────────────────────────────────────────────────── */}
-      <div style={{ background: DARK, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+      <div style={{ background: DARK, padding: '12px 16px', paddingTop: `calc(12px + ${SAFE_TOP})`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
         {/* Smart back button */}
         <button
           onClick={handleBack}
@@ -255,15 +256,7 @@ export default function PublicDiyPage() {
       {/* ── YouTube embed ───────────────────────────────────────────────────────── */}
       {ytId && (
         <div style={{ padding: '20px 20px 0' }}>
-          <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 0, overflow: 'hidden', background: '#000' }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${ytId}`}
-              title="Install guide video"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-            />
-          </div>
+          <YouTubeEmbed videoId={ytId} title="Install guide video" background="#000" />
         </div>
       )}
 

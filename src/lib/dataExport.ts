@@ -11,6 +11,7 @@
 // Photo/file fields are included as stored (public URLs, or private-bucket
 // storage paths for receipts/documents) — the raw reference, not signed links.
 import { supabase } from './supabase'
+import { shareFileNative } from './nativeShare'
 
 type Row = Record<string, unknown>
 
@@ -98,10 +99,13 @@ export async function buildAccountExport(): Promise<Record<string, unknown>> {
 export async function downloadAccountExport(): Promise<void> {
   const data = await buildAccountExport()
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const filename = `gdimension-data-${new Date().toISOString().slice(0, 10)}.json`
+  // Native app: no downloads folder, so hand the file to the share sheet.
+  if (await shareFileNative(blob, filename, 'G-Dimension data export') !== 'unsupported') return
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `gdimension-data-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   a.remove()

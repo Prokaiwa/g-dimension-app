@@ -996,7 +996,7 @@ export default function GarageCarsPage() {
             </div>
           ) : (
             <>
-              <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: showDetails ? 'hidden' : 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
+              <div ref={scrollRef} onScroll={onCarouselScroll} className="hide-scrollbar" style={{ display: 'flex', overflowX: showDetails || tourStep?.id === 'choose-car' ? 'hidden' : 'auto', scrollSnapType: 'x mandatory', height: '100%' }}>
                 {cars.map((car, i) => {
                   // "Openness" of this card's Details sheet: 1 = fully open (car
                   // lifted/shrunk, chrome hidden), 0 = normal carousel. Tracks the

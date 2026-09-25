@@ -15,6 +15,7 @@ import {
   FONT_UI, EASING_SETTLE,
   FONT_HANDWRITTEN, FONT_STAMP,
   COLOR_CARDBOARD_BG, COLOR_CARDBOARD_INK, COLOR_CARDBOARD_INK2, COLOR_CARDBOARD_STAMP,
+  SAFE_TOP,
 } from '../tokens'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -859,7 +860,7 @@ export default function TuningAddPage() {
       <button
         onClick={handleBack}
         style={{
-          position: 'absolute', top: 0, left: 0, height: 52, padding: '0 20px',
+          position: 'absolute', top: SAFE_TOP, left: 0, height: 52, padding: '0 20px',
           display: 'flex', alignItems: 'center', gap: 6,
           background: 'none', border: 'none', cursor: 'pointer', zIndex: 30,
           WebkitTapHighlightColor: 'transparent',
@@ -883,7 +884,7 @@ export default function TuningAddPage() {
 
       {/* ── Sliding strip: 3 steps side by side, strip is 300vw wide ── */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, bottom: 0,
+        position: 'absolute', top: SAFE_TOP, left: 0, bottom: 0,
         width: '300%', zIndex: 2,
         display: 'flex',
         transform: `translateX(${-(step - 1) * (100 / 3)}%)`,

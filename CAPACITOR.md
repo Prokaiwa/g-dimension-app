@@ -122,12 +122,13 @@ miles**. Marking a recurring reminder complete spawns the next occurrence automa
 Nothing here changes web behaviour: the PWA still shows reminders in-app, it just can't
 fire background notifications.
 
-### 2. In-app YouTube playback — STAGED (not built)
+### 2. In-app YouTube playback — SHIPPED (2026-09-25)
 
-Job/timeline YouTube links currently open the system browser. Native could play them
-in an in-app browser sheet via `@capacitor/browser`. Small, self-contained; deferred
-because it wants device testing to tune the sheet UX. Web keeps the current
-open-in-new-tab behaviour.
+YouTube's embedded player refuses to run without an HTTP Referer, and a page
+served from `capacitor://localhost` sends none, so every embed showed "Video
+player configuration error" in the app. `src/components/YouTubeEmbed.tsx` keeps
+the iframe on the web and, on native, shows the thumbnail with a play button
+that opens the video in the in-app browser sheet (`@capacitor/browser`).
 
 ### 3. Offline photo caching — STAGED (not built)
 

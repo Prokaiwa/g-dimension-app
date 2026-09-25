@@ -9,9 +9,18 @@
 //   'unavailable' — user cancelled the sheet, or nothing worked (caller shows no
 //                   feedback for a cancel — dismissing the sheet is not a failure)
 
+import { shareLinkNative } from './nativeShare'
+
 export type ShareOutcome = 'shared' | 'copied' | 'unavailable'
 
 export async function shareLink(opts: { url: string; title?: string; text?: string }): Promise<ShareOutcome> {
+  // Native app: the system share sheet via the Share plugin, since WebKit's
+  // navigator.share is not reliably exposed inside an app's WebView.
+  try {
+    const native = await shareLinkNative(opts)
+    if (native === 'shared') return 'shared'
+    if (native === 'cancelled') return 'unavailable'
+  } catch { /* fall through to the web paths */ }
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
       await navigator.share({ url: opts.url, title: opts.title, text: opts.text })

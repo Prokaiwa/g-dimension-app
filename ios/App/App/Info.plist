@@ -43,6 +43,12 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>G-Dimension uses the camera to photograph your car, parts, receipts and documents.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>G-Dimension uses your photo library to add photos of your car, parts, receipts and documents.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>G-Dimension saves images you export, like your build sheet, to your photo library.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

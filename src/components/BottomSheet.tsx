@@ -123,7 +123,7 @@ export default function BottomSheet({
         </div>
 
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: `0 ${SPACE_MD}px calc(${SPACE_MD}px + env(safe-area-inset-bottom))` }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', touchAction: 'pan-y', overscrollBehavior: 'contain', padding: `0 ${SPACE_MD}px calc(${SPACE_MD}px + env(safe-area-inset-bottom))` }}>
           {children}
         </div>
       </div>

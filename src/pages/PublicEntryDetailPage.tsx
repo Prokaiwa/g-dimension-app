@@ -21,6 +21,7 @@ import {
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_YEAR,
   COLOR_TIMELINE_MOD, COLOR_TIMELINE_SERVICE, COLOR_TIMELINE_DETAIL, COLOR_TIMELINE_NOTE,
   RADIUS_TIMELINE_CARD, FONT_UI, FONT_TITLE, COLOR_ACCENT,
+  SAFE_TOP,
 } from '../tokens'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -260,7 +261,7 @@ export default function PublicEntryDetailPage() {
       onClick={() => navigate(backHref)}
       aria-label="Back to timeline"
       style={{
-        position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 30,
+        position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 30,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(245,242,238,0.6)', backdropFilter: 'blur(4px)', borderRadius: '50%',
         border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent',
@@ -487,7 +488,7 @@ export default function PublicEntryDetailPage() {
           <div ref={chromeRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
             <button
               onClick={closeViewer}
-              style={{ position: 'absolute', top: 16, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}
+              style={{ position: 'absolute', top: `calc(16px + ${SAFE_TOP})`, right: 16, width: 36, height: 36, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitTapHighlightColor: 'transparent', pointerEvents: 'auto' }}
             >
               <span style={{ color: COLOR_ACCENT, fontSize: 20, lineHeight: 1 }}>×</span>
             </button>

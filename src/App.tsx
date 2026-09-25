@@ -223,11 +223,17 @@ function WelcomeRoute({ children }: { children: React.ReactNode }) {
 // reload this same index.html and hit RootRedirect again, looping forever
 // instead of reaching the marketing page. There's also no reason to show a
 // waitlist/marketing page inside an app someone already installed — send them
-// to /login instead, same as dev.
+// to /login instead, same as dev. "/" is also where the native app starts every
+// cold launch, so a saved session goes straight to /home; sending it to /login
+// looked exactly like being signed out every time the app was reopened.
 function RootRedirect() {
   const skipMarketing = import.meta.env.DEV || Capacitor.isNativePlatform()
-  useEffect(() => { if (!skipMarketing) window.location.replace('/') }, [skipMarketing])
-  if (skipMarketing) return <Navigate to="/login" replace />
+  const [dest, setDest] = useState<'/home' | '/login' | null>(null)
+  useEffect(() => {
+    if (!skipMarketing) { window.location.replace('/'); return }
+    supabase.auth.getSession().then(({ data }) => setDest(data.session ? '/home' : '/login'))
+  }, [skipMarketing])
+  if (dest) return <Navigate to={dest} replace />
   return <RouteFallback />
 }
 
@@ -406,7 +412,9 @@ export default function App() {
       <TourOverlay />
       {/* Vercel Web Analytics — tracks SPA route changes too, so the dashboard
           shows per-page detail (the raw <script> only logged the entry URL). */}
-      <Analytics />
+      {/* Web only: the script is served by Vercel, which the native app has
+          no connection to, so in the app it can only fail to load. */}
+      {!Capacitor.isNativePlatform() && <Analytics />}
       <Suspense fallback={<RouteFallback />}>
       <Routes>
       {/* Part 10 — Full Route Map */}

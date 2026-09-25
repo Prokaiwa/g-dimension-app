@@ -10,6 +10,8 @@ import ArrivalFade from '../components/ArrivalFade'
 import {
   FONT_MASTHEAD, FONT_DECK, FONT_TITLE,
   COLOR_BRAND, COLOR_ACCENT, EASING_SETTLE,
+  SAFE_TOP,
+  SAFE_BOTTOM,
 } from '../tokens'
 import gLogo from '../assets/logo/gdimensionG.webp'
 import { generateFeature } from '../features/featured/engine/generate'
@@ -783,11 +785,11 @@ export default function PublicFeaturedPage() {
               {powerLine && <div style={{ fontFamily:FONT_DECK, fontWeight:600, color:t.accent, fontSize:12, letterSpacing:'0.06em', textTransform:'uppercase', marginTop:6 }}>{powerLine}</div>}
             </div>
 
-            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:16 } : { right:12, bottom:16 }),
+            <div style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { left:12, bottom:`calc(16px + ${SAFE_BOTTOM})` } : { right:12, bottom:`calc(16px + ${SAFE_BOTTOM})` }),
               transform:'scale(0.72)', transformOrigin: coverIdx % 2 === 0 ? 'bottom left' : 'bottom right' }}>
               <Barcode seed={seed} price={`$${4 + (coverIdx % 3)}.99 US · $${6 + (coverIdx % 3)}.99 CAN`} dark={false} />
             </div>
-            <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:12, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
+            <span style={{ position:'absolute', ...(coverIdx % 2 === 0 ? { right:12 } : { left:12 }), bottom:`calc(12px + ${SAFE_BOTTOM})`, fontFamily:FONT_DECK, fontWeight:600, fontSize:9, letterSpacing:'0.3em', color:bottomColor, opacity:0.8 }}>GDIMENSION.APP</span>
 
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', background:'radial-gradient(120% 60% at 75% 8%, rgba(255,255,255,0.16) 0%, transparent 42%)', mixBlendMode:'screen' }} />
             <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden' }}>
@@ -854,7 +856,7 @@ export default function PublicFeaturedPage() {
     >
       <ArrivalFade />
 
-      <div style={{ position:'absolute', inset:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
+      <div style={{ position:'absolute', top:SAFE_TOP, left:0, right:0, bottom:0, perspective:'700px', perspectiveOrigin:'50% 50%' }}>
         {pages.map((pg, i) => (
           <div key={i}
             ref={el => { pageEls.current[i] = el }}
@@ -907,7 +909,7 @@ export default function PublicFeaturedPage() {
 
       {/* Back chevron */}
       <div data-sfx="back" onClick={backToProfile}
-        style={{ position:'absolute', top:14, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
+        style={{ position:'absolute', top:`calc(14px + ${SAFE_TOP})`, left:12, zIndex:30, fontFamily:FONT_DECK, fontSize:30, lineHeight:1, color:COLOR_ACCENT, cursor:'pointer', textShadow:'0 1px 6px rgba(0,0,0,0.6)', pointerEvents:isTurning?'none':'auto' }}>
         ‹
       </div>
 
@@ -997,7 +999,7 @@ function Folio({ theme, backLabel, nextLabel, pageNum, onBack, onNext, dots }:
   { theme: InteriorTheme; backLabel: string; nextLabel?: string; pageNum: number; onBack?: () => void; onNext?: () => void; dots?: { count: number; active: number } }) {
   void backLabel; void nextLabel; void onBack; void onNext
   return (
-    <div style={{ padding:'8px 14px 8px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
+    <div style={{ padding:'8px 14px 8px 28px', paddingBottom:`calc(8px + ${SAFE_BOTTOM})`, display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:`1px solid ${theme.rule}`, flexShrink:0, background:theme.pageBg }}>
       <div style={{ width:24 }} />
       {dots && dots.count > 1
         ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>

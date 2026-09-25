@@ -20,6 +20,7 @@ import {
   COLOR_TIMELINE_RULE, COLOR_TIMELINE_CHEVRON, COLOR_TIMELINE_NOTE,
   RADIUS_TIMELINE_CARD, RADIUS_BUTTON, FONT_UI, FONT_TITLE,
   COLOR_ACCENT, COLOR_ACCENT_TEXT, COLOR_ERROR,
+  SAFE_TOP,
 } from '../tokens'
 
 const COMPRESSION_OPTIONS = {
@@ -236,7 +237,7 @@ export default function TimelineEntryNewPage() {
         onClick={() => navigate(backTo)}
         aria-label="Back"
         style={{
-          position: 'fixed', top: 8, left: 8, width: 44, height: 44, zIndex: 20,
+          position: 'fixed', top: `calc(8px + ${SAFE_TOP})`, left: 8, width: 44, height: 44, zIndex: 20,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'none', border: 'none', cursor: 'pointer', padding: 0,
           WebkitTapHighlightColor: 'transparent',
