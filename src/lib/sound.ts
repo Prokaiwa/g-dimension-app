@@ -199,12 +199,20 @@ async function loadSample(url: string): Promise<AudioBuffer | null> {
   if (!c) return null
   try {
     const res = await fetch(url)
-    if (!res.ok) throw new Error(String(res.status))
+    // The native app serves bundled files through Capacitor's scheme handler,
+    // which answers media files with status 0 and the full body. Judge those
+    // by the bytes, not the status, or every sample falls back to the synth.
+    if (!res.ok && res.status !== 0) throw new Error(String(res.status))
     const arr = await res.arrayBuffer()
+    if (arr.byteLength === 0) throw new Error(`empty response (status ${res.status})`)
     const decoded = await c.decodeAudioData(arr)
+    console.info(`[sound] loaded ${url}: ${arr.byteLength} bytes, ${decoded.duration.toFixed(2)}s, ctx ${c.state}`)
     sampleCache.set(url, decoded)
     return decoded
-  } catch {
+  } catch (e) {
+    // Visible in the device console; otherwise a missing or undecodable file
+    // is indistinguishable from the synth fallback it silently switches to.
+    console.warn(`[sound] could not load ${url}:`, e instanceof Error ? e.message : String(e))
     sampleCache.set(url, null) // remember the failure → permanent synth fallback
     return null
   }

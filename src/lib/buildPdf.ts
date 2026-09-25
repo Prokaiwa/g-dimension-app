@@ -105,8 +105,11 @@ function fmtDate(d: string | null | undefined): string {
 async function imgToDataUrl(url: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
     const res = await fetch(url, { mode: 'cors' })
-    if (!res.ok) return null
+    // Status 0 with a body is how the native app's scheme handler can answer a
+    // bundled asset (the G badge); only a real HTTP error or no bytes is a miss.
+    if (!res.ok && res.status !== 0) return null
     const blob = await res.blob()
+    if (blob.size === 0) return null
     const rawUrl = await new Promise<string>((resolve, reject) => {
       const r = new FileReader(); r.onload = () => resolve(r.result as string); r.onerror = reject; r.readAsDataURL(blob)
     })
