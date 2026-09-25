@@ -18,6 +18,7 @@ import iconBuildPdf  from '../assets/icons/garage/buildpdf.webp'
 import iconDocs      from '../assets/icons/garage/docs.webp'
 import iconContacts  from '../assets/icons/garage/contacts.webp'
 import iconReminders from '../assets/icons/garage/reminders.webp'
+import MarqueeText from '../components/MarqueeText'
 import {
   COLOR_HEADER_BLACK,
   COLOR_HEADER_WARM,
@@ -162,21 +163,27 @@ export default function GaragePage() {
           {/* The car info to the right is absolutely positioned, so this title
               is not in the same flow and nothing stops a long handle running
               underneath it. "fancyleprechaun7's Garage" collided with the car
-              name at iPhone width. Cap it and ellipsize instead. */}
-          <span style={{
-            color: COLOR_HEADER_TITLE, fontFamily: FONT_UI,
-            fontWeight: 800, fontSize: 13, letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            maxWidth: '46vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {displayName ? `${displayName}'s Garage` : 'Garage'}
-          </span>
+              name at iPhone width. Cap it, and pan a title that doesn't fit so
+              the whole name can still be read. */}
+          <MarqueeText
+            text={displayName ? `${displayName}'s Garage` : 'Garage'}
+            maxWidth="46vw"
+            style={{
+              color: COLOR_HEADER_TITLE, fontFamily: FONT_UI,
+              fontWeight: 800, fontSize: 13, letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          />
         </button>
 
         <div style={{ position: 'absolute', right: 0, top: SAFE_TOP, height: HEADER_HEIGHT, display: 'flex', alignItems: 'center', gap: 0, paddingRight: 14 }}>
           {carInfo && (
-            <span style={{ paddingRight: 10, fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75, maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {carInfo}
+            <span style={{ paddingRight: 10, display: 'flex' }}>
+              <MarqueeText
+                text={carInfo}
+                maxWidth={84}
+                style={{ fontFamily: FONT_UI, fontWeight: 700, fontSize: 11, color: COLOR_HEADER_WARM, letterSpacing: '0.04em', opacity: 0.75 }}
+              />
             </span>
           )}
           <div style={{ background: 'rgba(242,238,228,0.94)', color: '#0d0d0d', padding: '4px 7px', fontFamily: FONT_UI, fontWeight: 800, fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center' }}>{MONTH_LABEL}</div>
